@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "observer"
+version = "0.1.0"
+description = "A privacy-focused AI assistant that observes and helps locally"
+authors = ["Roy Medina"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+mss = "^10.0.0"
+pytesseract = "^0.3.13"
+pyyaml = "^6.0.2"
+ollama = "^0.4.7"
+pyqt6 = "^6.8.0"
+loguru = "^0.7.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+black = "^25.1.0"
+ruff = "^0.9.4"
+pre-commit = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
