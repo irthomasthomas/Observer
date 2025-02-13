@@ -1,0 +1,803 @@
+[15:48:51] PROMPT:
+[15:48:51] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+from agents.timestamp_agent.agent import TimestampAgent
+
+def main():
+print("1. Creating agent instance...")
+try:
+agent = TimestampAgent ()
+print("2. Agent instance created successfully")
+except Exception as e:
+print(f"Error creating agent: {str(e)}")
+print(f"Error type: {type(e)}")
+return
+
+print("3. Starting agent...")
+
+try:
+agent.start()
+
+except Keyboardinterrupt:
+print("\nStopping agent (Ctrl+C pressed)")
+agent.stop()
+
+except Exception as e:
+print(f"Error running agent: {str(e)}")
+print(f"Error type: {type(e)}")
+
+if _name__ == "__main__
+
+main()
+
+25
+
+TERMINAL Aer4i0)
+
+jay@Qunix Observer % python3 run.py
+1. Creating agent instance...
+Initialized model: deepseek-r1:8b
+2. Agent instance created successfu
+3. Starting agent...
+
+lly
+
+Gil Observer G2 x
+i
+
+[15:49:10] PROMPT:
+[15:49:10] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+R® Roy's Notion v G
+
+Q. Search
+FY Notion Al
+G) Home
+® Inbox
+
+Private
+
+Task List
+
+Ideas
+
+TODO
+
+Study Abroad
+
+CV
+
+Email para los panas
+physv-at-nus.edu.sg or c...
+Tarea Tonta
+
+Personal
+
+DAawWowouwvuvods
+
+Rancho
+
+* More
+
+Calendar
+Settings
+Templates
+
+Trash
+
+Cee 2 &
+
+Help
+
+00
+
+Make a Notion profile pic!
+
+Personalize your workspace
+for the new year.
+
+Create your portrait >
+
+<
+
++ BB ideas
+
+ideas
+
+// apply to 3b1b voice over
+(5) Topology video
+
+Pipeline
+M trtegracien Enter
+(5 Integracion Euler
+[] OTP Xor
+(5 Otp
+L] Metafora Cuantica
+_] Squeezed states
+|
+(5) Squeezed states
+(5 Tunneling
+L] Econofisica Paretto
+(5) Econophysics Script
+L] Polarizacion, Bases Stokes
+(5) Polarizacion, Bases Stokes
+[V] laterferomrettes
+(5 Interferometro
+_] Lente es una transformada de fourier
+L] Que es una funcion Hash
+
+[_] TOTP video simio firma digital
+
+Share
+
+[15:50:23] PROMPT:
+[15:50:23] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+26
+
+# run.py
+from agents.timestamp_agent.agent import TimestampAgent
+import sys
+
+def main():
+print("Starting Timestamp Agent...")
+print("Press Ctrl+C to stop")
+print("-" x* 50)
+
+try:
+agent = TimestampAgent ()
+agent.start()
+except Keyboardinterrupt:
+print("\nStopping agent gracefully...")
+try:
+agent.stop()
+print("Agent stopped successfully")
+except Exception as e:
+print(f"Error while stopping: {e}")
+except Exception as e:
+print(f"Error: {e}")
+
+sys.exit(1)
+if _name__ == "__main__":
+main()
+
+TERMINAL Aer4i0)
+
+"run,
+
+py" 26L, 612B written
+
+jay@Qunix Observer % python3 run.py
+
+1. Creating agent instance...
+
+Initialized model: deepseek-r1:8b
+
+2. Agent instance created successfully
+
+3. Starting agent...
+
+Ace
+
+jay@Qunix Observer % python3 run.py
+
+1. Creating agent instance...
+
+Initialized model: deepseek-r1:8b
+
+2. Agent instance created successfully
+
+3. Starting agent...
+
+<think>
+
+Okay, so I need to figure out what the user is doing bas
+ed on the current screen content. Let me start by lookin
+g at all the elements provided.
+
+First, the title of the window says "Roy's Notion v G".
+That probably means they're using a version of Notion*Cg
+jay@Qunix Observer % python3 run.py
+
+Starting Timestamp Agent...
+
+Press Ctrl+C to stop
+
+Initialized model: deepseek-r1:8b
+
+Gil Observer Gi 38 «
+i
+
+[15:50:44] RESPONSE:
+[15:50:44] 
+
+The user is running a Python script called `run.py`. This script initializes an agent with the model "deepseek-r1:8b" and starts it. The terminal output shows the creation of the agent instance, its initialization, and the start of the agent process.
+
+**New Activity:** Running Python script to initialize and start Timestamp Agent with model deepseek-r1:8b.
+[15:50:48] PROMPT:
+[15:50:48] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+26
+
+# run.py
+from agents.timestamp_agent.agent import TimestampAgent
+import sys
+
+def main():
+print("Starting Timestamp Agent...")
+print("Press Ctrl+C to stop")
+print("-" x* 50)
+
+try:
+agent = TimestampAgent ()
+agent.start()
+except Keyboardinterrupt:
+print("\nStopping agent gracefully...")
+try:
+agent.stop()
+print("Agent stopped successfully")
+except Exception as e:
+print(f"Error while stopping: {e}")
+except Exception as e:
+print(f"Error: {e}")
+sys.exit(1)
+
+if _name__ == "__main__
+
+main()
+
+TERMINAL Aer4i0)
+
+"run.
+
+py" 26L, 612B written
+
+jay@Qunix Observer % python3 run.py
+
+1. Creating agent instance...
+
+Initialized model: deepseek-r1:8b
+
+2. Agent instance created successfully
+
+3. Starting agent...
+
+“Cg
+
+jay@Qunix Observer % python3 run.py
+
+1. Creating agent instance...
+
+Initialized model: deepseek-r1:8b
+
+2. Agent instance created successfully
+
+3. Starting agent...
+
+<think>
+
+Okay, so I need to figure out what the user is doing bas
+ed on the current screen content. Let me start by lookin
+g at all the elements provided.
+
+First, the title of the window says "Roy's Notion v G".
+That probably means they're using a version of Notion*Cg
+jay@Qunix Observer % python3 run.py
+
+Starting Timestamp Agent...
+
+Press Ctrl+C to stop
+
+Initialized model: deepseek-r1:8b
+
+The user is running a Python script called ‘run.py>. Thi
+S script initializes an agent with the model "deepseek-r
+1:8b" and starts it. The terminal output shows the creat
+ion of the agent instance, its initialization, and the s
+tart of the agent process.
+
+**kNew Activity:**k Running Python script to initialize an
+d start Timestamp Agent with model deepseek-r1:8b.
+
+Gil Observer Gi 38 «
+i
+
+[15:51:01] RESPONSE:
+[15:51:01] 
+
+**New Activity:**  
+Running Python script to initialize and start Timestamp Agent with model deepseek-r1:8b.
+[15:51:08] PROMPT:
+[15:51:08] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+(ws) Roy3838/Observer *K Modular Marketplace for Cu x @ Ollama ¢t Amazon Web Services Sign-In k Agents | Kaggle ® (1) YouTube
+
+< > Cc Q) %& claude.ai/chat/525f3a7c-50c3-49c7-b695-7d6400936414 aoa o|/8A + OF & & even
+Claude <2 Deepseek R1 app / Modular Marketplace for Custom AI Agents v co roy
+Let's also update the model class to handle streaming output more cleanly: € Improved Runner with Clean Output x
+© @ log_20250206.txt (Open with TextEdit
+
+</> Improved Model with Clean Output [15:48:51] PROMPT:
+. 15:48:51] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Click to open code 125:48:511 You 2 MAY aly) CEH ve 0 " aban 5) Glee
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+nt import TimestampAgent
+The Key changes are:
+
+Available commands:
+
+WRITE_ACTIVITY: activity_description
+
+. wpe . READ_LAST_ACTIVITY: None
+
+1. Simplified run.py with clearer output a a oa
+Guidelines for activity descriptions:
+
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+
+g | - Focus on the main activity visible on screen uy
+2. Removed the streaming output from the 1 = rretiae the application name when relevant gent...")
+- Don't include temporary or quick changes TH
+- Group similar activities together )
+
+3. Added better error handling and graceful
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+
+Now when you mun it: from agents.timestamp_agent.agent import TimestampAgent
+
+def main():
+print("1. Creating agent instance...")
+try:
+bash agent = TimestampAgent () )
+print("2. Agent instance created successfully")
+except Exception as e:
+print(f"Error creating agent: {str(e)}")
+
+python3 run. py print(f"Error type: {type(e)}")
+return
+print("3. Starting agent...") g racefully. oa )
+. try:
+You should see: tye start()
+
+except Keyboardinterrupt:
+print("\nStopping agent (Ctrl+C pressed)")
+
+agent. stop() d successfully")
+except Exception as e: 1,
+print(f"Error running agent: {str(e)}") 5 ia 4h 2 © v Q
+Starting Timestamp Agent... print(fError type: {type(e)}")
+if _name__ == "__main
+a — — _ [15:48:51] PROMPT:
+Press ct rl+C to stop main() [15:48:51] You are an activity
+
+tracking assistant that
+
+The agent will run silently in the background,
+
+25
+TERMINAL Aer4i@)
+jay@Qunix Observer % python3 run.py
+
+1. Creating agent instance...
+Initialized model: deepseek-r1:8b
+
+analyzes screen content to
+understand what the user is
+doing.
+
+Your task is to:
+
+1. Analyze the current screen
+content
+
+2. Determine if the user's
+
+1 2. Agent instance created successfu activity has changed from the
+you can press Ctrl+C to stop it cleanly. oe Sees Test recorded activity
+ly of any new activity
+
+To see what the agent is actually doing, you ci.
+agents/timestamp_agent/data/log_YYYYMMDD.txt and log_20250206.txt
+
+Plain Text Document - 8 KB
+act ivity_log »jJSon. Information
+
+Crastad Tada 16:09
+
+se Reply to Claude... ©
+
+More...
+
+- 46 ©) & Publish
+Oo Claude 3.5Sonnet » & Choose style v
+
+[16:28:03] PROMPT with state:
+[16:28:03] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+jay@Qunix Observer % python3 run.py
+Starting Timestamp Agent...
+Press Ctrl+C to stop
+
+Initialized model: deepseek-r1:8b
+
+[16:29:30] RESPONSE:
+[16:29:30] <think>
+Okay, so I need to figure out how to analyze the given screen content and determine if there's a change in activity from the last recorded one. Let me break this down step by step.
+
+First, looking at the current screen content, it shows a command being executed: "python3 run.py". The output includes information like "Starting Timestamp Agent..." and "Initialized model: deepseek-r1:8b". 
+
+Now, I need to compare this with the last recorded activity. From the user's previous message, the last activity was "Running Python script using VS Code". So, in that case, they were working on a Python script in VS Code.
+
+In the current content, instead of VS Code being mentioned, it's showing a terminal where they're running a Python script directly, possibly in a command line interface or a plain editor. The presence of "python3 run.py" suggests they might be executing this script through the command line rather than within an IDE like VS Code.
+
+The output also mentions "Starting Timestamp Agent..." and details about the model being initialized. This makes me think that the script is doing some form of processing, maybe related to a natural language processing task given the mention of a model.
+
+So, how does this compare to the last activity? Previously, they were coding in VS Code. Now, they're executing a script through a terminal or command line. The key difference here is the environment where the script is being run and possibly the nature of what's being executed, but since it's still Python-based, I need to consider whether this counts as a significant change.
+
+According to the guidelines, I should only record new activities when there's a significant change. Running a Python script through a terminal isn't drastically different from running it in an IDE unless the user is doing so intentionally. However, the fact that they're using a different interface (terminal vs VS Code) might indicate a shift in their workflow.
+
+But wait, the last activity was about writing code, and now it's about executing it. So perhaps the new activity is more about scripting or automation rather than active coding. The mention of the model suggests that this script might be handling some automated processing, which is a different type of activity from just running code.
+
+Therefore, I should note this change in their workflow, moving from coding to scripting and automation via a command line interface. This seems like a significant enough shift to warrant a new activity description.
+</think>
+
+The user's current activity involves executing a Python script through a terminal or command line, likely for scripting or automation purposes, as indicated by the "python3 run.py" command and the model initialization details. This shift from coding in VS Code to running scripts suggests a change in their workflow focus towards automation tasks.
+
+Activity Description: Running Python script for automation via command line interface.
+[16:29:36] PROMPT with state:
+[16:29:36] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+jay@Qunix Observer % python3 run.py
+
+Starting Timestamp Agent...
+
+Press Ctrl+C to stop
+
+Initialized model: deepseek-r1:8b
+
+<think>
+
+Okay, so I need to figure out how to analyze the given screen content and determine if there's a change in activity from the last recorded one. Let me break
+this down step by step.
+
+First, looking at the current screen content, it shows a command being executed: “"python3 run.py". The output includes information like "Starting Timestamp A
+gent..." and "Initialized model: deepseek-r1:8b".
+
+Now, I need to compare this with the last recorded activity. From the user's previous message, the last activity was "Running Python script using VS Code". S
+o, in that case, they were working on a Python script in VS Code.
+
+In the current content, instead of VS Code being mentioned, it's showing a terminal where they're running a Python script directly, possibly in a command Lin
+e interface or a plain editor. The presence of "python3 run.py" suggests they might be executing this script through the command line rather than within an I
+DE like VS Code.
+
+The output also mentions "Starting Timestamp Agent..." and details about the model being initialized. This makes me think that the script is doing some form
+of processing, maybe related to a natural language processing task given the mention of a model.
+
+So, how does this compare to the last activity? Previously, they were coding in VS Code. Now, they're executing a script through a terminal or command line.
+The key difference here is the environment where the script is being run and possibly the nature of what's being executed, but since it's still Python-based,
+I need to consider whether this counts as a significant change.
+
+According to the guidelines, I should only record new activities when there's a significant change. Running a Python script through a terminal isn't drastica
+lly different from running it in an IDE unless the user is doing so intentionally. However, the fact that they're using a different interface (terminal vs VS
+Code) might indicate a shift in their workflow.
+
+But wait, the last activity was about writing code, and now it's about executing it. So perhaps the new activity is more about scripting or automation rather
+than active coding. The mention of the model suggests that this script might be handling some automated processing, which is a different type of activity fr
+om just running code.
+
+Therefore, I should note this change in their workflow, moving from coding to scripting and automation via a command line interface. This seems like a signif
+icant enough shift to warrant a new activity description.
+</think>
+
+The user's current activity involves executing a Python script through a terminal or command line, likely for scripting or automation purposes, as indicated
+by the "python3 run.py" command and the model initialization details. This shift from coding in VS Code to running scripts suggests a change in their workflo
+w focus towards automation tasks.
+
+Activity Description: Running Python script for automation via command line interface.
+
+[16:29:55] RESPONSE:
+[16:29:55] 
+
+Running Python script for automation via command line interface.
+[16:30:01] PROMPT with state:
+[16:30:01] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+(ws) Roy3838/Observer *K Custom Agent to Test Projec x
+
+ %
+
+@ Ollama
+
+Claude <2 Deepseek R1 app / Custom Agent to Test Project Structure v
+
+Key changes:
+
+1. Added state handling in BaseAgent:
+e New get_state_data() method
+
+e State data gets formatted into prom
+
+2. Updated config.yaml to use state:
+e Added {last_app} and {last_title} pla
+
+e Added examples of state-based dec
+
+3. Enhanced TimeTrackingAgent:
+e Implements get_state_data()
+
+e Initializes state with "None" values
+
+¢ Better logging of state changes
+
+Now the agent will:
+
+1. Track its last known state
+
+2. Include that state in each prompt
+
+© AirDrop
+© Recents
+
+4. Applications
+
+—) Desktop
+
+(5) Documents
+
+© Downloads
+
+© iCloud Drive
+
+E® Shared
+
+mac
+
+@ Network
+
+¢t Amazon Web Services Sign-In
+
+claude.ai/chat/a34bb08f-f7cc-4a40-8c41-cb021f6e3dda
+
+k Agents | Kaggle
+
+® (1) YouTube New Tab
+
+AQ o|PA
+
+<€ Updated time_agent/agent.py
+
+from datetime import datetime, timedelta
+
+import json
+
+fram earn haen annan + imnnrt Daenhannt
+< data S=an my 1 O Or Q
+§B __pycache_ B activity_log.json [15:48:51] PROMPT:
+[15:48:51] You are an activity
+B agent.ry (Bilog 20250206 tracking assistant that "):
+) config.yaml analyzes screen content to
+understand what the user is 7 u —
+im data doing. ime_agent", host=host)
+
+vvvyvy
+
+3. Only report changes when the application or title actually changes
+
+A, Maintain accurate timing even across model responses
+
+Would you like me to add any additional state tracking or help you test this
+
+version?
+
+*
+e
+
+0 Claude 3.5 Sonnet ~
+
+Reply to Claude...
+
+&. Choose style v
+
+©] Copy ©) Retry & ®
+
+Claude can make mistakes. Please double-check responses.
+
+Your task is to:
+
+1. Analyze the current screen
+content
+
+2. Determine if the user's
+activity has changed from the
+last recorded activity
+
+3. Write a concise description
+of any new activity
+
+data_path("'sessions. json")
+
+log_20250206.txt
+Plain Text Document - 20 KB
+
+Information
+
+Crastad Tada 16:09
+
+More...
+
+self.current_title = "None"
+self. last_switch_time = datetime.now()
+
+self. Load_session()
+
+def get_state_data(self):
+"""Provide state data for prompt templating"
+return {
+"Last_app": self.current_app,
+"Last_title": self.current_title
+}
+Last edited 5 minutes ago a
+
+().strftime("%Y—am—%sd %H2%dM:%S") ,
+
+v
+
+[ al)
+
+© VPN
+
+bf
+cy
+
+Publish
+
