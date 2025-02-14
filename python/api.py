@@ -1,20 +1,53 @@
-# api.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import threading
 import os
 import importlib.util
 from pathlib import Path
+from datetime import datetime  # Add this import
+
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:1420", "tauri://localhost"],
+    allow_origins=[
+        "http://localhost:1420",
+        "http://127.0.0.1:1420",
+        "http://localhost:1430",
+        "http://127.0.0.1:1430",
+        "tauri://localhost"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
+
+@app.middleware("http")
+async def debug_cors(request, call_next):
+    logger.debug(f"Incoming request from origin: {request.headers.get('origin')}")
+    logger.debug(f"Request headers: {request.headers}")
+    response = await call_next(request)
+    logger.debug(f"Response headers: {response.headers}")
+    return response
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": ["/health", "/agents", "/agents/{agent_id}/start", "/agents/{agent_id}/stop"]
+    }
 
 # Store running agents and threads
 running_agents = {}
@@ -62,10 +95,19 @@ def run_agent(agent_id, agent):
         if agent_id in agent_threads:
             del agent_threads[agent_id]
 
+
 @app.get("/agents")
 async def get_agents():
     """List all available agents and their status"""
-    return discover_agents()
+    logger.debug("Receiving request to /agents endpoint")
+    try:
+        agents = discover_agents()
+        logger.debug(f"Found agents: {agents}")
+        return agents
+    except Exception as e:
+        logger.error(f"Error discovering agents: {e}", exc_info=True)
+        raise
+
 
 @app.post("/agents/{agent_id}/start")
 async def start_agent(agent_id: str):

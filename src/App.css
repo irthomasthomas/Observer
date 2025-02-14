@@ -1,0 +1,85 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+header {
+  margin-bottom: 20px;
+}
+
+h1 {
+  margin: 0;
+  margin-bottom: 10px;
+}
+
+.error {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.agent-card {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 15px;
+  background: white;
+}
+
+.agent-card h3 {
+  margin: 0;
+  margin-bottom: 10px;
+}
+
+.status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+.status.running {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status.stopped {
+  background: #f5f5f5;
+  color: #616161;
+}
+
+.button {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.button.running {
+  background: #ef5350;
+  color: white;
+}
+
+.button.running:hover {
+  background: #e53935;
+}
+
+.button.stopped {
+  background: #66bb6a;
+  color: white;
+}
+
+.button.stopped:hover {
+  background: #4caf50;
+}
