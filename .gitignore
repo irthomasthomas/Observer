@@ -287,3 +287,5 @@ cython_debug/
 .pypirc
 
 
+.DS_Store
+.DS_Store?

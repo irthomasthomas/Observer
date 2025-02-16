@@ -4,7 +4,7 @@ import os
 from core.base_agent import BaseAgent
 
 class TimestampAgent(BaseAgent):
-    def __init__(self, host="10.0.0.72", agent_model = "deepseek-r1:8b"):
+    def __init__(self, host="127.0.0.1", agent_model = "deepseek-r1:7b"):
         super().__init__(agent_name="timestamp_agent", host=host, agent_model = agent_model)
         
         # Initialize activity log file
