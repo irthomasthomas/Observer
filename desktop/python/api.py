@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 import re
 
 
+
 class ServerAddress(BaseModel):
     host: str
     port: str
@@ -29,6 +30,9 @@ class AgentConfig(BaseModel):
     description: str
     model_name: str
     system_prompt: str
+
+class CodeUpdate(BaseModel):
+    code: str
 
 config = GlobalConfig()
 
@@ -336,6 +340,47 @@ async def update_agent_config(agent_id: str, config: AgentConfig):
     except Exception as e:
         logger.error(f"Error updating agent config: {e}")
         return {"error": f"Failed to update agent configuration: {str(e)}"}
+
+
+@app.get("/agents/{agent_id}/code")
+async def get_agent_code(agent_id: str):
+    """Get agent Python code"""
+    try:
+        code_path = Path(__file__).parent / "agents" / agent_id / "agent.py"
+        if not code_path.exists():
+            return {"error": "Agent code not found"}
+            
+        with open(code_path, 'r') as f:
+            code = f.read()
+            
+        return {
+            "code": code
+        }
+    except Exception as e:
+        logger.error(f"Error reading agent code: {e}")
+        return {"error": f"Failed to read agent code: {str(e)}"}
+
+@app.post("/agents/{agent_id}/code")
+async def update_agent_code(agent_id: str, code_update: CodeUpdate):
+    """Update agent Python code"""
+    try:
+        # First check if agent is running
+        if agent_id in running_agents:
+            return {"error": "Cannot update code while agent is running"}
+            
+        code_path = Path(__file__).parent / "agents" / agent_id / "agent.py"
+        if not code_path.exists():
+            return {"error": "Agent code not found"}
+            
+        # Write the new code
+        with open(code_path, 'w') as f:
+            f.write(code_update.code)
+            
+        return {"status": "updated"}
+    except Exception as e:
+        logger.error(f"Error updating agent code: {e}")
+        return {"error": f"Failed to update agent code: {str(e)}"}
+
 
 @app.get("/agents/{agent_id}/logs")
 async def get_agent_logs(agent_id: str, days: int = 1):

@@ -6,6 +6,8 @@ class SimpleActivityAgent(BaseAgent):
         super().__init__(agent_name="simple_activity_agent", host=host, agent_model=agent_model)
         self.activity_file = self.get_data_path("activities.txt")
         self.last_activity = None
+    # Test
+
     
     def process_command(self, line):
         if not line.startswith("ACTIVITY:"):

@@ -567,3 +567,41 @@ h1 {
   text-align: center;
   color: #757575;
 }
+
+/* Tab buttons */
+.tab-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.tab-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.tab-button.active {
+  background: #2196f3;
+  color: white;
+}
+
+/* Make the modal larger for code editing */
+.modal-content {
+  max-width: 800px; /* Increased from 500px */
+  max-height: 90vh;
+  overflow-y: auto;
+}
