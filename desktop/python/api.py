@@ -333,7 +333,7 @@ async def update_agent_config(agent_id: str, config: AgentConfig):
         logger.error(f"Error updating agent config: {e}")
         return {"error": f"Failed to update agent configuration: {str(e)}"}
 
-# Add this new endpoint to api.py
+
 @app.get("/agents/{agent_id}/logs")
 async def get_agent_logs(agent_id: str, days: int = 1):
     """Get agent logs for the specified number of past days"""
@@ -356,21 +356,50 @@ async def get_agent_logs(agent_id: str, days: int = 1):
         
         # Read and parse logs
         logs = []
+        current_cot = []
+        current_timestamp = None
+        recording_cot = False
+        
         for log_file in log_files:
             with open(log_file, 'r') as f:
                 for line in f:
                     # Parse timestamp and message
                     match = re.match(r'\[([\d:]+)\]\s*(.+)', line.strip())
-                    if match:
-                        time, message = match.groups()
+                    if not match:
+                        continue
                         
-                        # Determine log type
-                        log_type = 'cot' if 'PROMPT' in message or 'RESPONSE' in message else 'action'
-                        
+                    time, message = match.groups()
+                    
+                    # Handle CoT blocks
+                    if "=== BEGIN COT BLOCK ===" in message:
+                        recording_cot = True
+                        current_cot = []
+                        current_timestamp = time
+                        continue
+                    elif "=== END COT BLOCK ===" in message:
+                        recording_cot = False
+                        if current_cot:
+                            logs.append({
+                                'timestamp': current_timestamp,
+                                'message': '\n'.join(current_cot),
+                                'type': 'cot'
+                            })
+                        continue
+                    
+                    if recording_cot:
+                        if "=== PROMPT ===" in message:
+                            current_cot.append("PROMPT:")
+                        elif "=== RESPONSE ===" in message:
+                            current_cot.append("\nRESPONSE:")
+                        elif "=== SCREEN CONTENT ===" in message:
+                            current_cot.append("\nSCREEN CONTENT:")
+                        else:
+                            current_cot.append(message)
+                    elif "Executing command:" in message:
                         logs.append({
                             'timestamp': time,
                             'message': message,
-                            'type': log_type
+                            'type': 'action'
                         })
         
         return sorted(logs, key=lambda x: x['timestamp'], reverse=True)
@@ -378,6 +407,7 @@ async def get_agent_logs(agent_id: str, days: int = 1):
     except Exception as e:
         logger.error(f"Error reading agent logs: {e}")
         return {"error": f"Failed to read agent logs: {str(e)}"}
+
 
 
 if __name__ == "__main__":

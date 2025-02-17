@@ -84,6 +84,7 @@ class BaseAgent:
         
         while self.running:
             try:
+                # Take screenshot and get text
                 screen_text = self.capture.get_text(self.capture.take_screenshot())
                 
                 # Get current state data and format prompt
@@ -91,25 +92,53 @@ class BaseAgent:
                 system_prompt = self.config['system_prompt'].format(**state_data)
                 prompt = f"{system_prompt}\nCurrent screen content:\n{screen_text}"
                 
-                self.log("PROMPT with state:")
-                self.log(prompt)
+                # Log the complete prompt with clear markers and content
+                self.log("=== BEGIN COT BLOCK ===")
+                self.log("=== PROMPT ===")
+                self.log(system_prompt)
+                self.log("=== SCREEN CONTENT ===")
+                self.log(screen_text)
                 
+                # Generate response
                 response = self.model.generate(prompt)
-                self.log("RESPONSE:")
+                
+                # Log the response
+                self.log("=== RESPONSE ===")
                 self.log(response)
+                self.log("=== END COT BLOCK ===")
                 
                 # Process commands
                 commands = self.extract_commands(response)
                 for command, params in commands:
-                    self.process_command(f"{command}: {' | '.join(params)}")
+                    command_str = f"{command}: {' | '.join(params)}"
+                    self.log(f"Executing command: {command_str}")
+                    self.process_command(command_str)
                 
                 time.sleep(1)
                 
             except KeyboardInterrupt:
                 self.stop()
             except Exception as e:
-                self.log(f"Error: {e}")
+                self.log(f"Error in observation loop: {str(e)}")
                 time.sleep(1)
+
+    def log(self, message):
+        """Enhanced log method with better formatting"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}"
+        
+        # Write to log file, ensuring each line of multi-line messages is properly timestamped
+        if '\n' in message:
+            # For multi-line messages, add timestamp to each line
+            lines = message.split('\n')
+            for line in lines:
+                if line.strip():  # Only log non-empty lines
+                    self.log_file.write(f"[{timestamp}] {line}\n")
+        else:
+            self.log_file.write(formatted_message + '\n')
+        
+        self.log_file.flush()
+
 
     def stop(self):
         """Stop the agent"""
