@@ -1,5 +1,5 @@
 description: Tracks all activity
-model_name: deepseek-r1:7b
+model_name: deepseek-r1:8b
 name: SimpleActivityAgent
 system_prompt: 'You are a simple activity tracking assistant. Watch the screen and
   describe what the user is doing in a brief phrase.

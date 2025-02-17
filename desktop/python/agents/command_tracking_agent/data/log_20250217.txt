@@ -1365,3 +1365,1614 @@ Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.27s
 Running *‘target/debug/observer’
 
 
+[10:22:31] PROMPT with state:
+[10:22:31] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+ee
+Observer
+localhost:11434
+
+G Active Agents: 0 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+\ Show Logs
+
+Observer
+
+Check Ollama Server Start Ollama Server
+
+CommandTrackingA gent TimestampAgent
+
+stopped stopped
+
+Model: deepseek-r1:8b Model: deepseek-r1:7b
+
+Tracks the CLI commands you use Records all user activity on a file
+
+\V Show Logs Y Show Logs
+
+
+[10:22:31] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x112e8a660>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:22:34] PROMPT with state:
+[10:22:34] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in @
+
+in ~ via
+
+. . AJ rUIN
+[10:00:42] <think>
+[10:00:42] Found command:
+COMMAND with params: ['ssh
+jay@10.0.0.72']
+[10:00:36] PROMPT with state:
+[10:00:36] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+[10:00:34] RESPONSE:
+[10:00:34] Found command:
+COMMAND with params: ['npm
+run tauri dev']
+[10:00:33] PROMPT with state:
+[10:00:33] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+[10:00:26] RESPONSE:
+[10:00:26] <think>
+[10:00:26] Found command:
+COMMAND with params:
+['None']
+[10:00:17] PROMPT with state:
+[10:00:17] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+[10:00:01] PROMPT with state:
+[10:00:01] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+[10:00:01] Error: API error:
+{"error":"model 'deepseek-r1:7b'
+not found"}
+
+Observer
+
+
+[10:22:34] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129902300>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:22:37] PROMPT with state:
+[10:22:37] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in @
+
+in ~ via
+
+Observer
+
+localhost:11434
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+\ Show Logs
+
+Observer
+
+Check Ollama Server
+
+CommandTrackingA gent
+
+running
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+W Hide Logs Gg
+
+[19:59:29] PROMPT with state:
+[19:59:29] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+
+[19:59:19] RESPONSE:
+[19:59:19] <think>
+
+[19:59:19] Found command:
+COMMAND with params: ['npm
+run taur']
+
+[19:59:19] Found command:
+COMMAND with params: ['tsc
+&& vite build']
+
+[19:45:42] PROMPT with state:
+[19:45:42] You are a command
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+Y Show Logs
+
+
+[10:22:37] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129902c00>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:22:40] PROMPT with state:
+[10:22:40] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in @
+
+in ~ via
+
+Observer
+
+localhost:11434
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+\ Show Logs
+
+Observer
+
+Check Ollama Server
+
+CommandTrackingA gent
+
+running
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+W Hide Logs Gg
+
+[19:59:29] PROMPT with state:
+[19:59:29] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+
+[19:59:19] RESPONSE:
+[19:59:19] <think>
+
+[19:59:19] Found command:
+COMMAND with params: ['npm
+run taur']
+
+[19:59:19] Found command:
+COMMAND with params: ['tsc
+&& vite build']
+
+[19:45:42] PROMPT with state:
+[19:45:42] You are a command
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+Y Show Logs
+
+
+[10:22:41] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1290fa600>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:22:44] PROMPT with state:
+[10:22:44] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+Observer
+
+localhost:11434 Check Ollama Server
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgen
+stopped
+
+BS __pycache__ B commands.txt 2025-02-16 19:59:19] npm run
+° e FE J taur
+
+Model: deepseek-r1; B agent.py B log_20250216.txt SEPE-CP-419 IGA doe BS
+Tracks all activit; ig. ; vite build
+
+y B config.yam! B log_20250217.txt ate out 10:00:26] None
+BB data 2025-02-17 10:00: npm run
+tauri dev
+2025-02-17 10:00:42] ssh
+jay@10.0.0.72
+2025-02-17 10:00:48] ssh
+Y Show Logs jay@10.0.0.72 §j
+2025-02-17 10:00:55] ssh
+jay@10.0.0.72
+
+npm run
+
+commands.txt
+Plain Text Document - 622 bytes
+Information
+
+Crastad Vactarda 10:50
+
+iS)
+
+&& vite build’)
+[19:45:42] PROMPT with state:
+[19:45:42] You are a command
+
+
+[10:22:44] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1299031a0>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:22:47] PROMPT with state:
+[10:22:47] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+Observer
+
+localhost:11434 Check Ollama Server
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgen
+
+; eee
+stopped
+
+Favorites BS __pycache_ B commands.txt
+Model: deepseek-r1 Jm@MEQULAETS B agent.py B log_20250216.txt
+Tracks all activity © Recents B config.yaml B log_20250217.txt
+
+A, Applications ee
+
+ws
+
+—) Desktop
+
+Y Show Logs {\ Documents
+
+© Downloads
+
+iCloud
+© iCloud Drive
+
+E9 Shared
+
+Locations
+mac
+
+@ Network
+
+[19:45:42] PROMPT with state:
+[19:45:42] You are a command
+
+
+[10:22:47] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129901fd0>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:22:51] PROMPT with state:
+[10:22:51] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+Observer
+
+localhost:11434 Check Ollama Server
+
+CG Active Agents: [10:00:01] PROMPT with state:
+[10:00:01] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+° ee COMMAND: the command that was executed
+SimpleActivityA ° was exect
+Examples:
+sie COMMAND: git push origin main Q
+Sul COMMAND: npm install react
+COMMAND: python script.py
+Onl ‘t wh d bei ited } Seetes
+; a nly report when you see a new command being executed. -ommand
+Model: deepseek-rl Ignore repeated commands and command output. onitor
+Focus on actual commands, not general terminal text or prompts. fy any
+
+Tracks all activity
+the
+
+Current screen content:
+in ~ via sole
+Observer pa PeS-
+Y Show Logs 10.0.@.72:11434 v Connected -hat was
+G Active Agents: @ / Total: 3
+SimpleActivityAgent yin main
+stopped
+Model: deepseek-r1:7b
+Tracks all activity
+Observer
+CommandTrackingAgent
+stopped
+Model: deepseek-r1:7b
+
+Tracks the CLI commands you use
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+[10:00:01] Error: API error: {"error":"model ‘deepseek-r1:7b' not found"}
+[10:00:17] PROMPT with state:
+
+[10:00:17] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: ait nush oriain main
+
+[10:22:51] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129901220>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:22:57] PROMPT with state:
+[10:22:57] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+Observer
+
+localhost:11434 Check Ollama Server
+
+@ @ log_20250217.txt a Open with TextEdit | with TextEdit
+G Active Agents: ™ - 7 :
+
+Wait, perhaps the "in ~ via" line indicates that the user is in their shell. But without seeing specific commands like
+git push, npm install, etc., there's nothing to report.
+
+I should ignore repeated commands and outputs, focusing only on actual commands entered by the user.
+SimpleActivityA Since no new commands are evident here, I won't report anything. The last response was about the TimestampAgent
+stopping. There are no subsequent commands shown after that point.
+stopped So, in conclusion, based on the provided screen content, there are no new commands being executed to report.
+</think>
+aT | state:
+. coal : ‘ommand
+Model: deepseck-ti [10:02:32] Found command: COMMAND with params: ['git push origin main'] ynitor
+[10:02:32] Found command: COMMAND with params: ['npm install react'] 'y any
+Found command: COMMAND with params: ['python script.py'] the
+PROMPT with state:
+
+Tracks all activity
+
+[10:02:39] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user. sole
+Look for terminal/console windows and command prompts. ‘ompts.
+
+Simply respond with:
+Y Show Logs COMMAND: the command that was executed chat was
+
+Examples
+
+COMMAND: git push origin main
+
+COMMAND: npm install react jin main
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+Model: deepseek-r1:7b
+Records all user activity on a file
+
+Hmm, I need to parse this content carefully. It seems lik
+e it's some system output or logs, possibly from an obser
+ver or monitoring tool.
+Breaking down each Line:
+
+- "in ~ via" might indicate the user is in a terminal win
+dow, perhaps a command prompt.
+
+- "Observer" and other terms suggest that these are agent
+s or tools being displayed.
+
+— There are IP addresses and agent statuses like "Connect
+ed", "Stopped".
+
+- The lines mention models like deepseek-ri:7b and functi
+ons they perform, such as tracking activity.
+
+I'm looking for any CLI commands. So I need to see if the
+re's a command prompt where the user is entering commands
+
+In the given content, after the initial setup info, I don
+"t immediately see any new commands being executed. The a
+gents are either stopped or running without any active te
+rminal input from the user.
+
+[10:22:57] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1299035f0>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:02] PROMPT with state:
+[10:23:02] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+[10:00:42] RESPONSE:
+[10:00:42] <think>
+
+[10:00:42] Found command:
+COMMAND with params: ['ssh
+jay@10.0.0.72']
+
+[10:00:36] PROMPT with state:
+[10:00:36] You are a command
+
+‘ tracking assistant. Monitor the
+© @ tog_20250216.tx a
+
+[19:45:42] PROMPT with state:
+[19:45:42] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples: Y (S) v Q
+COMMAND: git push origin main
+COMMAND: npm install react
+
+Favorites COMMAND: python script.py
+
+| PROMPT with state:
+(©) AirDrop Only report when you see a new command being executed. | You are a command
+Ignore repeated commands and command output. assistant. Monitor
+Focus on actual commands, not general terminal text or prompts. Ameo
+R 1 and identify any
+© Recents ;
+Current screen content: deing run by the
+9g d Traceback (most recent call last):
+4. Applicatior terminal/ l
+vite v6.1.@ File "/Library/Frameworks/Python. framework/Versions/3.12/lib/python3.12/threading. py" ferminal/ consote
+1588 modules transformed. . , Line 1602, in _shutdown id command prompts.
+dist / Observer
+
+—] Desktop
+
+. . spond with:
+(ha) Document dist/assets/index-DLtSA6ED.css the command that was
+dist/assets/index—DcJnMoxv.js Observer
+© Downloads
+tLector
+jay@Qunix Observer % npm run taur;3 localhost:11434 v Connected 4 al a
+reer] jit push origin main
+i E =
+
+© iCloud Driv
+
+> observe r@d 1.0 tauri CG Active Agents: 1 / Total: 3
+> tauri build CTRL+C to quit)
+
+Higin: http://127.0.0.1:1430 0216.txt
+
+Fe
+[% Shared “release profile [or ({'host': 'localhost:8000', cument - 10 KB
+
+application at: /Users/} — a “topped eflate', ‘accept-language':
+Locations
+
+jay@Qunix Observer % npm run taurj Model: deepseek-r1:7b Model: deepseek-r1:7b Model: deepseek-r1:7b , ‘Origin':
+mac ‘http://127.0.0.
+
+Vactarday 10:05
+
+No description available No description available Records all user activity on a file ' user-agent‘: 'MOZill (S)
+Network a/5. 4)
+
+> observer@Q.1.@ tauri Fase | fee fee IHTML, Like Gecko)', ‘referer
+> tauri dev
+
+It: command_tracking_agent
+irs/jay/repos/Observer/python/
+
+SimpleActivityAgent CommandTrackingAgent TimestampAgent
+
+DevCommand (‘cargo ru
+
+Watching /Users/jay/repos
+
+‘dev’ profile [unoptj
+‘target/debug/observ¢ hject'>,)
+etime.date'>, )
+
+(<class 'core.base_agent.Base
+
+[10:23:02] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x12977ce60>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:06] PROMPT with state:
+[10:23:06] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+[10:00:42] RESPONSE:
+[10:00:42] <think>
+
+[10:00:42] Found command:
+COMMAND with params: ['ssh
+jay@10.0.0.72']
+
+[10:00:36] PROMPT with state:
+[10:00:36] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+[10:00:34] RESPONSE:
+[10:00:34] Found command:
+
+eee h Oo er Q
+
+FOTOS B _init_.py fi __pycache_ B commands.txt
+
+© AirDrop § __pycache_ B agent.py -B log_20250216.1
+
+© Recents §& command_tracking_agent B config.yaml B log_20250217t
+BS simple_activity_agent BS data
+
+ents.txt BB timestamp_agent
+
+».py
+
+2. Applications
+
+(=) Desktop
+{S Documents
+
+© Downloads
+
+iCloud
+© iCloud Drive
+
+E9 Shared
+
+Locations
+mac
+
+@ Network
+
+
+[10:23:06] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129903710>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:09] PROMPT with state:
+[10:23:09] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgent CommandTrackingA gent TimestampAgent
+
+stopped running stopped
+
+Model: deepseek-r1:7b Model: deepseek-r1:8b Model: deepseek-
+Tracks all activity :
+eec Hh Oo e- Q
+
+S| Favorites B _init_.py fi __pycache_ B commands.txt
+v show © AirDrop § __pycache_ B agent.py -B log_20250216.1
+© Recents §& command_tracking_agent B config.yaml B log_20250217t
+BS simple_activity_agent BS data
+ents.txt BB timestamp_agent
+».py
+
+2. Applications
+
+(=) Desktop
+{S Documents
+
+© Downloads
+
+iCloud
+© iCloud Drive
+
+E9 Shared
+
+Locations
+mac
+
+@ Network
+
+[10:02:39] PROMPT with state:
+[10:02:39] You are a command
+
+
+[10:23:09] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129902300>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:12] PROMPT with state:
+[10:23:12] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in ~ via
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgent
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+\ Show Logs
+
+Favorites
+© AirDrop
+© Recents
+
+CommandTrackingA gent
+
+running
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+W Hide Logs Gg
+
+[19:59:29] PROMPT with state:
+[19:59:29] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+
+[19:59:19] RESPONSE:
+[19:59:19] <think>
+
+[19:59:19] Found command:
+COMMAND with params: ['npm
+run taur']
+
+[19:59:19] Found command:
+COMMAND with params: ['tsc
+&& vite build']
+
+data
+
+B _init_.py
+BS __pycache__
+
+iS command_tracking_agent B config.yam!
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+Y Show Logs
+
+| - © YO © Q
+
+BS __pycache__ B commands.txt
+
+B log_20250217
+
+A, Applications BS simple_activity_agent BS data
+
+ents.txt
+
+».py
+
+B&B timestamp_agent >
+
+—) Desktop
+
+{5 Documents
+
+© Downloads
+
+© iCloud Drive
+
+E® Shared
+
+& mac
+
+Network
+
+[10:23:12] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129901d60>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:16] PROMPT with state:
+[10:23:16] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in via & v3.13.1
+
+Observer
+
+localhost:11434
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgent
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+\ Show Logs
+
+Favorites
+
+AirDrop
+
+Recents racking_agent
+rity_agent ™ data
+
+Applications
+agent
+Desktop
+
+Documents
+
+Downloads
+
+iCloud Drive
+
+Shared
+
+& mac
+
+Network
+
+Check Ollama Server
+
+CommandTrackingA gent
+
+running
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+W Hide Logs Gg
+
+[19:59:29] PROMPT with state:
+[19:59:29] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+
+19] RESPONSE:
+
+data
+mM __pycache__
+
+B agent.py
+B config.yam!
+
+Start Ollama Server
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+Y Show Logs
+
+| Bo tl O Ov Q
+
+B commands.txt
+BB log_20250216.txt
+B log_20250217.txt
+
+[19:45:42] PROMPT wi
+[19:45:42] You are a
+tracking assistant.
+
+the screen and ident
+commands being run b
+user.
+
+Look for terminal/co|
+windows and command
+
+Simply respond with:
+COMMAND: the command
+executed
+
+Examples:
+CONDE GEE [SEL Oy
+
+log_20250216.txt
+Plain Text Document - 4
+
+Information
+
+Crastad v
+
+More...
+
+[10:23:16] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129903ec0>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:21] PROMPT with state:
+[10:23:21] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+Observer
+
+localhost:11434 Check Ollama Server
+
+© @ log_20250216.txt () Open with TextEdit
+
+OMNIS (19:45:42) PROMPT with state:
+[19:45:42] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+. ee COMMAND: the command that was executed
+SimpleActivityAg
+Examples:
+a d COMMAND: git push origin main
+sayy COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+
+Model: deepseek-r1:7b Ignore repeated commands and command output.
+
+Tracks all activity Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+Traceback (most recent call last):
+
+vite v6.1.@ File "/Library/Frameworks/Python. framework/Versions/3.12/lib/python3.12/threading. py"
+1588 modules transformed. . , Line 1602, in _shutdown
+
+Y Show Logs dist / Observer
+dist/assets/index—DLtSA6ED. css
+
+dist/assets/index—DcJnMoxv.js Observer
+
+tLector
+jay@Qunix Observer % npm run taur;3 Localhost:11434 v Connected
+
+> observe r@d 1.@ tauri CG Active Agents: 1 / Total: 3
+> tauri build CTRL+C to quit)
+
+Higin: http://127.0.0.1:1430
+“release profile [or ({'host': 'localhost:8000',
+application at: /Users/} — a “topped eflate', ‘accept-language':
+
+jay@Qunix Observer % npm run taurj Model: deepseek-r1:7b Model: deepseek-r1:7b Model: deepseek-ri:7b , ‘Origin':
+"http://127.0.0.
+
+No description available No description available Records all user activity on a file ' user-agent': 'MOZill
+a/5. 4)
+> observer@Q.1.@ tauri Fase | fee fee IHTML, Like Gecko)', ‘referer immand
+> tauri dev A
+| with:
+It: command_tracking_agent ‘ommand
+irs/jay/repos/Observer/python/
+SimpleActivityAgent CommandTrackingAgent TimestampAgent Wushhon
+DevCommand (‘cargo ru 5.txt
+Watching /Users/jay/repos J
+‘dev’ profile [unoptj nt -
+‘target/debug/observ¢ hject'>, )
+etime.date'>, )
+(<class ‘core.base_agent.Base v
+S)
+
+More...
+
+[10:23:21] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x12b6408c0>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:25] PROMPT with state:
+[10:23:25] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+
+Observer
+
+localhost:11434 Check Ollama Server
+
+© @ log_20250216.txt () Open with TextEdit
+
+OMNIS (19:45:42) PROMPT with state:
+[19:45:42] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+. ee COMMAND: the command that was executed
+SimpleActivityAg
+Examples:
+a d COMMAND: git push origin main
+sayy COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+
+Model: deepseek-r1:7b Ignore repeated commands and command output.
+
+Tracks all activity Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+Traceback (most recent call last):
+
+vite v6.1.@ File "/Library/Frameworks/Python. framework/Versions/3.12/lib/python3.12/threading. py"
+1588 modules transformed. . , Line 1602, in _shutdown
+
+Y Show Logs dist / Observer
+dist/assets/index—DLtSA6ED. css
+
+dist/assets/index—DcJnMoxv.js Observer
+
+tLector
+jay@Qunix Observer % npm run taur;3 Localhost:11434 v Connected
+
+> observe r@d 1.@ tauri CG Active Agents: 1 / Total: 3
+> tauri build CTRL+C to quit)
+
+Higin: http://127.0.0.1:1430
+“release profile [or ({'host': 'localhost:8000',
+application at: /Users/} — a “topped eflate', ‘accept-language':
+
+jay@Qunix Observer % npm run taurj Model: deepseek-r1:7b Model: deepseek-r1:7b Model: deepseek-ri:7b , ‘Origin':
+"http://127.0.0.
+
+No description available No description available Records all user activity on a file ' user-agent': 'MOZill
+a/5. 4)
+> observer@Q.1.@ tauri Fase | fee fee IHTML, Like Gecko)', ‘referer immand
+> tauri dev A
+| with:
+It: command_tracking_agent ‘ommand
+irs/jay/repos/Observer/python/
+SimpleActivityAgent CommandTrackingAgent TimestampAgent Wushhon
+DevCommand (‘cargo ru 5.txt
+Watching /Users/jay/repos J
+‘dev’ profile [unoptj nt -
+‘target/debug/observ¢ hject'>, )
+etime.date'>, )
+(<class ‘core.base_agent.Base v
+S)
+
+More...
+
+[10:23:25] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129902a80>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:29] PROMPT with state:
+[10:23:29] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in @
+
+in ~ via
+
+Observer
+
+localhost:11434
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+\ Show Logs
+
+Observer
+
+Check Ollama Server
+
+CommandTrackingA gent
+
+running
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+W Hide Logs Gg
+
+[19:59:29] PROMPT with state:
+[19:59:29] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+
+[19:59:19] RESPONSE:
+[19:59:19] <think>
+
+[19:59:19] Found command:
+COMMAND with params: ['npm
+run taur']
+
+[19:59:19] Found command:
+COMMAND with params: ['tsc
+&& vite build']
+
+[19:45:42] PROMPT with state:
+[19:45:42] You are a command
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+Y Show Logs
+
+windows ana command
+
+Simply respond with:
+COMMAND: the command
+executed
+
+Examples:
+CONDE GEE [SHEL Oy
+
+log_20250216.txt
+Plain Text Document - /
+
+Information
+
+Crastad v
+
+More...
+
+[10:23:29] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129902690>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:23:32] PROMPT with state:
+[10:23:32] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in @
+
+G Active Agents: 1 / Total:
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+\ Show Logs
+
+Observer
+
+CommandTrackingA gent
+
+running
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+W Hide Logs Gg
+
+[19:59:29] PROMPT with state:
+[19:59:29] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+
+[19:59:19] RESPONSE:
+[19:59:19] <think>
+
+[19:59:19] Found command:
+COMMAND with params: ['npm
+run taur']
+
+[19:59:19] Found command:
+COMMAND with params: ['tsc
+&& vite build']
+
+[19:45:42] PROMPT with state:
+[19:45:42] You are a command
+tracking assistant. Monitor the
+screen and identify any commands
+being run by the user.
+
+[10:02:39] PROMPT with state:
+[10:02:39] You are a command
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+Y Show Logs
+
+windows and command
+
+Simply respond with:
+COMMAND: the command
+executed
+
+Examples:
+CONDE GEE [SHEL Oy
+
+log_20250216.txt
+Plain Text Document - /
+
+Information
+
+Crastad v
+
+More...
+
+[10:23:32] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x129901d30>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:30:08] PROMPT with state:
+[10:30:08] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+archLinux in «+ via B v3.13.1
+
+( Observer
+
+Observer
+
+localhost:11434 Check Ollama Server
+
+G Active Agents: 0 / Total: 3
+
+SimpleActivityAgent CommandTrackingAgent TimestampAgent
+
+stopped stopped stopped
+
+Model: deepseek-r1:7b Model: deepseek-r1:8b Model: deepseek-r1:7b
+
+Tracks all activity Tracks the CLI commands you use Records all user activity on a file
+id us) id
+
+\ Show Logs \ Show Logs \ Show Logs
+
+
+[10:30:08] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x124460da0>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:30:11] PROMPT with state:
+[10:30:11] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+archLinux
+
+in ~ via B v3.13.1
+
+Check Ollama Server
+
+CommandTrackingAgent
+
+running
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+W Hide Logs Gg
+
+[19:59:29][19:59:29] [19:59:29][19:59:29][ 1°
+PROMPT You are a PROMPT You are a PR
+with state:command with state:command wi
+
+tracking
+
+assistant.
+
+Monitor
+
+the screen
+
+and
+
+identify
+
+any
+
+commands
+
+being run
+
+by the
+
+user.
+
+Observer
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+\ Show Logs
+
+19:29][19:59:29][19:59:29][19:59:29][19:59:29][19:59:29][19:59:19]
+
+[19:59:19][19:59:19
+
+MPT You are a PROMPT You are a PROMPT You are a RESPONSE:<think> Found
+
+state: command with state: command with state: command
+
+
+[10:30:11] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x12689cb90>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:30:15] PROMPT with state:
+[10:30:15] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+archLinux in «+ via B v3.13.1
+
+ee Observer
+
+2:41] Error: HTTPConnectionPool(host='localhost', —_ [10:22:40][10:22:40] [10:22:37][10:22:37] [10:22:37] Error: HTTPConnectionPool(host='localhost', — [10:22:34][10:22:34] [10:22:34] Error: HTTPCo
+11434): Max retries exceeded with url: /api/generate PROMPT You area PROMPT You are a port=11434): Max retries exceeded with url: /api/generate PROMPT You are a port=11434): Max retries e
+with state:command with state:command (Caused by with state:command (Caused by
+onnectionError(‘<urllib3 connection. HTTPConnection tracking tracking NewConnectionError('<urllib3 connection.HTTPConnection tracking NewConnectionError(‘<url|
+
+t at Ox1290fa600>: Failed to establish a new assistant. assistant. object at 0x129902c00>: Failed to establish a new assistant. object at 0x129902300>: F
+ection: [Errno 61] Connection refused')) Monitor Monitor connection: [Errno 61] Connection refused')) Monitor connection: [Errno 61] Co
+
+the screen the screen the screen
+
+and and and
+
+identify identify identify
+
+any any any
+
+commands commands commands
+
+being run being run being run
+
+by the by the by the
+
+user. user. user.
+
+
+[10:30:15] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x12689d820>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[10:30:18] PROMPT with state:
+[10:30:18] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+archLinux in «+ via B v3.13.1
+
+ee Observer
+
+ectionPool(host='localhost', —_ [10:22:40][10:22:40] [10:22:37][10:22:37] [10:22:37] Error: HTTPConnectionPool(host='localhost', —_ [10:22:34][10:22:34] [10:22:34] Error: HTTPConnectionPool(host='loca
+eeded with url: /api/generate PROMPT You area PROMPT You are a port=11434): Max retries exceeded with url: /api/generate PROMPT You area port=11434): Max retries exceeded with url: /api/g¢
+with state:command with state:command (Caused by with state:command (Caused by
+b3 connection. HTTPConnection tracking tracking NewConnectionError('<urllib3 .connection.HTTPConnection tracking NewConnectionError('<urllib3 connection. HTTPC}
+assistant. assistant. object at 0x129902c00>: Failed to establish a new assistant. object at 0x129902300>: Failed to establish a new
+Monitor Monitor connection: [Errno 61] Connection refused')) Monitor connection: [Errno 61] Connection refused'))
+the screen the screen the screen
+and and and
+identify identify identify
+any any any
+commands commands commands
+being run being run being run
+by the by the by the
+user. user. user.
+
+
+[10:30:18] Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x12689cfb0>: Failed to establish a new connection: [Errno 61] Connection refused'))

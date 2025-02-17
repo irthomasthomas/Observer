@@ -2,7 +2,7 @@ import './App.css'
 import { useState, useEffect } from 'react';
 import { RotateCw, Edit2 } from 'lucide-react';
 import EditAgentModal from './EditAgentModal';
-
+import LogViewer from './LogViewer';  
 
 interface Agent {
   id: string;
@@ -19,6 +19,8 @@ export function App() {
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
   const [isStartingServer, setIsStartingServer] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  //const [expandedLogs, setExpandedLogs] = useState<string | null>(null);
  
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -202,6 +204,7 @@ export function App() {
       {error && <div className="error">{error}</div>}
 
       <div className="agent-grid">
+
         {agents.map(agent => (
           <div key={agent.id} className="agent-card">
             <div className="flex items-center space-x-2">
@@ -231,8 +234,13 @@ export function App() {
             >
               {agent.status === 'running' ? '⏹ Stop' : '▶️ Start'}
             </button>
+
+
+            <LogViewer agentId={agent.id} />
+
           </div>
         ))}
+
       </div>
 
       {selectedAgent && (
