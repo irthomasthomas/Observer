@@ -172,10 +172,10 @@ const LandingPage = () => {
       <footer className="bg-gray-900 text-white py-12">
         <div className="container mx-auto px-6">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Cpu className="w-6 h-6" />
-              <span className="text-lg font-bold">Observer AI</span>
-            </div>
+          <div className="flex items-center space-x-2">
+            <img src="/eye-logo-white.svg" alt="Observer AI Logo" className="w-6 h-6" />
+            <span className="text-lg font-bold">Observer AI</span>
+          </div>
             <div className="flex space-x-8">
               <a href="#privacy" className="text-gray-400 hover:text-white">Privacy</a>
               <a href="#terms" className="text-gray-400 hover:text-white">Terms</a>
