@@ -1,6 +1,6 @@
 description: Tracks the CLI commands you use
 model_name: deepseek-r1:8b
-name: CommandTrackingAgent
+name: Command Tracking Agent
 system_prompt: 'You are a command tracking assistant. Monitor the screen and identify
   any commands being run by the user.
 

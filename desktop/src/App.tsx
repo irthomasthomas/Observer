@@ -10,6 +10,11 @@ interface Agent {
   model: string;
   description: string;
   status: 'running' | 'stopped';
+  config?: {
+    name: string;
+    description: string;
+    model_name: string;
+  };
 }
 
 export function App() {
@@ -19,16 +24,13 @@ export function App() {
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
   const [isStartingServer, setIsStartingServer] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  //const [expandedLogs, setExpandedLogs] = useState<string | null>(null);
- 
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   const handleEditClick = (agentId: string) => {
     setSelectedAgent(agentId);
     setIsEditModalOpen(true);
   };
-
 
   const updateServerConfig = async (host: string, port: string) => {
     try {
@@ -53,10 +55,8 @@ export function App() {
       setServerStatus('unchecked');
       const [host, port] = serverAddress.split(':');
       
-      // First update the server config
       await updateServerConfig(host, port);
       
-      // Then check the server
       const response = await fetch(`http://localhost:8000/config/check-server`, {
         method: 'POST',
         headers: {
@@ -100,24 +100,37 @@ export function App() {
     }
   };
 
+  const fetchAgentConfig = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/agents/${id}/config`);
+      if (!response.ok) throw new Error('Failed to fetch agent config');
+      return await response.json();
+    } catch (err) {
+      console.error('Error fetching agent config:', err);
+      return null;
+    }
+  };
+
   const fetchAgents = async () => {
     try {
       setIsRefreshing(true);
-      console.log('Attempting to fetch agents...');
       const response = await fetch('http://localhost:8000/agents');
-      console.log('Response status:', response.status);
       if (!response.ok) throw new Error(`Failed to fetch agents: ${response.status}`);
-      const data = await response.json();
-      console.log('Received data:', data);
-      setAgents(data);
+      const agentsData = await response.json();
+      
+      // Fetch config for each agent
+      const agentsWithConfig = await Promise.all(
+        agentsData.map(async (agent: Agent) => {
+          const config = await fetchAgentConfig(agent.id);
+          return { ...agent, config };
+        })
+      );
+      
+      setAgents(agentsWithConfig);
       setError(null);
     } catch (err) {
       setError('Failed to connect to backend');
       console.error('Error fetching agents:', err);
-      if (err instanceof Error) {
-        console.error('Error type:', err.name);
-        console.error('Error message:', err.message);
-      }
     } finally {
       setIsRefreshing(false);
     }
@@ -127,8 +140,7 @@ export function App() {
     const action = currentStatus === 'running' ? 'stop' : 'start';
     
     try {
-      setError(null); // Clear any existing errors
-      
+      setError(null);
       const response = await fetch(`http://localhost:8000/agents/${id}/${action}`, {
         method: 'POST'
       });
@@ -139,7 +151,6 @@ export function App() {
         throw new Error(data.error || `Failed to ${action} agent`);
       }
       
-      // Wait a short moment before refreshing the agent list
       await new Promise(resolve => setTimeout(resolve, 500));
       await fetchAgents();
       
@@ -147,18 +158,13 @@ export function App() {
       const errorMessage = err instanceof Error ? err.message : `Failed to ${action} agent`;
       setError(errorMessage);
       console.error('Error toggling agent:', err);
-      
-      // Refresh the agent list anyway to ensure UI is in sync
       await fetchAgents();
     }
   };
 
-
-
   useEffect(() => {
     fetchAgents();
   }, []);
-
 
   return (
     <div className="container">
@@ -204,11 +210,10 @@ export function App() {
       {error && <div className="error">{error}</div>}
 
       <div className="agent-grid">
-
         {agents.map(agent => (
           <div key={agent.id} className="agent-card">
             <div className="flex items-center space-x-2">
-              <h3 className="flex-grow">{agent.name}</h3>
+              <h3 className="flex-grow">{agent.config?.name || agent.name}</h3>
               <button
                 onClick={() => handleEditClick(agent.id)}
                 className={`edit-button-small ${agent.status === 'running' ? 'disabled' : ''}`}
@@ -225,7 +230,7 @@ export function App() {
             
             <div className="agent-details">
               <p className="model">Model: {agent.model}</p>
-              <p className="description">{agent.description}</p>
+              <p className="description">{agent.config?.description || agent.description}</p>
             </div>
             
             <button
@@ -235,12 +240,9 @@ export function App() {
               {agent.status === 'running' ? '⏹ Stop' : '▶️ Start'}
             </button>
 
-
             <LogViewer agentId={agent.id} />
-
           </div>
         ))}
-
       </div>
 
       {selectedAgent && (

@@ -12,13 +12,15 @@ interface AgentConfig {
   name: string;
   description: string;
   model_name: string;
+  system_prompt: string;
 }
 
 const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalProps) => {
   const [config, setConfig] = useState<AgentConfig>({
     name: '',
     description: '',
-    model_name: ''
+    model_name: '',
+    system_prompt: ''
   });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,12 +57,10 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
         },
         body: JSON.stringify(config),
       });
-
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Failed to update configuration');
       }
-
       onUpdate();
       onClose();
     } catch (err) {
@@ -105,7 +105,7 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
             <textarea
               value={config.description}
               onChange={(e) => setConfig({ ...config, description: e.target.value })}
-              rows={3}
+              rows={2}
               disabled={isLoading}
               placeholder="Enter agent description"
             />
@@ -119,6 +119,18 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
               onChange={(e) => setConfig({ ...config, model_name: e.target.value })}
               disabled={isLoading}
               placeholder="Enter model name"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>System Prompt</label>
+            <textarea
+              value={config.system_prompt}
+              onChange={(e) => setConfig({ ...config, system_prompt: e.target.value })}
+              rows={8}
+              disabled={isLoading}
+              placeholder="Enter system prompt"
+              style={{ fontFamily: 'monospace', fontSize: '14px' }}
             />
           </div>
 

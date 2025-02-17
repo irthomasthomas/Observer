@@ -28,6 +28,7 @@ class AgentConfig(BaseModel):
     name: str
     description: str
     model_name: str
+    system_prompt: str
 
 config = GlobalConfig()
 
@@ -297,11 +298,13 @@ async def get_agent_config(agent_id: str):
         return {
             "name": config.get("name", ""),
             "description": config.get("description", ""),
-            "model_name": config.get("model_name", "")
+            "model_name": config.get("model_name", ""),
+            "system_prompt": config.get("system_prompt", "")  # Added this line
         }
     except Exception as e:
         logger.error(f"Error reading agent config: {e}")
         return {"error": f"Failed to read agent configuration: {str(e)}"}
+
 
 @app.post("/agents/{agent_id}/config")
 async def update_agent_config(agent_id: str, config: AgentConfig):
@@ -323,6 +326,7 @@ async def update_agent_config(agent_id: str, config: AgentConfig):
         existing_config["name"] = config.name
         existing_config["description"] = config.description
         existing_config["model_name"] = config.model_name
+        existing_config["system_prompt"] = config.system_prompt
         
         # Write updated config
         with open(config_path, 'w') as f:
@@ -332,7 +336,6 @@ async def update_agent_config(agent_id: str, config: AgentConfig):
     except Exception as e:
         logger.error(f"Error updating agent config: {e}")
         return {"error": f"Failed to update agent configuration: {str(e)}"}
-
 
 @app.get("/agents/{agent_id}/logs")
 async def get_agent_logs(agent_id: str, days: int = 1):

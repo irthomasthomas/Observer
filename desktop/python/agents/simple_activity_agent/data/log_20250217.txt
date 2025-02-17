@@ -1,267 +1,261 @@
-[14:45:15] === BEGIN COT BLOCK ===
-[14:45:15] === PROMPT ===
-[14:45:15] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
-[14:45:15] Just respond with:
-[14:45:15] ACTIVITY: brief description of current activity
-[14:45:15] Examples:
-[14:45:15] ACTIVITY: Reading Harry Potter
-[14:45:15] ACTIVITY: Writing code in VS Code
-[14:45:15] ACTIVITY: Browsing YouTube
-[14:45:15] Only report when the activity actually changes.
-[14:45:15] === SCREEN CONTENT ===
-[14:45:15] Running DevCommand (* cargo Observer
-[14:45:15] Info Watching /Users/jay/re|
-[14:45:15] Finished ‘dev’ profile [uno
-[14:45:15] Running ‘target/debug/obse| Observer
-[14:45:15] jay@Qunix desktop % npm run tau!
-[14:45:15] 10.0.0.72:11434 v Connected
-[14:45:15] > @observer/desktop@d.1.@ tauri
-[14:45:15] > tauri dev G Active Agents: 0 / Total: 3
-[14:45:15] Running DevCommand (* cargo
-[14:45:15] Info Watching /Users/jay/re|
-[14:45:15] Finished ‘dev’ profile [uno; SimpleActivityAgent CommandTrackingAgent
-[14:45:15] Running ‘target/debug/obse|
-[14:45:15] jay@Qunix desktop % npm run tau! stopped stopped
-[14:45:15] > @observer/desktop@d.1.@ tauri Model: deepseek-r1:8b Model: deepseek-r1:8b
-[14:45:15] > tauri dev Tracks all activity Tracks the CLI commands you use
-[14:45:15] Running DevCommand (* cargo
-[14:45:15] Info Watching /Users/jay/re}
-[14:45:15] Finished ‘dev’ profile [uno
-[14:45:15] Running ‘target/debug/obse|
-[14:45:15] jay@Qunix desktop % nvim src/Lo¢ No Chain of Thought available
-[14:45:15] jay@Qunix desktop
-[14:45:15] jay@Qunix desktop
-[14:45:15] jay@Qunix desktop % npm run tau| TimestampA gent
-[14:45:15] Y Show Logs W Hide CoT Gg VY Show Logs \ Show CoT
-[14:45:15] > @observer/desktop@d.1.@ tauri stopped
-[14:45:15] > tauri dev
-[14:45:15] Model: deepseek-r1:7b
-[14:45:15] Records all user activity on a file
-[14:45:15] Running DevCommand (* cargo
-[14:45:15] Info Watching /Users/jay/re|
-[14:45:15] Finished ‘dev’ profile [uno
-[14:45:15] Running ‘target/debug/obse|
-[14:45:15] jay@Qunix desktop % npm run bui
-[14:45:15] Y Show Logs \ Show CoT
-[14:45:15] > @observer/desktop@d.1.@ build
-[14:45:15] > tsc & vite build
-[14:45:15] vite v6.1.0 building for produc
-[14:45:15] ¥ 1591 modules transformed.
-[14:45:15] dist/index.html
-[14:45:15] dist/assets/
-[14:45:15] dist/assets/index—QRWITZkv.js
-[14:45:15] vy built in 1.43s
-[14:45:15] jay@Qunix desktop % npm run tau!
-[14:45:15] > @observer/desktop@d.1.@ tauri
-[14:45:15] > tauri dev
-[14:45:15] Running DevCommand (‘cargo run —-no-default-features --color always —-~)
-[14:45:15] Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
-[14:45:15] Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.29s
-[14:45:15] Running ‘target/debug/observer~
-[14:45:20] === RESPONSE ===
-[14:45:20] <think>
-[14:45:20] Okay, so I'm trying to figure out what the user is doing based on the screen content provided. Let me look through each line and see if I can piece together the activity.
-[14:45:20] First, I notice commands like `npm run tau!` and `npm run build`. That makes me think the user is working on a project, probably using npm scripts. There's also mention of Tauri, which is a tool used in web development for building desktop applications with web technologies. So, the user might be developing a Tauri application.
-[14:45:20] Looking further, I see commands like `cargo run` and `tsc & vite build`, which are related to Rust and TypeScript respectively. That confirms that the project is using multiple programming languages and tools. The user is likely working on both front-end and back-end development.
-[14:45:20] There's also interaction with the terminal, such as running commands in a shell, which indicates they're actively coding or building their application. The presence of `@observer/desktop` suggests this is part of an observer application, possibly monitoring something in real-time.
-[14:45:20] The user toggles between showing logs and CoT (Chain of Thought), which means they might be debugging or analyzing the activity logs to understand what's happening in their application.
-[14:45:20] Putting it all together, the main activity seems to be actively developing a Tauri-based desktop application with multiple components. The user is using various tools like npm, cargo, tsc, and vite to build and run their project.
-[14:45:20] </think>
-[14:45:20] ACTIVITY: Actively developing a Tauri-based desktop application with associated front-end and back-end components.
-[14:45:20] === END COT BLOCK ===
-[14:45:20] Found command: ACTIVITY with params: ['Actively developing a Tauri-based desktop application with associated front-end and back-end components.']
-[14:45:20] Executing command: ACTIVITY: Actively developing a Tauri-based desktop application with associated front-end and back-end components.
-[14:45:25] === BEGIN COT BLOCK ===
-[14:45:25] === PROMPT ===
-[14:45:25] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
-[14:45:25] Just respond with:
-[14:45:25] ACTIVITY: brief description of current activity
-[14:45:25] Examples:
-[14:45:25] ACTIVITY: Reading Harry Potter
-[14:45:25] ACTIVITY: Writing code in VS Code
-[14:45:25] ACTIVITY: Browsing YouTube
-[14:45:25] Only report when the activity actually changes.
-[14:45:25] === SCREEN CONTENT ===
-[14:45:25] Running DevCommand (* cargo ee Observer
-[14:45:25] Info Watching /Users/jay/re}
-[14:45:25] Finished ‘dev’ profile [uno
-[14:45:25] Running ‘target/debug/obse|
-[14:45:25] jay@Qunix desktop % npm run tau!
-[14:45:25] Observer
-[14:45:25] 10.0.0.72:11434 v Connected
-[14:45:25] > @observer/desktop@d.1.@ tauri
-[14:45:25] > tauri dev G Active Agents: 1 / Total: 3
-[14:45:25] Running DevCommand (* cargo
-[14:45:25] Info Watching /Users/jay/re}
-[14:45:25] Finished ‘dev’ profile [uno
-[14:45:25] SimpleActivityAgent CommandTrackingAgent
-[14:45:25] running stopped
-[14:45:25] > @observer/desktop@d.1.@ tauri
-[14:45:25] 7 Model: deepseek-r1:8b
-[14:45:25] > tauri dev
-[14:45:25] Tracks all activity
-[14:45:25] Model: deepseek-r1:8b
-[14:45:25] Tracks the CLI commands you use
-[14:45:25] Running DevCommand (* cargo
-[14:45:25] Info Watching /Users/jay/re}
-[14:45:25] Finished ‘dev’ profile [uno
-[14:45:25] jay@Qunix nvim src/Log
-[14:45:25] jay@Qunix
-[14:45:25] jay@Qunix
-[14:45:25] jay@Qunix npm run taul
-[14:45:25] > @observer/desktop@d.1.@ tauri
-[14:45:25] > tauri dev
-[14:45:25] Running DevCommand (* cargo
-[14:45:25] Info Watching /Users/jay/re}
-[14:45:25] Finished ‘dev’ profile [uno
-[14:45:25] Running ‘target/debug/obse|
-[14:45:25] jay@Qunix desktop % npm run bui
-[14:45:25] > @observer/desktop@d.1.@ build
-[14:45:25] > tsc && vite build
-[14:45:25] vite v6.1.0 building for produc
-[14:45:25] ¥ 1591 modules transformed.
-[14:45:25] dist/index.html
-[14:45:25] dist/assets/
-[14:45:25] dist/assets/index—QRWITZkv.js
-[14:45:25] vy built in 1.43s
-[14:45:25] jay@Qunix desktop % npm run tau!
-[14:45:25] > @observer/desktop@d.1.@ tauri
-[14:45:25] > tauri dev
-[14:45:25] Running DevCommand (* cargo
-[14:45:25] Y Show Logs W Hide CoT Gg
-[14:45:25] [14:45:15]
-[14:45:25] Okay, so I'm trying to figure out what the user is doing based on the screen content
-[14:45:25] provided. Let me look through each line and see if I can piece together the activity.
-[14:45:25] First, I notice commands like “npm run tau!* and “npm run build. That makes me think
-[14:45:25] the user is working on a project, probably using npm scripts. There's also mention of
-[14:45:25] Tauri, which is a tool used in web development for building desktop applications with
-[14:45:25] web technologies. So, the user might be developing a Tauri application. Looking
-[14:45:25] further, I see commands like ‘cargo run* and “tsc & vite build’, which are related to
-[14:45:25] Rust and TypeScript respectively. That confirms that the project is using multiple
-[14:45:25] programming languages and tools. The user is likely working on both front-end and
-[14:45:25] back-end development. There's also interaction with the terminal, such as running
-[14:45:25] commands in a shell, which indicates they're actively coding or building their
-[14:45:25] application. The presence of *@observer/desktop’ suggests this is part of an observer
-[14:45:25] application, possibly monitoring something in real-time. The user toggles between
-[14:45:25] showing logs and CoT (Chain of Thought), which means they might be debugging or
-[14:45:25] analyzing the activity logs to understand what's happening in their application. Putting
-[14:45:25] it all together, the main activity seems to be actively developing a Tauri-based desktop
-[14:45:25] application with multiple components. The user is using various tools like npm, cargo,
-[14:45:25] tsc, and vite to build and run their project.
-[14:45:25] TimestampAgent
-[14:45:25] stopped
-[14:45:25] Model: deepseek-r1:7b
-[14:45:25] Records all user activity on a file
-[14:45:25] run --no-default-features --color always -——~)
-[14:45:25] Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
-[14:45:25] Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.29s
-[14:45:25] Running ‘target/debug/observer~
-[14:45:30] === RESPONSE ===
-[14:45:30] <think>
-[14:45:30] Okay, so I'm trying to figure out what the user is doing based on the screen content provided. Let me go through each line and see if I can put together the activity.
-[14:45:30] First off, I notice commands like "npm run tau!" and "npm run build." That makes me think the user is working on a project, possibly using npm scripts. There's also mention of Tauri, which I know is a tool used in web development for building desktop applications with web technologies. So maybe the user is developing a Tauri application.
-[14:45:30] Looking further, there are commands like 'cargo run' and "tsc & vite build." These are related to Rust and TypeScript, respectively. That confirms that the project uses multiple programming languages and tools. So the user is likely working on both front-end and back-end development.
-[14:45:30] The terminal interaction suggests they're actively coding or building their application. The presence of *@observer/desktop’ indicates this might be part of an observer application, possibly monitoring something in real-time. They toggle between showing logs and CoT (Chain of Thought), which means they could be debugging or analyzing the activity logs to understand what's happening.
-[14:45:30] Putting it all together, the main activity seems to be actively developing a Tauri-based desktop application with multiple components. The user is using tools like npm, cargo, tsc, and vite to build and run their project.
-[14:45:30] </think>
-[14:45:30] ACTIVITY: Developing a Tauri-based desktop application using TypeScript and Rust, running commands in the terminal for building and testing.
-[14:45:30] === END COT BLOCK ===
-[14:45:30] Found command: ACTIVITY with params: ['Developing a Tauri-based desktop application using TypeScript and Rust, running commands in the terminal for building and testing.']
-[14:45:30] Executing command: ACTIVITY: Developing a Tauri-based desktop application using TypeScript and Rust, running commands in the terminal for building and testing.
-[14:45:36] === BEGIN COT BLOCK ===
-[14:45:36] === PROMPT ===
-[14:45:36] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
-[14:45:36] Just respond with:
-[14:45:36] ACTIVITY: brief description of current activity
-[14:45:36] Examples:
-[14:45:36] ACTIVITY: Reading Harry Potter
-[14:45:36] ACTIVITY: Writing code in VS Code
-[14:45:36] ACTIVITY: Browsing YouTube
-[14:45:36] Only report when the activity actually changes.
-[14:45:36] === SCREEN CONTENT ===
-[14:45:36] Running DevCommand (* cargo
-[14:45:36] Info Watching /Users/jay/re}
-[14:45:36] Finished ‘dev’ profile [uno
-[14:45:36] Running ‘target/debug/obse|
-[14:45:36] jay@Qunix desktop % npm run tau!
-[14:45:36] > @observer/desktop@d.1.@ tauri
-[14:45:36] > tauri dev
-[14:45:36] Running DevCommand (* cargo
-[14:45:36] Info Watching /Users/jay/re}
-[14:45:36] Finished ‘dev’ profile [uno
-[14:45:36] > @observer/desktop@d.1.@ tauri
-[14:45:36] > tauri dev
-[14:45:36] Running DevCommand (* cargo
-[14:45:36] Info Watching /Users/jay/re}
-[14:45:36] Finished ‘dev’ profile [uno
-[14:45:36] jay@Qunix nvim src/Log
-[14:45:36] jay@Qunix
-[14:45:36] jay@Qunix
-[14:45:36] jay@Qunix npm run taul
-[14:45:36] > @observer/desktop@d.1.@ tauri
-[14:45:36] > tauri dev
-[14:45:36] Running DevCommand (* cargo
-[14:45:36] Info Watching /Users/jay/re}
-[14:45:36] Finished ‘dev’ profile [uno
-[14:45:36] Running ‘target/debug/obse|
-[14:45:36] jay@Qunix desktop % npm run bui
-[14:45:36] > @observer/desktop@d.1.@ build
-[14:45:36] > tsc && vite build
-[14:45:36] vite v6.1.0 building for produc
-[14:45:36] ¥ 1591 modules transformed.
-[14:45:36] dist/index.html
-[14:45:36] dist/assets/
-[14:45:36] dist/assets/index—QRWITZkv.js
-[14:45:36] vy built in 1.43s
-[14:45:36] jay@Qunix desktop % npm run tau!
-[14:45:36] > @observer/desktop@d.1.@ tauri
-[14:45:36] > tauri dev
-[14:45:36] 10.0.0.72:11434
-[14:45:36] Observer
-[14:45:36] Observer
-[14:45:36] v Connected
-[14:45:36] G Active Agents: 1 / Total: 3
-[14:45:36] SimpleActivityAgent CommandTrackingAgent
-[14:45:36] running stopped
-[14:45:36] Model: deepseek-r1:8b
-[14:45:36] Tracks all activity
-[14:45:36] Y Show Logs W Hide CoT Gg
-[14:45:36] [14:45:15]
-[14:45:36] Okay, so I'm trying to figure out what the user is doing based on the screen content
-[14:45:36] provided. Let me look through each line and see if I can piece together the activity.
-[14:45:36] First, I notice commands like “npm run tau!* and “npm run build. That makes me think
-[14:45:36] the user is working on a project, probably using npm scripts. There's also mention of
-[14:45:36] Tauri, which is a tool used in web development for building desktop applications with
-[14:45:36] web technologies. So, the user might be developing a Tauri application. Looking
-[14:45:36] further, I see commands like ‘cargo run* and “tsc & vite build’, which are related to
-[14:45:36] Rust and TypeScript respectively. That confirms that the project is using multiple
-[14:45:36] programming languages and tools. The user is likely working on both front-end and
-[14:45:36] back-end development. There's also interaction with the terminal, such as running
-[14:45:36] commands in a shell, which indicates they're actively coding or building their
-[14:45:36] application. The presence of *@observer/desktop’ suggests this is part of an observer
-[14:45:36] application, possibly monitoring something in real-time. The user toggles between
-[14:45:36] showing logs and CoT (Chain of Thought), which means they might be debugging or
-[14:45:36] analyzing the activity logs to understand what's happening in their application. Putting
-[14:45:36] it all together, the main activity seems to be actively developing a Tauri-based desktop
-[14:45:36] application with multiple components. The user is using various tools like npm, cargo,
-[14:45:36] tsc, and vite to build and run their project.
-[14:45:36] [14:45:25]
-[14:45:36] Okay, so I'm trying to figure out what the user is doing based on the screen content
-[14:45:36] provided. Let me go through each line and see if I can put together the activity. First
-[14:45:36] off, I notice commands like "npm run tau!" and "npm run build." That makes me think
-[14:45:36] the user is working on a project, possibly using npm scripts. There's also mention of
-[14:45:36] Tauri, which I know is a tool used in web development for building desktop
-[14:45:36] applications with web technologies. So maybe the user is developing a Tauri
-[14:45:36] application. Looking further, there are commands like 'cargo run' and "tsc & vite
-[14:45:36] build." These are related to Rust and TypeScript, respectively. That confirms that the
-[14:45:36] project uses multiple programming languages and tools. So the user is likely working
-[14:45:36] on both front-end and back-end development. The terminal interaction suggests they're
-[14:45:36] actively coding or building their application. The presence of *@observer/desktop’
-[14:45:36] indicates this might be part of an observer application, possibly monitoring something
-[14:45:36] Model: deepseek-r1:8b
-[14:45:36] Tracks the CLI commands you use
-[14:45:36] Y Show Logs \ Show CoT
-[14:45:36] Running DevCommand (‘cargo run -—-no-default-features --color always ——)
-[14:45:36] Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
-[14:45:36] Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.29s
-[14:45:36] Running ‘target/debug/observer~
+[15:27:05] === BEGIN COT BLOCK ===
+[15:27:05] === PROMPT ===
+[15:27:05] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+[15:27:05] Just respond with:
+[15:27:05] ACTIVITY: brief description of current activity
+[15:27:05] Examples:
+[15:27:05] ACTIVITY: Reading Harry Potter
+[15:27:05] ACTIVITY: Writing code in VS Code
+[15:27:05] ACTIVITY: Browsing YouTube
+[15:27:05] Only report when the activity actually changes.
+[15:27:05] === SCREEN CONTENT ===
+[15:27:05] Observer
+[15:27:05] Observer
+[15:27:05] 10.0.0.72:11434 v Connected Start Ollama Server
+[15:27:05] G Active Agents: 0 / Total: 3
+[15:27:05] SimpleActivityAgent C CommandTrackingAgent V4
+[15:27:05] stopped stopped
+[15:27:05] Model: deepseek-r1:8b Model: deepseek-r1:8b
+[15:27:05] Tracks all activity Tracks the CLI commands you use
+[15:27:05] \V Show Logs W Hide CoT Gg VM Show Logs \ Show CoT
+[15:27:05] No Chain of Thought available
+[15:27:05] TimestampA gent VY
+[15:27:05] stopped
+[15:27:05] Model: deepseek-r1:7b
+[15:27:05] Records all user activity on a file
+[15:27:05] \Y Show Logs \ Show CoT
+[15:27:12] === RESPONSE ===
+[15:27:12] <think>
+[15:27:12] Okay, let's try to figure out what the user is doing based on the screen content provided. The first thing I notice is that the screen displays "Observer" repeatedly. That might be an application or a feature name. Then there are some technical terms like IP address (10.0.0.72:11434), which suggests network activity or server status.
+[15:27:12] There's a mention of "Connected Start Ollama Server," which I'm not too familiar with, but it sounds like it's related to some kind of server process. The line "G Active Agents: 0 / Total: 3" could indicate that there are three agents active, but none are currently active (the 0 might mean something else, maybe inactive or paused). 
+[15:27:12] Looking at the list of agents:
+[15:27:12] - SimpleActivityAgent is running.
+[15:27:12] - CommandTrackingAgent is stopped.
+[15:27:12] - V4 is stopped.
+[15:27:12] So, only SimpleActivityAgent is active. It's designed to track all activity and commands used by the user, specifically mentioning tracking CLI commands. The presence of "\V Show Logs W Hide CoT Gg VM Show Logs \ Show CoT" at the bottom suggests that these might be commands being entered or tracked by the system.
+[15:27:12] The Model section shows "deepseek-r1:8b" stopped and another model "deepseek-r1:7b" also stopped. This indicates that AI models are not currently active or available. Additionally, there's a note about no Chain of Thought (CoT) available, which means the AI isn't using previous interactions to generate responses.
+[15:27:12] The timestamp shows "TimestampA gent VY," but it's unclear what each part represents. The word "stopped" appears multiple times, possibly indicating that certain processes or agents have been shut down or paused.
+[15:27:12] Putting this all together, it seems like the user is interacting with an application that uses activity tracking and command monitoring. The SimpleActivityAgent is functioning, tracking user actions, while other agents are stopped. Since there's no active AI model, any text generation might be relying on stored data or other mechanisms.
+[15:27:12] I'm not entirely sure about all these technical terms, but based on what I can gather, the main activity seems to involve monitoring and tracking user actions within a specific application or system environment.
+[15:27:12] </think>
+[15:27:12] ACTIVITY: Monitoring server status and user activity in an application.
+[15:27:12] === END COT BLOCK ===
+[15:27:12] Found command: ACTIVITY with params: ['Monitoring server status and user activity in an application.']
+[15:27:12] Executing command: ACTIVITY: Monitoring server status and user activity in an application.
+[15:27:15] === BEGIN COT BLOCK ===
+[15:27:15] === PROMPT ===
+[15:27:15] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+[15:27:15] Just respond with:
+[15:27:15] ACTIVITY: brief description of current activity
+[15:27:15] Examples:
+[15:27:15] ACTIVITY: Reading Harry Potter
+[15:27:15] ACTIVITY: Writing code in VS Code
+[15:27:15] ACTIVITY: Browsing YouTube
+[15:27:15] Only report when the activity actually changes.
+[15:27:15] === SCREEN CONTENT ===
+[15:27:15] Observer
+[15:27:15] Observer
+[15:27:15] 10.0.0.72:11434 v Connected Start Ollama Server
+[15:27:15] G Active Agents: 1 / Total: 3
+[15:27:15] SimpleActivityAgent CommandTrackingAgent C
+[15:27:15] running stopped
+[15:27:15] Model: deepseek-r1:8b Model: deepseek-r1:8b
+[15:27:15] Tracks all activity Tracks the CLI commands you use
+[15:27:15] A Hide Logs Y Show CoT Gg \Y Show Logs \ Show CoT
+[15:27:15] [15:27:12]
+[15:27:15] Executing command: ACTIVITY: Monitoring server status and user activity in an
+[15:27:15] application.
+[15:27:15] TimestampA gent VY
+[15:27:15] stopped
+[15:27:15] Model: deepseek-r1:7b
+[15:27:15] Records all user activity on a file
+[15:27:15] \Y Show Logs \ Show CoT
+[15:44:05] === BEGIN COT BLOCK ===
+[15:44:05] === PROMPT ===
+[15:44:05] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+[15:44:05] Just respond with:
+[15:44:05] ACTIVITY: brief description of current activity
+[15:44:05] Examples:
+[15:44:05] ACTIVITY: Reading Harry Potter
+[15:44:05] ACTIVITY: Writing code in VS Code
+[15:44:05] ACTIVITY: Browsing YouTube
+[15:44:05] Only report when the activity actually changes.
+[15:44:05] === SCREEN CONTENT ===
+[15:44:05] const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+[15:44:05] src/App.tsx:32:10 - e°@e Observer
+[15:44:05] const [isEditModal0pen, set] Simple Activity Agent Command Tracking Agent
+[15:44:05] stopped stopped
+[15:44:05] src/App.tsx:32:27 —-
+[15:44:05] Model: deepseek-r1:8b Model: deepseek-r1:8b
+[15:44:05] const [isEditModalOpen, set] Tracks all activity Tracks the CLI commands you use
+[15:44:05] src/main.tsxi3:8 —
+[15:44:05] esktop/src/App" ‘ instead? VY Show Logs W Hide CoT Gg \V Show Logs V Show CoT
+[15:44:05] : " "e [15:27:05]
+[15:44:05] import App from "./ App"; Okay, let's try to figure out what the user is doing based on the screen content provided.
+[15:44:05] The first thing I notice is that the screen displays "Observer" repeatedly. That might be
+[15:44:05] an application or a feature name. Then there are some technical terms like IP address
+[15:44:05] (10.0.0.72:11434), which suggests network activity or server status. There's a mention
+[15:44:05] of "Connected Start Ollama Server," which I'm not too familiar with, but it sounds like
+[15:44:05] it's related to some kind of server process. The line "G Active Agents: 0 / Total: 3"
+[15:44:05] could indicate that there are three agents active, but none are currently active (the 0
+[15:44:05] Errors Files might mean something else, maybe inactive or paused). Looking at the list of agents: -
+[15:44:05] 8 src/App.tsx SimpleActivityAgent is running. - CommandTrackingA gent is stopped. - V4 is
+[15:44:05] 1 src/main.tsx stopped. So, only SimpleActivityAgent is active. It's designed to track all activity and
+[15:44:05] . . N . commands used by the user, specifically mentioning tracking CLI commands. The
+[15:44:05] apm eS le sc ript build presence of "\V Show Logs W Hide CoT Gg VM Show Logs \ Show CoT" at the
+[15:44:05] code bottom suggests that these might be commands being entered or tracked by the system.
+[15:44:05] npm pa th /Users/ j ay / repos /( The Model section shows "deepseek-r1:8b" stopped and another model "deepseek-
+[15:44:05] npm workspace @observer/de: in ne also stopped This indicates th Al mows are "C Davai. active or available.
+[15:44:05] . . itionally, there's a note about no Chain o: ought (CoT) available, which means
+[15:44:05] npm location / U sers/jay/re} the AI isn't using previous interactions to generate responses. The timestamp shows
+[15:44:05] npm command failed "TimestampA gent VY," but it's unclear what each part represents. The word "stopped"
+[15:44:05] npm command sh —-c tsc && v: appears multiple times, possibly indicating that certain processes or agents have been
+[15:44:05] j ay@Qun ix deskt op nvim src/ App | shut down or paused. Putting this all together, it seems like the user is interacting with
+[15:44:05] j ay@Qun ix deskt op an application that uses activity tracking and command monitoring. The
+[15:44:05] * . SimpleActivityAgent is functioning, tracking user actions, while other agents are
+[15:44:05] J ay@Qun 1x deskt op . stopped. Since there's no active AI model, any text generation might be relying on
+[15:44:05] jay@Qunix desktop npm run buil¢ stored data or other mechanisms. I'm not entirely sure about all these technical terms,
+[15:44:05] but based on what I can gather, the main activity seems to involve monitoring and
+[15:44:05] > @observer/deskt op@d.1.@ build tracking user actions within a specific application or system environment.
+[15:44:05] > tsc && vite build
+[15:44:05] Found 9 errors in 2 files.
+[15:44:05] vite v6.1.@ building for product} Timestamp Agent
+[15:44:05] ¥ 1591 modules transformed.
+[15:44:05] dist/index.html stopped
+[15:44:05] dist/assets/
+[15:44:05] dist/assets/index—Daq_FA91.js
+[15:44:05] vy built in 1.42s
+[15:44:05] jay@Qunix desktop % npm run taur:
+[15:44:05] Model: deepseek-r1:7b
+[15:44:05] Records all user activity on a file
+[15:44:05] > @observer/desktop@d.1.@ tauri
+[15:44:05] > tauri dev
+[15:44:05] Y Show Logs \ Show CoT
+[15:44:05] Running DevCommand (* cargo
+[15:44:05] Info Watching /Users/jay/rep¢
+[15:44:05] Finished ‘dev’ profile [unop™
+[15:44:05] Running ‘target/debug/observer
+[15:44:16] === RESPONSE ===
+[15:44:16] <think>
+[15:44:16] Okay, so I need to figure out what the user is doing based on the screen content provided. Let me start by reading through all the information given.
+[15:44:16] First, there's a line that says "const [selectedAgent, setSelectedAgent] = useState<string | null>(null);". That looks like some React code from a file called App.tsx. The next part mentions "src/App.tsx:32:10 - e°@e Observer", which might be an error or log message related to the Observer component.
+[15:44:16] Then there are several lines mentioning different agents, like "SimpleActivityAgent" and "CommandTrackingAgent". It says that SimpleActivityAgent is running while CommandTrackingAgent is stopped. There's also mention of a V4 agent that's stopped in main.tsx. So, it seems like these agents are part of an activity tracking system.
+[15:44:16] Looking at the Model section, both deepseek-r1:8b and another model (maybe a typo for 7b) are marked as stopped. This suggests that the AI models aren't currently active, so any text generation might be using stored data or some other mechanism instead of real-time interactions.
+[15:44:16] There's also a note about "no Chain of Thought (CoT) available," which means the AI isn't using previous interactions to generate responses. That's an important detail because it affects how the model processes queries.
+[15:44:16] The screen displays some logs, including timestamps like 15:27:05 and commands being run, such as npm run build and tauri dev. These are likely indicating that the user is working on a project or application that uses Tauri, a tool for building desktop applications with web technologies.
+[15:44:16] The error messages about "Found 9 errors in 2 files" and "Records all user activity on a file" suggest that the user might be encountering issues while developing, possibly related to JavaScript or TypeScript files. The command npm run taur:dev is also shown, which is typical for starting a development server in Tauri projects.
+[15:44:16] Putting this all together, it seems like the user is actively working on a desktop application using React and Tauri. They're encountering some build errors but are still progressing through their development process. The activity tracking agents are in place to monitor their actions, especially command inputs, which might be part of debugging or monitoring tools they're integrating.
+[15:44:16] I'm not entirely sure about all the technical terms, like the Observer component or the specifics of Tauri commands, but based on the information given, the main activity is focused on development work with these technologies and tracking user interactions.
+[15:44:16] </think>
+[15:44:16] ACTIVITY: Developing a desktop application using React and Tauri, encountering build errors, and monitoring user activity through tracking agents.
+[15:44:16] === END COT BLOCK ===
+[15:44:16] Found command: ACTIVITY with params: ['Developing a desktop application using React and Tauri, encountering build errors, and monitoring user activity through tracking agents.']
+[15:44:16] Executing command: ACTIVITY: Developing a desktop application using React and Tauri, encountering build errors, and monitoring user activity through tracking agents.
+[15:44:21] === BEGIN COT BLOCK ===
+[15:44:21] === PROMPT ===
+[15:44:21] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+[15:44:21] Just respond with:
+[15:44:21] ACTIVITY: brief description of current activity
+[15:44:21] Examples:
+[15:44:21] ACTIVITY: Reading Harry Potter
+[15:44:21] ACTIVITY: Writing code in VS Code
+[15:44:21] ACTIVITY: Browsing YouTube
+[15:44:21] Only report when the activity actually changes.
+[15:44:21] === SCREEN CONTENT ===
+[15:44:21] Observer
+[15:44:21] 10.0.0.72:11434 v Connected
+[15:44:21] G Active Agents: 1 / Total: 3
+[15:44:21] Simple Activity Agent Command Tracking Agent
+[15:44:21] running stopped
+[15:44:21] Model: deepseek-r1:8b Model: deepseek-r1:8b
+[15:44:21] Tracks all activity Tracks the CLI commands you use
+[15:44:21] Y Show Logs Z Hide CoT Gg \Y Show Logs \ Show CoT
+[15:44:21] [15:27:05]
+[15:44:21] Okay, let's try to figure out what the user is doing based on the screen content provided.
+[15:44:21] The first thing I notice is that the screen displays "Observer" repeatedly. That might be
+[15:44:21] an application or a feature name. Then there are some technical terms like IP address
+[15:44:21] (10.0.0.72:11434), which suggests network activity or server status. There's a mention
+[15:44:21] of "Connected Start Ollama Server," which I'm not too familiar with, but it sounds like
+[15:44:21] it's related to some kind of server process. The line "G Active Agents: 0 / Total: 3"
+[15:44:21] could indicate that there are three agents active, but none are currently active (the 0
+[15:44:21] might mean something else, maybe inactive or paused). Looking at the list of agents: -
+[15:44:21] SimpleActivityAgent is running. - CommandTrackingA gent is stopped. - V4 is
+[15:44:21] stopped. So, only SimpleActivityAgent is active. It's designed to track all activity and
+[15:44:21] commands used by the user, specifically mentioning tracking CLI commands. The
+[15:44:21] presence of "\V Show Logs W Hide CoT Gg VM Show Logs \ Show CoT" at the
+[15:44:21] bottom suggests that these might be commands being entered or tracked by the system.
+[15:44:21] The Model section shows "deepseek-r1:8b" stopped and another model "deepseek-
+[15:44:21] r1:7b" also stopped. This indicates that AI models are not currently active or available.
+[15:44:21] Additionally, there's a note about no Chain of Thought (CoT) available, which means
+[15:44:21] the AI isn't using previous interactions to generate responses. The timestamp shows
+[15:44:21] "TimestampA gent VY," but it's unclear what each part represents. The word "stopped"
+[15:44:21] appears multiple times, possibly indicating that certain processes or agents have been
+[15:44:21] shut down or paused. Putting this all together, it seems like the user is interacting with
+[15:44:21] an application that uses activity tracking and command monitoring. The
+[15:44:21] SimpleActivityAgent is functioning, tracking user actions, while other agents are
+[15:44:21] stopped. Since there's no active AI model, any text generation might be relying on
+[15:44:21] stored data or other mechanisms. I'm not entirely sure about all these technical terms,
+[15:44:21] but based on what I can gather, the main activity seems to involve monitoring and
+[15:44:21] tracking user actions within a specific application or system environment.
+[15:44:21] [15:44:05]
+[15:44:21] Okay, so I need to figure out what the user is doing based on the screen content
+[15:44:21] provided. Let me start by reading through all the information given. First, there's a line
+[15:44:21] that says "const [selectedA gent, setSelectedA gent] = useState<string | null>(null);".
+[15:44:21] That looks like some React code from a file called App.tsx. The next part mentions
+[15:44:21] "src/App.tsx:32:10 - e°@e Observer", which might be an error or log message related
+[15:44:21] to the Observer component. Then there are several lines mentioning different agents,
+[15:44:21] like "SimpleActivityAgent" and "CommandTrackingAgent". It says that
+[15:44:21] SimpleActivityAgent is running while CommandTrackingA gent is stopped. There's
+[15:44:21] also mention of a V4 agent that's stopped in main.tsx. So, it seems like these agents are
+[15:44:21] part of an activity tracking system. Looking at the Model section, both deepseek-r1:8b
+[15:44:21] and another model (maybe a typo for 7b) are marked as stopped. This suggests that the
+[15:44:21] AI models aren't currently active, so any text generation might be using stored data or
+[15:44:21] some other mechanism instead of real-time interactions. There's also a note about "no
+[15:44:21] Chain of Thought (CoT) available," which means the AI isn't using previous
+[15:44:21] interactions to generate responses. That's an important detail because it affects how the
+[15:44:21] model processes queries. The screen displays some logs, including timestamps like
+[15:44:21] 15:27:05 and commands being run, such as npm run build and tauri dev. These are
+[15:44:21] likely indicating that the user is working on a project or application that uses Tauri, a
+[15:44:21] tral fas hivilding Aacbtan anniinatinans unth wakh tarhnalagmiac Tha arrar maccagnad ahant
+[15:44:27] === RESPONSE ===
+[15:44:27] <think>
+[15:44:27] Okay, let me try to figure out what's going on here. The screen content shows a bunch of code-related terms and mentions about activity agents. First off, I see "Observer" mentioned multiple times, which might be an application or component name. Then there are some error messages like "const [selectedA gent, setSelectedA gent] = useState<string | null>(null);" from App.tsx. That looks like React code, so maybe the user is working on a web app.
+[15:44:27] Next, I notice references to different agents: SimpleActivityAgent and CommandTrackingAgent. It says that SimpleActivityAgent is running while the others are stopped. So it seems like there's some monitoring or tracking happening in the background.
+[15:44:27] There are also mentions of models being stopped, specifically deepseek-r1:8b and another model. This makes me think that any AI functionality might be down or inactive at the moment. The fact that no Chain of Thought (CoT) is available means the AI isn't using previous interactions to generate responses, so maybe responses are coming from somewhere else or there's a delay.
+[15:44:27] Timestamps like 15:27:05 and commands such as npm run build and tauri dev suggest that the user might be working on a project. Tauri is a tool for building desktop apps with web technologies, so it looks like they could be developing an app using Tauri.
+[15:44:27] Putting this all together, the user seems to be involved in web development, possibly working on a React application (from App.tsx) and using Tauri for some backend or desktop functionality. The presence of activity tracking agents indicates that they might be debugging or analyzing user interactions on their application.
+[15:44:27] </think>
+[15:44:27] ACTIVITY: Debugging a React application with Tauri integration and monitoring user activities via tracking agents.
+[15:44:27] === END COT BLOCK ===
+[15:44:27] Found command: ACTIVITY with params: ['Debugging a React application with Tauri integration and monitoring user activities via tracking agents.']
+[15:44:27] Executing command: ACTIVITY: Debugging a React application with Tauri integration and monitoring user activities via tracking agents.
+[15:44:30] === BEGIN COT BLOCK ===
+[15:44:30] === PROMPT ===
+[15:44:30] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+[15:44:30] Just respond with:
+[15:44:30] ACTIVITY: brief description of current activity
+[15:44:30] Examples:
+[15:44:30] ACTIVITY: Reading Harry Potter
+[15:44:30] ACTIVITY: Writing code in VS Code
+[15:44:30] ACTIVITY: Browsing YouTube
+[15:44:30] Only report when the activity actually changes.
+[15:44:30] === SCREEN CONTENT ===
+[15:44:30] Observer
+[15:44:30] 10.0.0.72:11434 v Connected Start Ollama Server
+[15:44:30] G Active Agents: 1 / Total: 3
+[15:44:30] Simple Activity Agent Command Tracking Agent C
+[15:44:30] running stopped
+[15:44:30] Model: deepseek-r1:8b Model: deepseek-r1:8b
+[15:44:30] Tracks all activity Tracks the CLI commands you use
+[15:44:30] A Hide Logs Y Show CoT Gg \Y Show Logs \V Show CoT
+[15:44:30] [15:27:12]
+[15:44:30] Executing command: ACTIVITY: Monitoring server status and user activity in an
+[15:44:30] application.
+[15:44:30] [15:44:16]
+[15:44:30] Executing command: ACTIVITY: Developing a desktop application using React and
+[15:44:30] Tauri, encountering build errors, and monitoring user activity through tracking agents.
+[15:44:30] Timestamp Agent VY
+[15:44:30] stopped
+[15:44:30] Model: deepseek-r1:7b
+[15:44:30] Records all user activity on a file
+[15:44:30] \Y Show Logs \V Show CoT
