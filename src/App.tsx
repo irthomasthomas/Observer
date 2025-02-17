@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import { RotateCw } from 'lucide-react'
 
 interface Agent {
   id: string;
   name: string;
+  model: string;
+  description: string;
   status: 'running' | 'stopped';
 }
 
@@ -13,11 +16,35 @@ function App() {
   const [serverAddress, setServerAddress] = useState('localhost:11434');
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
   const [isStartingServer, setIsStartingServer] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const updateServerConfig = async (host: string, port: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/config/update-server`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ host, port }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update server config');
+      }
+    } catch (err) {
+      console.error('Error updating server config:', err);
+    }
+  };
 
   const checkOllamaServer = async () => {
     try {
       setServerStatus('unchecked');
       const [host, port] = serverAddress.split(':');
+      
+      // First update the server config
+      await updateServerConfig(host, port);
+      
+      // Then check the server
       const response = await fetch(`http://localhost:8000/config/check-server`, {
         method: 'POST',
         headers: {
@@ -49,7 +76,6 @@ function App() {
       
       if (response.ok) {
         setError(null);
-        // Wait a moment for the server to start
         setTimeout(checkOllamaServer, 2000);
       } else {
         const data = await response.json();
@@ -64,6 +90,7 @@ function App() {
 
   const fetchAgents = async () => {
     try {
+      setIsRefreshing(true);
       console.log('Attempting to fetch agents...');
       const response = await fetch('http://localhost:8000/agents');
       console.log('Response status:', response.status);
@@ -79,30 +106,47 @@ function App() {
         console.error('Error type:', err.name);
         console.error('Error message:', err.message);
       }
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
   const toggleAgent = async (id: string, currentStatus: string) => {
+    const action = currentStatus === 'running' ? 'stop' : 'start';
+    
     try {
-      const action = currentStatus === 'running' ? 'stop' : 'start';
+      setError(null); // Clear any existing errors
+      
       const response = await fetch(`http://localhost:8000/agents/${id}/${action}`, {
         method: 'POST'
       });
       
-      if (!response.ok) throw new Error(`Failed to ${action} agent`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to ${action} agent`);
+      }
+      
+      // Wait a short moment before refreshing the agent list
+      await new Promise(resolve => setTimeout(resolve, 500));
       await fetchAgents();
+      
     } catch (err) {
-      setError(`Failed to ${currentStatus === 'running' ? 'stop' : 'start'} agent`);
+      const errorMessage = err instanceof Error ? err.message : `Failed to ${action} agent`;
+      setError(errorMessage);
       console.error('Error toggling agent:', err);
+      
+      // Refresh the agent list anyway to ensure UI is in sync
+      await fetchAgents();
     }
   };
 
+
+
   useEffect(() => {
     fetchAgents();
-    const interval = setInterval(fetchAgents, 2000);
-    return () => clearInterval(interval);
   }, []);
-    
+
   return (
     <div className="container">
       <header>
@@ -132,7 +176,16 @@ function App() {
             {isStartingServer ? 'Starting...' : 'Start Ollama Server'}
           </button>
         </div>
-        <p>Active Agents: {agents.filter(a => a.status === 'running').length} / Total: {agents.length}</p>
+        <div className="stats-container">
+          <button 
+            onClick={fetchAgents}
+            className={`refresh-button ${isRefreshing ? 'refreshing' : ''}`}
+            disabled={isRefreshing}
+          >
+            <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <p>Active Agents: {agents.filter(a => a.status === 'running').length} / Total: {agents.length}</p>
+        </div>
       </header>
 
       {error && <div className="error">{error}</div>}
@@ -144,7 +197,10 @@ function App() {
             <span className={`status ${agent.status}`}>
               {agent.status}
             </span>
-            <p>ID: {agent.id}</p>
+            <div className="agent-details">
+              <p className="model">Model: {agent.model}</p>
+              <p className="description">{agent.description}</p>
+            </div>
             <button
               onClick={() => toggleAgent(agent.id, agent.status)}
               className={`button ${agent.status}`}

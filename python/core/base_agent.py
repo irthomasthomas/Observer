@@ -6,15 +6,21 @@ from datetime import datetime
 from pathlib import Path
 
 class BaseAgent:
-    def __init__(self, agent_name, host="10.0.0.72", agent_model= "deepseek-r1:8b"):
+    def __init__(self, agent_name, host="127.0.0.1", agent_model="deepseek-r1:7b"):
         # Get the base directory (project root)
         self.base_dir = Path(__file__).parent.parent
         self.agent_name = agent_name
-        self.agent_model = agent_model
         
         # Set up agent-specific paths
         self.agent_path = self.base_dir / "agents" / agent_name
         self.data_path = self.agent_path / "data"
+        
+        # Load configuration first to get model name
+        self.config = self._load_config()
+        
+        # Use model name from config or fallback to parameter
+        self.agent_model = self.config.get('model_name', agent_model)
+        self.description = self.config.get('description', 'No description available')
         
         # Create data directory if it doesn't exist
         os.makedirs(self.data_path, exist_ok=True)
@@ -23,11 +29,8 @@ class BaseAgent:
         from core.capture import Capture
         from core.model import Model
         self.capture = Capture()
-        self.model = Model(model_name = agent_model, host=host)
+        self.model = Model(model_name=self.agent_model, host=host)
         self.running = False
-        
-        # Load configuration
-        self.config = self._load_config()
         
         # Set up logging
         log_file = self.data_path / f"log_{datetime.now().strftime('%Y%m%d')}.txt"
@@ -110,14 +113,47 @@ class BaseAgent:
 
     def stop(self):
         """Stop the agent"""
-        self.running = False
-        if hasattr(self, 'cleanup'):
-            self.cleanup()
-        self.log_file.close()
-
-    def process_command(self, line):
-        """Should be implemented by specific agents"""
-        raise NotImplementedError("Agents must implement process_command")
+        try:
+            self.running = False
+            
+            # Close model connection if exists
+            if hasattr(self, 'model'):
+                try:
+                    # Add any necessary cleanup for the model
+                    self.model = None
+                except Exception as e:
+                    self.log(f"Error cleaning up model: {e}")
+            
+            # Close capture if exists
+            if hasattr(self, 'capture'):
+                try:
+                    self.capture.sct.close()
+                    self.capture = None
+                except Exception as e:
+                    self.log(f"Error cleaning up capture: {e}")
+            
+            # Call agent-specific cleanup if exists
+            if hasattr(self, 'cleanup'):
+                try:
+                    self.cleanup()
+                except Exception as e:
+                    self.log(f"Error in cleanup: {e}")
+            
+            # Close log file
+            if hasattr(self, 'log_file') and self.log_file:
+                try:
+                    if not self.log_file.closed:
+                        self.log_file.flush()
+                        self.log_file.close()
+                except Exception as e:
+                    print(f"Error closing log file: {e}")
+                    
+        except Exception as e:
+            print(f"Error during agent stop: {e}")
+            raise
+        def process_command(self, line):
+            """Should be implemented by specific agents"""
+            raise NotImplementedError("Agents must implement process_command")
 
 
 # import time

@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 import requests
 from typing import Optional
-
+import yaml
 import logging
 
 class ServerAddress(BaseModel):
@@ -101,7 +101,6 @@ running_agents = {}
 agent_threads = {}
 
 
-
 def discover_agents():
     """Scan the agents directory and return available agents"""
     agents_dir = Path(__file__).parent / "agents"
@@ -113,6 +112,10 @@ def discover_agents():
             
             if (agent_dir / "agent.py").exists() and (agent_dir / "config.yaml").exists():
                 try:
+                    # Load config.yaml to get model_name and description
+                    with open(agent_dir / "config.yaml", 'r') as f:
+                        config = yaml.safe_load(f)
+                    
                     spec = importlib.util.spec_from_file_location("module", agent_dir / "agent.py")
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
@@ -129,6 +132,8 @@ def discover_agents():
                         available_agents.append({
                             "id": agent_id,
                             "name": agent_name,
+                            "model": config.get('model_name', 'Not specified'),
+                            "description": config.get('description', 'No description available'),
                             "status": "running" if agent_id in running_agents else "stopped"
                         })
                         
@@ -136,7 +141,6 @@ def discover_agents():
                     logger.error(f"Error loading agent from {agent_id}: {e}")
     
     return available_agents
-
 
 def run_agent(agent_id, agent):
     """Run agent in thread"""
@@ -235,16 +239,42 @@ async def start_agent(agent_id: str):
 @app.post("/agents/{agent_id}/stop")
 async def stop_agent(agent_id: str):
     """Stop an agent"""
+    logger.debug(f"Attempting to stop agent: {agent_id}")
+    
     if agent_id not in running_agents:
+        logger.warning(f"Agent {agent_id} not found in running agents")
         return {"error": "Not running"}
     
-    agent = running_agents[agent_id]
-    agent.stop()
-    
-    if agent_id in agent_threads:
-        agent_threads[agent_id].join(timeout=1)  # Wait up to 1 second
-    
-    return {"status": "stopped"}
+    try:
+        agent = running_agents[agent_id]
+        logger.debug(f"Found agent {agent_id}, attempting to stop")
+        
+        # Stop the agent
+        agent.stop()
+        logger.debug(f"Agent {agent_id} stop() called")
+        
+        # Get the thread
+        thread = agent_threads.get(agent_id)
+        if thread:
+            logger.debug(f"Waiting for agent thread to finish")
+            thread.join(timeout=2)  # Increased timeout
+            
+            if thread.is_alive():
+                logger.warning(f"Agent thread didn't stop within timeout")
+                # Could implement force stop here if needed
+        
+        # Clean up
+        if agent_id in running_agents:
+            del running_agents[agent_id]
+        if agent_id in agent_threads:
+            del agent_threads[agent_id]
+            
+        logger.debug(f"Agent {agent_id} successfully stopped and cleaned up")
+        return {"status": "stopped"}
+        
+    except Exception as e:
+        logger.error(f"Error stopping agent {agent_id}: {e}", exc_info=True)
+        return {"error": f"Failed to stop agent: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn

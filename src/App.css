@@ -4,68 +4,58 @@
   padding: 20px;
 }
 
-.header {
+header {
   margin-bottom: 20px;
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 8px;
 }
 
-.title-section {
-  margin-bottom: 15px;
-}
-
-.title-section h1 {
+h1 {
   margin: 0;
   margin-bottom: 10px;
 }
 
-.title-section p {
-  margin: 0;
-}
-
-.server-section {
+.server-config {
+  margin-bottom: 10px;
   display: flex;
+  gap: 10px;
   align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-}
-
-.server-controls {
-  display: flex;
-  gap: 10px;
-  flex-grow: 1;
 }
 
 .server-input {
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  width: 200px;
+  flex: 1;
+  max-width: 200px;
 }
 
-.server-check-button {
-  padding: 8px 16px;
-  border: none;
+.stats-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stats-container p {
+  margin: 0;
+}
+
+.refresh-button {
+  padding: 8px;
+  border: 1px solid #ddd;
   border-radius: 4px;
+  background: white;
   cursor: pointer;
-  background: #f0f0f0;
-  transition: background-color 0.2s;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.server-check-button:hover {
-  background: #e0e0e0;
+.refresh-button:hover {
+  background: #f5f5f5;
 }
 
-.server-check-button.online {
-  background: #4caf50;
-  color: white;
-}
-
-.server-check-button.offline {
-  background: #f44336;
-  color: white;
+.refresh-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .error {
@@ -92,6 +82,22 @@
 .agent-card h3 {
   margin: 0;
   margin-bottom: 10px;
+}
+
+.agent-details {
+  margin: 10px 0;
+}
+
+.agent-details .model {
+  font-size: 0.9em;
+  color: #666;
+  margin: 5px 0;
+}
+
+.agent-details .description {
+  font-size: 0.9em;
+  margin: 5px 0;
+  line-height: 1.4;
 }
 
 .status {
@@ -139,60 +145,39 @@
   background: #4caf50;
 }
 
-.server-config {
-  display: flex;
-  gap: 10px;
-  margin: 10px 0;
-  align-items: center;
-}
-
-.server-input {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  width: 200px;
-}
-
-/* Base button styles shared between both buttons */
 .server-check-button,
 .start-server-button {
   padding: 8px 16px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.2s;
-  min-width: 140px;
-  background: #f0f0f0;
-  color: black;
+  font-weight: 500;
 }
 
-/* Hover states */
-.server-check-button:hover:not(:disabled),
-.start-server-button:hover:not(:disabled) {
-  background: #e0e0e0;
+.server-check-button {
+  background: #f5f5f5;
 }
 
-/* Status-specific styles */
 .server-check-button.online {
-  background: #4caf50;
-  color: white;
+  background: #e8f5e9;
+  color: #2e7d32;
 }
 
 .server-check-button.offline {
-  background: #f44336;
+  background: #ffebee;
+  color: #c62828;
+}
+
+.start-server-button {
+  background: #2196f3;
   color: white;
 }
 
-/* Disabled states */
-.server-check-button:disabled,
 .start-server-button:disabled {
-  background: #ccc;
+  opacity: 0.5;
   cursor: not-allowed;
-  opacity: 0.7;
 }
 
-/* Starting state */
 .start-server-button.starting {
-  background: #ccc;
-  cursor: wait;
+  background: #1976d2;
 }
