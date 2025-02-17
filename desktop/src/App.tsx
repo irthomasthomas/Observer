@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
 import './App.css'
-import { RotateCw } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { RotateCw, Edit2 } from 'lucide-react';
+import EditAgentModal from './EditAgentModal';
+
 
 interface Agent {
   id: string;
@@ -10,13 +12,21 @@ interface Agent {
   status: 'running' | 'stopped';
 }
 
-function App() {
+export function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [serverAddress, setServerAddress] = useState('localhost:11434');
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
   const [isStartingServer, setIsStartingServer] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+ 
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const handleEditClick = (agentId: string) => {
+    setSelectedAgent(agentId);
+    setIsEditModalOpen(true);
+  };
+
 
   const updateServerConfig = async (host: string, port: string) => {
     try {
@@ -147,6 +157,7 @@ function App() {
     fetchAgents();
   }, []);
 
+
   return (
     <div className="container">
       <header>
@@ -193,14 +204,27 @@ function App() {
       <div className="agent-grid">
         {agents.map(agent => (
           <div key={agent.id} className="agent-card">
-            <h3>{agent.name}</h3>
+            <div className="flex items-center space-x-2">
+              <h3 className="flex-grow">{agent.name}</h3>
+              <button
+                onClick={() => handleEditClick(agent.id)}
+                className={`edit-button-small ${agent.status === 'running' ? 'disabled' : ''}`}
+                disabled={agent.status === 'running'}
+                title={agent.status === 'running' ? 'Stop agent to edit' : 'Edit agent'}
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            </div>
+            
             <span className={`status ${agent.status}`}>
               {agent.status}
             </span>
+            
             <div className="agent-details">
               <p className="model">Model: {agent.model}</p>
               <p className="description">{agent.description}</p>
             </div>
+            
             <button
               onClick={() => toggleAgent(agent.id, agent.status)}
               className={`button ${agent.status}`}
@@ -210,6 +234,18 @@ function App() {
           </div>
         ))}
       </div>
+
+      {selectedAgent && (
+        <EditAgentModal
+          agentId={selectedAgent}
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedAgent(null);
+          }}
+          onUpdate={fetchAgents}
+        />
+      )}
     </div>
   );
 }

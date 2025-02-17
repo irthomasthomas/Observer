@@ -375,3 +375,178 @@ file with timestamps.
 
 ~/repos/Observer
 
+[23:15:33] PROMPT with state:
+[23:15:33] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+
+Just respond with:
+ACTIVITY: brief description of current activity
+
+Examples:
+ACTIVITY: Reading Harry Potter
+ACTIVITY: Writing code in VS Code
+ACTIVITY: Browsing YouTube
+
+Only report when the activity actually changes.
+
+Current screen content:
+|| Your Library - >
+
+Playlists
+
+—/
+
+Podcasts & Courses Albums Artists
+
+Your Episodes
+Saved & downloaded episodes
+
+Album « Kendrick Lamar
+
+Esmeralda + roy3838
+aylist + Spotify
+
+uv
+
+peggie 18
+aylist + roy3838
+
+uv
+
+Bloom
+bum « RUFUS DU SOL
+
+>
+
+To Pimp A Butterfly
+
+bum « Kendrick Lamar
+
+>
+
+The Epic
+
+Album « Kamasi Washington
+
+DAMN.
+
+Album « Kendrick Lamar
+
+IGOR
+Album « Tyler, The Creator
+
+Impressionistic Classical
+Playlist « Arman Hedayat
+
+Un Segundo MTV Unplugged
+Album « Café Tacvba
+
+Live at Bush Hall
+Album « Black Country, New Road
+
+4
+
+his ls Death Grips
+aylist + Spotify
+
+uv
+
+Music To Be Murdered By - Side B (Deluxe E...
+
+Album ¢ Eminem
+
+My Beautiful Dark Twisted Fantasy
+Album « Kanye West
+
+heart pt. 6 @
+
+Kendrick Lamar
+
+fl Q What do you want to play?
+
+Esmeralda + roy3838
+
+# Title
+ee
+
+48
+
+49
+
+50
+
+Observer
+
+localhost:11434 v Connected
+
+G Active Agents: 0 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+No description available
+
+. 1€ Guarao
+bell Silvana Estrada
+ro) Amnesia
+
+'
+
+{ Inspector
+
+x Noid
+
+GB () Music video « Tyler, The Creator
+
+PaFa Feel Good Inc.
+EaFa © music video + Gorillaz
+
+Album
+Observer
+
+CommandTrackingAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+No description available
+
+Alma En Fuego
+CHROMAKOPIA
+
+Demon Days
+
+eK Mra
+
+GI
+
+Added by (C)
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+VE 2
+E 4:02
+ba .
+
+v 4:44
+E 3:43
+
+4:52
+
+GNX
+
+Kendrick Lamar
+
+Not Like Us
+Kendrick Lamar
+
+

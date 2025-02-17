@@ -4,7 +4,6 @@ import threading
 import os
 import importlib.util
 from pathlib import Path
-from datetime import datetime  # Add this import
 from core.base_agent import BaseAgent
 from pydantic import BaseModel
 import json
@@ -13,6 +12,9 @@ import requests
 from typing import Optional
 import yaml
 import logging
+from datetime import datetime, timedelta
+import re
+
 
 class ServerAddress(BaseModel):
     host: str
@@ -21,6 +23,11 @@ class ServerAddress(BaseModel):
 class GlobalConfig:
     ollama_host: str = "localhost"
     ollama_port: str = "11434"
+
+class AgentConfig(BaseModel):
+    name: str
+    description: str
+    model_name: str
 
 config = GlobalConfig()
 
@@ -275,6 +282,103 @@ async def stop_agent(agent_id: str):
     except Exception as e:
         logger.error(f"Error stopping agent {agent_id}: {e}", exc_info=True)
         return {"error": f"Failed to stop agent: {str(e)}"}
+
+@app.get("/agents/{agent_id}/config")
+async def get_agent_config(agent_id: str):
+    """Get agent configuration"""
+    try:
+        config_path = Path(__file__).parent / "agents" / agent_id / "config.yaml"
+        if not config_path.exists():
+            return {"error": "Agent configuration not found"}
+            
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            
+        return {
+            "name": config.get("name", ""),
+            "description": config.get("description", ""),
+            "model_name": config.get("model_name", "")
+        }
+    except Exception as e:
+        logger.error(f"Error reading agent config: {e}")
+        return {"error": f"Failed to read agent configuration: {str(e)}"}
+
+@app.post("/agents/{agent_id}/config")
+async def update_agent_config(agent_id: str, config: AgentConfig):
+    """Update agent configuration"""
+    try:
+        # First check if agent is running
+        if agent_id in running_agents:
+            return {"error": "Cannot update configuration while agent is running"}
+            
+        config_path = Path(__file__).parent / "agents" / agent_id / "config.yaml"
+        if not config_path.exists():
+            return {"error": "Agent configuration not found"}
+            
+        # Read existing config
+        with open(config_path, 'r') as f:
+            existing_config = yaml.safe_load(f)
+            
+        # Update config values
+        existing_config["name"] = config.name
+        existing_config["description"] = config.description
+        existing_config["model_name"] = config.model_name
+        
+        # Write updated config
+        with open(config_path, 'w') as f:
+            yaml.dump(existing_config, f)
+            
+        return {"status": "updated"}
+    except Exception as e:
+        logger.error(f"Error updating agent config: {e}")
+        return {"error": f"Failed to update agent configuration: {str(e)}"}
+
+# Add this new endpoint to api.py
+@app.get("/agents/{agent_id}/logs")
+async def get_agent_logs(agent_id: str, days: int = 1):
+    """Get agent logs for the specified number of past days"""
+    try:
+        # Calculate the date range
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        # Get the agent's data directory
+        agent_dir = Path(__file__).parent / "agents" / agent_id / "data"
+        if not agent_dir.exists():
+            return {"error": "Agent logs directory not found"}
+            
+        # Find all log files in the date range
+        log_files = []
+        for date in (start_date + timedelta(n) for n in range(days + 1)):
+            log_file = agent_dir / f"log_{date.strftime('%Y%m%d')}.txt"
+            if log_file.exists():
+                log_files.append(log_file)
+        
+        # Read and parse logs
+        logs = []
+        for log_file in log_files:
+            with open(log_file, 'r') as f:
+                for line in f:
+                    # Parse timestamp and message
+                    match = re.match(r'\[([\d:]+)\]\s*(.+)', line.strip())
+                    if match:
+                        time, message = match.groups()
+                        
+                        # Determine log type
+                        log_type = 'cot' if 'PROMPT' in message or 'RESPONSE' in message else 'action'
+                        
+                        logs.append({
+                            'timestamp': time,
+                            'message': message,
+                            'type': log_type
+                        })
+        
+        return sorted(logs, key=lambda x: x['timestamp'], reverse=True)
+        
+    except Exception as e:
+        logger.error(f"Error reading agent logs: {e}")
+        return {"error": f"Failed to read agent logs: {str(e)}"}
+
 
 if __name__ == "__main__":
     import uvicorn

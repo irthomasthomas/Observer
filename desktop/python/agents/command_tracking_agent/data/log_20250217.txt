@@ -1,0 +1,1367 @@
+[10:00:01] PROMPT with state:
+[10:00:01] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in ~ via
+
+Observer
+
+10.0.0.72:11434 v Connected
+
+G Active Agents: 0 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+Observer
+
+CommandTrackingAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks the CLI commands you use
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+
+[10:00:01] Error: API error: {"error":"model 'deepseek-r1:7b' not found"}
+[10:00:17] PROMPT with state:
+[10:00:17] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in ~ via
+
+Observer
+
+10.0.0.72:11434 v Connected
+
+G Active Agents: 0 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+Observer
+
+CommandTrackingAgent
+
+stopped
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+
+[10:00:26] RESPONSE:
+[10:00:26] <think>
+Okay, so I need to figure out how to respond when I'm monitoring the screen and see a command being executed. The user provided an example where they just pasted some text without any commands, and the response was "COMMAND: npm install react" because that's the command they were running.
+
+In this case, looking at the current screen content, there are lines like "CommandTrackingAgent stopped", "Model: deepseek-r1:7b", and other settings. I'm trying to see if any actual commands are being executed here. The words "COMMAND:" followed by something like "git push origin main" would indicate a command, but in the provided text, there's no such line.
+
+Wait, maybe the user is indicating that the screen content shows some agents being stopped or started, but I'm not sure if those actions involve commands or just configuration changes. The lines mention stopping CommandTrackingAgent and TimestampAgent with their respective models. It doesn't look like any command is being run; it seems more like configuration or management of active agents.
+
+So, since there are no actual commands listed in the provided content, I should respond that there's no new command executed. Therefore, my response would be "COMMAND: None" or similar to indicate no command was found.
+</think>
+
+The screen content doesn't show any executable commands, so the response is:
+
+COMMAND: None
+[10:00:26] Found command: COMMAND with params: ['None']
+[10:00:33] PROMPT with state:
+[10:00:33] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+ication/json', '‘access—control-allow-credentials': ‘true’
+,» ‘access—control—-expose-headers': 'x*', '‘access—control-a
+Llow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+INFO: 127.0@.0.1:55915 — "GET /agents HTTP/1.1" 200 OK
+2025-02-17 10:00:17,142 - DEBUG - ['tesseract', '/var/fol
+ders/d4/t8w2dg@17r155blc2p4kk3800000gn/T/tess_xqzpomow_in
+put.PNG', '/var/folders/d4/t8w2dg@17r155blc2p4kk3800000gn
+/T/tess_xqzpomow', 'txt']
+2025-02-17 10:00:17,925 -— DEBUG - Starting new HTTP conne
+ction (1): 10.0.0.72:11434
+2025-02-17 10:00:22,011 -— DEBUG —- http://10.0.0.72:11434
+"POST /api/generate HTTP/1.1" 200 None
+<think>
+Okay, so I need to figure out how to respond when I'm mon
+itoring the screen and see a command being executed. The
+user provided an example where they just pasted some text
+without any commands, and the response was "COMMAND: npm
+install react" because that's the command they were runn
+ing.
+
+In this case, looking at the current screen content, ther
+e are lines like "“CommandTrackingAgent stopped", "Model:
+deepseek-r1:7b", and other settings. I'm trying to see if
+any actual commands are being executed here. The words "
+COMMAND:" followed by something like "git push origin mai
+n" would indicate a command, but in the provided text, th
+ere's no such line.
+
+Wait, maybe the user is indicating that the screen conten
+
+t shows some agents being stopped or started, but I'm not
+sure if those actions involve commands or just configura
+
+tion changes. The lines mention stopping CommandTrackingA
+
+gent and TimestampAgent with their respective models. It
+
+doesn't look like any command is being run; it seems more
+like configuration or management of active agents.
+
+So, since there are no actual commands listed in the prov
+ided content, I should respond that there's no new comman
+d executed. Therefore, my response would be “COMMAND: Non
+e" or similar to indicate no command was found.
+
+</think>
+
+The screen content doesn't show any executable commands,
+so the response is:
+
+COMMAND: None
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.28s
+Running *‘target/debug/observer’
+
+jay@Qunix desktop % nvim src/App.css
+
+jaye@Qunix desktop %
+
+jay@Qunix desktop %
+
+jay@Qunix desktop %
+
+jay@Qunix desktop % ls
+
+dist package. json src-tauri
+index.html public tsconfig.json
+node_modules python tsconfig.node. json
+package-Lock. json src vite.config.ts
+
+jay@Qunix desktop % rm dist/x
+zsh: sure you want to delete all 4 files in /Users/jay/repos/Observer/desktop/dist [yn]?
+
+y
+
+rm: dist/assets: is a directory
+
+jay@Qunix desktop % rm -rf dist/x
+
+zsh: sure you want to delete the only file in /Users/jay/repos/Observer/desktop/dist [yn
+
+]? y
+
+jay@Qunix desktop %
+
+jay@Qunix desktop %
+p %
+
+jay@Qunix deskto npm run build
+
+> @observer/desktop@@.1.0@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+vy 1589 modules transformed._modules/lucide-react/dist/esm/icons/venus—and-mars. js [2K
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—BpQg9Kgx.css 3.17 kB | gzip: 0.98 kB
+dist/assets/index—WeDONMjj.js 153.84 kB | gzip: 49.34 kB
+
+vy built in 1.36s
+jay@Qunix desktop % npm run tauri dev
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.27s
+Running *‘target/debug/observer’
+
+
+[10:00:34] RESPONSE:
+[10:00:34] 
+
+COMMAND: npm run tauri dev
+[10:00:34] Found command: COMMAND with params: ['npm run tauri dev']
+[10:00:36] PROMPT with state:
+[10:00:36] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+) ssh jay@10.0.0.72
+
+
+[10:00:42] RESPONSE:
+[10:00:42] <think>
+Okay, so I need to figure out how to respond to the user's query about tracking commands in a terminal window. Let me break it down.
+
+First, the user wants an assistant that monitors the screen and identifies commands being run. The goal is to detect any command executed in a terminal or console. They provided examples like `git push origin main`, `npm install react`, and `python script.py`. The response should be just the command without any additional text, and only when a new command is seen.
+
+Looking at the current screen content they provided:
+```
+jay in @ archLinux in ~ via B v3.13.1
+) ssh jay@10.0.0.72
+```
+I notice that after the prompt `)` there's an `ssh` command being executed: `ssh jay@10.0.0.72`. 
+
+Wait, but according to their instructions, should I report this? Let me think. They mentioned ignoring repeated commands and focusing on actual commands, not general terminal text or prompts. So in the provided content, `ssh` is a command that's being run, right?
+
+But hold on, sometimes `ssh` might be part of a prompt or something else. However, in this case, it looks like a command because there's no context suggesting it's a prompt. Also, since it's followed by arguments, `jay@10.0.0.72`, that definitely makes it a command.
+
+So, I should respond with "COMMAND: ssh jay@10.0.0.72". But before finalizing, I should check if there are any other commands in the screen content. The line after seems to be a prompt from the SSH session, so no, only `ssh` is the command being executed here.
+
+I think that's it. The response should be straightforward.
+</think>
+
+COMMAND: ssh jay@10.0.0.72
+[10:00:42] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:00:44] PROMPT with state:
+[10:00:44] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72 §j
+
+
+[10:00:48] RESPONSE:
+[10:00:48] <think>
+Okay, so I need to figure out how to respond when the user sends a command through the chat. The user provided an example where the assistant correctly identified the command as "git push origin main" and similar others. My task is to monitor the screen for terminal/console windows and identify any commands being run by the user.
+
+Looking at the current screen content: jay is logged in on ArchLinux, using a terminal prompt with ">>" which usually means it's ready to take commands. The user typed "ssh jay@10.0.0.72 §j". Wait, that might be a typo because the correct syntax for SSH is usually "ssh jay@10.0.0.72", so adding another "@" after might not make sense.
+
+But regardless of whether it's correct or a typo, the assistant should only report actual commands executed. So, in this case, the user is typing a command line that starts with "ssh". Therefore, the command being executed is "ssh jay@10.0.0.72 §j".
+
+I need to make sure I extract just the command part and ignore any output or repeated commands. In this case, it's the first command, so I should report it accurately.
+
+So, putting it all together, the command is "ssh jay@10.0.0.72 §j".
+</think>
+
+COMMAND: ssh jay@10.0.0.72 §j
+[10:00:48] Found command: COMMAND with params: ['ssh jay@10.0.0.72 §j']
+[10:00:51] PROMPT with state:
+[10:00:51] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72 §j
+
+
+[10:00:55] RESPONSE:
+[10:00:55] <think>
+Okay, so I'm trying to figure out how to respond when a user sends me the output from their terminal. The user mentioned that they want me to monitor the screen and identify any commands being run, focusing on actual commands and not general terminal text or prompts.
+
+Looking at the example provided: The current screen content shows "» ssh jay@10.0.0.72 §j". My task is to extract the command from this line. 
+
+I know that in terminal screens, the command often starts with a prompt like "$" or ">". In this case, it's using "»", which might be an alternative prompt. The next part is the command itself: "ssh jay@10.0.0.72". So, the command being executed here is "ssh jay@10.0.0.72".
+
+I need to make sure I'm only capturing the actual command and not any other text. In this case, it's straightforward because the line starts with the prompt followed directly by the command. There are no other parts of the terminal output that would interfere, like text after the command or multiple commands in one line.
+
+So, my response should be "COMMAND: ssh jay@10.0.0.72". I also need to ensure I'm ignoring repeated commands and any output, which isn't an issue here since it's a single command.
+</think>
+
+The command being executed is "ssh jay@10.0.0.72".
+
+COMMAND: ssh jay@10.0.0.72
+[10:00:55] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:01:02] PROMPT with state:
+[10:01:02] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+</think>
+
+COMMAND: ssh jay@10.0.0.72 §j
+
+2025-02-17 10:00:50,262 -— DEBUG — STREAM b'IHDR' 16 13
+2025-02-17 10:00:50,262 -— DEBUG -— STREAM b'IDAT' 41 66090
+2025-02-17 10:00:50,823 -— DEBUG - ['tesseract', '/var/fol
+ders/d4/t8w2dg@17r155blc2p4kk3800000gn/T/tess_xoxw8vbb_in
+put.PNG', '/var/folders/d4/t8w2dg@17r155blc2p4kk3800000gn
+/T/tess_xoxw8vbb', ‘txt']
+
+2025-02-17 10:00:51,365 -— DEBUG - Starting new HTTP conne
+ction (1): 10.0.0.72:11434
+
+2025-02-17 10:00:51,421 -— DEBUG —- http://10.0.0.72:11434
+"POST /api/generate HTTP/1.1" 200 None
+
+<think>
+
+Okay, so I'm trying to figure out how to respond when a u
+ser sends me the output from their terminal. The user men
+tioned that they want me to monitor the screen and identi
+fy any commands being run, focusing on actual commands an
+d not general terminal text or prompts.
+
+Looking at the example provided: The current screen conte
+nt shows "» ssh jay@10.0.0.72 §j". My task is to extract
+the command from this Line.
+
+I know that in terminal screens, the command often starts
+
+with a prompt like "$" or ">", In this case, it's using
+">" which might be an alternative prompt. The next part
+is the command itself: "ssh jay@10.0.0.72". So, the comma
+nd being executed here is "ssh jay@10.0.0.72".
+
+I need to make sure I'm only capturing the actual command
+
+and not any other text. In this case, it's straightforwa
+rd because the line starts with the prompt followed direc
+tly by the command. There are no other parts of the termi
+nal output that would interfere, like text after the comm
+and or multiple commands in one line.
+
+So, my response should be "COMMAND: ssh jay@10.0.0.72". I
+also need to ensure I'm ignoring repeated commands and a
+ny output, which isn't an issue here since it's a single
+command.
+
+</think>
+
+The command being executed is "ssh jay@10.0.0.72".
+
+COMMAND: ssh jay@10.0.0.72
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.28s
+Running *‘target/debug/observer’
+
+jay@Qunix desktop % nvim src/App.css
+
+jaye@Qunix desktop %
+
+jay@Qunix desktop %
+
+jay@Qunix desktop %
+
+jay@Qunix desktop % ls
+
+dist package. json src-tauri
+index.html public tsconfig.json
+node_modules python tsconfig.node. json
+package-Lock. json src vite.config.ts
+
+jay@Qunix desktop % rm dist/x
+zsh: sure you want to delete all 4 files in /Users/jay/repos/Observer/desktop/dist [yn]?
+
+y
+
+rm: dist/assets: is a directory
+
+jay@Qunix desktop % rm -rf dist/x
+
+zsh: sure you want to delete the only file in /Users/jay/repos/Observer/desktop/dist [yn
+
+]? y
+
+jay@Qunix desktop %
+
+jay@Qunix desktop %
+p %
+
+jay@Qunix deskto npm run build
+
+> @observer/desktop@@.1.0@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+vy 1589 modules transformed._modules/lucide-react/dist/esm/icons/venus—and-mars. js [2K
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—BpQg9Kgx.css 3.17 kB | gzip: 0.98 kB
+dist/assets/index—WeDONMjj.js 153.84 kB | gzip: 49.34 kB
+
+vy built in 1.36s
+jay@Qunix desktop % npm run tauri dev
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.27s
+Running *‘target/debug/observer’
+
+
+[10:01:03] RESPONSE:
+[10:01:03] 
+
+COMMAND: npm run build
+[10:01:03] Found command: COMMAND with params: ['npm run build']
+[10:01:06] PROMPT with state:
+[10:01:06] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay@archLinux:~
+
+jay in @ archLinux in ~ via B v3.13.1
+> ssh jay@10.0.0.72
+
+Launchpad
+
+2808880860880 82008 0600 al
+
+[10:01:11] RESPONSE:
+[10:01:11] <think>
+Okay, so I'm looking at the screen content provided and trying to figure out what command was executed. The user mentioned that they're using a command tracking assistant, so my job is to identify any commands being run in the terminal or console windows.
+
+Looking at the current screen content:
+
+jay@archLinux:~
+
+Then there's some text about jay being in @ archLinux via B v3.13.1.
+
+Next, I see the command:
+
+> ssh jay@10.0.0.72
+
+So that seems like a command being executed in the terminal. The command is "ssh jay@10.0.0.72". 
+
+I should check if this fits into the examples provided. The examples include commands like git push, npm install, and python script.py. This one is an SSH command, which is common in Linux/Unix terminals.
+
+Since the user is asking to report when a new command is executed, I don't need to worry about repeated commands or outputs, just the actual commands. So, this is a new command.
+
+I should make sure not to include any terminal text or prompts, just the command itself. In this case, it's clearly the SSH command with the IP address as an argument.
+
+So, the response would be:
+
+COMMAND: ssh jay@10.0.0.72
+
+That makes sense because it's a direct command and fits the format of the examples provided.
+</think>
+
+The command executed in the terminal is "ssh jay@10.0.0.72".
+
+COMMAND: ssh jay@10.0.0.72
+[10:01:11] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:01:11] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:01:14] PROMPT with state:
+[10:01:14] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72
+
+
+[10:01:19] RESPONSE:
+[10:01:19] <think>
+Okay, so I'm trying to figure out how to handle this command tracking query. The user wants me to monitor the terminal and report any commands being run. They provided an example where they saw "ssh jay@10.0.0.72" and the response was "COMMAND: ssh jay@10.0.0.72".
+
+Looking at the current screen content, it's just a simple command line prompt with the user already entering "» ssh jay@10.0.0.72". I need to determine if this is an executed command or not. In the examples given by the user, they're looking for actual commands that are being run, not general terminal text or prompts.
+
+So, in this case, the user has already typed in the command. The prompt shows it as "»" which typically indicates a command line prompt or maybe a typo. But since the user is about to execute the command, it's considered a new command execution.
+
+I should check if there are any previous instances of this command and whether I should report it. The user instructed to ignore repeated commands and output, so even if they run it again, I shouldn't report duplicates.
+
+Wait, but in the example, the command is being executed right after the prompt. So when the user types "ssh jay@10.0.0.72" and hits enter, that's a new command execution. Therefore, it should be reported as the COMMAND: ssh jay@10.0.0.72.
+
+I think I got it. The key is to recognize that the command is being executed by the user and not just part of the prompt or previous output.
+</think>
+
+COMMAND: ssh jay@10.0.0.72
+[10:01:19] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:01:22] PROMPT with state:
+[10:01:22] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72
+
+
+[10:01:26] RESPONSE:
+[10:01:26] <think>
+Okay, so I'm trying to figure out how to respond when the user is executing a command on their screen. The example given shows that when someone types a command like "git push origin main" or "npm install react", the assistant simply reports "COMMAND: git push origin main" and so on.
+
+Looking at the current screen content provided, it's just a line showing the user's environment:
+
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72
+
+Hmm, I need to see if there's any command being executed here. The prompt shows "ssh jay@10.0.0.72". So the user is trying to SSH into a server at 10.0.0.72.
+
+But wait, in the example, the assistant only reports commands that are actually being run. So I need to check if the command after ">>" is being executed or not. It seems like the user hasn't pressed enter yet; they're just typing it. So no command has been executed yet.
+
+Therefore, since there's no actual command being ran, I shouldn't report anything. The response should be that no command was found.
+</think>
+
+COMMAND: ssh jay@10.0.0.72
+[10:01:26] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:01:28] PROMPT with state:
+[10:01:28] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72
+
+
+[10:01:34] RESPONSE:
+[10:01:34] <think>
+Alright, so I'm trying to figure out how to respond when the user mentions "COMMAND: ssh jay@10.0.22" in their query. Let me break this down step by step.
+
+First, I need to understand the context. The user is providing a screen content snippet that looks like a terminal or command line interface. The output shows a user named 'jay' accessing a server via SSH. The command being executed is 'ssh jay@10.0.22'.
+
+Now, looking at the instructions given earlier, I'm supposed to monitor the screen and identify any commands being run by the user. Specifically, I need to extract the command that was just executed and report it in the format "COMMAND: command_here".
+
+I should consider whether there are multiple instances of the same command or if this is a new one. In this case, it seems like 'ssh jay@10.0.22' is a single command being executed by the user. I also need to ignore repeated commands and outputs, but here, it's just a single command.
+
+Another thing to note is that the output includes some other text, like "jay in @ archLinux in ~ via B v3.13.1", which probably indicates the environment or connection details before the command. However, the focus should be solely on the actual command executed, which is 'ssh jay@10.0.22'.
+
+I should also make sure not to include any terminal text or prompts that aren't part of the command itself. The user wants only the commands, so I'll extract just the relevant part.
+
+Putting it all together, the correct response would be "COMMAND: ssh jay@10.0.22" as per the example provided in the query.
+</think>
+
+COMMAND: ssh jay@10.0.22
+[10:01:34] Found command: COMMAND with params: ['ssh jay@10.0.22']
+[10:01:36] PROMPT with state:
+[10:01:36] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72
+
+
+[10:01:41] RESPONSE:
+[10:01:41] <think>
+Okay, so I'm trying to figure out how to respond when the user is asking for help with their command tracking assistant. Let me read through the problem again.
+
+The user provided a scenario where they want an AI that monitors the terminal screen and identifies commands being executed by the user. They gave examples of what kind of responses are expected, like "COMMAND: git push origin main". The instruction says to look for terminal/console windows and command prompts, only report new commands, ignore repeats, and focus on actual commands not general text.
+
+In the current screen content, it's showing a terminal prompt where the user typed "» ssh jay@10.0.0.72". I need to determine if this is a command that should be reported as per the instructions.
+
+First, I should check if this is a new command. The examples given include commands like git push, npm install, etc., which are clearly commands. Here, "ssh jay..." looks like a command being executed in the terminal.
+
+Next, I need to see if it's being ignored or not. The user mentioned to ignore repeated commands and output, but here it's just the single command. So, this should be reported.
+
+Therefore, the response would be "COMMAND: ssh jay@10.0.0.72". I think that's straightforward since there are no complexities in this particular command.
+</think>
+
+The user executed a new command in the terminal, which is an SSH connection attempt.
+
+COMMAND: ssh jay@10.0.0.72
+[10:01:41] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:01:48] PROMPT with state:
+[10:01:48] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+2025-02-17 10:01:36,102 -— DEBUG - ['tesseract', '/var/fol
+
+ders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_q4dgfav@_in
+put.PNG', '/var/folders/d4/t8w2dg@17r155blc2p4kk3800000gn
+
+/T/tess_q4dgfava', ‘txt']
+
+2025-02-17 10:01:36,780 — DEBUG - Starting new HTTP conne
+ction (1): 10.0.0.72:11434
+
+2025-02-17 10:01:37,011 -— DEBUG — http://10.0.0.72:11434
+"POST /api/generate HTTP/1.1" 200 None
+
+<think>
+
+Okay, so I'm trying to figure out how to respond when the
+user is asking for help with their command tracking assi
+stant. Let me read through the problem again.
+
+The user provided a scenario where they want an AI that m
+onitors the terminal screen and identifies commands being
+executed by the user. They gave examples of what kind of
+
+responses are expected, like "COMMAND: git push origin m
+ain". The instruction says to look for terminal/console w
+indows and command prompts, only report new commands, ign
+ore repeats, and focus on actual commands not general tex
+t.
+
+In the current screen content, it's showing a terminal pr
+ompt where the user typed "» ssh jay@1@.0.0.72". I need t
+o determine if this is a command that should be reported
+as per the instructions.
+
+First, I should check if this is a new command. The examp
+les given include commands like git push, npm install, et
+c., which are clearly commands. Here, "ssh jay..." looks
+like a command being executed in the terminal.
+
+Next, I need to see if it's being ignored or not. The use
+r mentioned to ignore repeated commands and output, but h
+ere it's just the single command. So, this should be repo
+rted.
+
+Therefore, the response would be "COMMAND: ssh jay@10.0.0
+.72", I think that's straightforward since there are no c
+omplexities in this particular command.
+
+</think>
+
+The user executed a new command in the terminal, which is
+an SSH connection attempt.
+
+COMMAND: ssh jay@10.0.0.72
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.28s
+Running *‘target/debug/observer’
+jay@Qunix desktop nvim src/App.css
+jayeQunix desktop
+jayeQunix desktop
+jayeQunix desktop
+
+0 SP MK
+
+jay@Qunix desktop % ls
+
+dist package. json src-tauri
+index.html public tsconfig.json
+node_modules python tsconfig.node. json
+package-Lock. json src vite.config.ts
+
+jay@Qunix desktop % rm dist/x
+zsh: sure you want to delete all 4 files in /Users/jay/repos/Observer/desktop/dist [yn]?
+
+y
+
+rm: dist/assets: is a directory
+
+jay@Qunix desktop % rm -rf dist/x
+
+zsh: sure you want to delete the only file in /Users/jay/repos/Observer/desktop/dist [yn
+
+]? y
+
+jay@Qunix desktop %
+
+jay@Qunix desktop %
+p %
+
+jay@Qunix deskto npm run build
+
+> @observer/desktop@@.1.0@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+
+vy 1589 modules transformed._modules/lucide-react/dist/esm/icons/venus—and-mars. js [2K
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—BpQg9Kgx.css 3.17 kB | gzip: 0.98 kB
+dist/assets/index—WeDONMjj.js 153.84 kB | gzip: 49.34 kB
+
+vy built in 1.36s
+
+jay@Qunix desktop % npm run tauri dev
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.27s
+Running *‘target/debug/observer’
+
+
+[10:01:49] RESPONSE:
+[10:01:49] 
+
+COMMAND: npm run tauri dev
+[10:01:49] Found command: COMMAND with params: ['npm run tauri dev']
+[10:01:56] PROMPT with state:
+[10:01:56] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+onitors the terminal screen and identifies commands being
+executed by the user. They gave examples of what kind of
+responses are expected, like "COMMAND: git push origin m
+ain". The instruction says to look for terminal/console w
+indows and command prompts, only report new commands, ign
+ore repeats, and focus on actual commands not general tex
+t.
+
+In the current screen content, it's showing a terminal pr
+ompt where the user typed "» ssh jay@1@.0.0.72". I need t
+o determine if this is a command that should be reported
+as per the instructions.
+
+First, I should check if this is a new command. The examp
+les given include commands like git push, npm install, et
+c., which are clearly commands. Here, "ssh jay..." looks
+like a command being executed in the terminal.
+
+Next, I need to see if it's being ignored or not. The use
+r mentioned to ignore repeated commands and output, but h
+ere it's just the single command. So, this should be repo
+rted.
+
+Therefore, the response would be "COMMAND: ssh jay@10.0.0
+.72", I think that's straightforward since there are no c
+omplexities in this particular command.
+
+</think>
+
+The user executed a new command in the terminal, which is
+an SSH connection attempt.
+
+COMMAND: ssh jay@10.0.0.72
+
+2025-02-17 10:01:42,723 - DEBUG — STREAM b'IHDR' 16 13
+2025-02-17 10:01:42,723 - DEBUG — STREAM b'IDAT' 41 61138
+5
+
+2025-02-17 10:01:43,490 -— DEBUG - ['tesseract', '/var/fol
+ders/d4/t8w2dg@17r155blc2p4kk3800000gn/T/tess_71x9n3vs_in
+put.PNG', '/var/folders/d4/t8w2dg@17r155blc2p4kk3800000gn
+/T/tess_71x9n3vs', ‘txt']
+
+2025-02-17 10:01:48,055 -— DEBUG - Starting new HTTP conne
+ction (1): 10.0.0.72:11434
+
+2025-02-17 10:01:49,048 -— DEBUG - http://10.0.0.72:11434
+"POST /api/generate HTTP/1.1" 200 None
+
+COMMAND: npm run tauri dev
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.28s
+Running *‘target/debug/observer’
+
+jay@Qunix desktop % nvim src/App.css
+
+jaye@Qunix desktop %
+
+jay@Qunix desktop %
+
+jay@Qunix desktop %
+
+jay@Qunix desktop % ls
+
+dist package. json src-tauri
+index.html public tsconfig.json
+node_modules python tsconfig.node. json
+package-Lock. json src vite.config.ts
+
+jay@Qunix desktop % rm dist/x
+zsh: sure you want to delete all 4 files in /Users/jay/repos/Observer/desktop/dist [yn]?
+
+y
+
+rm: dist/assets: is a directory
+
+jay@Qunix desktop % rm -rf dist/x
+
+zsh: sure you want to delete the only file in /Users/jay/repos/Observer/desktop/dist [yn
+
+]? y
+
+jay@Qunix desktop %
+
+jay@Qunix desktop %
+p %
+
+jay@Qunix deskto npm run build
+
+> @observer/desktop@@.1.0@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+vy 1589 modules transformed._modules/lucide-react/dist/esm/icons/venus—and-mars. js [2K
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—BpQg9Kgx.css 3.17 kB | gzip: 0.98 kB
+dist/assets/index—WeDONMjj.js 153.84 kB | gzip: 49.34 kB
+
+vy built in 1.36s
+jay@Qunix desktop % npm run tauri dev
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.27s
+Running *‘target/debug/observer’
+
+
+[10:01:57] RESPONSE:
+[10:01:57] 
+
+COMMAND: ssh jay@10.0.0.72
+[10:01:57] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:01:59] PROMPT with state:
+[10:01:59] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72
+
+
+[10:02:04] RESPONSE:
+[10:02:04] <think>
+Okay, so I need to figure out what the user is doing here. Looking at the current screen content provided:
+
+jay in @ archLinux in ~ via B v3.13.1
+>» ssh jay@10.0.0.72
+
+I see that the user is in an Arch Linux environment and they're typing "ssh jay@10.0.0.72". The prompt before the command shows ">>", which might indicate that this is a command line interface, possibly SSHing into another machine.
+
+The task is to identify any commands being executed by monitoring the terminal or console window. I should look for terminal/console windows and command prompts. The user provided an example where they took "ssh jay@10.0.0.72" as a command.
+
+So, in this case, the user is executing an SSH command to connect to another machine with IP address 10.0.0.72. My role is to extract the command from the terminal output, not the general text or prompts. 
+
+I need to make sure I only report when a new command is executed, ignoring repeated commands and outputs. The user's example responses focus on actual commands, so I should do the same here.
+
+The command here is "ssh jay@10.0.0.72". It seems straightforward as it's an SSH connection command with username 'jay' and IP address '10.0.0.72'.
+
+I shouldn't add anything extra; just report the command that was executed.
+</think>
+
+COMMAND: ssh jay@10.0.0.72
+[10:02:04] Found command: COMMAND with params: ['ssh jay@10.0.0.72']
+[10:02:07] PROMPT with state:
+[10:02:07] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in ~ via
+
+Observer
+
+10.0.0.72:11434 v Connected
+
+G Active Agents: 1 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+Observer
+
+CommandTrackingAgent
+
+running
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+
+[10:02:24] PROMPT with state:
+[10:02:24] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+in ~ via
+
+Observer
+
+10.0.0.72:11434 v Connected
+
+G Active Agents: 0 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+Observer
+
+CommandTrackingAgent
+
+stopped
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+
+[10:02:32] RESPONSE:
+[10:02:32] <think>
+Okay, so I need to figure out how to respond when I'm monitoring the screen for commands. Let me start by understanding what the task is asking.
+
+First, the user wants me to act as a command tracking assistant. My job is to observe the terminal or console windows and identify any commands that are being executed by the user. The response should simply be the command that was executed, without any extra text.
+
+Looking at the examples provided:
+
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+I notice that each time a new command is detected, I need to report it exactly as written, in the format "COMMAND: command_here". Repeated commands or outputs shouldn't be reported again.
+
+Now, let's look at the current screen content provided:
+
+in ~ via
+
+Observer
+
+10.0.0.72:11434 v Connected
+
+G Active Agents: 0 / Total: 3
+
+SimpleActivityAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Tracks all activity
+
+Observer
+
+CommandTrackingAgent
+
+stopped
+
+Model: deepseek-r1:8b
+
+Tracks the CLI commands you use
+
+TimestampAgent
+
+stopped
+
+Model: deepseek-r1:7b
+
+Records all user activity on a file
+
+Hmm, I need to parse this content carefully. It seems like it's some system output or logs, possibly from an observer or monitoring tool.
+
+Breaking down each line:
+
+- "in ~ via" might indicate the user is in a terminal window, perhaps a command prompt.
+- "Observer" and other terms suggest that these are agents or tools being displayed.
+- There are IP addresses and agent statuses like "Connected", "Stopped".
+- The lines mention models like deepseek-r1:7b and functions they perform, such as tracking activity.
+
+I'm looking for any CLI commands. So I need to see if there's a command prompt where the user is entering commands.
+
+In the given content, after the initial setup info, I don't immediately see any new commands being executed. The agents are either stopped or running without any active terminal input from the user.
+
+Wait, perhaps the "in ~ via" line indicates that the user is in their shell. But without seeing specific commands like git push, npm install, etc., there's nothing to report.
+
+I should ignore repeated commands and outputs, focusing only on actual commands entered by the user.
+
+Since no new commands are evident here, I won't report anything. The last response was about the TimestampAgent stopping. There are no subsequent commands shown after that point.
+
+So, in conclusion, based on the provided screen content, there are no new commands being executed to report.
+</think>
+
+COMMAND:
+[10:02:32] Found command: COMMAND with params: ['git push origin main']
+[10:02:32] Found command: COMMAND with params: ['npm install react']
+[10:02:32] Found command: COMMAND with params: ['python script.py']
+[10:02:39] PROMPT with state:
+[10:02:39] You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+Look for terminal/console windows and command prompts.
+
+Simply respond with:
+COMMAND: the command that was executed
+
+Examples:
+COMMAND: git push origin main
+COMMAND: npm install react
+COMMAND: python script.py
+
+Only report when you see a new command being executed.
+Ignore repeated commands and command output.
+Focus on actual commands, not general terminal text or prompts.
+
+Current screen content:
+Model: deepseek-r1:7b
+Records all user activity on a file
+
+Hmm, I need to parse this content carefully. It seems lik
+e it's some system output or logs, possibly from an obser
+ver or monitoring tool.
+
+Breaking down each Line:
+
+- "in ~ via" might indicate the user is in a terminal win
+dow, perhaps a command prompt.
+
+- "Observer" and other terms suggest that these are agent
+s or tools being displayed.
+
+— There are IP addresses and agent statuses like "Connect
+ed", "Stopped".
+
+- The lines mention models like deepseek-ri:7b and functi
+ons they perform, such as tracking activity.
+
+I'm looking for any CLI commands. So I need to see if the
+re's a command prompt where the user is entering commands
+
+In the given content, after the initial setup info, I don
+"t immediately see any new commands being executed. The a
+gents are either stopped or running without any active te
+rminal input from the user.
+
+Wait, perhaps the "in ~ via" line indicates that the user
+is in their shell. But without seeing specific commands
+like git push, npm install, etc., there's nothing to repo
+
+rt.
+
+I should ignore repeated commands and outputs, focusing o
+nly on actual commands entered by the user.
+
+Since no new commands are evident here, I won't report an
+
+ything. The last response was about the TimestampAgent st
+
+opping. There are no subsequent commands shown after that
+point.
+
+So, in conclusion, based on the provided screen content,
+there are no new commands being executed to report.
+</think>
+
+COMMAND :
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.28s
+Running *‘target/debug/observer’
+jay@Qunix desktop nvim src/App.css
+jayeQunix desktop
+jayeQunix desktop
+jayeQunix desktop
+
+0 SP MK
+
+jay@Qunix desktop % ls
+
+dist package. json src-tauri
+index.html public tsconfig.json
+node_modules python tsconfig.node. json
+package-Lock. json src vite.config.ts
+
+jay@Qunix desktop % rm dist/x
+zsh: sure you want to delete all 4 files in /Users/jay/repos/Observer/desktop/dist [yn]?
+
+y
+rm: dist/assets: is a directory
+
+jay@Qunix desktop % rm -rf dist/x
+
+zsh: sure you want to delete the only file in /Users/jay/repos/Observer/desktop/dist [yn
+]? y
+
+jay@Qunix desktop %
+
+jaye@Qunix desktop %
+
+jay@Qunix desktop % npm run build
+
+> @observer/desktop@@.1.0@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+vy 1589 modules transformed._modules/lucide-react/dist/esm/icons/venus—and-mars. js [2K
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—BpQg9Kgx.css 3.17 kB | gzip: 0.98 kB
+dist/assets/index—WeDONMjj.js 153.84 kB | gzip: 49.34 kB
+
+vy built in 1.36s
+jay@Qunix desktop % npm run tauri dev
+
+> @observer/desktop@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/desktop/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.27s
+Running *‘target/debug/observer’
+
+
