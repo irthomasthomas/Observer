@@ -1,0 +1,2471 @@
+[16:38:32] PROMPT with state:
+[16:38:32] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+ja
+
+jay@Qunix ~ % q
+
+zsh: command not found: q
+jay@Qunix ~
+jay@Qunix ~
+jay@Qunix ~
+
+co & &
+
+jay@Qunix ~ % ls
+AnyToResource Desktop Down loads
+Applications Documents GeoStats
+
+jay@Qunix ~ % cd repos
+jayeQunix repos % cd Observer
+jay@Qunix Observer % ls
+
+LICENSE index.html
+README.md node_modules
+dist package-Lock. json
+
+jay@Qunix Observer %
+
+Co@°o Observer
+
+Observer
+
+Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+running
+
+ID: timestamp_agent
+
+~/repos/Observer ~/repos/Observer
+
+quantize. py
+ntions repos
+
+rig.node. json
+ronfig.ts
+
+texput. log
+
+[17:11:26] PROMPT with state:
+[17:11:26] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+1 ffirom fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import threading
+import os
+import importlib.util
+from pathlib import Path eo0o Observer
+from datetime import datetime
+from core.base_agent import BaseAgent
+from pydantic import BaseModel
+impo rt j son Active Agents: 0 / Total: 1
+from pathlib import Path
+
+Observer
+
+TimestampA gent
+stopped
+import logging
+ID: timestamp_agent
+class ServerAddress(BaseModel):
+host: str
+port: str
+
+logging. basicConfig(
+level=logging.DEBUG,
+format='%(asctime)s - %(levelname)
+
+)
+
+logger = logging.getLogger(__name_)
+
+app = FastAPI()
+
+app.add_middleware(
+
+CORSMiddleware,
+
+allow_origins=[
+“http://localhost:1420",
+"http://127.0.0.1:1420",
+“http://localhost:1430",
+"http://127.0.0.1:1430",
+"“tauri:// localhost"
+
+],
+
+allow_credentials=True,
+
+allow_methods=["x"'],
+
+allow_headers=["x"'],
+
+expose_headers=["x"']
+
+NORMAL api.py Gil Observer Gf 0 x
+
+271 lines yanked
+
+| ~/repos/Observer |] nvim python/api. py
+
+
+[17:32:14] PROMPT with state:
+[17:32:14] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+< fl Q What do you want to play? ew LA y
+|| Your Library + 5 ee 7 — _— Observer Esmeralda + roy3838 oe X
+Playlists Podcasts & Courses Albums Artists ©)
+= Observer
+Your Episodes Active Agents: 0 / Total: 1 3:19
+
+Saved & downloaded episodes
+
+GNX Server Address: _localhost:11434 3:53
+
+pa Album « Kendrick Lamar
+. 3:03
+peggie 18
+Playlist « roy3838 TimestampA gent
+stopped was
+Bloom
+Album « RUFUS DU SOL .
+ID: timestamp_agent 1:42
+-
+Mt ane Pe ~
+Album « Kendrick Lamar 4:17
+| The Epic
+Album « Kamasi Washington L444 man at the garden @
+Kendrick Lamar
+DAMN. 420
+Album « Kendrick Lamar
+Related music videos
+IGOR 3:54
+Album « Tyler, The Creator
+KENDRICK LAMAR
+. THESE WALLS ici
+Impressionistic Classical 2:47 PETRA Ky
+Playlist - Arman Hedayat mrp 7
+° 3:04
+These Walls Not Like Us
+oS Playlist + Spotify Kendrick Lamar, Bilal... @ Kendrick Lamar
+4:02
+Un Segundo MTV Unplugged
+Album « Café Tacvba
+2:11
+Live at Bush Hall
+Album « Black Country, New Road 47 We Guardo Primeras Canciones x E 3:22
+Silvana Estrada
+This Is Death Grips 100 Amnesia
+ist « Spoti 48 & Alma En F E 4:02
+Playlist + Spotify H lagaecier ma en ruego
+Music To Be Murdered By - Side B (Deluxe E... RN ve i
+’ 49 Meh Noid CHROMAKOPIA x 4:44
+Album « Eminem W GB [J Music video - Tyler, The Creator
+My Beautiful Dark Twisted Fantasy 50 ria Feel Good Inc. Demon Days E 3:43
+Ea © music video + Gorillaz
+Album « Kanye West
+Kendrick Lamar
+Alligator Bites Never Heal
+O° ATL NZ waAanetebhs ntannce Palla...
+man at the garden @ | oO >I P2L2A mo f
+= = = 4
+
+Kendrick Lamar
+
+0 3:53
+
+[17:33:29] Error: HTTPConnectionPool(host='10.0.0.72', port=11434): Max retries exceeded with url: /api/generate (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x12923d520>, 'Connection to 10.0.0.72 timed out. (connect timeout=None)'))
+[17:33:35] PROMPT with state:
+[17:33:35] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+*K Expanding Agent-Based App xX (ws) Roy3838/Observer Observer @® (5) Nati Dreddd - Caledonia - Yc New Tab
+
+«>e Q 2%  claude.ai/chat/3087fa1c-3765-4d21-970f-eb3224e11a88
+
+Claude A% Deepseek R1 app / Expanding Agent-Based Application Capabilities v
+The new UI will have:
+e Atext input field for the server address
+e Acheck button that changes color based on the server status
+e Simple visual feedback when the server is online/offline
+The server check will:
+e Try to connect to the specified Ollama server
+e Update the button state based on the connection result
+e Show any errors in the existing error display
+
+Would you like me to help you test this implementation or move on to
+implementing the agent logs and Chain of Thought UI next?
+
+Great |
+
+Editing this message will create a new conversation branch. You
+
+buttons.
+
+@ can switch between branches using the arrow navigation
+
+Let me help you debug this. Looking at the rendered UI vs the code, I notice
+the server configuration UI isn't visible. Let's modify the layout to make it
+
+more prominent.
+
+Here's the updated App.tsx with a clearer header layout:
+
+</> Untitled
+
+Click to open code
+
+6 Reply to Claude... G
+
+oO Claude 3.5Sonnet » & Choose style v
+
++ Vv
+Bea 618A Ol & & © (Update =)
+~!
+Ww %
+© Untitled *
+
+import { useState, useEffect } from 'react'
+import './App.css'
+
+function App() {
+const [serverAddress, setServerAddress] = useState('localhost:11434');
+console. log('Current server address:', serverAddress);
+
+return (
+<div className=""container">
+<div style={{border: '2px solid red', padding: '10px', marginBottom: '10@px'}}>
+DEBUG: Server Config Section
+<input
+type="text"
+value={serverAddress}
+onChange={(e) => {
+console. log('Input changed:', e.target.value) ;
+setServerAddress(e.target.value) ;
+}}
+placeholder=" localhost: 11434"
+style={{margin: '@ 10px'}}
+/>
+<button onClick={() => console. log('Button clicked')}>
+Check Server
+</button>
+</div>
+
+<header>
+<h1>0bserver</h1>
+</header>
+
+Last edited 24 minutes ago Ad A Y Publish
+
+[17:34:50] Error: HTTPConnectionPool(host='10.0.0.72', port=11434): Max retries exceeded with url: /api/generate (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x12921cf80>, 'Connection to 10.0.0.72 timed out. (connect timeout=None)'))
+[17:34:57] PROMPT with state:
+[17:34:57] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+*K Expanding Agent-Based App xX (ws) Roy3838/Observer Observer @® (5) Nati Dreddd - Caledonia - Yc New Tab
+
+«>e Q 2%  claude.ai/chat/3087fa1c-3765-4d21-970f-eb3224e11a88
+
+Claude 42 Deepseek Riapp / Expanding Agent-Based Application Capabilities v
+The new UI will have:
+e A text input field for the server address
+e Acheck button that changes color based on the server status
+
+e Simple visual feedback when the server is online/offline
+The server check will:
+
+e Try to connect to the specified Ollama server
+e Update the button state based on the connection result
+
+e Show any errors in the existing error display
+
+Would you like me to help you test this implementation or move on to
+implementing the agent logs and Chain of Thought UI next?
+
+running. Also can you add a button right next to ir that says start
+ollama server
+
+Editing this message will create a new conversation branch. You
+
+buttons.
+
+@ can switch between branches using the arrow navigation
+
+Let me help you debug this. Looking at the rendered UI vs the code, I notice
+the server configuration UI isn't visible. Let's modify the layout to make it
+more prominent.
+
+Here's the updated App.tsx with a clearer header layout:
+
+6 Reply to Claude... G
+
+oO Claude 3.5Sonnet » & Choose style v
+
++ Vv
+Bea 618A Ol & & © (Update =)
+~!
+Ww %
+© Untitled *
+
+import { useState, useEffect } from 'react'
+import './App.css'
+
+function App() {
+const [serverAddress, setServerAddress] = useState('localhost:11434');
+console. log('Current server address:', serverAddress);
+
+return (
+<div className=""container">
+<div style={{border: '2px solid red', padding: '10px', marginBottom: '10@px'}}>
+DEBUG: Server Config Section
+<input
+type="text"
+value={serverAddress}
+onChange={(e) => {
+console. log('Input changed:', e.target.value) ;
+setServerAddress(e.target.value) ;
+}}
+placeholder=" localhost: 11434"
+style={{margin: '@ 10px'}}
+/>
+<button onClick={() => console. log('Button clicked')}>
+Check Server
+</button>
+</div>
+
+<header>
+<h1>0bserver</h1>
+</header>
+
+Last edited 24 minutes ago Ad A Y Publish
+
+[17:36:12] Error: HTTPConnectionPool(host='10.0.0.72', port=11434): Max retries exceeded with url: /api/generate (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x12921ccb0>, 'Connection to 10.0.0.72 timed out. (connect timeout=None)'))
+[17:36:16] PROMPT with state:
+[17:36:16] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+<div className="container">
+
+<header className="header">
+
+<div className="tit le-section">
+
+<h1>0bserver</h1>
+
+<p>Active Agents: {agents.filter(a => a.status === 'running').length} / Total: {agents. length}</p>
+
+</div>
+
+<div className="Server-section">
+<label>Server Address:</label>
+<div className="Server-controls">
+
+<input
+
+type="text"
+
+value={serverAddress}
+
+nvim src/App.tsx
+
+onChange={(e) => setServerAddress(e.target.value) }
+
+placeholder=" localhost: 11434"
+className="Server—input"
+
+/>
+<button
+
+onClick={check0OllamaServer}
+
+className={*server-check-button ${serverStatus}* }
+
+>
+
+{serverStatus
+
+</button>
+
+</div>
+</div>
+107 </headerg
+
+{error && <div className="error">{error}</div>}
+
+<div className="agent-grid">
+{agents.map(agent => (
+<div key={agent.id} className="agent-card">
+
+"online'
+
+<h3>{agent.name}</h3>
+
+<span className={*status ${agent.status}* }>
+
+{agent.status}
+
+</Span>
+
+<p>ID: f{agent.id}</p>
+
+<button
+
+? 'v Connected'
+
+onClick={() => toggleAgent(agent.id, agent.status) }
+
+className={* button ${agent.status}* }
+
+>
+
+{agent.status
+
+</button>
+
+NORMAL App.tsx
+
+W325: Ignoring swapfile from Nvim process 26005
+
+nvim src/App.tsx
+
+~/repos/Observer
+
+main © 46
+
+“running' ? ‘m@ Stop’
+
+3
+
+2
+
+'BsStart'}
+
+"Check Ollama Server'}
+
+Gil Observer Qj 81 x
+
+[17:37:31] Error: HTTPConnectionPool(host='10.0.0.72', port=11434): Max retries exceeded with url: /api/generate (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x12736e300>, 'Connection to 10.0.0.72 timed out. (connect timeout=None)'))
+[17:37:35] PROMPT with state:
+[17:37:35] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+‘@e0
+94
+
+NORMAL App.tsx main ®71 || 3 || 2
+
+] } catch (err) {
+
+nvim src/App.tsx
+
+setError(’ Failed to ${currentStatus === 'running' ? 'stop' : 'start'} agent’);
+
+console.error('Error toggling agent:', err);
+}
+};
+
+useEffect(() => {
+fetchAgents();
+const interval = setInterval(fetchAgents, 2000);
+return () => clearInterval(interval);
+
+}, 1);
+
+return (
+<div className="container">
+<header className="header">
+<div className="tit le-section">
+<hi>0bserver</h1>
+
+<p>Active Agents: {agents.filter(a => a.status
+
+</div>
+
+<div className="Server-section">
+<label>Server Address:</label>
+<div className="Server-controls">
+<input
+type="text"
+value={serverAddress}
+
+‘running'). length} / Total: fagents. Length}</p>
+
+onChange={(e) => setServerAddress(e.target.value) }
+
+placeholder=" localhost: 11434"
+className="Server—-input"
+
+/>
+
+<button
+onClick={checkOllamaServer}
+
+className={*server-check-button ${serverStatus}* }
+
+>
+
+{serverStatus === 'online' ? 'v Connected'
+
+</button>
+</div>
+</div>
+</header>
+
+{error && <div className="error">{error}</div>}
+
+<div className="agent-grid">
+
+62 more Lines
+
+~/repos/Observer nvim src/App.tsx
+
+"Check Ollama Server'}
+
+Gil Observer QJ 59 x
+
+[17:38:50] Error: HTTPConnectionPool(host='10.0.0.72', port=11434): Max retries exceeded with url: /api/generate (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x1274f3050>, 'Connection to 10.0.0.72 timed out. (connect timeout=None)'))
+[17:45:14] PROMPT with state:
+[17:45:14] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+( »)
+
+//* wscode-webview://*] OLLAMA_SCHED_SPREAD: false http_proxy: https_proxy: no_proxy:]"
+
+time=2025-02-16T17:39:43.757-06:00 level=INFO source=images.go:432 msg="total blobs: 5"
+
+time=2025-02-16T17:39:43.758-06:00 level=INFO source=images.go:439 msg="total unused blobs removed: Q"
+
+time=2025-02-16T17: 39: 43.758-06:00 level=INFO source=routes.go:1238 msg="Listening on 127.0.0.1:11434 (version 0.5.7)"
+time=2025-02-16T17:39:43.759-06:00 level=INFO source=routes.go:1267 msg="Dynamic LLM libraries" runners=[cpu]
+
+time=2025-02-16T17:39:43.759-06:00 lLevel=INF(@ Observer Yy=cpu variant=avx2 compute="" driver=0.0 nam
+e=""" total="32.0 GiB" available="21.8 GiB"
+[GIN] 2025/02/16 - 17:39:54 |§2005 | 495.{
+i 2025/02/16 — 17:39:54 | | “ §6Observer
+“Cg
+jay@Qunix Observer % ollama serve locathost:11434 Start Ollama Server
+
+2025/02/16 17:40:32 routes.go:1187: INFO ser) .AMA_DEBUG: false OLLAMA_FLASH_ATTENTION: false
+OLLAMA_GPU_OVERHEAD:@ OLLAMA_HOST:http: //12 RgAsee Se OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT: 5m
+s OLLAMA_MAX_LOADED_MODELS:@ OLLAMA_MAX_QUEUI F-USER_CACHE: false OLLAMA_NOHISTORY: false OLLA
+
+MA_NOPRUNE: false OLLAMA_NUM_PARALLEL:@ OLLAM/Miimiimibeionun tor -tou Lhost:* https://localhost:* http://127.0.0.1
+https://127.0.0.1 http://127.0.0.1:* https:/| running b:& https://0.0.0.0:* app://* file://* tauri:
+//* vscode-webview: //*] OLLAMA_SCHED_SPREAD: |
+time=2025-02-16T17:40:32.327-06:00 Level=INF (ieee tee cae
+
+time=2025-02-16T17:40:32.327-06:00 level=INF( Pmt | !
+
+time=2025-02-16T17: 40: 32.328-06:00 level=INF( (version 0.5.7)"
+time=2025-02-16T17:40:32.328-06:00 level=INF( rs=[cpu]
+
+time=2025-02-16T17: 40:32.328-06:00 level=INF( ry=cpu variant=avx2 compute="" driver=0.@ nam
+e=""" total="32.0 GiB" available="21.6 GiB"
+
+ne 2025/02/16 -— 17:40:53 |§2005 |
+
+“Cg
+
+jay@Qunix Observer
+jay@Qunix Observer
+jay@Qunix Observer
+jay@Qunix Observer % nvim src/App.css
+
+jay@Qunix Observer % ollama serve
+
+2025/02/16 17:43:38 routes.go:1187: INFO server config env="map[HTTPS_PROXY: HTTP_PROXY: NO_PROXY: OLLAMA_DEBUG: false OLLAMA_FLASH_ATTENTION: false
+OLLAMA_GPU_OVERHEAD:@ OLLAMA_HOST:http://127.0.0.1:11434 OLLAMA_KEEP_ALIVE:5m@s OLLAMA_KV_CACHE_TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5mQ@
+s OLLAMA_MAX_LOADED_MODELS:0 OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/Users/jay/.ollama/models OLLAMA_MULTIUSER_CACHE: false OLLAMA_NOHISTORY: false OLLA
+
+MA_NOPRUNE: false OLLAMA_NUM_PARALLEL:@ OLLAMA_ORIGINS: [http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1
+https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri:
+//* wscode-webview://*] OLLAMA_SCHED_SPREAD: false http_proxy: https_proxy: no_proxy:]"
+
+time=2025-02-16T17: 43:38.964-06:00 level=INFO source=images.go:432 msg="total blobs: 5"
+
+time=2025-02-16T17: 43:38.964-06:00 level=INFO source=images.go:439 msg="total unused blobs removed: Q"
+
+time=2025-02-16T17: 43: 38.965-06:00 level=INFO source=routes.go:1238 msg="Listening on 127.0.0.1:11434 (version 0.5.7)"
+time=2025-02-16T17:43:38.965-06:00 level=INFO source=routes.go:1267 msg="Dynamic LLM libraries" runners=[cpu]
+
+time=2025-0@2-16T17:43:38.965-06:00 level=INFO source=types.go:131 msg="inference compute" id=""" library=cpu variant=avx2 compute="" driver=0.@ nam
+e=""" total="32.0 GiB" available="21.9 GiB"
+
+[GIN] 2025/02/16 -— 17:44:46 |§2005| 93.@1yus | 127.0.0.1 , nym
+[GIN] 2025/02/16 -— 17:45:02 |—2@05| 23.59us | 127.0.0.1 | nye
+
+~/repos/Observer
+
+nvim src/App.tsx
+nvim python/api. py
+
+0 S LK &
+
+
+[17:50:51] PROMPT with state:
+[17:50:51] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+i“ »)
+
+time=2025-0@2-16T17:43:38.965-06:00 level=INFO source=types.go:131 msg="inference compute" id=""" library=cpu variant=avx2 compute="" driver=0.@ nam
+e=""_ total="32.0 GiB" available="21.9 GiB"
+
+[GIN] 2025/02/16 - 17:44:46 | | 93.Q1us | uu
+i 2025/02/16 -— 17:45:02 | | 23.59us | uu
+me%
+
+jay@Qunix Observer % git add . eco Observer
+
+jay@Qunix Observer % git commit -m "add serve
+[main 594f53f] add server buttons
+12 files changed, 379 insertions(+), 418 de T@)isuzse
+delete mode 100644 python/agents/time_agent,
+delete mode 100644 python/agents/time_agent JENeeren start Ollama Server
+delete mode 100644 python/agents/time_agent,
+delete mode 100644 python/agents/time_agent JMpAhae Soleus
+create mode 100644 python/config/server_con|
+jay@Qunix Observer % TimestampA gent
+jay@Qunix Observer %
+jay@Qunix Observer % git push
+Enumerating objects: 27, done. ID: timestamp_agent
+Counting objects: 100% (27/27), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (13/13), done.
+Writing objects: 100% (15/15), 5.56 KiB | 2.1
+Total 15 (delta 6), reused @ (delta @), pack:
+remote: Resolving deltas: 100% (6/6), comple}
+To https://github. com/Roy3838/Observer.git
+7584216. .594f53f main -> main
+jay@Qunix Observer % ls
+
+LICENSE index.html paCka ge. json STC tSContig.node. json
+README .md node_modules public src-tauri vite.config.ts
+dist package-Lock. json python tsconfig.json
+
+jay@Qunix Observer % ollama serve
+
+2025/02/16 17:50:31 routes.go:1187: INFO server config env="map[HTTPS_PROXY: HTTP_PROXY: NO_PROXY: OLLAMA_DEBUG: false OLLAMA_FLASH_ATTENTION: false
+OLLAMA_GPU_OVERHEAD:@ OLLAMA_HOST:http://127.0.@.1:11434 OLLAMA_KEEP_ALIVE:5m@s OLLAMA_KV_CACHE_TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5mQ
+s OLLAMA_MAX_LOADED_MODELS:@ OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/Users/jay/.ollama/models OLLAMA_MULTIUSER_CACHE: false OLLAMA_NOHISTORY: false OLLA
+
+MA_NOPRUNE: false OLLAMA_NUM_PARALLEL:@ OLLAMA_ORIGINS: [http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1
+https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri:
+//* wscode-webview://*] OLLAMA_SCHED_SPREAD: false http_proxy: https_proxy: no_proxy:]"
+
+time=2025-02-16T17:50:31.818-06:00 level=INFO source=images.go:432 msg="total blobs: 5"
+
+time=2025-02-16T17:50:31.818-06:00 level=INFO source=images.go:439 msg="total unused blobs removed: Q"
+
+time=2025-02-16T17:50:31.819-06:00 level=INFO source=routes.go:1238 msg="Listening on 127.0.0.1:11434 (version 0.5.7)"
+time=2025-02-16T17:50:31.819-06:00 level=INFO source=routes.go:1267 msg="Dynamic LLM libraries" runners=[cpu]
+
+time=2025-0@2-16T17:50:31.819-06:00 level=INFO source=types.go:131 msg=""inference compute" id=""" library=cpu variant=avx2 compute="" driver=0.@ nam
+e=""" total="32.0 GiB" available="21.8 GiB"
+
+[GIN] 2025/02/16 - 17:50:42 |§2OON| 96.295us | 127.0.0.1 |SGERI "7"
+
+~/repos/Observer
+
+
+[17:55:30] PROMPT with state:
+[17:55:30] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+i“ »
+
+time=2025-0@2-16T17:43:38.965-06:00 level=INFO source=types.go:131 msg="inference compute" id=""" library=cpu variant=avx2 compute="" driver=0.@ nam
+e=""_ total="32.0 GiB" available="21.9 GiB"
+
+[GIN] 2025/02/16 - 17:44:46 | | 93.Q01us | nye
+i 2025/02/16 — 17:45:02 | | 23.59us | nye
+ae
+
+jayeQunix Observer % git add . ecce Observer
+
+jay@Qunix Observer % git commit -m "add serve
+[main 594f53f] add server buttons
+12 files changed, 379 insertions(+), 418 de|
+delete mode 100644 python/agents/time_agent -iomearey Check Ollama Server
+delete mode 100644 python/agents/time_agent,
+delete mode 100644 python/agents/time_agent MO@AMEpahaaCcuSm MMIC gel
+delete mode 100644 python/agents/time_agent,
+create mode 100644 python/config/server_con|
+jay@Qunix Observer %
+jay@Qunix Observer %
+jay@Qunix Observer % git push
+Enumerating objects: 27, done.
+Counting objects: 100% (27/27), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (13/13), done.
+Writing objects: 100% (15/15), 5.56 KiB | 2.1
+Total 15 (delta 6), reused @ (delta @), pack:
+remote: Resolving deltas: 100% (6/6), comple}
+To https://github. com/Roy3838/Observer.git
+7584216. .594f53f main -—> main
+jay@Qunix Observer % ls
+
+Observer
+
+TimestampAgent
+
+ID: timestamp_agent
+
+LICENSE index.html paCka ge. json STC tSContig.node. json
+README .md node_modules public src-tauri vite.config.ts
+dist package-Lock. json python tsconfig.json
+
+jay@Qunix Observer % ollama serve
+
+2025/02/16 17:50:31 routes.go:1187: INFO server config env="map[HTTPS_PROXY: HTTP_PROXY: NO_PROXY: OLLAMA_DEBUG: false OLLAMA_FLASH_ATTENTION: false
+OLLAMA_GPU_OVERHEAD:@ OLLAMA_HOST:http://127.0.@.1:11434 OLLAMA_KEEP_ALIVE:5m@s OLLAMA_KV_CACHE_TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5mQ
+s OLLAMA_MAX_LOADED_MODELS:@ OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/Users/jay/.ollama/models OLLAMA_MULTIUSER_CACHE: false OLLAMA_NOHISTORY: false OLLA
+
+MA_NOPRUNE: false OLLAMA_NUM_PARALLEL:@ OLLAMA_ORIGINS: [http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1
+https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri:
+//* wscode-webview://*] OLLAMA_SCHED_SPREAD: false http_proxy: https_proxy: no_proxy:]"
+
+time=2025-02-16T17:50:31.818-06:00 level=INFO source=images.go:432 msg="total blobs: 5"
+
+time=2025-02-16T17:50:31.818-06:00 level=INFO source=images.go:439 msg="total unused blobs removed: Q"
+
+time=2025-02-16T17:50:31.819-06:00 level=INFO source=routes.go:1238 msg="Listening on 127.0.0.1:11434 (version 0.5.7)"
+time=2025-02-16T17:50:31.819-06:00 level=INFO source=routes.go:1267 msg="Dynamic LLM libraries" runners=[cpu]
+
+time=2025-0@2-16T17:50:31.819-06:00 level=INFO source=types.go:131 msg=""inference compute" id=""" library=cpu variant=avx2 compute="" driver=0.@ nam
+e=""" total="32.0 GiB" available="21.8 GiB"
+
+[GIN] 2025/02/16 - 17:50:42 |§2OON| 96.295us | 127.0.0.1 |SGERI "7"
+
+~/repos/Observer
+
+
+[17:56:45] Error: HTTPConnectionPool(host='10.0.0.72', port=11434): Max retries exceeded with url: /api/generate (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x10c348e00>, 'Connection to 10.0.0.72 timed out. (connect timeout=None)'))
+[17:56:51] PROMPT with state:
+[17:56:51] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+*K Optimize Agents List Refresh x (ws) Roy3838/Observer Observer @® (5) Nati Dreddd - Caledonia - Yc @ localhost:11434 @ localhost + v
+<>eC  % claude.ai/chat/479fb750-4002-469a-bb43-5e702e94a626 nh Q ©| 8a oeaee
+Claude A& Deepseek Ri app / Optimize Agents List Refresh v Sy 35 roy
+
+The refresh button shows a loading spinner while refreshing, and is
+
+disabled during the refresh operation to prevent multiple simultaneous SUGEEST OES x
+
+requests. The button uses the RotateCw icon from lucide-react, which
+.container {
+
+animates during the refresh.
+uring the retres max-width: 120Qpx;
+
+You'll need to copy both the updated App.tsx and App.css files to your margin: @ auto;
+project. The app will now only fetch the agents list on initial load and when padding: 20px;
+you click the refresh button, rather than polling every 2 seconds. 5
+header {
+margin-bottom: 2px;
+great!, now a simple fix: }
+it's not searching for the ollama server
+h1
+INFO: 127.0.0.1:53769 - "GET /agents HTTP/1.1" 200 OK : int Q:
+2025-02-16 17:55:25,664 - DEBUG - STREAM b'IHDR' 16 13 Hen
+2025-02-16 17:55:25,664 - DEBUG - STREAM b'IDAT' 41 647166 margin-bottom: 10px;
+2025-02-16 17:55:26,590 - DEBUG - ['tesseract', I
+o '/var/folders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_3m7gl8p2_input.
+PNG', .server-config {
+
+'/var/folders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_3m7gl8p2’, 'txt'] margin-bottom: 10px;
+2025-02-16 17:55:30,638 - DEBUG - Starting new HTTP connection (1):
+10.0.0.72:11434
+
+Editing this message will create a new conversation branch. You
+@ can switch between branches using the arrow navigation Cancel Save }
+
+buttons.
+
+display: flex;
+gap: 10px;
+
+align—-items: center;
+
+.server-input {
+Ah, we need to install the lucide-react package first. Let's add it to your padding: 8px;
+border: 1px solid #ddd;
+border—-radius: 4px;
+Run this command in your terminal: flex: 1;
+max-width: 2Q@px;
+
+project.
+
+hach Cane }
+
+ce Reply to Claude... G
+
+oO Claude 3.5Sonnet v & Choose style v
+
+Last edited 2 minutes ago 4 €} m& ~ Publish
+
+[18:03:06] PROMPT with state:
+[18:03:06] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+ja
+
+[GIN] 2025/02/16 - 17:44:46 | l 93.01ys |
+[GIN] 2025/02/16 - 17:45:02 | | 23.59us |
+
+Ace
+
+jay@Qunix Observer % git add .
+
+mye
+mye
+
+jay@Qunix Observer % git commit -m "add server buttons"
+
+[main 594f53f] add server buttons eec
+12 files changed, 379 insertions(+), 418 de]
+delete mode 100644 python/agents/time_agent,
+delete mode 100644 python/agents/time_agent,
+
+Observer
+
+Observer
+
+delete mode 100644 python/agents/time_agent iioieacy
+
+delete mode 100644 python/agents/time_agent,
+
+create mode 100644 python/config/server_con (R@AMRGNCENcuom Emcee!
+
+jay@Qunix Observer %
+
+jay@Qunix Observer %
+
+jay@Qunix Observer % git push
+
+Enumerating objects: 27, done.
+
+Counting objects: 100% (27/27), done.
+
+Delta compression using up to 16 threads
+
+Compressing objects: 100% (13/13), done.
+
+Writing objects: 100% (15/15), 5.56 KiB | 2.)
+
+Total 15 (delta 6), reused @ (delta @), pack:
+
+remote: Resolving deltas: 100% (6/6), comple}
+
+To https://github. com/Roy3838/Observer.git
+7584216..594f53f main —> main
+
+jay@Qunix Observer % ls
+
+LICENSE index.html
+README.md node_modules
+dist package-Lock. json pytnon
+
+jay@Qunix Observer % ollama serve
+
+TimestampAgent
+
+ID: timestamp_agent
+
+rig.node. json
+ronfig.ts
+
+LORVMITTLYs JOVI
+
+2025/02/16 17:50:31 routes.go:1187: INFO server config env="map[HTTPS_PROXY: HTTP_PROXY: NO_PROXY: OLLAMA_DEBUG: false OLLAMA_FLASH_ATTENTION: false
+OLLAMA_GPU_OVERHEAD:@ OLLAMA_HOST:http://127.0.@.1:11434 OLLAMA_KEEP_ALIVE:5m@s OLLAMA_KV_CACHE_TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5mQ
+s OLLAMA_MAX_LOADED_MODELS:@ OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/Users/jay/.ollama/models OLLAMA_MULTIUSER_CACHE: false OLLAMA_NOHISTORY: false OLLA
+
+MA_NOPRUNE: false OLLAMA_NUM_PARALLEL:@ OLLAMA_ORIGINS: [http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1
+https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri:
+
+//* wscode-webview://*] OLLAMA_SCHED_SPREAD: false http_proxy: https_proxy: no_proxy:]"
+
+time=2025-02-16T17:50:31.818-06:00 level=INFO source=images.go:432 msg="total blobs: 5"
+
+time=2025-02-16T17:50:31.818-06:00 level=INFO source=images.go:439 msg="total unused blobs removed: Q"
+
+time=2025-02-16T17:50:31.819-06:00 level=INFO source=routes.go:1238 msg="Listening on 127.0.0.1:11434 (version 0.5.7)"
+
+time=2025-02-16T17:50:31.819-06:00 level=INFO source=routes.go:1267 msg="Dynamic LLM libraries" runners=[cpu]
+
+time=2025-0@2-16T17:50:31.819-06:00 level=INFO source=types.go:131 msg=""inference compute" id=""" library=cpu variant=avx2 compute="" driver=0.@ nam
+
+e=""" total="32.0 GiB" available="21.8 GiB"
+[GIN] 2025/02/16 - 17:50:42 | | 96.295us |
+[GIN] 2025/02/16 - 17:55:41 | | 43.081ps |
+
+[GIN] 2025/02/16 - 18:02:56 | | 20.531us |
+
+~/repos/Observer
+
+mye
+
+mye
+mye
+
+
+[18:03:06] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:03:12] PROMPT with state:
+[18:03:12] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+Initialized model: deepseek-r1: 8b
+
+2025-02-16 18:03:01,127 - DEBUG - Successfully started agent: timestamp_agent (TimestampAgent)
+
+2025-02-16 18:03:01,127 - DEBUG - Response headers: MutableHeaders({'content-length': '20', 'content-type': 'application/json', 'access—control-al
+low-credentials': 'true', 'access—control-expose-headers': '*', 'access-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+
+INFO: 127.0.0.1:53791 - "POST /agents/timestamp_agent/start HTTP/1.1" 200 OK
+
+2025-02-16 18:03:01,131 — DEBUG — Incoming request from origin: http://127.0.0.1:1430
+
+2025-02-16 18:03:01,131 - DEBUG - Request headers: Headers({'host': 'localhost:8000', ‘accept': 'x/x', ‘origin’: 'http://127.0.0.1:1430', '‘accept-
+encoding': ‘gzip, deflate', 'connection': 'keep-alive', 'sec-fetch-mode': 'cors', 'sec-fetch-site': 'cross-site', 'user-agent': 'Mozilla/5.@ (Maci
+ntosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': 'empty', ‘accept-
+language': '‘en-US,en;q=0.9'})
+
+2025-02-16 18:03:01,131 — DEBUG — Receiving request to /agents endpoint
+
+2025-02-16 18:03:01,132 -— DEBUG - Found agents: [{'id': 'timestamp_agent', 'name': 'TimestampAgent', '‘status': 'running'}]
+
+2025-02-16 18:03:01,132 - DEBUG - Response headers: MutableHeaders({'content-length': '69', 'content-type': 'application/json', 'access—control-al
+low-credentials': 'true', 'access—control-expose-headers': '*', 'access-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+
+INFO: 127.0.0.1:53791 — "GET /agents HTTP/1.1" 200 OK
+
+2025-02-16 18:03:01,560 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:01,561 — DEBUG — STREAM b'IDAT' 41 642573
+
+2025-02-16 18:03:02,416 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155b1lc2p4kk3800000gn/T/tess_enruw_63_input.PNG', '/var/folders/d4/t8w2d
+g017r155b1c2p4kk3800000@gn/T/tess_enruw_63', '‘txt']
+
+2025-02-16 18:03:06,231 -— DEBUG - Starting new HTTP connection (1): localhost:11434
+
+2025-02-16 18:03:06,234 -— DEBUG —- http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+jay@Qunix Observer
+jaye@eQunix Observer
+
+BS
+6
+[)
+
+6
+
+npm run build
+
+> observer@@.1.@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+
+vy 1588 modules transformed.
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—iVePOurK.css 1.81 kB | gzip: @.61 kB
+dist/assets/index—DKnZo-HJ.js 148.54 kB | gzip: 47.93 kB
+vy built in 1.45s
+
+jay@Qunix Observer % npm run tauri dev
+
+> observer@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.29s
+Running *‘target/debug/observer’
+
+[18:03:12] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:03:18] PROMPT with state:
+[18:03:18] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+Ace
+
+jay@Qunix Observer % g
+
+it add.
+
+jay@Qunix Observer % git commit -m "add server buttons"
+[main 594f53f] add server buttons
+
+12 files changed, 379 insertions(+),
+
+418 deletions(-)
+
+delete mode 100644 python/agents/time_agent/eee
+
+delete mode 100644 python/agents/time_agent,
+delete mode 100644 python/agents/time_agent,
+delete mode 100644 python/agents/time_agent,
+create mode 100644 python/config/server_con|
+
+jay@Qunix Observer %
+jay@Qunix Observer %
+jay@Qunix Observer % g
+Enumerating objects: 2
+
+Counting objects: 100%
+
+Delta compression usin
+
+Compressing objects: 1
+
+Writing objects: 100%
+
+Total 15 (delta 6), re
+
+remote: Resolving delt
+
+To https://github.com/
+7584216. .594f53f m
+
+jay@Qunix Observer % 1
+
+LICENSE
+
+README . md
+
+dist
+
+jay@Qunix Observer % o
+
+it push
+7, done.
+(27/27), done.
+g up to 16 threads
+@0% (13/13), done.
+(15/15), 5.56 KiB | 2.1
+used @ (delta @), pack;
+as: 100% (6/6), comple}
+Roy3838/0bserver.git
+ain -—> main
+S
+index.html
+node_modules
+package-Lock. json
+llama serve
+
+Observer
+
+localhost:11434
+
+Observer
+
+G Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+ID: timestamp_agent
+
+2025/02/16 17:50:31 routes.go:1187: INFO server con UX
+OLLAMA_GPU_OVERHEAD:@ OLLAMA_HOST:http://127.0.0. 1: 11434 OLLAMA_ KEEP. ALIVE: 5m0s. OLLAMA__ KV_ CACHE _TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT: 5m
+s OLLAMA_MAX_LOADED_MODELS:0 OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/Users/jay/.ollama/models OLLAMA_MULTIUSER_CACHE: false OLLAMA_NOHISTORY: false OLLA
+MA_NOPRUNE: false OLLAMA_NUM_PARALLEL:@ OLLAMA_ORIGINS: [http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1
+https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri:
+//* wscode-webview://*] OLLAMA_SCHED_SPREAD: false http_proxy: https_proxy: no_proxy:]"
+source=images.go:432 msg="total blobs: 5"
+source=images.go:439 msg="total unused blobs removed: Q"
+source=routes.go:1238 msg="Listening on 127.0.0.1:11434 (version 0.5.7)"
+source=routes.go:1267 msg="Dynamic LLM libraries" runners=[cpu]
+
+time=2025-02-16T17:50:
+time=2025-02-16T17:50:
+time=2025-02-16T17:50:
+time=2025-02-16T17:50:
+time=2025-02-16T17:50:
+e=""" total="32.0 GiB"
+
+[GIN] 2025/02/16 - 17:
+[GIN] 2025/02/16 - 17
+[GIN] 2025/02/16 - 18
+[GIN] 2025/02/16 - 18
+[GIN] 2025/02/16 - 18
+| ~/repos/Observer |]
+
+31.818-06:00 level=INFO
+31.818-06:00 level=INFO
+31.819-06:00 level=INFO
+31.819-06:00 level=INFO
+31.819-06:00 level=INFO
+available="21.8 GiB"
+
+source=types.go:
+
+50:42 | 96.295us | 127.
+
+55:41 | | 43.081us | 127.
+
+7:02:56 | | 20.531us | 127.
+
+03:06 | | 2.132881ms | 127.
+
+7:03:12 | | 390.043us | 127.
+' ollama serve ||
+
+131 msg=""inference compute" id=""
+my"
+my"
+my"
+"/api/generate"
+"/api/generate"
+
+Seoo9s
+22000
+Pepe
+
+rig.node. json
+ronfig.ts
+
+: ULLAMA_DEBUG: false OLLAMA_FLASH_ATTENTION: false
+
+library=cpu variant=avx2 compute="" driver=@.0 nam
+
+[18:03:18] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:03:23] PROMPT with state:
+[18:03:23] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+INFO: 127.0.0.1:53791 - "GET /agents HTTP/1.1" 200 OK
+
+2025-02-16 18:03:01,560 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:01,561 — DEBUG — STREAM b'IDAT' 41 642573
+
+2025-02-16 18:03:02,416 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155b1lc2p4kk3800000gn/T/tess_enruw_63_input.PNG',
+
+g017r155blc2p4kk3800000gn/T/tess_enruw_63',
+
+"txt ']
+
+2025-02-16 18:03:06,231 -— DEBUG - Starting new HTTP connection (1): localhost:11434
+
+2025-02-16 18:03:06,234 -— DEBUG —- http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+2025-02-16 18:03:07,567 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:07,567 -— DEBUG — STREAM b'IDAT' 41 511285
+
+2025-02-16 18:03:08,362 -— DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_nzp7dcgk_input.PNG',
+
+g017r155b1lc2p4kk3800000gn/T/tess_nzp7dcgk',
+
+"txt ']
+
+2025-02-16 18:03:12,269 - DEBUG - Starting new HTTP connection (1): localhost:11434
+
+2025-02-16 18:03:12,271 — DEBUG —- http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+2025-02-16 18:03:13,624 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:13,624 — DEBUG — STREAM b'IDAT' 41 675357
+
+2025-02-16 18:03:14,428 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_d4enczux_input.PNG',
+
+g017r155blc2p4kk3800000gn/T/tess_d4enczux',
+
+"txt ']
+
+2025-02-16 18:03:18,469 - DEBUG - Starting new HTTP connection (1): localhost:11434
+2025-02-16 18:03:18,470 — DEBUG — http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+'/var/folders/d4/t8w2d
+
+'/var/folders/d4/t8w2d
+
+'/var/folders/d4/t8w2d
+
+jaye@eQunix Observer
+jaye@eQunix Observer
+
+BS
+6
+[)
+
+6
+
+npm run build
+
+> observer@@.1.@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+
+Y 1588 modules transformed.
+dist/index.html 0.47 kB
+dist/assets/index-—iVePOurK.css 1.81 kB
+dist/assets/index—DKnZo-HJ.js 148.54 kB
+vy built in 1.45s
+
+jay@Qunix Observer % npm run tauri dev
+
+> observer@@.1.@ tauri
+> tauri dev
+
+gzip: 0.30 kB
+gzip: 0.61 kB
+gzip: 47.93 kB
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.29s
+
+Running *‘target/debug/observer’
+
+[18:03:23] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:03:29] PROMPT with state:
+[18:03:29] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+g017r155b1lc2p4kk3800000gn/T/tess_nzp7dcgk', ‘txt']
+
+2025-02-16 18:03:12,269 - DEBUG - Starting new HTTP connection (1): localhost:11434
+
+2025-02-16 18:03:12,271 — DEBUG —- http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+2025-02-16 18:03:13,624 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:13,624 — DEBUG — STREAM b'IDAT' 41 675357
+
+2025-02-16 18:03:14,428 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_d4enczux_input.PNG',
+g017r155b1lc2p4kk3800000gn/T/tess_d4enczux', ‘'txt']
+
+2025-02-16 18:03:18,469 - DEBUG - Starting new HTTP connection (1): localhost:11434
+
+2025-02-16 18:03:18,470 — DEBUG — http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+2025-02-16 18:03:19,802 -— DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:19,802 -— DEBUG — STREAM b'IDAT' 41 484771
+
+2025-02-16 18:03:20,549 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_d6m_5qoa_input.PNG',
+g017r155b1lc2p4kk3800000gn/T/tess_d6m_5qoa', ‘txt']
+
+2025-02-16 18:03:23,926 -— DEBUG - Starting new HTTP connection (1): localhost:11434
+
+2025-02-16 18:03:23,928 — DEBUG — http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+“CINFO: Shutting down
+
+INFO: Waiting for application shutdown.
+INFO: Application shutdown complete.
+INFO: Finished server process [27357]
+
+'/var/folders/d4/t8w2d
+
+'/var/folders/d4/t8w2d
+
+jaye@eQunix Observer
+jaye@eQunix Observer
+
+BS
+6
+[)
+
+6
+
+npm run build
+
+> observer@@.1.@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+
+vy 1588 modules transformed.
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—iVePOurK.css 1.81 kB | gzip: @.61 kB
+dist/assets/index—DKnZo-HJ.js 148.54 kB | gzip: 47.93 kB
+vy built in 1.45s
+
+jay@Qunix Observer % npm run tauri dev
+
+> observer@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.29s
+Running *‘target/debug/observer’
+
+[18:03:29] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:03:35] PROMPT with state:
+[18:03:35] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+g017r155b1lc2p4kk3800000gn/T/tess_d4enczux', ‘'txt']
+
+2025-02-16 18:03:18,469 - DEBUG - Starting new HTTP connection (1): localhost:11434
+2025-02-16 18:03:18,470 — DEBUG — http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+2025-02-16 18:03:19,802 -— DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:19,802 -— DEBUG — STREAM b'IDAT' 41 484771
+
+2025-02-16 18:03:20,549 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_d6m_5qoa_input.PNG',
+g017r155b1lc2p4kk3800000gn/T/tess_d6m_5qoa', ‘txt']
+
+2025-02-16 18:03:23,926 -— DEBUG - Starting new HTTP connection (1): localhost:11434
+2025-02-16 18:03:23,928 — DEBUG — http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+“CINFO: Shutting down
+
+INFO: Waiting for application shutdown.
+INFO: Application shutdown complete.
+INFO: Finished server process [27357]
+
+2025-02-16 18:03:25,287 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:25,287 — DEBUG -— STREAM b'IDAT' 41 464706
+
+2025-02-16 18:03:26,183 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155blc2p4kk3800000gn/T/tess_p6bg_tm8_input.PNG',
+g017r155b1lc2p4kk3800000gn/T/tess_p6bg_tm8', ‘txt']
+
+2025-02-16 18:03:29,558 -— DEBUG - Starting new HTTP connection (1): localhost:11434
+
+2025-02-16 18:03:29,552 — DEBUG — http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+'/var/folders/d4/t8w2d
+
+'/var/folders/d4/t8w2d
+
+jaye@eQunix Observer
+jaye@eQunix Observer
+
+BS
+6
+[)
+
+6
+
+npm run build
+
+> observer@@.1.@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+
+vy 1588 modules transformed.
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—iVePOurK.css 1.81 kB | gzip: @.61 kB
+dist/assets/index—DKnZo-HJ.js 148.54 kB | gzip: 47.93 kB
+vy built in 1.45s
+
+jay@Qunix Observer % npm run tauri dev
+
+> observer@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.29s
+Running *‘target/debug/observer’
+
+[18:03:35] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:03:40] PROMPT with state:
+[18:03:40] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+oA tele Morse eh /T/tess_d6m_5qoa', ‘txt']
+
+2025-02-16 18:03:23,926 —- DEBUG - Starting new HTTP connection (1): localhost:11434|
+2025-02-16 18:03:23,928 — DEBUG - http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+
+“CINFO: Shutting down
+
+INFO: Waiting for application shutdown.
+
+INFO: Application shutdown complete.
+
+INFO: Finished server process [27357]
+
+2025-02-16 18:03:25,287 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:25,287 — DEBUG -— STREAM b'IDAT' 41 464706
+
+2025-02-16 18:03:26,183 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155b1c2p4kk3800000gn/T/tess_p6bg_tm8_input.PNG', '/var/folders/d4/t8w2d
+g017r155b1lc2p4kk3800000gn/T/tess_p6bg_tm8', ‘txt']
+
+2025-02-16 18:03:29,558 -— DEBUG - Starting new HTTP connection (1): localhost:11434
+2025-02-16 18:03:29,552 — DEBUG — http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+2025-02-16 18:03:30,888 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-16 18:03:30,888 — DEBUG — STREAM b'IDAT' 41 465189
+
+2025-02-16 18:03:31,666 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155b1lc2p4kk3800000gn/T/tess_pcqsi@h®@_input.PNG', '/var/folders/d4/t8w2d
+g017r155b1lc2p4kk3800000gn/T/tess_pcqsi@hd', ‘txt']
+
+2025-02-16 18:03:35,125 - DEBUG - Starting new HTTP connection (1): localhost:11434
+2025-02-16 18:03:35,127 — DEBUG — http://localhost:11434 "POST /api/generate HTTP/1.1" 404 44
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+jay@Qunix Observer
+jay@Qunix Observer
+
+BS
+6
+[)
+
+6
+
+npm run build
+
+> observer@@.1.@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+
+vy 1588 modules transformed.
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—iVePOurK.css 1.81 kB | gzip: @.61 kB
+dist/assets/index—DKnZo-HJ.js 148.54 kB | gzip: 47.93 kB
+vy built in 1.45s
+
+jay@Qunix Observer % npm run tauri dev
+
+> observer@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/src-tauri for changes...
+
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.29s
+Running *‘target/debug/observer’
+
+[18:03:40] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:03:48] PROMPT with state:
+[18:03:48] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+"accept-—Lan
+http://127.
+://127.0.0.
+
+—-control—-al
+
+referer':
+
+*K Optimize Agents List Refres x (ws) Roy3838/Observer Observer @® (5) Nati Dreddd - Caledonia - Y
+
+< > e Q °%  claude.ai/chat/479fb750-4002-469a-bb43-5e702e94a626
+
+Claude <2 Deepseek R1 app / Optimize Agents List Refresh v
+
+I can see the issue. In the code, the Ollama server address is hardcoded in
+both the BaseAgent initialization and when starting an agent. We need to
+modify two things:
+
+1. We need to store the server address globally in the API server
+
+2. We need to pass this address to agents when they're created
+
+Let me help you modify the code:
+
+</> Untitled
+
+Click to open code
+
+Now we need to modify the React app to send the server address when it
+changes:
+
+</> Updated App Component
+
+Click to open component
+
+The changes I've made:
+1. Added a GlobalConfig class to store the Ollama server address
+globally in the API server
+
+2. Added a new endpoint /config/update-server to update the stored
+
+configuration
+
+3. Modified the check_server endpoint to update the global config when
+checking
+
+4. Modified the start_agent endpoint to use the stored configuration
+when creating new agents
+
+& Tindatad tha Daart annta rall tha naw indata—canuar andnnint urhan
+
+se Reply to Claude...
+
+oO Claude 3.5Sonnet » & Choose style v
+
+@ localhost
+
+2a h|8Pa
+
+<€ Updated App Component F
+
+import { useState, useEffect } from 'react'
+import './App.css'
+import { RotateCw } from 'lucide-react'
+
+interface Agent {
+id: string;
+name: string;
+status: 'running' | ‘stopped’;
+
+function App() {
+const [agents, setAgents] = useState<Agent[]>([]);
+const [error, setError] = useState<string | null>(null);
+const [serverAddress, setServerAddress] = useState('localhost:11
+const [serverStatus, setServerStatus] = useState<'unchecked' | '
+const [isStartingServer, setIsStartingServer] = useState(false);
+
+const [isRefreshing, setIsRefreshing] = useState(false);
+
+const updateServerConfig = async (host: string, port: string) =>
+try {
+const response = await fetch( http://localhost:8000/config/u
+method: 'POST',
+
+headers: {
+"Content-Type': ‘application/json',
+},
+body: JSON.stringify({ host, port }),
+});
+
+if (!response.ok) {
+
+< Version20f2 —+ Ag
+
+[18:03:48] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:03:54] PROMPT with state:
+[18:03:54] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+*K Optimize Agents List Refresh x (ws) Roy3838/Observer Observer @® (5) Nati Dreddd - Caledonia - Yc
+
+«>e Q %  claude.ai/chat/479fb750-4002-469a-bb43-5e702e94a626
+
+Claude 42 Deepseek Ri app / Optimize Agents List Refresh v
+
+The changes I've made:
+1. Added a GlobalConfig class to store the Ollama server address
+globally in the API server
+
+2. Added a new endpoint /config/update-server to update the stored
+
+configuration
+
+3. Modified the check_server endpoint to update the global config when
+checking
+
+4. Modified the start_agent endpoint to use the stored configuration
+
+when creating new agents
+5. Updated the React app to call the new update-server endpoint when
+the server address changes
+Now, when you enter a new server address and click the check button:
+1. The React app will send the new address to update the API server's
+configuration
+2. The API server will store this configuration globally
+
+3. When starting new agents, they will use the stored configuration
+instead of the hardcoded value
+
+great! i think it worked:
+
+0 Claude 3.5 Sonnet v
+
+e®
+
+Use shift + return for new line
+
+&. Choose style v
+
+@ localhost:11434
+
+@ localhost +
+
+2a h|8Pa
+
+Preview
+
+<€ Updated App Component
+
+import { useState, useEffect } from 'react'
+import './App.css'
+import { RotateCw } from 'lucide-react'
+
+interface Agent {
+id: string;
+name: string;
+status:
+
+"running' | 'stopped';
+
+function App() {
+
+const [agents, setAgents] = useState<Agent[]>([]);
+[error, setError] = useState<string | null>(null);
+[serverAddress, setServerAddress] = useState('localhost:11434');
+[serverStatus, setServerStatus] = useState<'unchecked' |
+[isStartingServer, setIsStartingServer] = useState(false);
+[isRefreshing, setIsRefreshing] = useState(false);
+
+const
+const
+const ‘online’
+const
+
+const
+
+const updateServerConfig = async (host: string, port: string) => {
+try {
+
+Vv
+am & 9 (aed
+
+Code x
+
+‘offline
+
+const response = await fetch( http://localhost:8000/config/update-server’, {
+
+method: 'POST',
+headers: {
+"Content-Type': ‘application/json',
+},
+body: JSON.stringify({ host, port }),
+});
+
+if (!response.ok) {
+
+Oo
+
+< Version20f2 — At
+
+Publish
+
+[18:03:54] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:04:00] PROMPT with state:
+[18:04:00] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+*K Optimize Agents List Refresh x (ws) Roy3838/Observer Observer
+
+«>e Q %  claude.ai/chat/479fb750-4002-469a-bb43-5e702e94a626
+
+Claude 42 Deepseek Riapp / Optimize Agents List Refresh v
+
+0. MIOOMICA UIE CHECK SCIVEF CllGVOLIt LO UPGate UI] SiOVdl COLLIE Wilell
+
+checking
+
+4. Modified the start_agent endpoint to use the stored configuration
+
+when creating new agents
+
+5. Updated the React app to call the new update-server endpoint when
+the server address changes
+
+Now, when you enter a new server address and click the check button:
+
+1. The React app will send the new address to update the API server's
+configuration
+
+2. The API server will store this configuration globally
+
+3. When starting new agents, they will use the stored configuration
+
+instead of the hardcoded value
+
+This should resolve the issue of agents always connecting to the hardcoded
+address. Would you like me to make any additional changes or explain
+anything in more detail?
+
+Ef] Copy D Retry & ®
+
+Se Claude can make mistakes. Please double-check responses.
+
+PASTED
+
+great! i think it worked:
+
+e®
+@
+
+oO Claude 3.5Sonnet » & Choose style v
+
+Use shift + return for new line
+
+@® (5) Nati Dreddd - Caledonia - Yc @ localhost:11434
+
+@ localhost +
+
+Vv
+am & 9 (aed
+* 3 @
+
+<€ Updated App Component Preview Code X
+
+2a h|8Pa
+
+import { useState, useEffect } from 'react'
+import './App.css'
+import { RotateCw } from 'lucide-react'
+
+interface Agent {
+id: string;
+name: string;
+status: 'running' | ‘stopped’;
+
+function App() {
+const [agents, setAgents] = useState<Agent[]>([]);
+const [error, setError] = useState<string | null>(null);
+const [serverAddress, setServerAddress] = useState('localhost:11434');
+const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | ‘offline
+const [isStartingServer, setIsStartingServer] = useState(false);
+const [isRefreshing, setIsRefreshing] = useState(false);
+
+const updateServerConfig = async (host: string, port: string) => {
+try {
+const response = await fetch( http://localhost:8000/config/update-server’, {
+method: 'POST',
+headers: {
+"Content-Type': ‘application/json',
+},
+body: JSON.stringify({ host, port }),
+});
+
+if (!response.ok) {
+
+€ Version20f2 —> 4 €} m& ~ Publish
+
+[18:04:00] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:57:23] PROMPT with state:
+[18:57:23] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+ja
+
+Last login: Sun Feb 16 18:24:01 on ttys004
+
+jay@Qunix ~ % ollama serve
+2025/02/16 18:57: Waco toc —aes 1107+ TM EO carter ean tia an—iimoan TUTTDC_DDAVY+_UTTD_DDAVV-_MNO_DDOAYY: QLLAMA DEBUG: false OLLAMA_FLASH_ATTENTION: false
+
+aac - TYPE: OLLAMA_LLM LIBRARY: OLLAMA_LOAD_TIMEOUT:5m@
+_MAX_ | MULTIUSER _CACHE: false OLLAMA_NOHISTORY: false OLLA
+MA_NOPRUNE: false | Observer '/localhost:* https://localhost:* http://127.0.0.1
+
+https://127.0.0.1 ).0.0.0:* https://0.0.0.0:* app://* file://* tauri:
+
+//* vscode-webvie|
+time=2025-02-16T1 G Active Agents: 1 / Total: 1
+
+localhost:11434 v Connected
+
+red: Q"
+
+11434 (version 0.5.7)"
+
+time=2025-02-16T 1 SMM runners=[cpu]
+
+time=2025-0@2-16T1 running library=cpu variant=avx2 compute="" driver=@.0 nam
+e="""_ total="32.0 |
+[GIN] 2025/02/ 16 ] Model: deepseek-r1:8b
+
+Records all user activity on a file
+
+
+[18:57:23] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[18:57:31] PROMPT with state:
+[18:57:31] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+lia
+
+Last login: Sun Feb 16 18:24:01 on ttys004 Found agent classes:
+jay@Qunix ~ % ollama serve 2025-02-16 18:57:20,834
+2025/02/16 18:57:12 routes.go:1187: INFO server config env="map[H2@25-@2-16 18:57:20,835
+OLLAMA_GPU_OVERHEAD:@ OLLAMA_HOST:http://127.0.0.1:11434 OLLAMA_Agent'>, )
+s OLLAMA_MAX_LOADED_MODELS:@ OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/2025-02-16 18:57:20,835
+MA_NOPRUNE: false OLLAMA_NUM_PARALLEL:@ OLLAMA_ORIGINS: [http://locFound specific agents:
+https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://02025-02-16 18:57:20,835
+//* vwscode-webview://*] OLLAMA_SCHED_SPREAD: false http_proxy: httAgent'>, )
+time=2025-02-16T18:57:12.985-06:00 level=INFO source=images.go:432025-0@2-16 18:57:20,835
+time=2025-@2-16T18:57:12.985-06:00 level=INFO
+
+source=images.go:43Selected specific agent:
+
+python3 api.py
+
+DEBUG - BaseAgent: (<class 'object'>,)
+DEBUG - TimestampAgent: (<class 'core.base_agent.Base
+DEBUG -
+DEBUG - TimestampAgent: (<class 'core.base_agent.Base
+DEBUG -
+
+TimestampAgent
+
+time=2025-02-16T18:57:
+time=2025-02-16T18:57:
+time=2025-02-16T18:57:
+e=""" total="32.0 GiB"
+[GIN] 2025/02/16 —- 18:
+[GIN] 2025/02/16 —- 18:
+
+12.986-06:00 level=INFO
+12.986-06:00 level=INFO
+12.986-06:00 level=INFO
+available="20.2 GiB"
+
+57:16 | 84.006us |
+57:23 | 602.16us |
+
+source=routes.go:12Initialized model: deepseek-r1: 8b
+source=routes.go:122025-02-16 18:57:21,170 — DEBUG - Successfully started agent: timestamp_agent (Ti
+source=types.go:131mestampAgent )
+
+2025-02-16 18:57:21,170 - DEBUG - Response headers: MutableHeaders({'content-leng
+127.0.@th': '20', ‘content-type': ‘application/json', ‘access—control—allow-credentials'
+127.0.0: ‘true’, ‘access—control-expose-headers': 'x*', ‘access-—control-allow-origin': 'h
+
+ttp://127.0.0.1:1430', 'vary': 'Origin'})
+
+INFO: 127.0.0.1:53959 -— "POST /agents/timestamp_agent/start HTTP/1.1" 200 OK
+
+2025-02-16 18:57:21,172 — DEBUG — Incoming request from origin: http://127.0.0.1:
+
+1430
+
+2025-02-16 18:57:21,172 - DEBUG - Request headers: Headers({'host': 'localhost:80
+
+@@', ‘accept’: ‘*/x*', ‘origin’: 'http://127.0.0@.1:1430', '‘accept-encoding': 'gzip
+
+, deflate’, ‘connection': 'keep-alive', 'sec-fetch-mode': 'cors', 'sec-fetch-site
+
+': "cross-site', 'user-agent': 'Mozilla/5.@ (Macintosh; Intel Mac OS X 10_15_7) A
+
+pp LeWebKit/605.1.15 (KHTML, like Gecko)', '‘referer': 'http://127.0.0.1:1430/', 's
+
+ec-fetch-dest': '‘empty', 'accept-language': 'en-US,en;q=0.9'})
+
+2025-02-16 18:57:21,173 — DEBUG — Receiving request to /agents endpoint
+
+2025-02-16 18:57:21,174 -— DEBUG - Found agents: [{'id': 'timestamp_agent', 'name'
+"TimestampAgent', ‘model': '‘deepseek-ri:8b', ‘description’: ‘Records all user a
+
+ctivity on a file', 'status': 'running'}]
+
+2025-02-16 18:57:21,174 - DEBUG - Response headers: MutableHeaders({'content-leng
+th': '146', 'content-type': ‘application/json', 'access—-control-allow-credentials
+": ‘true', '‘access—control-expose-headers': 'x*', ‘access-control-allow-origin': '
+http://127.0.0.1:1430', ‘'vary': 'Origin'})
+
+INFO: 127.0.0.1:53959 — "GET /agents HTTP/1.1" 200 OK
+
+2025-02-16 18:57:21,594 -— DEBUG —- STREAM b'IHDR' 16 13
+
+2025-02-16 18:57:21,594 -— DEBUG - STREAM b'IDAT' 41 290342
+
+2025-02-16 18:57:22,356 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dg017r155blc
+2p4kk3800000gn/T/tess_naxnxmy2_input.PNG', '/var/folders/d4/t8w2dg@17r155blc2p4kk
+3800000gn/T/tess_naxnxmy2', 'txt']
+
+2025-02-16 18:57:23,881 - DEBUG - Starting new HTTP connection (1): localhost:114
+34
+
+2025-02-16 18:57:23,883 — DEBUG — http://localhost:11434 "POST /api/generate HTTP
+/1.1" 404 44
+
+Generation error: API error: {"error":"model 'deepseek-r1:8b' not found'}
+
+[18:57:31] Error: API error: {"error":"model 'deepseek-r1:8b' not found"}
+[19:00:07] PROMPT with state:
+[19:00:07] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+Last login: Sun Feb 16 18:24:01 on ttys004 2025-02-16 18:59:11,726 - DEBUG - Found agents: [{'id': 'timestamp_agent', 'name'
+jay@Qunix ~ % ollama serve : 'TimestampAgent', 'model': 'deepseek-r1:8b', 'description': 'Records all user a
+2025/02/16 18:57: }oerousos an+t1107., TANIEN eanuar Con Foo nictima nd etait an Aa fFailal Petatiict. ‘stopped'}]
+
+OLLAMA_GPU_OVERH| ; — Response headers: MutableHeaders({'content-Lleng
+
+Ss OLLAMA_MAX_LOAD| ip Lication/json', ‘access—control-—allow-credentials
+MA_NOPRUNE: false | Observer bse-headers': 'x', '‘access-control-allow-origin': '
+
+https : //127 . @ . @ . 1 localhost:11434 v Connected 0 rigin })
+//* vscode-webvie\ [T /agents HTTP/1.1"
+time=2025-02-161 1 Sg Meee eeten yn | — Incoming request from origin: http://127.0.0.1:
+
+| — Request headers: Headers({'host': 'localhost:80
+
+time=2025-02-16T1 TimestampA gent , '‘sec-ch-ua-platform': '"macOS"', ‘user-agent’: '
+time=2025-02-16T1 nated lac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like G
+e="""total="32.0 | 137.36', 'sec-ch-ua': '"Not(A:Brand";v="99", "Brave
+[GIN] 2025/02/16 [i ‘sec-ch-ua-mobile': '?0', ‘accept': '*/x', 'sec-g
+[GIN] 2025/02/16 | sone ai senacemyon as in-US,en;q=0.5', ‘origin': 'http://127.0.0.1:1430',
+[GIN] 2025/02/16 | PR stot | , 'sec-fetch-mode': 'cors', 'sec-fetch-dest': ‘emp
+
+).1:1430/', ‘accept-encoding': ‘gzip, deflate, br,
+
+| — Receiving request to /agents endpoint
+| - Found agents: [{'id': 'timestamp_agent', 'name'
+leepseek-r1:8b', ‘description': ‘Records all user a
+
+aders: MutableHeaders({'content-leng
+", "access—control—-allow-credentials
+*', ‘access-control-allow-origin': '
+
+/1.1"
+suest from origin: http://127.0.0.1:
+
+ers: Headers({'host': 'localhost:8@
+9.1:1430', ‘accept-encoding': 'gzip
+etch-mode': 'cors', 'sec-—fetch-site
+acintosh; Intel Mac OS X 10_15_7) A
+erer': 'http://127.0.0.1:1430/', 's
+n-US, en; q=0.9'})
+quest to /agents endpoint
+[{'id': 'timestamp_agent', 'name'
+‘description’: ‘Records all user a
+
+config.yaml
+YAML - 938 bytes ders: MutableHeaders({'content-leng
+Information
+
+a assay caccess—control-allow-credentials
+I
+
+© , ‘access-control-allow-origin': '
+
+More...
+
+it}
+hoveVaeVae ts IIIT — / aygweits moryL.l
+
+
+[19:12:35] PROMPT with state:
+[19:12:35] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+vite v6.1.0 building for production...
+vy 1588 modules transformed.
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—D1tSA6ED.css 1.97 kB | gzip: 0.66 kB
+dist/assets/index—DcJnMoxv.js 148.68 kB | (eee Observer
+
+vy built in 1.55s
+jay@Qunix Observer % npm run tauri build
+
+Observer
+
+> obse rve r@d . 1 . 4) t a u ri localhost:11434 v Connected
+> tauri build
+
+G Active Agents: 0 / Total: 1
+Finished ‘release’ profile [optimized] ti
+Built application at: /Users/jay/repos/Ol
+
+. ; : TimestampA gent
+jay@Qunix Observer % npm run tauri dev pas
+
+stopped
+
+> obse rve r@d . 1 . 4) t au ri Model: deepseek-r1:7b
+> t aur i d ev Records all user activity on a file
+
+Running DevCommand (‘cargo run --no-defi
+Info Watching /Users/jay/repos/Observer/s
+Finished ‘dev’ profile [unoptimized + del
+Running *‘target/debug/observer’
+AA*C
+jay@Qunix Observer % npm run build
+
+> observer@@.1.@ build
+> tsc && vite build
+
+vite v6.1.0 building for production...
+
+vy 1588 modules transformed.
+
+dist/index.html 0.47 kB | gzip: 0.30 kB
+dist/assets/index—D1tSA6ED.css 1.97 kB | gzip: Q.66 kB
+dist/assets/index—aoLVCOw1. js 148.80 kB | gzip: 48.01 kB
+vy built in 1.44s
+
+jay@Qunix Observer % npm run tauri dev
+
+> observer@@.1.@ tauri
+> tauri dev
+
+Running DevCommand (‘cargo run --no-default-features --color always —-)
+Info Watching /Users/jay/repos/Observer/src-tauri for changes...
+
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.285
+Running *‘target/debug/observer’
+
+~/repos/Observer
+
+

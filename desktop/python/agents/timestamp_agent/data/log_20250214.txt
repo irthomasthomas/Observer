@@ -1,0 +1,3445 @@
+[15:18:00] PROMPT with state:
+[15:18:00] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+tauri-build v2.0.5
+
+tauri-plugin v2.0.4
+
+tauri-codegen v2.0.4
+
+tauri v2.2.5
+
+tauri-plugin-opener v2.2.5
+
+tauri-macros v2.0.4
+
+observer v0.1.0 (/Users/jay/repos/Observer/src—tauri)
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 55.56s
+“target/debug/observer >
+
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Finished
+Running
+‘C
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-tauri for changes.
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in
+Running *‘target/debug/observer’
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-tauri for changes.
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+@.46s
+
+run —-no-default-features -—-color always
+
+Q@.275s
+
+‘C
+
+jay@Qunix Observer % ssh jay@10.0.0.72
+
+ssh: connect to host 10.0.0.72 port 22: Host is down
+
+jay@Qunix Observer % ssh jay@10.0.0.72
+
+jay@10.@.0.72'sS password:
+
+-ast login: Tue Feb 11 15:00:59 2025 from 10.0.0.138
+
+jay in @ archLinux in ~ via B v3.13.1
+
+» screen
+
+[detached from 1335.pts—@.archLinux]
+
+jay in @ archLinux in ~ via B v3.13.1 took 5s
+
+jay in @ archLinux in ~ via B v3.13.1
+
+» exit
+
+Logout
+
+‘onnection to 10.0.0.72 closed.
+
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+
+a)
+Info Watching /Users/jay/repos/Observer/src-tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+2025-02-14 15:17:52,711 -— DEBUG -
+
+Found agent classes:
+
+2025-02-14 15:17:52,711 - DEBUG - BaseAgent: (<class 'object'>, )
+2025-02-14 15:17:52,711 - DEBUG - TimeTrackingAgent: (<class 'core.bas
+e_agent.BaseAgent'>, )
+
+2025-02-14 15:17:52,711 -— DEBUG -
+
+Found specific agents:
+
+2025-02-14 15:17:52,711 - DEBUG - TimeTrackingAgent: (<class 'core.bas
+e_agent.BaseAgent'>, )
+
+2025-02-14 15:17:52,711 -— DEBUG -
+
+Selected specific agent: TimeTrackingAgent
+
+2025-02-14 15:17:52,711 — DEBUG -
+
+Processing directory: timestamp_agent
+
+2025-02-14 15:17:52,712 — DEBUG — Checking files:
+
+2025-02-14 15:17:52,712 -— DEBUG —- agent.py exists: True
+
+2025-02-14 15:17:52,712 -— DEBUG — config.yaml exists: True
+
+2025-02-14 15:17:52,712 - DEBUG - Loading module from /Users/jay/repos/0
+bserver/python/agents/timestamp_agent/agent. py
+
+2025-02-14 15:17:52,712 -— DEBUG - Found classes in module:
+
+2025-02-14 15:17:52,712 -— DEBUG —- datetime: (<class ‘datetime.date'>, )
+2025-02-14 15:17:52,712 - DEBUG - BaseAgent: (<class 'object'>,)
+2025-02-14 15:17:52,712 - DEBUG - TimestampAgent: (<class 'core.base_a
+gent.BaseAgent'>, )
+
+2025-02-14 15:17:52,712 -— DEBUG -
+
+Found agent classes:
+
+2025-02-14 15:17:52,712 - DEBUG - BaseAgent: (<class 'object'>,)
+2025-02-14 15:17:52,712 - DEBUG - TimestampAgent: (<class 'core.base_a
+gent.BaseAgent'>, )
+
+2025-02-14 15:17:52,712 -— DEBUG -
+
+Found specific agents:
+
+2025-02-14 15:17:52,712 - DEBUG - TimestampAgent: (<class 'core.base_a
+gent.BaseAgent'>, )
+
+2025-02-14 15:17:52,712 -— DEBUG -
+
+Selected specific agent: TimestampAgent
+
+2025-02-14 15:17:52,712 -— DEBUG -
+
+Final available agents: [{'id': 'time_agent', 'name': 'TimeTrackingAgent
+', 'status': 'stopped'}, {'id': 'timestamp_agent', 'name': 'TimestampAge
+nt', 'status': 'running'}]
+
+2025-02-14 15:17:52,713 -— DEBUG - Found agents: [{'id': 'time_agent', 'n
+
+ame': 'TimeTrackingAgent', 'status': 'stopped'}, {'id':
+', 'name': 'TimestampAgent', 'status': 'running'}]
+2025-02-14 15:17:52,713 - DEBUG - Response headers: MutableHeaders({'con
+
+*timestamp_agent
+
+tent-length': '135', ‘content-type': '‘application/json', ‘access—control
+-allow-credentials': 'true', ‘access—control—expose-headers': 'x*', '‘acce
+ss—control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+
+INFO: 127.0.0.1:52001 - "GET /agents HTTP/1.1" 200 OK
+
+[15:18:14] RESPONSE:
+[15:18:14] <think>
+Okay, let me try to figure out what the user is doing here. So, looking at the screen content provided, there are a bunch of lines with version numbers for various tauri-related packages and some terminal commands.
+
+The first thing I notice is the command `jay@Qunix Observer % tauri dev`. That's definitely related to Tauri, which I think is a tool used in web development. So the user is running their Tauri development server.
+
+Then there are logs about compiling and running the application. The message "Compiling" repeated several times suggests that the build process is ongoing, maybe for a Rust project since Tauri uses Rust. Once it's done compiling, it runs the target executable, which is likely the web app built with Tauri.
+
+I also see lines like `run —-no-default-features -—-color always` and some timestamps. These look like command outputs from running the application, probably indicating that the user is testing or deploying their app.
+
+Then there's an SSH attempt to connect to another server at 10.0.0.72, but it fails because the host is down. This might not be directly related unless the user is troubleshooting a connection issue, but since it's just an attempt and not successful, maybe it's not the main activity.
+
+After that, there are some logs from what looks like an agent processing directory 'timestamp_agent'. There are debug messages about loading modules and finding classes, specifically mentioning `datetime` and `TimestampAgent`. This seems like a part of their application, maybe an internal feature tracking time or something similar.
+
+Putting it all together, the user is likely working on their Tauri-based project. They ran the development server, compiled and ran the app, and are now processing some agent which interacts with timestamps. The SSH attempt could be a side activity, but the main focus seems to be on developing and running their web application using Tauri.
+
+So, I need to write an activity description that captures this. It should mention the main activities: running the Tauri dev server, compiling, executing the app, and handling agents related to timestamps.
+</think>
+
+The user is active in a Tauri development environment. They are running the Tauri command-line interface, compiling their project, and executing the built application. Additionally, they appear to be working with an internal agent module ('timestamp_agent') that handles time tracking within their application.
+
+**Activity:**
+- Running Tauri development server (`tauri dev`).
+- Compiling and executing the Rust-based web application.
+- Managing an internal agent module for timestamp handling.
+
+This indicates focused work on a Tauri project, including both frontend execution and backend component processing.
+[15:18:20] PROMPT with state:
+[15:18:20] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+S Error Starting Agent: Incorrec x ©) Roy3838/Bose-Fermi: Code for
+
+«<> ec
+
+@® (5) Kamasi Washington: Tiny De @ iCloud Mail
+
+Q %  claude.ai/chat/a4b1bc3a-b88c-4de4-bd02-0725213c15a2
+
+Claude <2 Deepseek R1 app / Error Starting Agent: Incorrect Agent Class Identification v
+
+Oo
+
+4UL90-ULA“IT 10.11 00,900 — VEDUG ~— FOUNA agents. [LIa. TIME_agent ,
+'name': 'TimeTrackingAgent'’, 'status': 'stopped'}, {'id': 'timestamp_agent',
+'‘name': 'TimestampAgent'’, 'status': 'stopped'}]
+
+2025-02-14 15:11:58,357 - DEBUG - Response headers:
+MutableHeaders({'content-length': '135', 'content-type': 'application/json',
+'access-control-allow-credentials': 'true', 'access-control-expose-headers':
+'*! 'access-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+INFO: 127.0.0.1:51927 - "GET /agents HTTP/1.1" 200 OK
+
+The logs show that the agent discovery is working correctly - both agents
+are being found and properly identified as their specific classes
+(TimeTrackingAgent and TimestampAgent) rather than BaseAgent.
+
+However, I notice we haven't seen any logs from actually starting an agent.
+Would you like to try starting one of the agents to see if the start_agent
+function is working properly? You could try starting either the
+timestamp_agent or time_agent and we can check the logs to see if it
+properly initializes the correct agent class.
+
+To test this, you could:
+
+1. Click the start button on one of the agents in the UI, or
+2. Make a POST request directly to /agents/timestamp_agent/start
+Let me know if you try either of those and share the logs - I can help
+
+interpret them to make sure everything's working as expected.
+
+f)} Copy © Retry & @
+
+MK Claude can make mistakes. Please double-check responses.
+
+®
+
+Use shift + return for new line
+
+how doi remove the debug prints from the
+
+Claude 3.5Sonnet. & Choosestyle v
+
+Roy3838/Observer S| Siesta +
+
+n@Q a|\ea oO
+
+<€ Updated start_agent function
+
+@app. post ("'/agents/{agent_id}/start")
+async def start_agent(agent_id: str):
+WOOO: PEYFIC an agent™™"
+logger.debug(f"Attempting to start agent: {agent_id}")
+
+if agent_id in running_agents:
+logger. debug(f"Agent {agent_id} is already running")
+return {"error": "Already running''}
+
+agent_path = Path(__file__).parent / "agents" / agent_id / "agent.py"
+if not agent_path.exists():
+
+logger.error(f"Agent path not found: {agent_path}")
+
+return {"error": "Agent not found''}
+
+try:
+
+logger.debug(f"Loading module from {agent_path}")
+
+spec = importlib.util.spec_from_file_location("module", agent_path)
+module = importlib.util.module_from_spec(spec)
+
+spec. Loader. exec_module(module)
+
+all_classes = [(name, cls) for name, cls in module.__dict__.items()
+if isinstance(cls, type)]
+logger.debug("Found classes in module:")
+for name, cls in all_classes:
+logger.debug(f'' {name}: {cls.__bases_ }'')
+
+Last edited 7 minutes ago a6 Oo
+
+a C—
+= @
+oO
+
+x
+
+Publish
+
+[15:18:29] RESPONSE:
+[15:18:29] <think>
+Alright, I need to analyze the current screen content provided and determine if there's any change in the user's activity from the last recorded one. Let me start by going through each part of the input carefully.
+
+Looking at the current screen content, it seems to be a mix of various applications and activities. The presence of "Claude 3.5Sonnet" suggests that the user might be working with this application, possibly in a development or coding context. There are mentions of error logs related to starting agents, which indicates that the user is likely testing or debugging some functionality involving these agents.
+
+Comparing this to any previous activity (though none was provided), I notice elements like "Roy3838/Bose-Fermi: Code for" and references to agents being stopped or started. These could be signs that the user is engaged in coding activities, possibly within a specific project framework.
+
+One of the logs mentions an error when starting an agent: "Incorrect Agent Class Identification." This points towards the user attempting to run or test an agent, which might be part of a script or automated process they're developing. Additionally, there are POST request references to starting agents, like "/agents/timestamp_agent/start," indicating that they're actively working with these scripts.
+
+The presence of debug prints and logger statements suggests that the user is in the process of debugging or fine-tuning their code. They might be checking logs for errors and ensuring that agents are initialized correctly. The mention of "TimeTrackingAgent" and "TimestampAgent" also adds context about the specific functionalities they're working on.
+
+I should consider whether this constitutes a significant change from previous activities. If in the last session, the user was perhaps only browsing or doing something else, then transitioning to coding and debugging would be a notable shift. Without prior data, it's hard to say definitively, but given the current content, it seems like a new activity.
+
+In terms of activity description, focusing on the main visible tasks is key. The user appears to be working within Claude 3.5Sonnet, possibly in a coding environment, with a focus on agent functionality and debugging processes.
+</think>
+
+**Activity Description:**
+The user is working within the Claude 3.5Sonnet application, engaged in coding activities. They are testing and debugging an agent system, specifically attempting to start agents like TimeTrackingAgent and TimestampAgent. Debug logs indicate they are ensuring correct initialization of these agents, which suggests active development or troubleshooting efforts in their codebase.
+
+**Summary:**
+The user is actively coding within Claude 3.5Sonnet, focusing on the functionality of specific agents and debugging related processes.
+[15:18:37] PROMPT with state:
+[15:18:37] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+*K Error Starting Agent: Incorrec x (ws) Roy3838/Bose-Fermi: Code for @® (5) Kamasi Washington: Tiny De @ iCloud Mail Roy3838/Observer S| Siesta + v
+
+< >e Q  % _ claude.ai/chat/a4b1bc3a-b88c-4de4-bd02-0725213c15a2 na 8) PA OB°s@o=
+
+O)
+Claude <2 Deepseek R1 app / Error Starting Agent: Incorrect Agent Class Identification v roy
+
+INFO: 127.0.0.1:51927 - "GET /agents HT TP/1.1" 200 OK
+<€ Updated start_agent function x
+The logs show that the agent discovery is working correctly - both agents @app. post ("/agents/{agent_id}/start")
+are being found and properly identified as their specific classes async def start_agent(agent_id: str):
+(TimeTrackingAgent and TimestampAgent) rather than BaseAgent. WOUS eRe Bln eee
+
+. ; ; logger.debug(f"Attempting to start agent: {agent_id}")
+However, I notice we haven't seen any logs from actually starting an agent.
+
+Would you like to try starting one of the agents to see if the start_agent if agent_id in running_agents:
+function is working properly? You could try starting either the logger.debug(f"Agent {agent_id} is already running")
+timestamp_agent or time_agent and we can check the logs to see if it return {"error": "Already running'}
+
+properly initializes the correct agent class.
+
+To test this, you could: agent_path = Path(__file__).parent / "agents" / agent_id / "agent.py"
+if not agent_path.exists():
+
+1. Click the start button on one of the agents in the UI, or
+logger.error(f"Agent path not found: {agent_path}")
+
+2. Make a POST request directly to /agents/timestamp_agent/start return {"error": "Agent not found"}
+Let me know if you try either of those and share the logs - I can help :
+. wy . ry:
+interpret them to make sure everything's working as expected.
+CE] Copy  D logger.debug(f"Loading module from {agent_path}")
+
+spec = importlib.util.spec_from_file_location("module", agent_path)
+
+6 how do i remove the debug prints from the agent discovery so that i can see module = importlib.util.module_from_spec(spec)
+
+only the start_agent debug? spec. Loader. exec_module(module)
+We can modify b all_classes = [(name, cls) for name, cls in module.__dict__.items()
+if isinstance(cls, type) ]
+2 logger.debug("Found classes in module:")
+
+for name, cls in all_classes:
+logger.debug(f'' {name}: {cls.__bases_ }'')
+
+se Reply to Claude... G ®
+
+Oo Claude 3.5Sonnet » & Choose style v
+
+Last edited 8 minutes ago At A wy Publish
+
+[15:18:43] RESPONSE:
+[15:18:43] <think>
+Alright, let's break down what the user is doing on their screen based on the provided content.
+
+First, I notice that there are mentions of "Claude" and logs related to an agent discovery process. The logs talk about starting agents like TimeTrackingAgent and TimestampAgent. This suggests that the user might be working with some sort of AI or automation setup, possibly using Claude as part of it.
+
+Next, there's a mention of errors when trying to start agents, such as "Incorrect Agent Class Identification." This indicates that the user encountered issues while attempting to initialize these agents. They also discussed making POST requests and checking if paths exist for specific agents, which implies they're manually testing or debugging parts of their system.
+
+Additionally, there are references to modifying debug prints and importing modules, which means the user is likely working on code-related tasks, perhaps fine-tuning or troubleshooting their existing setup. They mentioned wanting to remove some debug logs to focus only on start_agent logs, showing a desire for more streamlined output.
+
+Lastly, the user mentions trying to start agents in the UI or via POST requests and sharing logs for assistance. This indicates they're seeking help with their current setup and might be looking to resolve issues with agent discovery or execution.
+
+Putting this all together, it seems the main activity is related to debugging and testing an AI agent setup, specifically around Claude's functionality. They're dealing with errors in agent initialization and trying different methods to ensure everything works as expected.
+</think>
+
+The user appears to be engaged in debugging and testing an AI agent setup, specifically involving Claude. They are working on initializing agents such as TimeTrackingAgent and TimestampAgent, encountering issues like "Incorrect Agent Class Identification," and attempting manual tests through POST requests and file path checks. The activity involves code-related tasks, module imports, and log adjustments to streamline the process.
+
+**Activity Description:** Debugging AI agent initialization errors in Claude setup, testing agent functionality, and troubleshooting issues with agent class identification and execution.
+[15:18:52] PROMPT with state:
+[15:18:52] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+*K Error Starting Agent: Incorrec x (ws) Roy3838/Bose-Fermi: Code for @® (5) Kamasi Washington: Tiny De @ iCloud Mail
+
+<> ce Q %  claude.ai/chat/a4b1bc3a-b88c-4de4-bd02-0725213c15a2
+
+Claude <2 Deepseek R1 app / Error Starting Agent: Incorrect Agent Class Identification v
+
+AL DES LOUTIG AllG PlOPerly 1QCHUIICA ds UIEIT SPCCHIC Cldss€s
+
+(TimeTrackingAgent and TimestampAgent) rather than BaseAgent.
+
+However, I notice we haven't seen any logs from actually starting an agent.
+Would you like to try starting one of the agents to see if the start_agent
+function is working properly? You could try starting either the
+timestamp_agent or time_agent and we can check the logs to see if it
+properly initializes the correct agent class.
+
+To test this, you could:
+
+1. Click the start button on one of the agents in the UI, or
+
+2. Make a POST request directly to /agents/timestamp_agent/start
+
+Let me Know if you try either of those and share the logs - I can help
+interpret them to make sure everything's working as expected.
+
+how do i remove the debug prints from the agent discovery so that i can see
+only the start_agent debug?
+
+We can modify both functions to make the debug logs more focused on just
+the start_agent process. Here's how to update them:
+
+Updated API Functions with Focused Logging
+
+Click to open code
+
+se Reply to Claude... G
+
+Oo Claude 3.5Sonnet » & Choose style v
+
+Roy3838/Observer S| Siesta + Vv
+
+2Q 6)/8CA Oe%@=
+
+< Updated API Functions with Focused Logging x
+
+def discover_agents():
+
+"""™Scan the agents directory and return available agents"
+agents_dir = Path(__file__).parent / "agents"
+available_agents = []
+
+for agent_dir in agents_dir.iterdir():
+if agent_dir.is_dir() and not agent_dir.name.startswith('__'):
+agent_id = agent_dir.name
+
+if (agent_dir / "agent.py").exists() and (agent_dir / "config.yaml").exi
+try:
+spec = importlib.util.spec_from_file_location("module", agent_di
+module = importlib.util.module_from_spec(spec)
+spec. loader. exec_module(module)
+
+all_classes = [(name, cls) for name, cls in module._ dict__.item
+if isinstance(cls, type) ]
+agent_classes = [(name, cls) for name, cls in all_classes
+if name.endswith( 'Agent')]
+specific_agents = [(name, cls) for name, cls in agent_classes
+if name != 'BaseAgent' and issubclass(cls, Base
+
+if specific_agents:
+agent_name, agent_class = specific_agents[@]
+available_agents.append({
+"id": agent_id,
+"name": agent_name,
+
+"status": "running" if agent_id in running_agents else
+
+})
+
+Last edited just now £) &% Publish
+
+[15:18:59] RESPONSE:
+[15:18:59] <think>
+Okay, so I'm trying to figure out what's going on with the user's screen activity. Let me look at the current content they provided.
+
+First, I see a lot of mentions related to agents like "TimeTrackingAgent" and "TimestampAgent". It looks like there's some discussion about starting agents and checking logs. The user mentioned not seeing any logs from actually starting an agent, so maybe that's a key point here. They suggested trying to start either the timestamp_agent or time_agent to test if the start_agent function works properly.
+
+There are also some code snippets visible. One of them is the discover_agents function, which scans directories for available agents. It checks for directories named after agents and whether they have specific files like agent.py and config.yaml. The function then imports these modules and looks for classes that end with 'Agent'. It excludes BaseAgent and collects the rest as running agents.
+
+Another part of the code is about modifying API functions to focus on start_agent debugging, removing debug prints so only start_agent logs are shown. This seems like an attempt to isolate issues related to starting agents.
+
+Additionally, there's a mention of removing debug prints from agent discovery to see only start_agent logs. So, maybe the user is trying to troubleshoot why agents aren't starting properly.
+
+Putting this together, it looks like the main activities involve working with different agents—specifically TimeTrackingAgent and TimestampAgent. The user is likely involved in testing these agents by attempting to start them, possibly encountering issues where they don't initiate as expected. They're using code to discover available agents and modify logging to focus on specific debugging information.
+
+So, summarizing the new activity: The user is working with multiple agent classes, trying to start them, checking logs for their initiation, and modifying code to debug the process of starting these agents.
+</think>
+
+**Activity Description:**  
+The user is interacting with TimeTrackingAgent and TimestampAgent, attempting to start and troubleshoot these agents. They are using discover_agents function to scan directories for available agents, modifying logging to focus on start_agent debugging, and testing agent initiation as part of troubleshooting.
+[15:19:04] Error: (-2, 'Estimating resolution as 373')
+[15:24:07] PROMPT with state:
+[15:24:07] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t+— App.css
+t+— App.tsx
+t— assets
+t—— main. tsx
+— vite-env.d.ts
+t+— src-tauri
+
+t+— Cargo. lock
+t+— Cargo.toml
+t— build.rs
+t— Capabilities
+t— gen
+t— icons
+t— src
+t+— target
+— tauri.conf.json
+t-— tsconfig.json
+-— tsconfig.node. json
+— vite.config.ts
+
+60 directories, 25
+
+jay@Qunix
+jay@Qunix
+jay@Qunix
+LICENSE
+README. md
+dist
+jay@Qunix
+
+Observer
+Observer
+Observer
+
+Observer
+
+t— source-map-js
+t— tailwindcss
+t+— typescript
+t+ update-browsers list—db
+t— vite
+— yallist
+t— package-Lock.json
+— package.json
+t— public
+
+-+— tauri.svg
+— vite.svg
+t— python
+
+t— agents
+r— api.py
+t— core
+
+It requirements. txt
+I— run.py
+— run_echo.py
+
+files
+
+ce & &
+
+ls
+index.html
+node_modules
+
+package-Lock. json
+
+oe
+
+Observer
+
+Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+running
+
+ID: timestamp_agent
+
+package. json
+public
+python
+
+Observer
+
+src
+src-tauri
+tsconfig.json
+
+tsconfig.node. json
+vite.config.ts
+
+[15:24:17] RESPONSE:
+[15:24:17] <think>
+Okay, so I need to figure out what the user is doing based on the screen content provided. Let me start by reading through all the information carefully.
+
+First, I see a lot of file and directory listings. There are files like App.css, App.tsx, main.tsx, and several others. The directories include src-tauri, target, public, node_modules, etc. This makes me think the user is working on a web project, possibly using TypeScript and Vite since I see tsconfig.json and vite.config.ts.
+
+Looking at the file changes, there are some additions like src-tauri and updating package-lock.json, which suggests the user might be setting up or modifying their project structure. The presence of dist and public directories often relates to web build processes, so that aligns with a web development environment.
+
+I also notice some Python files like run.py and api.py in the agents directory. This indicates that the user is working with Python, possibly on backend services or scripts. So, they might be juggling both frontend (web) and backend (Python) tasks.
+
+The active agent mentioned as "TimestampAgent" running suggests that there's an automated process or script being executed, which could relate to either the web project or Python scripts. The fact that it's showing an Observer with "running" status adds context that something is actively happening.
+
+Putting this together, the user seems to be working on a web development project using TypeScript and Vite. They might be setting up new files, managing dependencies, and possibly integrating some Python scripts for backend functionality. The combination of frontend and backend activities suggests they're working on a full-stack application or maybe a hybrid setup.
+
+I should make sure to highlight both the frontend and backend activities in my description. It's important to mention the specific tools they're using, like TypeScript and Vite for the web part, and Python scripts for the backend. Also, noting the active agent adds a layer of automation, which might be influencing their workflow.
+</think>
+
+The user appears to be working on a web development project using TypeScript and the Vite build tool. They are managing various files and directories within their project structure, including the addition of new source files and updating dependency lists. Additionally, they are running Python scripts as part of their workflow.
+
+**Activity Description:**
+Developing a web application using TypeScript and Vite, with additional tasks involving Python script execution.
+[15:24:20] PROMPT with state:
+[15:24:20] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t+— App.css
+t+— App.tsx
+t— assets
+t—— main. tsx
+— vite-env.d.ts
+t+— src-tauri
+
+t+— Cargo. lock
+t+— Cargo.toml
+t— build.rs
+t— Capabilities
+t— gen
+t— icons
+t— src
+t+— target
+— tauri.conf.json
+t-— tsconfig.json
+-— tsconfig.node. json
+— vite.config.ts
+
+60 directories, 25
+
+jay@Qunix
+jay@Qunix
+jay@Qunix
+LICENSE
+README. md
+dist
+jay@Qunix
+
+Observer
+Observer
+Observer
+
+Observer
+
+t— source-map-js
+t— tailwindcss
+t+— typescript
+t+ update-browsers list—db
+t— vite
+— yallist
+t— package-Lock.json
+— package.json
+t— public
+
+-+— tauri.svg
+— vite.svg
+t— python
+
+t— agents
+r— api.py
+t— core
+
+It requirements. txt
+I— run.py
+— run_echo.py
+
+files
+
+ce & &
+
+ls
+index.html
+node_modules
+
+package-Lock. json
+
+oe
+
+Observer
+
+Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+running
+
+ID: timestamp_agent
+
+package. json
+public
+python
+
+Observer
+
+src
+src-tauri
+tsconfig.json
+
+tsconfig.node. json
+vite.config.ts
+
+[15:24:28] RESPONSE:
+[15:24:28] <think>
+Okay, so I'm trying to figure out what the user is doing based on the screen content provided. Let me start by looking at all the files and directories mentioned.
+
+First, I see a lot of TypeScript files like App.css, App.tsx, main.tsx, and some configuration files like vite-env.d.ts, tsconfig.json, etc. This makes me think the user is working on a web project, possibly using Vite since there's a vite.config.ts file. The presence of Tailwind CSS and typescript as directories suggests they're setting up styles and type checking for their application.
+
+Looking further, I notice directories like src-tauri and target, which might indicate that the user is working with Tauri, a tool that helps build cross-platform applications using web technologies. There's also a Cargo.toml and Cargo.lock, which are part of Rust tooling, but since I don't see any Rust files here, maybe it's just set up for future use or another project.
+
+The user also has some Python scripts like run.py and run_echo.py in the public directory, along with index.html. This makes me think they might be developing a web service or API that can be accessed via the browser. The active agent is called TimestampAgent, which could be a script running to handle time-related tasks.
+
+I should consider if any of these activities are new compared to previous ones. If last time they were coding in VS Code without Tauri setup, now they've added Tauri and are setting up the project structure. Also, the Python scripts indicate some backend work, which might be a new addition.
+
+Putting it all together, the user seems to be working on a web application with possible Tauri integration, setting up their project files, and starting some backend scripting in Python. This would involve activities like coding in VS Code, managing project files, and maybe some system commands like running Python scripts.
+</think>
+
+The user is working on a web application using Vite and Tailwind CSS, with potential Tauri integration for cross-platform development. They have set up project files, including TypeScript configurations and Python scripts for backend tasks.
+
+**New Activity:**
+- Coding in VS Code, managing project files (App.css, App.tsx, main.tsx), configuring Vite, and preparing Tauri setup.
+- Developing a web service with Python scripts (run.py, run_echo.py) in the public directory, indicating backend work.
+[15:24:36] PROMPT with state:
+[15:24:36] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+tauri-build v2.0.5
+
+tauri-plugin v2.0.4
+
+tauri-codegen v2.0.4
+
+tauri v2.2.5
+
+tauri-plugin-opener v2.2.5
+
+tauri-macros v2.0.4
+
+observer v0.1.0 (/Users/jay/repos/Observer/src—tauri)
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 55.56s
+“target/debug/observer >
+
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Finished
+Running
+AC
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.46s
+Running *‘target/debug/observer’
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.27s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+run —-no-default-features -—-color always
+
+“AC
+jay@Qunix Observer % ssh jay@10.0.0.72
+ssh: connect to host 10.@.0.72 port 22: Host is down
+jay@Qunix Observer % ssh jay@10.0.0.72
+jay@10.0.0.72's password:
+Last login: Tue Feb 11 15:00:59 2025 from 10.0.0.138
+jay in @ archLinux in ~ via B v3.13.1
+>» screen
+[detached from 1335.pts—@.archLinux]
+jay in @ archLinux in ~ via B v3.13.1 took 5s
+>
+jay in @ archLinux in ~ via B v3.13.1
+>» exit
+logout
+Connection to 10.0.0@.72 closed.
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+a)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+ccept-—Language': 'en-US,en;q=0.9'})
+2025-02-14 15:24:25,587 — DEBUG — Receiving request to /agents endpoint
+
+2025-02-14 15:24:25,588 — DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+2025-02-14 15:24:25,588 -— DEBUG - Response headers: MutableHeaders({'con
+
+tent-length': '69', ‘content-type': ‘application/json', ‘access—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+INFO: 127.0.0.1:52132 -— "GET /agents HTTP/1.1" 200 OK
+
+setting up the project structure. Also, the Python scripts indicate som
+
+e backend work, which might be a new addition.
+
+Putting it all together, the user seems to be working on a web applicati
+
+on with possible Tauri integration, setting up their project files, and
+
+starting some backend scripting in Python. This would involve activities
+like coding in VS Code, managing project files, and maybe some system c
+
+ommands like running Python scripts.
+
+</think>
+
+The user is working on a web application using Vite and Tailwind CSS, wi
+th potential Tauri integration for cross-platform development. They have
+set up project files, including TypeScript configurations and Python sc
+ripts for backend tasks.
+
+*kNew Activity: **
+
+- Coding in VS2025-@2-14 15:24:27,588 -— DEBUG — Incoming request from or
+igin: http://127.0.0.1:1430
+
+2025-02-14 15:24:27,588 - DEBUG - Request headers: Headers({'host': 'loc
+alhost:8000', ‘accept': '*/*', ‘origin’: 'http://127.0.0.1:1430', ‘accep
+t-encoding': ‘gzip, deflate’, ‘connection': 'keep-alive', 'sec-—fetch-mod
+e': 'cors', 'sec-fetch-site': 'cross-site', '‘user-agent': 'Mozilla/5.@ (
+Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gec
+ko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': 'empty', ‘a
+ccept-—Language': 'en-US,en;q=0.9'})
+
+2025-02-14 15:24:27,588 — DEBUG -— Receiving request to /agents endpoint
+
+2025-02-14 15:24:27,590 — DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+
+2025-02-14 15:24:27,590 — DEBUG - Response headers: MutableHeaders({'con
+
+tent-length': '69', ‘content-type': ‘application/json', ‘access-—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+
+INFO: 127.0.0.1:52132 -— "GET /agents HTTP/1.1" 200 OK
+
+Code, managing project files (App.css, App.tsx, main.tsx), configuring
+Vite, and preparing Tauri setup.
+- Developing a web service with Python scripts (run.py, run_echo.py) in
+the public directory, indicating backend work.
+
+[15:24:39] RESPONSE:
+[15:24:39] 
+
+**New Activity:**
+The user is working on a web application using Vite and Tailwind CSS. They are coding in VS Code, managing project files including TypeScript configurations, and setting up Tauri integration for cross-platform development.
+
+- Coding in VS Code
+- Managing project files (App.css, App.tsx, main.tsx)
+- Configuring Vite
+- Setting up Tauri integration
+- Running Python scripts in the public directory
+
+This indicates they are developing a web service with potential backend functionality.
+[15:24:43] PROMPT with state:
+[15:24:43] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t+— typescript
+
+t— vite
+— yallist
+
+— package.json
+t— public
+
+-+— tauri.svg
+— vite.svg
+t— python
+
+t— agents
+r— api.py
+t— core
+
+I— run.py
+
+t+— App.css
+t+— App.tsx
+t— assets
++— main.tsx
+
+t— src-tauri
+
+t+— Cargo.toml
+t— build.rs
+
+t— gen
+-— icons
+t— src
+
+t+— target
+
+t-— tsconfig.json
+
+— vite.config.ts
+
+60 directories, 25
+jay@Qunix Observer
+jay@Qunix Observer
+jay@Qunix Observer
+LICENSE
+
+README.md
+
+dist
+
+jay@Qunix Observer
+
+t+— Cargo. lock
+
+t— source-map-js
+t— tailwindcss
+
+t— package-Lock.json
+
+It requirements. txt
+
+— run_echo.py
+
+— yite-env.d.ts
+
+t— Capabilities
+
+— tauri.conf.json
+
+-— tsconfig.node. json
+
+files
+
+ce & &
+
+oe
+
+t+ update-browsers list—db
+
+index.html
+node_modules
+package-Lock. json
+
+Observer
+
+Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+running
+
+ID: timestamp_agent
+
+ee0e < data
+Favorites ] __pycache__
+© AirDrop . Bi agent.py
+
+© Recents > B config.yaml
+
+2. Applications iB data
+
+—) Desktop
+
+{5 Documents
+
+© Downloads
+
+© iCloud D...
+
+E® Shared
+
+& mac
+
+@ Network
+
+package. json
+public
+python
+
+> B activity_log.json
+BB log_20250206.txt
+BB log_20250211.txt
+
+Be @ © Oe Q
+
+[15:18:00] PROMPT with state:
+[15:18:00] You are an activity
+tracking assistant that
+analyzes screen content to
+understand what the user is
+
+src
+src-tauri
+tsconfig.json
+
+Your task is to:
+
+1. Analyze the current screen
+content
+
+2. Determine if the user's
+activity has changed from the
+last recorded activity
+
+3. Write a concise description
+of any new activity
+
+log_20250214.txt
+Plain Text Document - 39 KB
+
+Information
+
+Crasta. al Tada 16:17
+
+More...
+
+tsconfig.node. json
+
+vite.config.ts
+
+[15:24:51] RESPONSE:
+[15:24:51] <think>
+Okay, so I need to figure out what the user is doing based on the screen content provided. Let me start by looking at all the information given.
+
+First, the current screen content shows a bunch of files and directories. I see things like `package.json`, `tsconfig.json`, `vite.config.ts`, and several other files related to TypeScript and Vite, which are web development tools. There's also `Cargo.toml` and `Cargo.lock`, which makes me think the user is working with Rust as well.
+
+Looking through the directories, there's a lot of source code in the `src` and `src-tauri` folders. The presence of `main.tsx` and `App.css` suggests that the user might be building a web application using React or similar technologies, possibly with Vite as their build tool.
+
+I also notice some Python files like `api.py`, `run.py`, and `update-browsers list—db`. That indicates the user has some Python scripts in addition to their TypeScript and Rust projects. The fact that they're working on multiple platforms could mean they're managing several different projects or perhaps integrating different technologies into one workflow.
+
+The active agents section shows that there's only one active agent, which is the `timestamp_agent`, running with an ID of `ee0e`. This might be part of some logging or monitoring system.
+
+Looking at the timestamps, I see entries around 15:18 and mentions of log files like `BB log_20250214.txt`. These could be related to system logs or activity tracking.
+
+Now, considering the last recorded activity, if the previous activity was about writing code in VS Code, this time around, the user seems to be working on front-end development with TypeScript and CSS. The addition of new files like `App.css` and `main.tsx` could mean they're setting up a new web app or updating an existing one.
+
+So, putting it all together, the main activity now is focused on web development with Vite, TypeScript, and CSS, possibly building out components and structures in the `src` directory. The presence of Rust and Python files might be supplementary tasks, but the primary focus seems to be on the front-end web application.
+</think>
+
+The user's current activity involves working on a web project using TypeScript and Vite, with an emphasis on front-end development. They are likely setting up or updating components in their `src` directory, including adding CSS styles and React-like components.
+
+**New Activity:**
+Web development with Vite, TypeScript, and CSS, possibly building components in the `src` directory.
+[15:24:57] PROMPT with state:
+[15:24:57] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+r-— src-
+
+source—map-js
+tailwindcss
+
+typescript
+update—-browsers List—db
+vite
+
+yallist
+
+t— package-Lock.json
+— package.json
+t— public
+
+tauri.svg
+vite.svg
+
+requirements. txt
+
+run. py
+run_echo. py
+
+App.css
+App.tsx
+assets
+
+main. tsx
+vite-env.d.ts
+tauri
+
+Cargo. lock
+Cargo. toml
+build.rs
+Capabilities
+gen
+
+icons
+
+src
+
+target
+tauri.conf.json
+
+t-— tsconfig.json
+-— tsconfig.node. json
+— vite.config.ts
+
+6@ directories, 25 files
+jay@Qunix Observer
+
+jay@Qunix Observer %
+jay@Qunix Observer %
+
+LICENSE
+
+index.html
+
+README.md node_modules
+
+dist
+
+jay@Qunix Observer
+
+package-Lock. json
+
+oe
+
+~/repos/Observer
+
+Observer
+
+ED)
+
+Info Watching /Users/jay/repos/Observer/src—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+Running *‘target/debug/observer’
+
+run —-no-default-features ——color always
+
+ccept—Language': 'en-US,en;q=0.9'})
+2025-02-14 15:24:25,587 — DEBUG — Receiving request to /agents endpoint
+
+2025-02-14 15:24:25,588 — DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', ‘status’: 'running'}]
+2025-02-14 15:24:25,588 —— DEBUG - Response headers: MutableHeaders({'con
+
+tent-length': '69', ‘content-type': ‘application/json', ‘access—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', ‘vary': ‘Origin'})
+
+INFO: 127.0.0.1:52132 — "GET /agents HTTP/1.1" 200 OK
+
+setting up the project structure. Also, the Python scripts indicate som
+
+e backend work, which might be a new addition.
+
+Putting it all together, the user seems to be working on a web applicati
+on with possible Tauri integration, setting up their project files, and
+
+starting some backend scripting in Python. This would involve activities
+like coding in VS Code, managing project files, and maybe some system c
+
+ommands like running Python scripts.
+</think>
+
+The user is working on a web application using Vite and Tailwind CSS, wi
+th potential Tauri integration for cross-platform development. They have
+set up project files, including TypeScript configurations and Python sc
+
+ripts for backend tasks.
+
+aKNew Activity: **
+
+- Coding in VS2025-@2-14 15:24:27,588 — DEBUG — Incoming request from or
+igin: http://127.0.0.1:1430
+
+2025-02-14 15:24:27,588 - DEBUG - Request headers: Headers({'host': ‘loc
+alhost:8000', ‘accept': '*/*', ‘origin’: 'http://127.0.0.1:1430', ‘accep
+t-encoding': ‘gzip, deflate’, ‘connection': 'keep-alive', 'sec—fetch-mod
+e': 'cors', 'sec-fetch-site': 'cross-site', '‘user-agent': 'Mozilla/5.@ (
+Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gec
+ko)', ‘referer’: 'http://127.0.0.1:1430/', 'sec-fetch-dest': 'empty', ‘a
+ccept—Language': 'en-US,en;q=0.9'})
+
+2025-02-14 15:24:27,588 — DEBUG — Receiving request to /agents endpoint
+
+2025-02-14 15:24:27,59@ — DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', ‘status’: 'running'}]
+
+2025-02-14 15:24:27,59@ — DEBUG - Response headers: MutableHeaders({'con
+tent-length': '69', ‘content-type': ‘application/json', ‘access—control-
+
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': ‘Origin'})
+
+package. json src
+
+public src-tauri
+python tsconfig.json
+
+by Q
+
+with state:
+e an activity
+t that
+
+ontent to
+
+he user is
+
+rrent screen
+
+he user's
+
+ged from the
+
+ivity
+
+e description
+ty
+
+t - 39 KB
+
+Tada 16:17
+
+tsconfig.node. json
+vite.config.ts
+
+[15:25:06] RESPONSE:
+[15:25:06] <think>
+Okay, so I'm trying to figure out what the user is doing based on the screen content provided. Let me go through this step by step.
+
+First, looking at the current screen content, there are a lot of files and directories listed. I see things like `src`, `public`, `tsconfig.json`, `vite.config.ts`, and some Python scripts like `run.py` and `run_echo.py`. There are also mentions of Tauri and Vite, which are tools for building web applications, especially with cross-platform capabilities.
+
+The user has a lot of project files, which suggests they're working on a web application. The presence of TypeScript and Tailwind CSS indicates front-end work. The Python scripts might be for backend tasks or some system commands.
+
+Looking at the logs, there's information about setting up the project structure and running the dev server with Tauri. There are debug logs from Vite and some responses related to an `/agents` endpoint. This makes me think they're integrating Tauri into their application, which would allow them to create desktop-like features in a web app.
+
+The user is also running some Python scripts, which could mean they're handling server-side tasks or scripting for automation. The timestamps show activity around 15:24, indicating focused work during that time.
+
+Putting this all together, the main activities I can see are coding in VS Code, managing project files with Vite and Tauri, and possibly some backend scripting with Python. Since the last activity was recorded, there's no significant change unless more specific actions occur, like writing new code or making configuration changes beyond what's already set up.
+
+I need to make sure my description is concise but covers all relevant activities without including temporary changes. So, focusing on coding and project setup with Vite and Tauri seems accurate.
+</think>
+
+The user is actively developing a web application using Vite and Tailwind CSS. They are integrating Tauri for cross-platform capabilities and have set up Python scripts for backend tasks or automation. The current activity involves coding in VS Code, managing project files, and potentially handling server-side scripting.
+
+Activity: Coding in VS Code with Vite and Tailwind CSS, integrating Tauri for cross-platform development, and managing project files including Python scripts for backend work.
+[15:25:14] PROMPT with state:
+[15:25:14] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+tauri-build v2.0.5
+
+tauri-plugin v2.0.4
+
+tauri-codegen v2.0.4
+
+tauri v2.2.5
+
+tauri-plugin-opener v2.2.5
+
+tauri-macros v2.0.4
+
+observer v0.1.0 (/Users/jay/repos/Observer/src—tauri)
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 55.56s
+“target/debug/observer >
+
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Finished
+Running
+AC
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.46s
+Running *‘target/debug/observer’
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.27s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+run —-no-default-features -—-color always
+
+“AC
+jay@Qunix Observer % ssh jay@10.0.0.72
+ssh: connect to host 10.@.0.72 port 22: Host is down
+jay@Qunix Observer % ssh jay@10.0.0.72
+jay@10.0.0.72's password:
+Last login: Tue Feb 11 15:00:59 2025 from 10.0.0.138
+jay in @ archLinux in ~ via B v3.13.1
+>» screen
+[detached from 1335.pts—@.archLinux]
+jay in @ archLinux in ~ via B v3.13.1 took 5s
+>
+jay in @ archLinux in ~ via B v3.13.1
+>» exit
+logout
+Connection to 10.0.0@.72 closed.
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+a)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gec
+ko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': ‘empty', ‘a
+ccept-—Language': 'en-US,en;q=0.9'})
+
+2025-02-14 15:25:03,602 — DEBUG — Receiving request to /agents endpoint
+
+Macintosh; Intel
+
+2025-02-14 15:25:03,603 - DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+
+2025-02-14 15:25:03,603 — DEBUG - Response headers: MutableHeaders({'con
+tent-length': '69', ‘content-type': ‘application/json', ‘access—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+
+INFO: 127.0.0.1:52132 — "GET /agents HTTP/1.1" 200 OK
+
+activity was recorded, there's no significant change unless more specif
+ic actions occur, like writing new code or making configuration changes
+beyond what's already set up.
+
+I need to make sure my description is concise but covers all relevant ac
+
+tivities without including temporary changes. So, focusing on coding and
+project setup with Vite and Tauri seems accurate.
+
+</think>
+
+The user is actively developing a web application using Vite and Tailwin
+d CSS. They are integrating Tauri for cross-platform capabilities and ha
+ve set up Python scripts for backend tasks or automation. The current ac
+tivity involves coding in VS Code, managing project files, and potential
+ly handling server-side scripting.
+
+Activity: Coding in VS Code with Vite and Tailwind CSS, integrating Taur
+i for cross-platform development, and managing project files including P
+ython scripts for backend work.
+
+2025-02-14 15:25:06,582 — DEBUG — Incoming request from origin: http://1
+27.0.0.1:1430
+
+2025-02-14 15:25:06,582 -— DEBUG - Request headers: Headers({'host': 'loc
+alhost:8000', ‘accept': '*/*', ‘origin’: 'http://127.0.0.1:1430', ‘accep
+t-encoding': ‘gzip, deflate’, ‘connection': 'keep-alive', 'sec-—fetch-mod
+e': 'cors', 'sec-fetch-site': 'cross-site', '‘user-agent': 'Mozilla/5.@ (
+Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gec
+ko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': 'empty', ‘a
+ccept-—Language': 'en-US,en;q=0.9'})
+
+2025-02-14 15:25:06,583 — DEBUG — Receiving request to /agents endpoint
+
+2025-02-14 15:25:06,584 - DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+2025-02-14 15:25:06,584 -— DEBUG - Response headers: MutableHeaders({'con
+
+tent-length': '69', ‘content-type': ‘application/json', ‘access-—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+
+INFO: 127.0.0.1:52132 - "GET /agents HTTP/1.1" 200 OK
+
+[15:25:22] RESPONSE:
+[15:25:22] 
+
+Activity: Coding in VS Code with Vite and Tailwind CSS, integrating Tauri for cross-platform development, and managing project files including Python scripts for backend work.
+
+2025-02-14 15:25:06,582 — DEBUG — Incoming request from origin: http://127.0.0.1:1430
+
+2025-02-14 15:25:06,582 -— DEBUG - Request headers: Headers({'host': 'localhost:8000', ‘accept': '*/*', ‘origin’: 'http://127.0.0.1:1430', ‘accept-encoding’: 'gzip, deflate’, ‘connection': 'keep-alive', 'sec-—fetch-mode': 'cors', 'sec-fetch-site': 'cross-site', 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': 'empty', ‘accept-—Language’: 'en-US,en;q=0.9'})
+
+2025-02-14 15:25:06,583 — DEBUG — Receiving request to /agents endpoint
+
+2025-02-14 15:25:06,584 - DEBUG - Found agents: [{'id': 'timestamp_agent', 'name': 'TimestampAgent', 'status': 'running'}]
+
+2025-02-14 15:25:06,584 — DEBUG - Response headers: MutableHeaders({'content-length': '69', ‘content-type’: 'application/json', ‘access-—control-allow-credentials’: 'true', '‘access-—control-expose-headers’: 'x*', ‘accesss-control-allow-origin’: 'http://127.0.0.1:1430', 'vary’: 'Origin'})
+
+INFO: 127.0.0.1:52132 — "GET /agents HTTP/1.1" 200 OK
+[15:25:22] Found command: INFO with params: ['127.0.0.1:52132 — "GET /agents HTTP/1.1" 200 OK']
+[15:25:25] PROMPT with state:
+[15:25:25] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t+— App.css
+t+— App.tsx
+t— assets
+t—— main. tsx
+— vite-env.d.ts
+t+— src-tauri
+
+t+— Cargo. lock
+t+— Cargo.toml
+t— build.rs
+t— Capabilities
+t— gen
+t— icons
+t— src
+t+— target
+— tauri.conf.json
+t-— tsconfig.json
+-— tsconfig.node. json
+— vite.config.ts
+
+60 directories, 25
+
+jay@Qunix
+jay@Qunix
+jay@Qunix
+LICENSE
+README. md
+dist
+jay@Qunix
+
+Observer
+Observer
+Observer
+
+Observer
+
+t— source-map-js
+t— tailwindcss
+t+— typescript
+t+ update-browsers list—db
+t— vite
+— yallist
+t— package-Lock.json
+— package.json
+t— public
+
+-+— tauri.svg
+— vite.svg
+t— python
+
+t— agents
+r— api.py
+t— core
+
+It requirements. txt
+I— run.py
+— run_echo.py
+
+files
+
+ce & &
+
+ls
+index.html
+node_modules
+
+package-Lock. json
+
+oe
+
+Co@°0 Observer
+
+Observer
+
+Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+running
+
+ID: timestamp_agent
+
+mac
+
+package. json src
+public src-tauri
+python tsconfig.json
+
+tsconfig.node. json
+vite.config.ts
+
+[15:25:31] RESPONSE:
+[15:25:31] <think>
+Okay, so I'm trying to figure out what the user is doing based on the screen content provided. Let me go through this step by step.
+
+First, looking at the file structure, I see a lot of files and directories related to a project. There are things like App.css and App.tsx, which makes me think it's a web or desktop application, maybe using some framework since there's also Vite and Tauri mentioned. The presence of Cargo.toml and package.json suggests it might be a Rust project, as those are common in Rust applications.
+
+There are directories like 'src' and 'public', which are typical places for source code and static assets in web apps. I notice files like LICENSE and README.md, which are standard in any project for licensing and documentation. There's also a dist directory, probably where built assets go.
+
+Looking at the command line outputs, there are some build tools like build.rs and tsbuild, which might indicate that the user is running some build or test command. The mention of 'running' in the agent status suggests something is executing right now.
+
+There are references to Vite, TypeScript, Tailwind CSS, and Python agents. So the user is likely working on a project that uses these technologies. The active agent ID is timestamp_agent, which might be a tool for tracking performance or logs.
+
+Putting it all together, the user seems to be actively developing a web application using Vite, possibly with Rust for some backend work. They're probably in the process of building or testing their project, given the commands and build tools involved.
+</think>
+
+The user is working on a web development project using Vite, TypeScript, and Tailwind CSS. They are likely running build or test commands, as indicated by the presence of build.rs and tsbuild. The active agent suggests they're tracking performance. 
+
+**Activity:** Developing a web application with Vite, TypeScript, Tailwind CSS, and possibly Rust for backend tasks.
+[15:25:35] PROMPT with state:
+[15:25:35] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t+— App.css
+t+— App.tsx
+t— assets
+t—— main. tsx
+— vite-env.d.ts
+t+— src-tauri
+
+t+— Cargo. lock
+t+— Cargo.toml
+t— build.rs
+t— Capabilities
+t— gen
+t— icons
+t— src
+t+— target
+— tauri.conf.json
+t-— tsconfig.json
+-— tsconfig.node. json
+— vite.config.ts
+
+60 directories, 25
+
+jay@Qunix
+jay@Qunix
+jay@Qunix
+LICENSE
+README. md
+dist
+jay@Qunix
+
+Observer
+Observer
+Observer
+
+Observer
+
+t— source-map-js
+t— tailwindcss
+t+— typescript
+t+ update-browsers list—db
+t— vite
+— yallist
+t— package-Lock.json
+— package.json
+t— public
+
+-+— tauri.svg
+— vite.svg
+t— python
+
+t— agents
+r— api.py
+t— core
+
+It requirements. txt
+I— run.py
+— run_echo.py
+
+files
+
+ce & &
+
+ls
+index.html
+node_modules
+
+package-Lock. json
+
+oe
+
+Co@°0 Observer
+
+Observer
+
+Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+running
+
+ID: timestamp_agent
+
+mac
+
+package. json src
+public src-tauri
+python tsconfig.json
+
+tsconfig.node. json
+vite.config.ts
+
+[15:25:41] RESPONSE:
+[15:25:41] <think>
+Okay, so I'm trying to figure out what the user is doing based on the screen content provided. Let me go through this step by step.
+
+First, I see a lot of file and directory listings. There are files like App.css, App.tsx, and several others in directories such as src, public, and target. This makes me think the user is working on a project, possibly a web application given the presence of things like vite-env.d.ts and vite.config.ts.
+
+Looking at the commands available, there's WRITE_ACTIVITY and READ_LAST_ACTIVITY. Since the last activity wasn't provided, I'll focus on what's currently visible.
+
+I notice directories like src-tauri and target being marked as new or added (t+). Tauri is a tool for building web apps, so that's another clue pointing towards development work. There are also references to package.json and Cargo.toml, which are key files in project configurations, especially for web and Rust projects.
+
+The presence of typescript (t+— typescript) and vite (t— vite) suggests the user is using TypeScript and Vite, which are common in modern web development. The fact that some files are being updated or added (like src-tauri and target) indicates active coding or building.
+
+Putting it all together, the main activity seems to be actively working on a web application project, likely using Tauri for development. This is a significant change from whatever they were doing before, assuming they weren't already in this workflow.
+</think>
+
+The user is actively working on a web application project using Tauri and Vite, with files being updated and configured. 
+
+**New Activity:**
+Developing a web application using Tauri for front-end development and Vite as the build tool.
+
+---
+
+**Answer:**
+
+The user's current activity involves developing a web application using Tauri and Vite, as indicated by file updates in relevant directories.
+[15:25:44] PROMPT with state:
+[15:25:44] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t+— App.css
+t+— App.tsx
+t— assets
+t—— main. tsx
+— vite-env.d.ts
+t+— src-tauri
+
+t+— Cargo. lock
+t+— Cargo.toml
+t— build.rs
+t— Capabilities
+t— gen
+t— icons
+t— src
+t+— target
+— tauri.conf.json
+t-— tsconfig.json
+-— tsconfig.node. json
+— vite.config.ts
+
+60 directories, 25
+
+jay@Qunix
+jay@Qunix
+jay@Qunix
+LICENSE
+README. md
+dist
+jay@Qunix
+
+Observer
+Observer
+Observer
+
+Observer
+
+t— source-map-js
+t— tailwindcss
+t+— typescript
+t+ update-browsers list—db
+t— vite
+— yallist
+t— package-Lock.json
+— package.json
+t— public
+
+-+— tauri.svg
+— vite.svg
+t— python
+
+t— agents
+r— api.py
+t— core
+
+It requirements. txt
+I— run.py
+— run_echo.py
+
+files
+
+ce & &
+
+ls
+index.html
+node_modules
+
+package-Lock. json
+
+oe
+
+e@e@@ Observer
+
+Observer
+
+Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+running
+
+ID: timestamp_agent
+
+mac
+
+package. json src
+public src-tauri
+python tsconfig.json
+
+tsconfig.node. json
+vite.config.ts
+
+[15:25:51] RESPONSE:
+[15:25:51] <think>
+Alright, I'm looking at the user's current screen content and trying to figure out what they're doing. The user has a bunch of files listed here, including some directories and specific files like App.css, App.tsx, and others related to TypeScript and Vite.
+
+First, I notice that the user is working on a project with multiple files and subdirectories. They have a "src" folder which usually contains the main source code for an application. The presence of both App.css and App.tsx suggests that they're working on a web-based application, possibly using React since App.tsx is common in React projects.
+
+They also have several configuration files like vite.config.ts and tsconfig.json, which indicates they're using Vite and TypeScript for their project. This makes me think they're setting up the build configurations, maybe preparing to start the development server or optimizing their codebase.
+
+Looking at the structure, there are directories like "src-tauri" which might be specific to a Tauri application, a type of web-based desktop app using Vite and TypeScript. The user could be in the process of developing or setting up this kind of project.
+
+I don't see any signs of other activities like browsing, writing notes, or using other software. Everything points towards them being deeply involved in coding and project setup for their application.
+</think>
+
+The current screen content indicates that the user is working on a web development project using Vite and TypeScript. They appear to be organizing and setting up files related to their application, including configuration files and source code directories. Specifically:
+
+- **Development Setup**: The presence of `vite.config.ts`, `tsconfig.json`, and `tsconfig.node.json` suggests they are configuring their build environment.
+- **Code Structure**: Files like `App.css`, `App.tsx`, and the directory structure indicate they're working on a web application, possibly using React.
+
+No significant changes were detected in the activity beyond organizing files and setting up project configurations.
+[15:25:55] PROMPT with state:
+[15:25:55] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t— source-map-js
+
+t— tailwindcss
+
+t+— typescript
+
+t+ update-browsers list—db
+t— vite
+
+— yallist
+
+t— package-Lock.json
+
+_ Pblig Observer
+t+— tauri. svg Active Agents: 1 / Total: 1
+— vite.svg
+t— python TimestampA gent
+t— agents running
+
+r— api.py
+r— core ID: timestamp_agent
+It requirements. txt
+t— run.py
+
+— run_echo.py
+
+t+— App.css
+t+— App.tsx
+t— assets
+t—— main. tsx
+— vite-env.d.ts
+r— S§ rc—tau rl Favorites fm __pycache_ 5
+t— Ca rgo. lock © AirDrop > B agent.py
+[—— Cargo. toml © Recents >
+t— build.rs AX. Applications
+t— Capabilities = Desktop
+r— gen {} Documents
+t— icons © Downloads
+r— Src
+= ae rget £4 © iCloud D...
+—— taur1.cConr. n ~ config.yam
+— tsconfig.json JS0 See YAML - 862 bytes
+. . : Information
+F— tsconfig.node. json i rors fahren. 6
+& mac
+
+— vite.config.ts S)
+
+@ Network
+
+eee < timestamp_agent so := Qp
+
+BB data >
+
+60 directories, 25 files
+
+jay@Qunix Observer %
+jay@Qunix Observer %
+jay@Qunix Observer %
+LICENSE index.html package. json src tsconfig.node. json
+README .md node_modules public src-tauri vite.config.ts
+dist package-Lock. json python tsconfig.json
+
+jay@Qunix Observer
+
+oe
+
+
+[15:26:03] RESPONSE:
+[15:26:03] <think>
+Okay, so I'm trying to figure out what the user is doing based on the screen content they provided. Let me go through each step carefully.
+
+First, I see a lot of text elements starting with 't—' and 't+' which probably indicate tabs or open files in some kind of IDE or editor. For example, there's 't— source-map-js', 't— tailwindcss', 't+ update-browsers list—db', and others like 't+ App.css' and 't+ App.tsx'. These look like different files being worked on, possibly a web project since I see Tailwind CSS and Vite mentioned.
+
+Next, there are some processes listed under 'r—' which might be running scripts or commands. For instance, 'r— api.py' and 'r— run.py' suggest that Python scripts are being executed. There's also 't+— tauri.svg Active Agents: 1 / Total: 1', which makes me think they're working with Tauri, a framework for building desktop apps with web technologies.
+
+Looking at the directory structure, I see paths like 'src', 'public', 'node_modules', and files like 'package-Lock.json', 'tsconfig.json', 'vite.config.ts'. This indicates a standard setup for a TypeScript project using Vite. The presence of Tailwind CSS and Vite suggests they're working on a web or desktop application with a frontend focus.
+
+The user might be in the middle of developing an application because there are multiple files being edited, scripts running, and configurations set up. It's possible they're setting up their project structure, writing code, and possibly debugging since there are processes like 'run.py' and 'api.py'.
+
+I should consider if any new activities have occurred compared to the last state. Since this is the first analysis, I'll note all current activities as new. The main activities involve editing CSS and TypeScript files, running Python scripts, and working within a Vite/Tauri project setup.
+
+So, putting it all together, the user seems to be actively developing a web/desktop application with multiple files open, running scripts, and setting up their project configuration.
+</think>
+
+The current screen content indicates that the user is engaged in an active development workflow. Specifically, they are:
+
+- Editing CSS and TypeScript files within a Vite project setup (`App.css`, `App.tsx`).
+- Interacting with Tauri-related elements (`tauri.svg`).
+- Running Python scripts (`api.py`, `run.py`).
+- Setting up configuration files (`tsconfig.json`, `vite.config.ts`).
+- Managing packages and dependencies via `package-Lock.json`.
+
+This suggests the user is working on a web or desktop application using Tauri, with TypeScript and Tailwind CSS.
+[15:26:07] PROMPT with state:
+[15:26:07] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t— source-map-js
+
+t— tailwindcss
+
+t+— typescript
+
+t+ update-browsers list—db
+t— vite
+
+— yallist
+
+t— package-Lock.json
+
+_ Pblig Observer
+t+— tauri. svg Active Agents: 1 / Total: 1
+— vite.svg
+t— python TimestampA gent
+t— agents running
+
+r— api.py
+r— core ID: timestamp_agent
+It requirements. txt
+t— run.py
+
+— run_echo.py
+
+t+— App.css
+
+t+— App.tsx
+
+t— assets
+
+t—— main. tsx
+
+— vite-env.d.ts
+r— src-tauri FETS BB __pycache_ > B activity_log.json
+t— Cargo. lock © AirDrop > Bl agent.py BB log_20250206.txt
+IL Cq rgo. toml © Recents > B config.yam! B log_20250211.txt
++— build.rs A. Applications i B log_20250214.txt
+-— capabilities =) Desktop
+
+r— gen {§ Documents
+
+-— ic ons © Downloads
+
+r>— sre
+
+r— ta rget © iCloud D...
+
+— tauri.conf.json 8 Shared
+
+r— tsconfig.json
+
+-— tsconfig.node. json
+— vite.config.ts
+
+eee < data a = MM @ my mW DO er Q
+
+& mac
+
+@ Network
+
+60 directories, 25 files
+jay@Qunix Observer %
+jay@Qunix Observer %
+jay@Qunix Observer %
+LICENSE index.html package. json src tsconfig.node. json
+README .md node_modules public src-tauri vite.config.ts
+dist package-Lock. json python tsconfig.json
+
+jay@Qunix Observer
+
+oe
+
+
+[15:26:16] RESPONSE:
+[15:26:16] <think>
+Okay, so I need to figure out what the user is doing based on the screen content provided. Let me start by reading through all the information given.
+
+First, there are a bunch of lines that look like they're listing files and directories. For example, "LICENSE index.html package.json src tsconfig.node.json README.md node_modules public src-tauri vite.config.ts". These seem to be typical file listings for a project directory structure. So, I can note that the user is working on a filesystem with several files and subdirectories.
+
+Then there are some lines that show processes or active applications: "t— source-map-js", "t— tailwindcss", "t+ update-browsers list—db", "t— vite". These might be showing the user has multiple tabs or windows open in their IDE or code editor, possibly using different tools like Tailwind CSS and Vite. There's also mention of TypeScript, Python, and other programming languages.
+
+Looking at the commands at the bottom, there are file operations: "r— api.py", "r— core ID: timestamp_agent", etc., which could indicate that the user is running or managing scripts in their project. Also, the presence of files like "App.css" and "App.tsx" suggests that they might be working on a web application, possibly using React since those are common file names in React projects.
+
+The line "t— assets" and others like "main.tsx" could mean the user is managing their project's assets or source files. There's also a mention of "tauri.conf.json" and "tsconfig.node.json", which are configuration files for TypeScript, so they might be setting up their development environment.
+
+I should consider if any new activities have started since the last recorded one. The presence of active processes like Vite and Tailwind CSS could indicate that the user is working on a web project, possibly with a frontend framework. If in the last activity they were doing something else, this would be a change.
+
+The file operations and running of scripts like "run.py" and "api.py" suggest the user is engaging in development tasks, maybe debugging or testing their code. The fact that several files are being updated or accessed indicates ongoing work on different parts of their project.
+
+I need to make sure I'm concise but descriptive. So, putting it all together, it looks like the user is actively working on a web application using TypeScript and Vite, managing various files and scripts as part of their development workflow.
+</think>
+
+The user is engaged in web development, working with a project that includes TypeScript, Tailwind CSS, and Vite. They are managing multiple files and scripts, which indicates active development tasks.
+
+Activity: "Developing a web application using TypeScript, Tailwind CSS, and Vite, with ongoing file management and script execution."
+[15:26:20] PROMPT with state:
+[15:26:20] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t— source-map-js
+
+t— tailwindcss
+
+t+— typescript
+
+t+ update-browsers list—db
+
+t— vite
+
+— yallist
+t— package-Lock.json
+rp package. json Observer
+t— public
+
+t+— tauri. SVg Active Agents: 1 / Total: 1
+
+— vite.svg
+t— python TimestampA gent
+
+-— agents running
+
+; api-py
+
+t— core ID: timestamp_agent
+
+It requirements. txt
+
+I— run.py
+
+— run_echo.py
+t— src
+
+t+— App.css
+
+t+— App.tsx
+
+t— assets
+
+t—— main. tsx
+
+'_ vite-env.d.ts bd" < data a = O & wy O O Ov @Q
+IL— src-tauri Favorites ts _pycache_ DD eka inderstand what the user is
+
+t— Ca rgo. lock © AirDrop > B agent.py Bi log_20250206.txt Your task is to:
+
+IL Cq rgo. toml © Recents > B config.yaml B log_20250211.txt tee the current screen
+
+t— build.rs 2. Applications BS data ? (Blog 20250214xt cctivity hee changed trom the
+
+. . . last recorded activity
+
+a capabilit 1es —) Desktop 3. Write a concise description
+
+r— gen {} Documents orany new en
+
+— ste. © Pownloads [ee Re
+
+Plain Text Document - 75 KB
+
+a ta rget © iCloud D... Information
+
+— tauri.conf.json => shared Created Today 15:17
+t-— tsconfig.json Modified Today 15:26
+-— tsconfig.node. json Last opened -
+'— vite.config.ts =m °
+
+@ Network More.
+
+6@ directories, 25 files
+jay@Qunix Observer %
+jay@Qunix Observer %
+jay@Qunix Observer % ls
+LICENSE index.html package. json src tsconfig.node. json
+README .md node_modules public src-tauri vite.config.ts
+dist package-Lock. json python tsconfig.json
+jay@Qunix Observer %
+
+
+[15:26:28] RESPONSE:
+[15:26:28] <think>
+Okay, so I'm trying to figure out what the user is doing based on the screen content provided. Let me start by looking through all the information given.
+
+First, there are a bunch of file paths listed. I see things like "package-Lock.json", "tsconfig.json", "vite.config.ts", and others. These look like configuration files for different projects or packages, maybe related to JavaScript, TypeScript, Vite, Tailwind CSS, and Source Map.
+
+There's also some terminal output mentioned, like running commands with t—, I—, rp, etc. This makes me think the user is working in a terminal, possibly managing dependencies or building something.
+
+Looking at the files, "App.css" and "App.tsx" suggest that the user is working on a web application, probably using React since it's common to use .tsx files with React components. The mention of Vite could mean they're using Vite as their build tool, which is popular for React projects.
+
+The presence of "tsconfig.json" indicates that TypeScript is being used in the project. There are also references to Tauri, which I know is a framework from Vite for building desktop applications with web technologies. So it's possible the user is working on a Tauri application as well.
+
+Other files like "run.py" and "run_echo.py" suggest they might be doing some Python scripting too, possibly for backend tasks or scripts used in their project.
+
+Putting this all together, it seems like the user is actively working on several fronts: managing dependencies with npm/yarn, configuring their project with TypeScript, building a web application with Vite and Tauri, and possibly integrating Python scripts for some functionality. The terminal commands indicate they're running these configurations or scripts to set up or build their project.
+
+So, the main activities here are code editing in VS Code (since "App.css" and "App.tsx" are likely opened), managing dependencies with npm/yarn, and setting up configuration files for Vite, TypeScript, and Tauri. They're probably working on a web application that uses both frontend and possibly backend components.
+</think>
+
+The user is actively editing code in VS Code, specifically within the `App.css` and `App.tsx` files, which indicate they are working on a web application. Additionally, they are managing dependencies with npm/yarn, configuring their project with TypeScript and Tauri, and integrating Python scripts for functionality.
+
+**Description:**
+Editing code in VS Code for a web application, possibly using Vite and Tauri frameworks, along with managing dependencies and configuration files.
+[15:26:36] PROMPT with state:
+[15:26:36] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+tauri-build v2.0.5
+
+tauri-plugin v2.0.4
+
+tauri-codegen v2.0.4
+
+tauri v2.2.5
+
+tauri-plugin-opener v2.2.5
+
+tauri-macros v2.0.4
+
+observer v0.1.0 (/Users/jay/repos/Observer/src—tauri)
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 55.56s
+“target/debug/observer >
+
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Finished
+Running
+AC
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.46s
+Running *‘target/debug/observer’
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.27s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+run —-no-default-features -—-color always
+
+“AC
+
+jay@Qunix Observer % ssh jay@10.0.0.72
+
+ssh: connect to host 10.@.0.72 port 22: Host is down
+jay@Qunix Observer % ssh jay@10.0.0.72
+jay@10.0.0.72's password:
+
+Last login: Tue Feb 11 15:00:59 2025 from 10.0.0.138
+
+jay in @ archLinux in ~ via B v3.13.1
+>» screen
+[detached from 1335.pts—@.archLinux]
+
+jay in @ archLinux in ~ via B v3.13.1 took 5s
+>
+
+jay in @ archLinux in ~ via B v3.13.1
+>» exit
+logout
+Connection to 10.0.0.72 closed.
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+a)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+ko)', 'referer': 'http://127.0.0.1:1430/',
+ccept-—Language': 'en-US,en;q=0.9'})
+2025-02-14 15:26:23,582 — DEBUG -— Receiving request to /agents endpoint
+
+"sec-fetch-dest': ‘empty', ‘a
+
+2025-02-14 15:26:23,583 - DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+2025-02-14 15:26:23,583 - DEBUG - Response headers: MutableHeaders({'con
+
+tent-length': '69', ‘content-type': ‘application/json', ‘access—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+INFO: 127.0.0.1:52132 -— "GET /agents HTTP/1.1" 200 OK
+
+.tsx files with React components. The mention of Vite could mean they'r
+
+e using Vite as their build tool, which is popular for React projects.
+
+The presence of "tsconfig.json" indicates that TypeScript is being used
+in the project. There are also references to Tauri, which I know is a fr
+amework from Vite for building desktop applications with web technologie
+s. So it's possible the user is working on a Tauri application as well.
+
+Other files like “run.py" and "run_echo.py" suggest they might be doing
+some Python scripting too, possibly for backend tasks or scripts used in
+their project.
+
+Putting this all together, it seems like the user is actively working on
+several fronts: managing dependencies with npm/yarn, configuring their
+project with TypeScript, building a web application with Vite and Tauri,
+and possibly integrating Python scripts for some functionality. The ter
+minal commands indicate they're running these configurations or scripts
+
+to set up or build their project.
+
+So, the main activities here are code editing in VS Code (since "App.css
+"and "App.tsx" are likely opened), managing dependencies with npm/yarn,
+and setting up configuration files for Vite, TypeScript, and Tauri. The
+y're probably working on a web application that uses both frontend and p
+ossibly backend components.
+</think>
+The user is actively editing code in VS Code, specifically within the “A
+pp.css and “App.tsx* files, which indicate they are working on a web ap
+plication. Additionally, they are managing dependencies with npm/yarn, c
+onfiguring their project with TypeScript and Tauri, and integrating Pyth
+on scripts for functionality.
+
+**kDescription: **
+
+Editing code in VS Code for a web application, possibly using Vite and T
+auri frameworks, along with managing dependencies and configuration file
+S.
+
+[15:26:38] RESPONSE:
+[15:26:38] 
+
+The user is editing code in VS Code for a web application, managing dependencies with npm/yarn, configuring projects with TypeScript and Tauri, and possibly integrating Python scripts.
+[15:26:45] PROMPT with state:
+[15:26:45] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Finished
+Running
+“AC
+
+tauri-build v2.0.5
+
+tauri-plugin v2.0.4
+
+tauri-codegen v2.0.4
+
+tauri v2.2.5
+
+tauri-plugin-opener v2.2.5
+
+tauri-macros v2.0.4
+
+observer v0.1.0 (/Users/jay/repos/Observer/src—tauri)
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 55.56s
+“target/debug/observer >
+
+jay@Qunix Observer % tauri dev
+Running DevCommand (‘cargo run --no-default-features --color always
+
+--*)
+
+Info Watching /Users/jay/repos/Observer/src-tauri for changes.
+
+Finished
+Running
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 0.46s
+“target/debug/observer >
+
+jay@Qunix Observer % tauri dev
+Running DevCommand (‘cargo run --no-default-features --color always
+
+--*)
+
+Info Watching /Users/jay/repos/Observer/src-tauri for changes.
+
+Finished
+Running
+“AC
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in @.27s
+“target/debug/observer >
+
+jay@Qunix Observer % ssh jay@10.0.0.72
+
+ssh: connect
+
+to host 10.0.0.72 port 22: Host is down
+
+jay@Qunix Observer % ssh jay@10.0.0.72
+jay@10.0.0.72's password:
+Last login: Tue Feb 11 15:00:59 2025 from 10.0.0.138
+
+jay in @ archLinux in ~ via B v3.13.1
+
+> screen
+
+[detached from 1335.pts—@.archLinux]
+
+jay in @ archLinux in ~ via B v3.13.1 took 5s
+
+»
+
+jay in @ archLinux in ~ via B v3.13.1
+
+>» exit
+logout
+
+Connection to 10.0.0@.72 closed.
+jay@Qunix Observer % tauri dev
+Running DevCommand (‘cargo run --no-default-features --color always
+
+--*)
+
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+
+Finished
+Running
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+“target/debug/observer >
+
+and setting up configuration files for Vite, TypeScript, and Tauri. The
+y're probably working on a web application that uses both frontend and p
+ossibly backend components.
+</think>
+
+The user is actively editing code in VS Code, specifically within the “A
+pp.css and “App.tsx* files, which indicate they are working on a web ap
+plication. Additionally, they are managing dependencies with npm/yarn, c
+onfiguring their project with TypeScript and Tauri, and integrating Pyth
+on scripts for functionality.
+
+**kDescription: **
+
+Editing code in VS Code for a web application, possibly using Vite and T
+auri frameworks, along with managing dependencies and configuration file
+S.
+2025-02-14 15:26:30,267 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-14 15:26:30,267 — DEBUG — STREAM b'IDAT' 41 683903
+
+2025-02-14 15:26:31,072 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dgQ0
+17r155b1lc2p4kk3800000gn/T/tess_hqt16qcx_input.PNG', '/var/folders/d4/t8w
+2dg017r155b1c2p4kk3800000gn/T/tess_hqti6qcx', 'txt']
+
+2025-02-14 15:26:35,522 — DEBUG — Incoming request from origin: http://1
+27.0.0.1:1430
+
+2025-02-14 15:26:35,523 -— DEBUG - Request headers: Headers({'host': 'loc
+alhost:8000', ‘accept': '*/*', ‘origin’: 'http://127.0.0.1:1430', ‘accep
+t-encoding': ‘gzip, deflate’, ‘connection': 'keep-alive', 'sec-—fetch-mod
+e': 'cors', 'sec-fetch-site': 'cross-site', '‘user-agent': 'Mozilla/5.@ (
+Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gec
+ko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': 'empty', ‘a
+ccept-—Language': 'en-US,en;q=0.9'})
+
+2025-02-14 15:26:35,523 — DEBUG — Receiving request to /agents endpoint
+2025-02-14 15:26:35,523 -— DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+
+2025-02-14 15:26:35,524 -— DEBUG - Response headers: MutableHeaders({'con
+tent-length': '69', ‘content-type': ‘application/json', ‘access—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+INFO: 127.0.@.1:52147 -— "GET /agents HTTP/1.1" 200 OK
+
+2025-02-14 15:26:36,277 — DEBUG - Starting new HTTP connection (1): 10.0
+.0.72:11434
+
+2025-02-14 15:26:37,799 — DEBUG — http://10.0.0.72:11434 "POST /api/gene
+rate HTTP/1.1" 200 None
+
+The user is editing code in VS Code for a web application, managing depe
+ndencies with npm/yarn, configuring projects with TypeScript and Tauri,
+and possibly integrating Python scripts.
+
+[15:26:48] RESPONSE:
+[15:26:48] 
+
+**Description:** The user is editing code in VS Code, specifically within files like "App.css" and "App.tsx*", which suggests they are working on a web application. Additionally, they are managing project dependencies with npm/yarn, setting up configurations for TypeScript, Tauri frameworks, and possibly integrating Python scripts for functionality.
+
+**Command:** WRITE_ACTIVITY
+
+**Activity Description:** Editing code in VS Code for a web application, possibly using Vite and Tauri frameworks, along with managing dependencies and configuration files.
+[15:26:55] PROMPT with state:
+[15:26:55] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+tauri-build v2.0.5
+
+tauri-plugin v2.0.4
+
+tauri-codegen v2.0.4
+
+tauri v2.2.5
+
+tauri-plugin-opener v2.2.5
+
+tauri-macros v2.0.4
+
+observer v0.1.0 (/Users/jay/repos/Observer/src—tauri)
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 55.56s
+“target/debug/observer >
+
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Finished
+Running
+AC
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.46s
+Running *‘target/debug/observer’
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.27s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+run —-no-default-features -—-color always
+
+“AC
+
+jay@Qunix Observer % ssh jay@10.0.0.72
+
+ssh: connect to host 10.@.0.72 port 22: Host is down
+jay@Qunix Observer % ssh jay@10.0.0.72
+jay@10.0.0.72's password:
+
+Last login: Tue Feb 11 15:00:59 2025 from 10.0.0.138
+
+jay in @ archLinux in ~ via B v3.13.1
+>» screen
+[detached from 1335.pts—@.archLinux]
+
+jay in @ archLinux in ~ via B v3.13.1 took 5s
+>
+
+jay in @ archLinux in ~ via B v3.13.1
+>» exit
+logout
+Connection to 10.0.0.72 closed.
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+a)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+2025-02-14 15:26:37,799 -— DEBUG — http://10.0.0.72:11434 "POST /api/gene
+rate HTTP/1.1" 20@ None
+
+The user is editing code in VS Code for a web application, managing depe
+ndencies with npm/yarn, configuring projects with TypeScript and Tauri,
+and possibly integrating Python scripts.
+
+2025-02-14 15:26:39,654 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-14 15:26:39,654 — DEBUG — STREAM b'IDAT' 41 728439
+
+2025-02-14 15:26:39,937 — DEBUG —- Incoming request from origin: http://1
+27.0.0.1:1430
+
+2025-02-14 15:26:39,937 -— DEBUG - Request headers: Headers({'host': 'loc
+alhost:8000', ‘accept': '*/*', ‘origin’: 'http://127.0.0.1:1430', ‘accep
+t-encoding': ‘gzip, deflate’, ‘connection': 'keep-alive', 'sec-—fetch-mod
+e': 'cors', 'sec-fetch-site': 'cross-site', '‘user-agent': 'Mozilla/5.@ (
+Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gec
+ko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': 'empty', ‘a
+ccept-—Language': 'en-US,en;q=0.9'})
+
+2025-02-14 15:26:39,937 — DEBUG — Receiving request to /agents endpoint
+2025-02-14 15:26:39,938 -— DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+
+2025-02-14 15:26:39,938 -— DEBUG - Response headers: MutableHeaders({'con
+tent-length': '69', ‘content-type': ‘application/json', ‘access—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+INFO: 127.0.@.1:52147 -— "GET /agents HTTP/1.1" 200 OK
+
+2025-02-14 15:26:40,472 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dgQ0
+17r155b1lc2p4kk3800000gn/T/tess_qaduuvlQ_input.PNG', '/var/folders/d4/t8w
+2dg@17r155b1c2p4kk3800000gn/T/tess_qaduuvl0', 'txt']
+
+2025-02-14 15:26:45,719 - DEBUG - Starting new HTTP connection (1): 10.0
+.0.72:11434
+
+2025-02-14 15:26:46,606 — DEBUG — http://10.0.0.72:11434 "POST /api/gene
+rate HTTP/1.1" 200 None
+
+**kDescription:** The user is editing code in VS Code, specifically withi
+n files like "App.css" and "App.tsx*", which suggests they are working o
+n a web application. Additionally, they are managing project dependencie
+s with npm/yarn, setting up configurations for TypeScript, Tauri framewo
+rks, and possibly integrating Python scripts for functionality.
+
+*kCommand:** WRITE_ACTIVITY
+*kACtivity Description:** Editing code in VS Code for a web application,
+
+possibly using Vite and Tauri frameworks, along with managing dependenc
+ies and configuration files.
+
+[15:27:04] RESPONSE:
+[15:27:04] <think>
+Okay, so I need to figure out what the user is doing based on the provided screen content. Let me start by reading through everything carefully.
+
+First, there are a bunch of lines that look like version numbers for different packages: tauri-build, tauri-plugin, etc. These might be development dependencies or tools being used. Then I see commands like 'tauri dev' which probably relate to running a Tauri application. There's also an SSH attempt with some errors, but it seems like that connection was unsuccessful.
+
+Looking further down, there are logs from what looks like a web server. The user is making POST requests to '/api/generate', which suggests they're interacting with a backend API. The headers indicate they're using CORS and the request is cross-site, so maybe this is part of a frontend application communicating with a backend.
+
+There's also reference to files like "App.css" and "App.tsx", which are typical for web applications—CSS and TypeScript files. This makes me think the user is working on a web app, possibly using Vite since it's common in such projects. The presence of Tauri suggests they're using a framework that allows building cross-platform apps with web technologies.
+
+Additionally, I see commands like 'npm install' and 'yarn install', which are used for managing JavaScript or TypeScript dependencies. This indicates the user is setting up their project's dependencies, possibly using package managers to include necessary libraries.
+
+Putting this all together: The user is likely working on a web application using VS Code. They're editing code in files like App.css and App.tsx, so they might be writing frontend code. They're also managing dependencies with npm or yarn, which means they're setting up their project's environment. Using Tauri could mean they're integrating some backend functionality or building a desktop app that can run on different platforms.
+
+So the main activities here are editing code in VS Code, managing project dependencies with npm/yarn, and possibly using Vite for the build process. They might also be working with Tauri frameworks to enhance their application's capabilities.
+
+I should make sure I'm not including temporary or quick changes—only significant shifts in activity. Since these actions show a consistent pattern of web development and setup, that's the focus.
+</think>
+
+**Activity Description:**  
+The user is editing code in VS Code for a web application, possibly using Vite and Tauri frameworks. They are managing project dependencies with npm/yarn and working on configuration files like "App.css" and "App.tsx".
+[15:27:11] PROMPT with state:
+[15:27:11] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+tauri-build v2.0.5
+
+tauri-plugin v2.0.4
+
+tauri-codegen v2.0.4
+
+tauri v2.2.5
+
+tauri-plugin-opener v2.2.5
+
+tauri-macros v2.0.4
+
+observer v0.1.0 (/Users/jay/repos/Observer/src—tauri)
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 55.56s
+“target/debug/observer >
+
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Finished
+Running
+AC
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.46s
+Running *‘target/debug/observer’
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.27s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+run —-no-default-features -—-color always
+
+“AC
+
+jay@Qunix Observer % ssh jay@10.0.0.72
+
+ssh: connect to host 10.@.0.72 port 22: Host is down
+jay@Qunix Observer % ssh jay@10.0.0.72
+jay@10.0.0.72's password:
+
+Last login: Tue Feb 11 15:00:59 2025 from 10.0.0.138
+
+jay in @ archLinux in ~ via B v3.13.1
+>» screen
+[detached from 1335.pts—@.archLinux]
+
+jay in @ archLinux in ~ via B v3.13.1 took 5s
+>
+
+jay in @ archLinux in ~ via B v3.13.1
+>» exit
+logout
+Connection to 10.0.0.72 closed.
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+a)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+on in such projects. The presence of Tauri suggests they're using a fram
+ework that allows building cross-platform apps with web technologies.
+
+Additionally, I see commands like 'npm install' and ‘yarn install’, whic
+h are used for managing JavaScript or TypeScript dependencies. This indi
+cates the user is setting up their project's dependencies, possibly usin
+g package managers to include necessary libraries.
+
+Putting this all together: The user is likely working on a web applicati
+on using VS Code. They're editing code in files like App.css and App.tsx
+, so they might be writing frontend code. They're also managing dependen
+cies with npm or yarn, which means they're setting up their project's en
+vironment. Using Tauri could mean they're integrating some backend funct
+ionality or building a desktop app that can run on different platforms.
+
+So the main activities here are editing code in VS Code, managing projec
+t dependencies with npm/yarn, 2025-02-14 15:27:02,584 -— DEBUG - Incoming
+
+request from origin: http://127.0.0.1:1430
+
+2025-02-14 15:27:02,584 -— DEBUG - Request headers: Headers({'host': 'loc
+alhost:8000', ‘accept': '*/*', ‘origin’: 'http://127.0.0.1:1430', ‘accep
+t-encoding': ‘gzip, deflate’, ‘connection’: 'keep-alive', 'sec-—fetch-mod
+e': 'cors', 'sec-fetch-site': 'cross-site', '‘user-agent': 'Mozilla/5.@ (
+Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gec
+ko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': ‘empty', ‘a
+ccept-—Language': 'en-US,en;q=0.9'})
+
+2025-02-14 15:27:02,584 -— DEBUG —- Receiving request to /agents endpoint
+
+2025-02-14 15:27:02,585 — DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+
+2025-02-14 15:27:02,585 — DEBUG - Response headers: MutableHeaders({'con
+tent-length': '69', ‘content-type': ‘application/json', ‘access—control-
+allow-credentials': 'true', '‘access—control-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+
+INFO: 127.0@.0.1:52154 — "GET /agents HTTP/1.1" 200 OK
+and possibly using Vite for the build process. They might also be worki
+ng with Tauri frameworks to enhance their application's capabilities.
+
+I should make sure I'm not including temporary or quick changes-—only sig
+nificant shifts in activity. Since these actions show a consistent patte
+rn of web development and setup, that's the focus.
+
+</think>
+
+**kACtivity Description: **
+
+The user is editing code in VS Code for a web application, possibly usin
+
+g Vite and Tauri frameworks. They are managing project dependencies with
+npm/yarn and working on configuration files like "App.css" and "App.tsx
+
+[15:27:14] RESPONSE:
+[15:27:14] 
+
+**Activity Description:** 
+
+Editing code in VS Code for a web application using Vite and Tauri frameworks. Managing project dependencies with npm/yarn and working on configuration files like App.css and App.tsx.
+
+This activity is recorded based on the visible tools and commands indicating web development activities, including code editing and dependency management.
+[15:27:21] PROMPT with state:
+[15:27:21] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+tauri-build v2.0.5
+
+tauri-plugin v2.0.4
+
+tauri-codegen v2.0.4
+
+tauri v2.2.5
+
+tauri-plugin-opener v2.2.5
+
+tauri-macros v2.0.4
+
+observer v0.1.0 (/Users/jay/repos/Observer/src—tauri)
+
+‘dev’ profile [unoptimized + debuginfo] target(s) in 55.56s
+“target/debug/observer >
+
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Compiling
+Finished
+Running
+AC
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.46s
+Running *‘target/debug/observer’
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+---)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.27s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+run —-no-default-features -—-color always
+
+“AC
+jay@Qunix Observer % ssh jay@10.0.0.72
+ssh: connect to host 10.@.0.72 port 22: Host is down
+jay@Qunix Observer % ssh jay@10.0.0.72
+jay@10.0.0.72's password:
+Last login: Tue Feb 11 15:00:59 2025 from 10.0.0.138
+jay in @ archLinux in ~ via B v3.13.1
+>» screen
+[detached from 1335.pts—@.archLinux]
+jay in @ archLinux in ~ via B v3.13.1 took 5s
+>
+jay in @ archLinux in ~ via B v3.13.1
+>» exit
+logout
+Connection to 10.0.0@.72 closed.
+jay@Qunix Observer % tauri dev
+Running DevCommand (* cargo
+a)
+Info Watching /Users/jay/repos/Observer/src-—tauri for changes...
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in @.28s
+Running *‘target/debug/observer’
+
+run —-no-default-features -—-color always
+
+t-encoding':
+e': ‘cors',
+Macintosh; Intel
+
+"gzip, deflate’, ‘'connection': 'keep-alive', 'sec-—fetch-mod
+"sec-fetch-site': 'cross-site', '‘user-agent': 'Mozilla/5.@ (
+Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gec
+ko)', 'referer': 'http://127.0.0.1:1430/', 'sec-fetch-dest': 'empty', ‘a
+ccept-—Language': 'en-US,en;q=0.9'})
+
+2025-02-14 15:27:02,584 — DEBUG — Receiving request to /agents endpoint
+
+2025-02-14 15:27:02,585 — DEBUG - Found agents: [{'id': 'timestamp_agent
+', 'name': 'TimestampAgent', 'status': 'running'}]
+2025-02-14 15:27:02,585 — DEBUG - Response headers: MutableHeaders({'con
+
+tent-length': '69',
+allow-credentials':
+
+"content-type': '‘application/json', ‘access—control-
+"true', '‘access—control—-expose-headers': 'x*', ‘acces
+s-control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+INFO: 127.0@.0.1:52154 — "GET /agents HTTP/1.1" 200 OK
+
+and possibly using Vite for the build process. They might also be worki
+ng with Tauri frameworks to enhance their application's capabilities.
+
+I should make sure I'm not including temporary or quick changes-—only sig
+nificant shifts in activity. Since these actions show a consistent patte
+rn of web development and setup, that's the focus.
+
+</think>
+
+**kACtivity Description: **
+
+The user is editing code in VS Code for a web application, possibly usin
+
+g Vite and Tauri frameworks. They are managing project dependencies with
+npm/yarn and working on configuration files like "App.css" and "App.tsx
+
+2025-02-14 15:27:05,808 — DEBUG — STREAM b'IHDR' 16 13
+
+2025-02-14 15:27:05,808 — DEBUG — STREAM b'IDAT' 41 715535
+
+2025-02-14 15:27:06,596 - DEBUG - ['tesseract', '/var/folders/d4/t8w2dgQ0
+17r155b1lc2p4kk3800000gn/T/tess_898f_kal_input.PNG', '/var/folders/d4/t8w
+2dg017r155b1c2p4kk3800000gn/T/tess_898f_ka1', 'txt']
+
+2025-02-14 15:27:11,969 - DEBUG - Starting new HTTP connection (1): 10.0
+»0.72:11434
+
+2025-02-14 15:27:13,145 -— DEBUG —- http://10.0.0.72:11434 "POST /api/gene
+rate HTTP/1.1" 20@ None
+
+**kACtivity Description: **
+
+Editing code in VS Code for a web application using Vite and Tauri frame
+works. Managing project dependencies with npm/yarn and working on config
+uration files like App.css and App.tsx.
+
+This activity is recorded based on the visible tools and commands indica
+ting web development activities, including code editing and dependency m
+anagement.
+
+[15:27:23] RESPONSE:
+[15:27:23] 
+
+**Activity Description:**
+
+Editing code in VS Code for a web application using Vite and Tauri frameworks. Managing project dependencies with npm/yarn and working on configuration files like App.css and App.tsx.
+
+This activity is recorded based on the visible tools and commands indicating web development activities, including code editing and dependency management.
+[15:27:27] PROMPT with state:
+[15:27:27] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+t+— typescript
+
+t— vite
+— yallist
+
+— package.json
+t— public
+
+-+— tauri.svg
+— vite.svg
+t— python
+
+t— agents
+r— api.py
+t— core
+
+I— run.py
+
+t+— App.css
+t+— App.tsx
+t— assets
++— main.tsx
+
+t— src-tauri
+
+t+— Cargo.toml
+t— build.rs
+
+t— gen
+-— icons
+t— src
+
+t+— target
+
+t-— tsconfig.json
+
+— vite.config.ts
+
+60 directories, 25
+jay@Qunix Observer
+jay@Qunix Observer
+jay@Qunix Observer
+LICENSE
+
+README.md
+
+dist
+
+jay@Qunix Observer
+
+t+— Cargo. lock
+
+t— source-map-js
+t— tailwindcss
+
+t— package-Lock.json
+
+It requirements. txt
+
+— run_echo.py
+
+— yite-env.d.ts
+
+t— Capabilities
+
+— tauri.conf.json
+
+-— tsconfig.node. json
+
+files
+
+ce & &
+
+oe
+
+t+ update-browsers list—db
+
+index.html
+node_modules
+package-Lock. json
+
+Observer
+
+Active Agents: 1 / Total: 1
+
+TimestampAgent
+
+running
+
+ID: timestamp_agent
+
+ee0e < data
+Favorites ] __pycache__
+© AirDrop . Bi agent.py
+
+© Recents > B config.yaml
+
+2. Applications iB data
+
+—) Desktop
+
+{5 Documents
+
+© Downloads
+
+© iCloud D...
+
+E® Shared
+
+& mac
+
+@ Network
+
+package. json
+public
+python
+
+> B activity_log.json
+BB log_20250206.txt
+BB log_20250211.txt
+
+Be @ © Oe Q
+
+[15:18:00] PROMPT with state:
+[15:18:00] You are an activity
+tracking assistant that
+analyzes screen content to
+understand what the user is
+
+src
+src-tauri
+tsconfig.json
+
+Your task is to:
+
+1. Analyze the current screen
+content
+
+2. Determine if the user's
+activity has changed from the
+last recorded activity
+
+3. Write a concise description
+of any new activity
+
+log_20250214.txt
+Plain Text Document - 75 KB
+
+Information
+
+Crasta. al Tada 16:17
+
+More...
+
+tsconfig.node. json
+
+vite.config.ts
+
+[15:27:34] RESPONSE:
+[15:27:34] <think>
+Okay, so I need to figure out what the user is doing based on the current screen content provided. Let me start by looking at all the information given.
+
+First, the screen shows a lot of directories and files. There are things like `src`, `src-tauri`, `tsconfig.json`, `vite.config.ts`, and others. I see that the user is working with TypeScript and Vite, which suggests they might be developing a web application or something similar.
+
+Looking at the file structure, there's a `main.tsx` file added, which indicates that the user might be working on the main component of their app. They also have CSS files in the App directory, so they're probably setting up styles. Additionally, there are Tauri-related files, which means they might be using Tauri for some back-end functionality or to connect to native features.
+
+The presence of `Cargo.toml` and other Rust-related files could mean that the user is also working on a Rust project, possibly integrating it with their web app. There's also a mention of Python files like `api.py`, but I'm not sure if they're active right now.
+
+I should consider what activities are new compared to the last one. From the timestamps, it seems like the latest changes include adding `main.tsx`, updating CSS, and perhaps some Rust setup. However, without knowing the exact previous activity, it's a bit tricky. But given the current files and applications open, the main activity is definitely web development using TypeScript and Vite, possibly with Tauri integration.
+
+So, putting this together, the user is likely working on their web application's frontend, managing their project structure, and maybe setting up back-end services or integrations.
+</think>
+
+The user appears to be actively engaged in developing a web application. The current activity indicates they are working within a TypeScript environment using Vite, possibly constructing the main component (`main.tsx`), managing styles with CSS, and exploring backend integration through Tauri and Rust.
+
+**Answer:**  
+The user is developing a web application using TypeScript with Vite, focusing on the frontend structure and potentially integrating backend services via Tauri.
+[18:17:12] PROMPT with state:
+[18:17:12] You are an activity tracking assistant that analyzes screen content to understand what the user is doing.
+Your task is to:
+1. Analyze the current screen content
+2. Determine if the user's activity has changed from the last recorded activity
+3. Write a concise description of any new activity
+
+Available commands:
+WRITE_ACTIVITY: activity_description
+READ_LAST_ACTIVITY: None
+
+Guidelines for activity descriptions:
+- Be concise but descriptive (e.g., "Writing code in VS Code", "Browsing web in Chrome")
+- Focus on the main activity visible on screen
+- Include the application name when relevant
+- Don't include temporary or quick changes
+- Group similar activities together
+
+Remember: Only record new activities when there's a significant change in what the user is doing.
+
+Current screen content:
+Google Password Required
+
+-— apl1.py Enter your password for “guamapando" in
+
+Internet Accounts.
+core
+
+It requirements. txt
+t— run.py
+
+— run_echo.py
+
+r— sre Observer
+
+t+— App.css
+
+P_ App. tsx Observer
+r+— assets
+t— main.tsx Active Agents: 1 / Total: 1
+— vite-env.d.ts
+r— src-tauri TimestampAgent
+t— Cargo. lock running
+
+t+— Cargo.toml
+t+— build.rs ID: timestamp_agent
+
+t— Capabilities
+
+— gen Loss
+t— icons
+
+t— src
+
+t+— target
+
+— tauri.conf.json
+t-— tsconfig.json
+
+-— tsconfig.node. json
+— vite.config.ts
+
+60 directories, 25 files
+jay@Qunix Observer
+jay@Qunix Observer
+
+ce & &
+
+jay@Qunix Observer ls
+
+LICENSE index.html
+
+README.md node_modules
+
+dist package-Lock. json
+
+jay@Qunix Observer % ollama serve
+
+2025/02/14 18:15:57 routes.go:1187: INFO server coni ULLAMA_ DEBUG: TalSe ULLAMA_FLASH_ATTENTION: false
+
+OLLAMA_GPU_OVERHEAD:@ OLLAMA_HOST:http://127.0.0.1: 11434 OLLAMA_ KEEP_ ALIVE: 5m0s. OLLAMA__ KV_ CACHE _TYPE: OLLAMA_ LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT: 5m@
+s OLLAMA_MAX_LOADED_MODELS:@ OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/Users/jay/.ollama/models OLLAMA_MULTIUSER_CACHE: false OLLAMA_NOHISTORY: false OLLA
+MA_NOPRUNE: false OLLAMA_NUM_PARALLEL:@ OLLAMA_ORIGINS: [http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1
+https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri:
+//* wscode-webview://*] OLLAMA_SCHED_SPREAD: false http_proxy: https_proxy: no_proxy:]"
+time=2025-02-14T18:15:57.869-06:00 level=INFO source=images.go:432 msg="total blobs: 5"
+time=2025-02-14T18:15:57.869-06:00 level=INFO source=images.go:439 msg="total unused blobs removed: Q"
+time=2025-02-14T18: 15:57.869-06:00 level=INFO source=routes.go:1238 msg="Listening on 127.0.0.1:11434 (version 0.5.7)"
+time=2025-02-14T18: 15:57.873-06:00 level=INFO source=routes.go:1267 msg="Dynamic LLM libraries" runners=[cpu]
+time=2025-02-14T18:15:57.873-06:00 level=INFO source=types.go:131 msg="inference compute" id=""" library=cpu variant=avx2 compute="" driver=0.@ nam
+e=""" total="32.0 GiB" available="25.5 GiB"
+
+

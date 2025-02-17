@@ -1,17 +1,26 @@
+website/node_modules
+website/.pnp
+.pnp.js
+website/dist
+website/build
+website/src-tauri/target
+website/src-tauri/Cargo.lock
+**/*.rs.bk
 
 
 
-/node_modules
-/.pnp
+
+desktop/node_modules
+desktop/.pnp
 .pnp.js
 
 # Production build
-/dist
-/build
+desktop/dist
+desktop/build
 
 # Tauri
-/src-tauri/target
-/src-tauri/Cargo.lock
+desktop/src-tauri/target
+desktop/src-tauri/Cargo.lock
 **/*.rs.bk
 
 # Python

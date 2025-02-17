@@ -1,0 +1,2 @@
+07:34pm: Starting SimpleActivityAgent with deepseek-r1:7b and sending POST request
+07:43pm: Recording commands from the command line interface and saving them in a text file with timestamps.
