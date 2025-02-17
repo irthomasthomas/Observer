@@ -23,7 +23,7 @@ const LandingPage = () => {
       <header className="bg-gradient-to-b from-gray-900 to-gray-800 text-white">
         <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <Cpu className="w-8 h-8" />
+            <img src="/eye-logo-white.svg" alt="Observer AI Logo" className="w-8 h-8" />
             <span className="text-xl font-bold">Observer AI</span>
           </div>
           <div className="flex items-center space-x-8">
