@@ -92,3 +92,64 @@
 [14:59:26] VV Show Logs VV Show CoT
 [14:59:26] VV Show Logs VV Show CoT
 [14:59:26] Error in observation loop: API error: {"error":"model 'deepseek-r1:7b' not found"}
+[15:59:18] Looking for commands in: /Users/jay/repos/Observer/desktop/python/agents/simple_activity_agent/commands.py
+[15:59:18] Found commands.py, loading...
+[15:59:18] Commands module loaded. Available commands: ['ACTIVITY']
+[15:59:18] Agent initialized with registry commands: ['ACTIVITY']
+[15:59:23] === BEGIN COT BLOCK ===
+[15:59:23] === PROMPT ===
+[15:59:23] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+[15:59:23] Just respond with:
+[15:59:23] ACTIVITY: brief description of current activity
+[15:59:23] Examples:
+[15:59:23] ACTIVITY: Reading Harry Potter
+[15:59:23] ACTIVITY: Writing code in VS Code
+[15:59:23] ACTIVITY: Browsing YouTube
+[15:59:23] Only report when the activity actually changes.
+[15:59:23] === SCREEN CONTENT ===
+[15:59:23] low-credentials': 'true', 'access—control-expose-headers': '*', 'access—control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+[15:59:23] : 127.@.0.1:50927 _ "GET /Lane?1inac—1An HTTD/1 #11!
+[15:59:23] 2025-02-18 15:59:10,974 — DEBUG — bee |
+[15:59:23] 2025-02-18 15:59:10,974 -— DEBUG - 10.0.0.72:11434 v Connected ).1:1430', "accept-
+[15:59:23] encoding': ‘gzip, deflate’, '‘conne "Mozilla/5.@ (Maci
+[15:59:23] ntosh; Intel Mac OS X 10_15_7) App ctive Avents: 0 / Total: Add Asent fF ‘empty', ‘accept-—
+[15:59:23] language': 'en-US,en;q=0.9'}) Aetive Agents: 0/ oak
+[15:59:23] 2025-02-18 15:59:10,975 - DEBUG -
+[15:59:23] Observer
+[15:59:23] "access-—control-al
+[15:59:23] low-credentials': 'true', ‘access- 'Origin'})
+[15:59:23] : 127.0.0.1:50927 -— "GET / New Agent Simple Activity Agent
+[15:59:23] 2025-02-18 15:59:11,328 -— DEBUG -
+[15:59:23] 2025-02-18 15:59:11,328 -— DEBUG - stopped stopped ).1:1430', 'accept-
+[15:59:23] encoding': ‘gzip, deflate’, '‘conne "Mozilla/5.@ (Maci
+[15:59:23] ntosh; Intel Mac OS X 1@.15_7) Apg Model: deepseek-r1:8b Model: deepseek-r1:7b ; ‘empty’, ‘accept-
+[15:59:23] language hr en-US, en, q=0 .9' i) Accustom agent Tracks all activity
+[15:59:23] 2025-02-18 15:59:11,329 -— DEBUG - "access—control-al
+[15:59:23] : 127.0.0.1:50927 -— "GET /
+[15:59:23] 2025-02-18 15:59:18,513 -— DEBUG -
+[15:59:23] 2025-02-18 15:59:18,513 -— DEBUG - V Show Actions VY Show Cot V Show Actions VY Show Cot ncoding': ‘gzip, de
+[15:59:23] flate', '‘accept-language': ‘en-US, tent-length': ‘'Q@',
+[15:59:23] "connection': 'keep-alive', ‘user- cko)', ‘referer’: '
+[15:59:23] http://127.0.0.1:1430/', 'sec-fetc
+[15:59:23] 2025-02-18 15:59:18,513 - DEBUG - Fier l09s ob x
+[15:59:23] 2025-02-18 15:59:18,513 -— DEBUG - ity_agent/agent.py
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] Found agent classes:
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] Found specific agents:
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG - No fogs avanseune
+[15:59:23] Selected specific agent: SimpleAct
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG -
+[15:59:23] 2025-02-18 15:59:18,514 — DEBUG - >__ Hide server Logs
+[15:59:23] Initialized model: deepseek-r1:7b
+[15:59:23] 2025-02-18 15:59:18,802 — DEBUG - Successfully started agent: simple_activity_agent (SimpleActivityAgent)
+[15:59:23] 2025-02-18 15:59:18,803 -— DEBUG - Response headers: MutableHeaders({'content-length': '20', 'content-type': 'application/json', 'access—control-al
+[15:59:23] low-credentials': 'true', 'access—control-expose-headers': '*', 'access—control-allow-origin': 'http://127.0.0.1:1430', 'vary': 'Origin'})
+[15:59:23] 127.0.0.1:50940 - "POST /agents/simple_activity_agent/start HTTP/1.1"
+[15:59:24] Error in observation loop: API error: {"error":"model 'deepseek-r1:7b' not found"}

@@ -19,6 +19,12 @@ from typing import Tuple
 import traceback
 import platform
 import subprocess
+from collections import deque
+import time
+import sys 
+import io
+
+
 
 class ServerAddress(BaseModel):
     host: str
@@ -52,6 +58,29 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Create a buffer to store logs
+log_buffer = deque(maxlen=1000)  # Store last 1000 log entries
+log_lock = threading.Lock()
+
+# Create a custom handler that writes to our buffer
+class BufferLogHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            with log_lock:
+                log_buffer.append({
+                    "timestamp": record.asctime if hasattr(record, 'asctime') else datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3],
+                    "level": record.levelname,
+                    "message": msg
+                })
+        except Exception:
+            self.handleError(record)
+
+# Add the handler to the root logger
+buffer_handler = BufferLogHandler()
+buffer_handler.setFormatter(logging.Formatter('%(message)s'))
+logging.getLogger().addHandler(buffer_handler)
 
 app = FastAPI()
 
@@ -698,6 +727,21 @@ async def start_ollama_server():
         error_msg = f"Failed to start Ollama server: {str(e)}\n{traceback.format_exc()}"
         logger.error(error_msg)
         return {"status": "error", "error": str(e)}
+
+
+@app.get("/logs")
+async def get_server_logs(lines: int = 100):
+    """Get the most recent server logs from our buffer"""
+    try:
+        with log_lock:
+            # Convert to list and take the most recent entries
+            logs = list(log_buffer)[-lines:] if lines < len(log_buffer) else list(log_buffer)
+            
+        return logs
+        
+    except Exception as e:
+        logger.error(f"Error collecting server logs: {e}")
+        return {"error": f"Failed to read server logs: {str(e)}"}
 
 
 if __name__ == "__main__":

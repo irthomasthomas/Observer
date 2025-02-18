@@ -1,10 +1,11 @@
 import './App.css'
 import { useState, useEffect } from 'react';
-import { RotateCw, Edit2, PlusCircle } from 'lucide-react';
+import { RotateCw, Edit2, PlusCircle, Terminal } from 'lucide-react';
 import EditAgentModal from './EditAgentModal';
 import LogViewer from './LogViewer';
 import StartupDialogs from './StartupDialogs';
 import TextBubble from './TextBubble';
+import GlobalLogsViewer from './GlobalLogsViewer';
 
 import './styles/layout.css';
 import './styles/header.css';
@@ -40,6 +41,7 @@ export function App() {
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [showStartupDialog, setShowStartupDialog] = useState(false);
   const [showOllamaHelpBubble, setShowOllamaHelpBubble] = useState(false);
+  const [showGlobalLogs, setShowGlobalLogs] = useState(false);
 
   const handleEditClick = (agentId: string) => {
     setSelectedAgent(agentId);
@@ -352,6 +354,22 @@ export function App() {
           onUpdate={fetchAgents}
         />
       )}
+
+      <footer className="global-footer">
+        <button 
+          className="global-logs-button"
+          onClick={() => setShowGlobalLogs(!showGlobalLogs)}
+        >
+          <Terminal className="w-5 h-5" />
+          <span>{showGlobalLogs ? 'Hide Server Logs' : 'Show Server Logs'}</span>
+        </button>
+      </footer>
+      
+      {/* Add the global logs viewer */}
+      <GlobalLogsViewer 
+        isOpen={showGlobalLogs}
+        onClose={() => setShowGlobalLogs(false)}
+      />
     </div>
   );
 }

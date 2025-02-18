@@ -83,7 +83,7 @@ const LogViewer = ({ agentId }: LogViewerProps) => {
           className={`log-button logs ${viewType === 'logs' ? 'active' : ''}`}
         >
           {viewType === 'logs' ? <ChevronUp /> : <ChevronDown />}
-          <span>{viewType === 'logs' ? 'Hide' : 'Show'} Logs</span>
+          <span>{viewType === 'logs' ? 'Hide' : 'Show'} Actions</span>
         </button>
         
         <button 
