@@ -19,17 +19,31 @@ Observer AI is a privacy-first platform that lets you run AI agents with Ollama,
 ## 🚀 Getting Started
 
 ```bash
+# Make sure Ollama is installed
+pip install ollama
+
 # Clone the repository
-git clone https://github.com/Roy3838/observer-ai.git
+git clone https://github.com/Roy3838/Observer.git
 
 # Navigate to the project directory
-cd observer-ai
+cd Observer
 
 # Install dependencies
 npm install
 
 # Start the development server
-npm run dev
+npm run build
+
+# Run with tauri
+npm run tauri dev
+
+OR 
+
+# Make sure Ollama is installed
+pip install ollama
+
+# Download and run DMG
+Enjoy!
 ```
 
 ## 🏗️ Building Your Own Agent
