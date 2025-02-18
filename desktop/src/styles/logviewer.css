@@ -168,3 +168,29 @@
 .logs-container::-webkit-scrollbar-thumb:hover {
   background: #666;
 }
+
+.open-directory-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.open-directory-button:hover {
+  background-color: #e0e0e0;
+  border-color: #ccc;
+}
+
+/* Update existing .log-controls for better spacing */
+.log-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}

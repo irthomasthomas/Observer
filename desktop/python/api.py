@@ -743,6 +743,31 @@ async def get_server_logs(lines: int = 100):
         logger.error(f"Error collecting server logs: {e}")
         return {"error": f"Failed to read server logs: {str(e)}"}
 
+@app.post("/agents/{agent_id}/open-directory")
+async def open_agent_directory(agent_id: str):
+    """Open the agent's directory in the system file explorer"""
+    try:
+        agent_dir = Path(__file__).parent / "agents" / agent_id
+        if not agent_dir.exists():
+            return {"error": "Agent directory not found"}
+            
+        # Open directory based on OS
+        system = platform.system()
+        
+        if system == "Windows":
+            os.startfile(str(agent_dir))
+        elif system == "Darwin":  # macOS
+            subprocess.run(["open", str(agent_dir)])
+        else:  # Linux
+            subprocess.run(["xdg-open", str(agent_dir)])
+            
+        return {"status": "success"}
+        
+    except Exception as e:
+        logger.error(f"Error opening agent directory: {e}")
+        return {"error": f"Failed to open agent directory: {str(e)}"}
+
+
 
 if __name__ == "__main__":
     import uvicorn

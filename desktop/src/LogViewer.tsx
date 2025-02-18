@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronUp, RefreshCw, Pause, Play } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Pause, Play, Folder } from 'lucide-react';
 import './styles/logviewer.css';
 
 interface Log {
@@ -70,6 +70,21 @@ const LogViewer = ({ agentId }: LogViewerProps) => {
     setAutoRefresh(!autoRefresh);
   };
 
+  const openAgentDirectory = async () => {
+    try {
+      const response = await fetch(`http://localhost:8000/agents/${agentId}/open-directory`, {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to open directory');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to open directory');
+    }
+  };
+
   const extractThinkContent = (message: string) => {
     const thinkMatch = message.match(/<think>([\s\S]*?)<\/think>/);
     return thinkMatch ? thinkMatch[1].trim() : message;
@@ -92,6 +107,15 @@ const LogViewer = ({ agentId }: LogViewerProps) => {
         >
           {viewType === 'cot' ? <ChevronUp /> : <ChevronDown />}
           <span>{viewType === 'cot' ? 'Hide' : 'Show'} CoT</span>
+        </button>
+
+        <button
+          onClick={openAgentDirectory}
+          className="open-directory-button"
+          title="Open agent directory"
+        >
+          <Folder className="w-5 h-5" />
+          <span>Open Directory</span>
         </button>
 
         {viewType && (
