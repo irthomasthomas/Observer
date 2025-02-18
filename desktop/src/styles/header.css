@@ -89,3 +89,51 @@ h1 {
   align-items: center;
   gap: 12px;
 }
+/* Add this to your styles/header.css file */
+
+.input-container {
+  position: relative;
+  display: inline-block;
+}
+
+.input-container .text-bubble.bottom {
+  position: absolute;
+  top: 100%; /* Position at the bottom of the input */
+  margin-top: 10px; /* Small gap between input and bubble */
+  left: 0;
+  white-space: nowrap;
+  z-index: 1000;
+  transform: none;
+}
+
+/* Fix the arrow position to better align with the input */
+.input-container .text-bubble.bottom::after {
+  position: absolute;
+  top: -6px;
+  left: 30px;
+  transform: rotate(45deg);
+  border-bottom: none;
+  border-right: none;
+}
+
+.server-config {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* Position the bubble directly beneath the server input */
+.server-config .text-bubble.bottom {
+  bottom: -60px;
+  left: 0; /* Align with left edge of textbox */
+  transform: none; /* Remove any transformations */
+}
+
+.server-config .text-bubble.bottom::after {
+  bottom: -7px;
+  left: 30px; /* Place arrow near the left side of bubble */
+  border-top: none;
+  border-left: none;
+}

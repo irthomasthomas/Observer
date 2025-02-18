@@ -73,6 +73,31 @@
   line-height: 1.5;
 }
 
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.show-on-startup {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #555;
+}
+
+.show-on-startup input[type="checkbox"] {
+  margin-right: 8px;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.show-on-startup label {
+  cursor: pointer;
+  user-select: none;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;

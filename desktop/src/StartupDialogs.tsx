@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
-import './styles/dialog.css'
 
 interface StartupDialogsProps {
   serverStatus: 'unchecked' | 'online' | 'offline';
@@ -13,6 +12,7 @@ const StartupDialogs: React.FC<StartupDialogsProps> = ({
 }) => {
   const [visible, setVisible] = useState(true);
   const [dismissed, setDismissed] = useState(false);
+  const [showOnStartup, setShowOnStartup] = useState(true);
 
   useEffect(() => {
     // Check if the user has already seen the dialog
@@ -20,6 +20,12 @@ const StartupDialogs: React.FC<StartupDialogsProps> = ({
     if (hasSeenDialog === 'true') {
       setVisible(false);
       setDismissed(true);
+    }
+    
+    // Get saved preference for showing on startup
+    const showDialogOnStartup = localStorage.getItem('observerShowDialogOnStartup');
+    if (showDialogOnStartup === 'false') {
+      setShowOnStartup(false);
     }
   }, []);
   
@@ -29,9 +35,12 @@ const StartupDialogs: React.FC<StartupDialogsProps> = ({
     setTimeout(() => {
       setDismissed(true);
       localStorage.setItem('observerHasSeenStartupDialog', 'true');
+      localStorage.setItem('observerShowDialogOnStartup', showOnStartup.toString());
       onDismiss();
     }, 300);
   };
+  
+
 
   if (dismissed || serverStatus === 'online') {
     return null;
@@ -61,13 +70,25 @@ const StartupDialogs: React.FC<StartupDialogsProps> = ({
           </p>
         </div>
         
-        <div className="dialog-actions">
-          <button 
-            className="dismiss-button"
-            onClick={handleDismiss}
-          >
-            Got it
-          </button>
+        <div className="dialog-footer">
+          <div className="show-on-startup">
+            <input 
+              type="checkbox" 
+              id="show-on-startup" 
+              checked={showOnStartup}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowOnStartup(e.target.checked)}
+            />
+            <label htmlFor="show-on-startup">Show when app starts</label>
+          </div>
+          
+          <div className="dialog-actions">
+            <button 
+              className="dismiss-button"
+              onClick={handleDismiss}
+            >
+              Got it
+            </button>
+          </div>
         </div>
       </div>
     </div>

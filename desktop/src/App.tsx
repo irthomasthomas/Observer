@@ -4,6 +4,7 @@ import { RotateCw, Edit2, PlusCircle } from 'lucide-react';
 import EditAgentModal from './EditAgentModal';
 import LogViewer from './LogViewer';
 import StartupDialogs from './StartupDialogs';
+import TextBubble from './TextBubble';
 
 import './styles/layout.css';
 import './styles/header.css';
@@ -12,6 +13,7 @@ import './styles/status.css';
 import './styles/buttons.css';
 import './styles/modal.css';
 import './styles/dialog.css';
+import './styles/text-bubble.css';
 
 interface Agent {
   id: string;
@@ -36,7 +38,8 @@ export function App() {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
-  const [showStartupDialog, setShowStartupDialog] = useState(true);
+  const [showStartupDialog, setShowStartupDialog] = useState(false);
+  const [showOllamaHelpBubble, setShowOllamaHelpBubble] = useState(false);
 
   const handleEditClick = (agentId: string) => {
     setSelectedAgent(agentId);
@@ -91,9 +94,11 @@ export function App() {
       if (data.status === 'online') {
         setServerStatus('online');
         setError(null);
+        setShowOllamaHelpBubble(false);
       } else {
         setServerStatus('offline');
         setError('Ollama server is not running');
+        setShowOllamaHelpBubble(true);
       }
     } catch (err) {
       setServerStatus('offline');
@@ -104,9 +109,6 @@ export function App() {
   const startOllamaServer = async () => {
     try {
       setIsStartingServer(true);
-      setError(null); // Clear any previous errors
-      
-      // Show a starting message
       setError('Starting Ollama server, please wait...');
       
       const response = await fetch('http://localhost:8000/config/start-ollama', {
@@ -209,6 +211,22 @@ export function App() {
   useEffect(() => {
     fetchAgents();
     checkOllamaServer();
+    
+    // Check if dialog should be shown on startup
+    const showDialogOnStartup = localStorage.getItem('observerShowDialogOnStartup');
+    const hasSeenDialog = localStorage.getItem('observerHasSeenStartupDialog');
+    
+    // Show dialog if user hasn't seen it yet or if they've chosen to show it on startup
+    if (hasSeenDialog !== 'true' || showDialogOnStartup !== 'false') {
+      setShowStartupDialog(true);
+    }
+    
+    // Show the Ollama help bubble after a short delay if server is not connected
+    setTimeout(() => {
+      if (serverStatus !== 'online') {
+        setShowOllamaHelpBubble(true);
+      }
+    }, 2000);
   }, []);
 
   return (
@@ -222,14 +240,26 @@ export function App() {
 
       <header>
         <h1>Observer</h1>
+
+
+
         <div className="server-config">
-          <input
-            type="text"
-            value={serverAddress}
-            onChange={(e) => setServerAddress(e.target.value)}
-            placeholder="localhost:11434"
-            className="server-input"
-          />
+          <div className="input-container">
+            <input
+              type="text"
+              value={serverAddress}
+              onChange={(e) => setServerAddress(e.target.value)}
+              placeholder="localhost:11434"
+              className="server-input"
+            />
+            {showOllamaHelpBubble && (
+              <TextBubble 
+                message="First, check Ollama server"
+                position="bottom"
+                duration={30000}
+              />
+            )}
+          </div>
           <button
             onClick={checkOllamaServer}
             className={`server-check-button ${serverStatus}`}
@@ -247,6 +277,9 @@ export function App() {
             {isStartingServer ? 'Starting...' : 'Start Ollama Server'}
           </button>
         </div>
+
+
+
         <div className="stats-container">
           <button 
             onClick={fetchAgents}

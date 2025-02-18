@@ -10,3 +10,85 @@
 [11:03:43] Found commands.py, loading...
 [11:03:43] Commands module loaded. Available commands: ['ACTIVITY']
 [11:03:43] Agent initialized with registry commands: ['ACTIVITY']
+[14:58:22] Looking for commands in: /Users/jay/repos/Observer/desktop/python/agents/simple_activity_agent/commands.py
+[14:58:22] Found commands.py, loading...
+[14:58:22] Commands module loaded. Available commands: ['ACTIVITY']
+[14:58:22] Agent initialized with registry commands: ['ACTIVITY']
+[14:58:26] === BEGIN COT BLOCK ===
+[14:58:26] === PROMPT ===
+[14:58:26] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+[14:58:26] Just respond with:
+[14:58:26] ACTIVITY: brief description of current activity
+[14:58:26] Examples:
+[14:58:26] ACTIVITY: Reading Harry Potter
+[14:58:26] ACTIVITY: Writing code in VS Code
+[14:58:26] ACTIVITY: Browsing YouTube
+[14:58:26] Only report when the activity actually changes.
+[14:58:26] === SCREEN CONTENT ===
+[14:58:26] 10.0.0.72:11434
+[14:58:26] Observer
+[14:58:26] CG Active Agents: 0 / Total: 5
+[14:58:26] New Agent WY
+[14:58:26] stopped
+[14:58:26] Model: deepseek-r1:7b
+[14:58:26] A custom agent
+[14:58:26] VV Show Logs VV Show CoT
+[14:58:26] Command Tracking Agent 4
+[14:58:26] stopped
+[14:58:26] Model: deepseek-r1:8b
+[14:58:26] Tracks the CLI commands you use
+[14:58:26] VV Show Logs VV Show CoT
+[14:58:26] Timestamp Agent WY
+[14:58:26] stopped
+[14:58:26] Model: deepseek-r1:7b
+[14:58:26] Records all user activity on a file
+[14:58:26] Simple Activity Agent VW
+[14:58:26] stopped
+[14:58:26] Model: deepseek-r1:7b
+[14:58:26] Tracks all activity
+[14:58:26] VV Show Logs VV Show CoT
+[14:58:26] Distraction Agent V4
+[14:58:26] stopped
+[14:58:26] Model: deepseek-r1:7b
+[14:58:26] This agent watches the screen and if it ideantifies that you are distracted, then it prints out
+[14:58:26] “DISTRACTED!"
+[14:58:26] VV Show Logs VV Show CoT
+[14:58:26] Error in observation loop: API error: {"error":"model 'deepseek-r1:7b' not found"}
+[14:59:26] === BEGIN COT BLOCK ===
+[14:59:26] === PROMPT ===
+[14:59:26] You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.
+[14:59:26] Just respond with:
+[14:59:26] ACTIVITY: brief description of current activity
+[14:59:26] Examples:
+[14:59:26] ACTIVITY: Reading Harry Potter
+[14:59:26] ACTIVITY: Writing code in VS Code
+[14:59:26] ACTIVITY: Browsing YouTube
+[14:59:26] Only report when the activity actually changes.
+[14:59:26] === SCREEN CONTENT ===
+[14:59:26] Observer
+[14:59:26] 10.0.0.72:11434 v Connected Start Ollama Server
+[14:59:26] G Active Agents: 1 / Total: 5
+[14:59:26] New Agent V4 Simple Activity Agent
+[14:59:26] stopped running
+[14:59:26] Model: deepseek-r1:7b Model: deepseek-r1:7b
+[14:59:26] Acustom agent Tracks all activity
+[14:59:26] VV Show Logs VV Show CoT “W Hide Logs VV Show CoT Gg >
+[14:59:26] Lagesesuss
+[14:59:26] Executing command: INFO: 127.0.0.1:51260 -— "GET
+[14:59:26] /agents/simple_activity_agent/logs?days=1 HTTP/1.1" 200 OK
+[14:59:26] [19:52:05]
+[14:59:26] Executing command: ACTIVITY: Watching a YouTube video
+[14:59:26] featuring Kendrick Lamar and other artists.
+[14:59:26] [19:52:05]
+[14:59:26] Executing command: ACTIVITY: Browsing YouTube videos
+[14:59:26] related to "Euphoria" by Drake and engaging with
+[14:59:26] associated content.
+[14:59:26] [19:52:05]
+[14:59:26] Command Tracking Agent V4 Distraction Agent V4
+[14:59:26] stopped stopped
+[14:59:26] Model: deepseek-r1:8b Model: deepseek-r1:7b
+[14:59:26] Tracks the CLI commands you use This agent watches the screen and if it ideantifies that you are distracted, then it prints out
+[14:59:26] “DISTRACTED!"
+[14:59:26] VV Show Logs VV Show CoT
+[14:59:26] VV Show Logs VV Show CoT
+[14:59:26] Error in observation loop: API error: {"error":"model 'deepseek-r1:7b' not found"}
