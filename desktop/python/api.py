@@ -30,6 +30,7 @@ class AgentConfig(BaseModel):
     description: str
     model_name: str
     system_prompt: str
+    loop_interval_seconds: float = 1.0  
 
 class CodeUpdate(BaseModel):
     code: str
@@ -288,6 +289,7 @@ async def stop_agent(agent_id: str):
         logger.error(f"Error stopping agent {agent_id}: {e}", exc_info=True)
         return {"error": f"Failed to stop agent: {str(e)}"}
 
+
 @app.get("/agents/{agent_id}/config")
 async def get_agent_config(agent_id: str):
     """Get agent configuration"""
@@ -303,12 +305,12 @@ async def get_agent_config(agent_id: str):
             "name": config.get("name", ""),
             "description": config.get("description", ""),
             "model_name": config.get("model_name", ""),
-            "system_prompt": config.get("system_prompt", "")  # Added this line
+            "system_prompt": config.get("system_prompt", ""),
+            "loop_interval_seconds": config.get("loop_interval_seconds", 1.0)  # Add with default
         }
     except Exception as e:
         logger.error(f"Error reading agent config: {e}")
         return {"error": f"Failed to read agent configuration: {str(e)}"}
-
 
 @app.post("/agents/{agent_id}/config")
 async def update_agent_config(agent_id: str, config: AgentConfig):
@@ -321,6 +323,10 @@ async def update_agent_config(agent_id: str, config: AgentConfig):
         config_path = Path(__file__).parent / "agents" / agent_id / "config.yaml"
         if not config_path.exists():
             return {"error": "Agent configuration not found"}
+        
+        # Validate loop interval
+        if config.loop_interval_seconds < 0.1:
+            return {"error": "Loop interval must be at least 0.1 seconds"}
             
         # Read existing config
         with open(config_path, 'r') as f:
@@ -331,6 +337,7 @@ async def update_agent_config(agent_id: str, config: AgentConfig):
         existing_config["description"] = config.description
         existing_config["model_name"] = config.model_name
         existing_config["system_prompt"] = config.system_prompt
+        existing_config["loop_interval_seconds"] = config.loop_interval_seconds
         
         # Write updated config
         with open(config_path, 'w') as f:
@@ -456,7 +463,40 @@ async def get_agent_logs(agent_id: str, days: int = 1):
         logger.error(f"Error reading agent logs: {e}")
         return {"error": f"Failed to read agent logs: {str(e)}"}
 
+@app.get("/agents/{agent_id}/commands")
+async def get_agent_commands(agent_id: str):
+    """Get agent commands"""
+    try:
+        commands_path = Path(__file__).parent / "agents" / agent_id / "commands.py"
+        if not commands_path.exists():
+            return {"commands": ""}
+            
+        with open(commands_path, 'r') as f:
+            commands = f.read()
+            
+        return {"commands": commands}
+    except Exception as e:
+        logger.error(f"Error reading agent commands: {e}")
+        return {"error": f"Failed to read agent commands: {str(e)}"}
 
+@app.post("/agents/{agent_id}/commands")
+async def update_agent_commands(agent_id: str, commands: dict):
+    """Update agent commands"""
+    try:
+        # First check if agent is running
+        if agent_id in running_agents:
+            return {"error": "Cannot update commands while agent is running"}
+            
+        commands_path = Path(__file__).parent / "agents" / agent_id / "commands.py"
+            
+        # Write the new commands
+        with open(commands_path, 'w') as f:
+            f.write(commands["commands"])
+            
+        return {"status": "updated"}
+    except Exception as e:
+        logger.error(f"Error updating agent commands: {e}")
+        return {"error": f"Failed to update agent commands: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn

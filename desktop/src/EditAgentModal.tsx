@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, PlusCircle } from 'lucide-react';
+import CodeMirror from '@uiw/react-codemirror';
+import { python } from '@codemirror/lang-python';
+import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 
 interface EditAgentModalProps {
   agentId: string;
@@ -13,26 +16,46 @@ interface AgentConfig {
   description: string;
   model_name: string;
   system_prompt: string;
+  loop_interval_seconds: number;
 }
+
+type TabType = 'config' | 'actions' | 'code';
+
+const DEFAULT_COMMAND_TEMPLATE = `from core.commands import command
+from datetime import datetime
+
+""" WRITE THE COMMANDS FOR YOUR AGENT HERE! """
+
+@command("COMMAND")
+def handle_command(agent, line):
+    """Handle the command with the given line"""
+    # Your command logic here, the model passes the 'line' argument
+    pass
+
+"""
+# Example to have your Agent write the activity
+@command("ACTIVITY")
+def handle_activity(agent, line):
+    """Handles ACTIVITY command"""
+    timestamp = datetime.now().strftime("%I:%M%p").lower()
+    with open(agent.activity_file, "a") as f:
+        f.write(f"{timestamp}: {line}\n")
+"""
+`;
 
 const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalProps) => {
   const [config, setConfig] = useState<AgentConfig>({
     name: '',
     description: '',
     model_name: '',
-    system_prompt: ''
+    system_prompt: '',
+    loop_interval_seconds: 1.0
   });
   const [code, setCode] = useState('');
+  const [commands, setCommands] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'config' | 'code'>('config');
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchConfig();
-      fetchCode();
-    }
-  }, [isOpen, agentId]);
+  const [activeTab, setActiveTab] = useState<TabType>('config');
 
   const fetchConfig = async () => {
     try {
@@ -64,10 +87,39 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
     }
   };
 
+  const fetchCommands = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`http://localhost:8000/agents/${agentId}/commands`);
+      if (!response.ok) throw new Error('Failed to fetch agent commands');
+      const data = await response.json();
+      setCommands(data.commands || DEFAULT_COMMAND_TEMPLATE);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load agent commands');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchConfig();
+      fetchCode();
+      fetchCommands();
+    }
+  }, [isOpen, agentId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setIsLoading(true);
+      
+      // Create validated config with minimum loop interval
+      const validatedConfig = {
+        ...config,
+        loop_interval_seconds: Math.max(0.1, config.loop_interval_seconds || 0.1)
+      };
       
       // Update configuration
       const configResponse = await fetch(`http://localhost:8000/agents/${agentId}/config`, {
@@ -75,12 +127,26 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(config),
+        body: JSON.stringify(validatedConfig),
       });
       
       if (!configResponse.ok) {
         const data = await configResponse.json();
         throw new Error(data.error || 'Failed to update configuration');
+      }
+
+      // Update commands
+      const commandsResponse = await fetch(`http://localhost:8000/agents/${agentId}/commands`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ commands }),
+      });
+
+      if (!commandsResponse.ok) {
+        const data = await commandsResponse.json();
+        throw new Error(data.error || 'Failed to update commands');
       }
 
       // Update code
@@ -105,6 +171,160 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
       setIsLoading(false);
     }
   };
+
+  const renderConfigTab = () => (
+    <>
+      <div className="form-group">
+        <label>Name</label>
+        <input
+          type="text"
+          value={config.name}
+          onChange={(e) => setConfig({ ...config, name: e.target.value })}
+          disabled={isLoading}
+          placeholder="Enter agent name"
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Description</label>
+        <textarea
+          value={config.description}
+          onChange={(e) => setConfig({ ...config, description: e.target.value })}
+          rows={2}
+          disabled={isLoading}
+          placeholder="Enter agent description"
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Model Name</label>
+        <input
+          type="text"
+          value={config.model_name}
+          onChange={(e) => setConfig({ ...config, model_name: e.target.value })}
+          disabled={isLoading}
+          placeholder="Enter model name"
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Loop Interval (seconds)</label>
+        <div className="input-with-help">
+          <input
+            type="number"
+            value={config.loop_interval_seconds}
+            onChange={(e) => {
+              setConfig({ 
+                ...config, 
+                loop_interval_seconds: Number(e.target.value)
+              });
+            }}
+            disabled={isLoading}
+            className="number-input"
+          />
+          <span className="help-text">
+            Time between agent executions
+          </span>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderActionsTab = () => (
+    <>
+      <div className="form-group">
+        <label>System Prompt</label>
+        <textarea
+          value={config.system_prompt}
+          onChange={(e) => setConfig({ ...config, system_prompt: e.target.value })}
+          rows={8}
+          disabled={isLoading}
+          placeholder="Enter system prompt"
+          style={{ fontFamily: 'monospace', fontSize: '14px' }}
+        />
+      </div>
+      
+      <div className="form-group command-editor">
+        <div className="command-header">
+          <label>Commands</label>
+          <button 
+            type="button"
+            className="add-command-button"
+            onClick={() => setCommands(DEFAULT_COMMAND_TEMPLATE)}
+            disabled={isLoading}
+          >
+            <PlusCircle size={16} /> New Command
+          </button>
+        </div>
+        <CodeMirror
+          value={commands}
+          height="300px"
+          theme={vscodeDark}
+          extensions={[python()]}
+          onChange={(value) => setCommands(value)}
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLineGutter: true,
+            highlightSpecialChars: true,
+            foldGutter: true,
+            dropCursor: true,
+            allowMultipleSelections: true,
+            indentOnInput: true,
+            bracketMatching: true,
+            closeBrackets: true,
+            autocompletion: true,
+            rectangularSelection: true,
+            crosshairCursor: true,
+            highlightActiveLine: true,
+            highlightSelectionMatches: true,
+            closeBracketsKeymap: true,
+            defaultKeymap: true,
+            searchKeymap: true,
+            historyKeymap: true,
+            foldKeymap: true,
+            completionKeymap: true,
+            lintKeymap: true,
+          }}
+        />
+      </div>
+    </>
+  );
+
+  const renderCodeTab = () => (
+    <div className="form-group code-editor">
+      <label>Agent Code</label>
+      <CodeMirror
+        value={code}
+        height="500px"
+        theme={vscodeDark}
+        extensions={[python()]}
+        onChange={(value) => setCode(value)}
+        basicSetup={{
+          lineNumbers: true,
+          highlightActiveLineGutter: true,
+          highlightSpecialChars: true,
+          foldGutter: true,
+          dropCursor: true,
+          allowMultipleSelections: true,
+          indentOnInput: true,
+          bracketMatching: true,
+          closeBrackets: true,
+          autocompletion: true,
+          rectangularSelection: true,
+          crosshairCursor: true,
+          highlightActiveLine: true,
+          highlightSelectionMatches: true,
+          closeBracketsKeymap: true,
+          defaultKeymap: true,
+          searchKeymap: true,
+          historyKeymap: true,
+          foldKeymap: true,
+          completionKeymap: true,
+          lintKeymap: true,
+        }}
+      />
+    </div>
+  );
 
   if (!isOpen) return null;
 
@@ -132,6 +352,12 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
             Configuration
           </button>
           <button
+            className={`tab-button ${activeTab === 'actions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('actions')}
+          >
+            Actions
+          </button>
+          <button
             className={`tab-button ${activeTab === 'code' ? 'active' : ''}`}
             onClick={() => setActiveTab('code')}
           >
@@ -140,65 +366,9 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
         </div>
 
         <form onSubmit={handleSubmit}>
-          {activeTab === 'config' ? (
-            <>
-              <div className="form-group">
-                <label>Name</label>
-                <input
-                  type="text"
-                  value={config.name}
-                  onChange={(e) => setConfig({ ...config, name: e.target.value })}
-                  disabled={isLoading}
-                  placeholder="Enter agent name"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={config.description}
-                  onChange={(e) => setConfig({ ...config, description: e.target.value })}
-                  rows={2}
-                  disabled={isLoading}
-                  placeholder="Enter agent description"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Model Name</label>
-                <input
-                  type="text"
-                  value={config.model_name}
-                  onChange={(e) => setConfig({ ...config, model_name: e.target.value })}
-                  disabled={isLoading}
-                  placeholder="Enter model name"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>System Prompt</label>
-                <textarea
-                  value={config.system_prompt}
-                  onChange={(e) => setConfig({ ...config, system_prompt: e.target.value })}
-                  rows={8}
-                  disabled={isLoading}
-                  placeholder="Enter system prompt"
-                  style={{ fontFamily: 'monospace', fontSize: '14px' }}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="form-group">
-              <label>Agent Code</label>
-              <textarea
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                rows={20}
-                disabled={isLoading}
-                style={{ fontFamily: 'monospace', fontSize: '14px' }}
-              />
-            </div>
-          )}
+          {activeTab === 'config' && renderConfigTab()}
+          {activeTab === 'actions' && renderActionsTab()}
+          {activeTab === 'code' && renderCodeTab()}
 
           <div className="button-group">
             <button

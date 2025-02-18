@@ -1,121 +1,23 @@
-07:34pm: Starting SimpleActivityAgent with deepseek-r1:7b and sending POST request
-07:43pm: Recording commands from the command line interface and saving them in a text file with timestamps.
-10:41am: Observing and managing multiple agent sessions with "SimpleActivityAgent," "TimestampAgent," and "CommandTrackingAgent."
-10:42am: Encountering API error: model 'deepseek-r1:7b' not found
-10:42am: Observing and managing multiple agent sessions with "SimpleActivityAgent," "TimestampAgent," and others.
-10:42am: Managing multiple agent sessions via command line interface, including SimpleActivityAgent, TimestampAgent, and CommandTrackingAgent.
-10:42am: The AI is encountering repeated errors while attempting to describe the user's activity due to a missing model ('deepseek-r1:7b'). The screen content isn't visible to provide a specific description.
-10:42am: Monitoring logs using multiple agents.
-10:42am: Observing system logs and managing agent configurations in a terminal interface.
-10:42am: Interacting with the command line via terminal.
-10:43am: Observing and managing activity tracking agents.
-10:43am: Monitoring system agents and reviewing logs.
-10:43am: Monitoring log files
-10:43am: Managing activity tracking system logs and observing agent status
-10:43am: Managing monitoring agents via CLI commands
-10:43am: Browsing system logs in a terminal via CommandTrackingAgent.
-10:43am: Observing and managing activity tracking agents with active SimpleActivityAgent running.
-10:43am: Observing and managing activity logs via command line interface with multiple tracking agents.
-10:44am: Managing activity tracking agents via terminal interface
-10:44am: Observing and tracking file activities via multiple agents.
-10:44am: Observing user activity with multiple monitoring agents in a CLI environment, tracking commands and logs.
-10:44am: Managing and observing activity tracking agents with SimpleActivityAgent, TimestampAgent, and CommandTrackingAgent.
-10:44am: Engaging with a terminal via SSH connection, with activity tracking agents monitoring actions.
-10:44am: Monitoring activity tracking agents and their logs
-10:44am: Monitoring system activity using multiple tracking agents and analyzing captured data.
-10:45am: Monitoring and managing active agents and their tracking functions in a system.
-10:45am: Accessing log files and monitoring system activities
-10:45am: Monitoring user activity via SimpleActivityAgent with deepseek-r1:8b.
-10:45am: Observing and interacting with active agents through a command-line interface, focusing on the SimpleActivityAgent which is currently running.
-10:45am: Monitoring activity tracking agents on the system
-10:45am: Monitoring active agents and observing user activities via a system interface.
-10:46am: Navigating a command line interface with multiple monitoring agents.
-10:46am: Monitoring activity tracking agents and viewing related logs.
-10:46am: User is in a command line session, connected to 10.0.0.72:11434, interacting with observers and managing activity tracking agents.
-10:46am: Navigating command line interface to manage tracking/monitoring agents
-10:46am: Observing user interactions and tracking activities using various agents.
-10:46am: Monitoring and managing activity tracking systems.
-10:46am: Using a command line interface (CLI) with active tracking agents.
-10:46am: Managing system agents in a command line interface
-10:47am: Managing active agents via terminal
-10:47am: The user is interacting with a system via command-line tools, being monitored by tracking agents.
-10:47am: Using command line
-10:47am: Managing multiple tracking agents to monitor system activities.
-10:47am: Interacting with command line tools via terminal.
-10:47am: Observing user activities via multiple tracking agents
-10:47am: Monitoring system with active agents
-10:48am: Monitoring agents via a dashboard interface.
-10:48am: User is in a terminal via command line interface, being monitored by multiple tracking agents with SimpleActivityAgent currently running.
-10:48am: Reviewing log files from activity tracking agents.
-10:48am: Using a command line interface, likely executing commands that are being tracked.
-10:48am: Monitoring system with various tracking agents and logging functions.
-10:48am: Interacting with command-line interfaces to manage tracking and monitoring of activities.
-10:48am: Managing activity tracking agents in the system interface
-10:49am: Managing monitoring agents and reviewing logs in a terminal.
-10:49am: Monitoring system activity and managing tracking agents via a software interface.
-10:49am: Observing system agents via command line interface, including checking their status and logs.
-10:49am: Observing active agents in the Observer
-10:49am: Managing software agents via command line interface.
-10:49am: Observing and managing user activity tracking agents.
-10:49am: Using terminal commands to manage activity tracking agents and view logs.
-10:49am: Using command line interface (CLI) to interact with agents and view logs.
-10:50am: Monitoring system activities via various agents including SimpleActivityAgent and CommandTrackingAgent.
-10:50am: Managing active agents and viewing logs in a monitoring system via a terminal interface.
-10:50am: Observing system activities through various tracking agents.
-10:50am: Managing activity tracking agents and reviewing logs in an observation interface.
-10:50am: Monitoring and managing system activity tracking agents.
-10:50am: User is interacting with a command line interface (in `~ via`).
-10:50am: Reviewing system activity logs via various monitoring agents.
-10:51am: Monitoring and tracking activities via multiple agents (SimpleActivityAgent, CommandTrackingAgent).
-10:51am: Observing system status and managing activity tracking agents
-10:51am: Monitoring system status and interacting with command-line tools.
-10:51am: Managing and observing tracking agents in a system
-10:51am: Issuing commands in a terminal interface to manage observer logs and agent tracking.
-10:51am: Managing automated system monitoring.
-10:51am: Managing and observing tracking agents via a terminal interface.
-10:51am: Observing system activity and managing monitoring agents.
-10:52am: Monitoring system activity via multiple tracking agents.
-10:52am: Interacting with a command line interface via CommandTrackingAgent
-10:52am: Managing monitoring system via CLI commands.
-10:52am: Managing system logs and observing active agents via command line interface.
-10:52am: Observing agent statuses
-10:52am: Monitoring system status and managing agent configurations.
-10:52am: Monitoring system components and viewing activity logs.
-10:53am: Managing activity tracking agents.
-10:53am: Monitoring system performance and tracking user activities.
-10:53am: Using a terminal to manage network connections and view logs.
-10:53am: Observing and managing active agents in a monitoring system.
-10:53am: Observing network connections and tracking user activity through various agents.
-10:53am: Managing monitoring agents to observe system performance and user activity.
-10:54am: Monitoring system performance and managing network connections via terminal commands.
-11:05am: Managing system administration tasks in Arch Linux
-11:05am: Repeatedly attempting to connect to a local server on port 11434, encountering connection refusal errors.
-11:05am: Chatting with an AI model via text interface
-11:05am: Using monitoring tools in a Linux environment, managing active agents and viewing logs.
-11:05am: Toggling logs and command tracking via the terminal.
-11:29am: Managing system services in Arch Linux via terminal
-11:29am: Interacting with a terminal, toggling logs, and experiencing connection issues with an API.
-11:29am: Managing system services in Arch Linux via terminal
-12:40pm: Compiling a Rust project in the development profile.
-12:40pm: Updating project configuration with icon integration
-12:41pm: Encountering an npm error when attempting to run a Tauri application due to an issue with the icon preview code.
-02:26pm: Browsing and interacting with a music or audio streaming platform, possibly managing playlists or viewing liked songs.
-02:26pm: Navigating through a music library with various playlists and albums, likely managing and listening to music on a Mac.
-02:26pm: Browsing music on Spotify.
-02:27pm: Skimming through playlists on Spotify.
-02:32pm: Running npm commands in terminal.
-02:32pm: Running build and dev commands for a Tauri application, possibly debugging or monitoring.
-02:37pm: Setting up and managing monitoring/observation systems within the desktop environment, including network connections and log tracking with AI models.
-02:37pm: Monitoring system performance and user activity in a Linux environment using Tauri and various tracking tools.
-02:37pm: Developing a web-based application using Tauri and managing project files.
-02:37pm: Compiling various Rust crates in a development environment, possibly working on an asynchronous application using tokio and cross-platform tools like `objc2-foundation`.
-02:39pm: Running `npm run tauri dev` to start the development server in the Observer project.
-02:39pm: Compiling and running development profile for Rust project with Tauri
-02:43pm: Running `npm run tauri dev` in the terminal
-02:43pm: Compiling and running development profile for Rust project with Tauri
-02:45pm: Actively developing a Tauri-based desktop application with associated front-end and back-end components.
-02:45pm: Developing a Tauri-based desktop application using TypeScript and Rust, running commands in the terminal for building and testing.
-03:26pm: Running build command for project using npm
-03:27pm: Monitoring server status and user activity in an application.
-03:44pm: Developing a desktop application using React and Tauri, encountering build errors, and monitoring user activity through tracking agents.
-03:44pm: Debugging a React application with Tauri integration and monitoring user activities via tracking agents.
+05:13pm: Using command line tools in a terminal while interacting with an Ollama server.
+05:13pm: Using command line tools in a terminal while interacting with an Ollama server.
+05:14pm: Editing a Python file in Neovim
+05:14pm: Running command line tools in a terminal while interacting with an Ollama server.
+05:14pm: Running command line tools in a terminal while interacting with an
+05:14pm: Running command line tools in a terminal while interacting with an Ollama server.
+05:14pm: Running command line tools in a terminal while interacting with an Ollama server.
+05:14pm: Checking something on a website
+05:15pm: Checking something on a website
+05:15pm: Checking something on a website
+05:15pm: Executing commands to show logs and CoT information in a terminal interface.
+05:15pm: Editing a Python file in Neovim
+05:15pm: Monitoring command tracking agents through an Ollama server with potential issues in agent logs directory.
+05:15pm: Developing a Tauri-based web application
+05:16pm: Monitoring command tracking agents through an Ollama server with potential issues in agent logs directory.
+05:16pm: Executing Git, npm, and Python commands for project setup and execution.
+05:16pm: Configuring something
+05:16pm: Browsing commands
+05:28pm: Monitoring and interacting with an Ollama server through command-line tools, managing active agents, and viewing logs.
+05:28pm: Monitoring command tracking agents through an Ollama server with potential issues in agent logs directory.
+05:30pm: Browsing YouTube videos related to "Euphoria" by Drake and engaging with associated content.
+05:30pm: Watching a YouTube video featuring Kendrick Lamar and other artists.
+05:31pm: Watching a YouTube video featuring artists like Drake, Kendrick Lamar, and Kamasi Washington.

@@ -605,3 +605,64 @@ h1 {
   max-height: 90vh;
   overflow-y: auto;
 }
+
+/* Code editor styles */
+.code-editor {
+  margin-bottom: 20px;
+}
+
+.code-editor .cm-editor {
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Make the modal even larger for code editing */
+.modal-content {
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* When code tab is active, adjust padding */
+.modal-content form {
+  margin: 0;
+  padding: 0 20px;
+}
+
+.code-editor label {
+  margin-bottom: 8px;
+  display: block;
+}
+
+
+.input-with-help {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.number-input {
+  width: 100px;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.help-text {
+  color: #666;
+  font-size: 0.875rem;
+  flex: 1;
+}
+
+/* Prevent number input arrows in Chrome, Safari, Edge, Opera */
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Prevent number input arrows in Firefox */
+.number-input[type=number] {
+  -moz-appearance: textfield;
+}
