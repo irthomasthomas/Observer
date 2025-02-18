@@ -6,8 +6,9 @@ import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import './styles/modal.css';
 
 interface EditAgentModalProps {
-  agentId: string;
+  agentId: string | null;
   isOpen: boolean;
+  isCreateMode?: boolean;
   onClose: () => void;
   onUpdate: () => void;
 }
@@ -20,45 +21,104 @@ interface AgentConfig {
   loop_interval_seconds: number;
 }
 
+interface CreateAgentRequest {
+  agent_id: string;
+  config: AgentConfig;
+  code: string;
+  commands: string;
+}
+
 type TabType = 'config' | 'actions' | 'code';
+
+const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant. Observe the screen and help the user.
+
+Respond with one of these commands:
+ACTIVITY: <description of what you see>`;
+
+const DEFAULT_AGENT_CODE = `from core.base_agent import BaseAgent
+
+class CustomAgent(BaseAgent):
+    """A custom agent implementation"""
+    def __init__(self, host="127.0.0.1", agent_model="deepseek-r1:7b"):
+        super().__init__(agent_name="{agent_id}", host=host, agent_model=agent_model)`;
 
 const DEFAULT_COMMAND_TEMPLATE = `from core.commands import command
 from datetime import datetime
+from pathlib import Path
 
-""" WRITE THE COMMANDS FOR YOUR AGENT HERE! """
+def ensure_activity_file(agent):
+    """Ensure activity file exists and is ready for writing"""
+    data_dir = agent.data_path
+    activity_file = data_dir / "activities.txt"
+    
+    data_dir.mkdir(exist_ok=True)
+    
+    if not activity_file.exists():
+        activity_file.touch()
+    
+    return activity_file
 
-@command("COMMAND")
-def handle_command(agent, line):
-    """Handle the command with the given line"""
-    # Your command logic here, the model passes the 'line' argument
-    pass
 
-"""
-# Example to have your Agent write the activity
 @command("ACTIVITY")
 def handle_activity(agent, line):
-    """Handles ACTIVITY command"""
+    """Handle the ACTIVITY command
+    Records the current activity with timestamp"""
+    activity_file = ensure_activity_file(agent)
+    
     timestamp = datetime.now().strftime("%I:%M%p").lower()
-    with open(agent.activity_file, "a") as f:
-        f.write(f"{timestamp}: {line}\n")
-"""
+    with open(activity_file, "a") as f:
+        f.write(f"{timestamp}: {line}\\n")
 `;
 
-const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalProps) => {
+const EditAgentModal = ({ agentId, isOpen, isCreateMode = false, onClose, onUpdate }: EditAgentModalProps) => {
   const [config, setConfig] = useState<AgentConfig>({
     name: '',
     description: '',
-    model_name: '',
-    system_prompt: '',
+    model_name: 'deepseek-r1:8b',
+    system_prompt: DEFAULT_SYSTEM_PROMPT,
     loop_interval_seconds: 1.0
   });
+  const [agentIdInput, setAgentIdInput] = useState('');
   const [code, setCode] = useState('');
   const [commands, setCommands] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('config');
 
+  useEffect(() => {
+    if (isOpen) {
+      if (isCreateMode) {
+        // Set defaults for new agent
+        setConfig({
+          name: 'New Agent',
+          description: 'A custom agent',
+          model_name: 'deepseek-r1:8b',
+          system_prompt: DEFAULT_SYSTEM_PROMPT,
+          loop_interval_seconds: 1.0
+        });
+        setAgentIdInput('');
+        setCommands(DEFAULT_COMMAND_TEMPLATE);
+        setCode(DEFAULT_AGENT_CODE.replace('{agent_id}', ''));
+        setActiveTab('config');
+      } else {
+        // Fetch existing agent data
+        fetchConfig();
+        fetchCode();
+        fetchCommands();
+      }
+    }
+  }, [isOpen, agentId, isCreateMode]);
+
+  useEffect(() => {
+    // Update the code template when agent ID changes in create mode
+    if (isCreateMode) {
+      setCode(DEFAULT_AGENT_CODE.replace('{agent_id}', agentIdInput));
+    }
+  }, [agentIdInput, isCreateMode]);
+
   const fetchConfig = async () => {
+    if (!agentId) return;
+    
     try {
       setIsLoading(true);
       const response = await fetch(`http://localhost:8000/agents/${agentId}/config`);
@@ -74,6 +134,8 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
   };
 
   const fetchCode = async () => {
+    if (!agentId) return;
+    
     try {
       setIsLoading(true);
       const response = await fetch(`http://localhost:8000/agents/${agentId}/code`);
@@ -89,6 +151,8 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
   };
 
   const fetchCommands = async () => {
+    if (!agentId) return;
+    
     try {
       setIsLoading(true);
       const response = await fetch(`http://localhost:8000/agents/${agentId}/commands`);
@@ -103,16 +167,37 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
     }
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchConfig();
-      fetchCode();
-      fetchCommands();
+  const validateForm = () => {
+    if (isCreateMode && !agentIdInput) {
+      setError('Agent ID is required');
+      return false;
     }
-  }, [isOpen, agentId]);
+    
+    if (isCreateMode && !/^[a-z0-9_]+$/.test(agentIdInput)) {
+      setError('Agent ID can only contain lowercase letters, numbers, and underscores');
+      return false;
+    }
+    
+    if (!config.name) {
+      setError('Agent name is required');
+      return false;
+    }
+    
+    if (!config.model_name) {
+      setError('Model name is required');
+      return false;
+    }
+    
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     try {
       setIsLoading(true);
       
@@ -122,46 +207,70 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
         loop_interval_seconds: Math.max(0.1, config.loop_interval_seconds || 0.1)
       };
       
-      // Update configuration
-      const configResponse = await fetch(`http://localhost:8000/agents/${agentId}/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(validatedConfig),
-      });
-      
-      if (!configResponse.ok) {
-        const data = await configResponse.json();
-        throw new Error(data.error || 'Failed to update configuration');
-      }
+      if (isCreateMode) {
+        // Create new agent
+        const createData: CreateAgentRequest = {
+          agent_id: agentIdInput,
+          config: validatedConfig,
+          code: code,
+          commands: commands
+        };
+        
+        const createResponse = await fetch('http://localhost:8000/agents/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(createData),
+        });
+        
+        if (!createResponse.ok) {
+          const data = await createResponse.json();
+          throw new Error(data.error || 'Failed to create agent');
+        }
+      } else if (agentId) {
+        // Update existing agent
+        // Update configuration
+        const configResponse = await fetch(`http://localhost:8000/agents/${agentId}/config`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(validatedConfig),
+        });
+        
+        if (!configResponse.ok) {
+          const data = await configResponse.json();
+          throw new Error(data.error || 'Failed to update configuration');
+        }
 
-      // Update commands
-      const commandsResponse = await fetch(`http://localhost:8000/agents/${agentId}/commands`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ commands }),
-      });
+        // Update commands
+        const commandsResponse = await fetch(`http://localhost:8000/agents/${agentId}/commands`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ commands }),
+        });
 
-      if (!commandsResponse.ok) {
-        const data = await commandsResponse.json();
-        throw new Error(data.error || 'Failed to update commands');
-      }
+        if (!commandsResponse.ok) {
+          const data = await commandsResponse.json();
+          throw new Error(data.error || 'Failed to update commands');
+        }
 
-      // Update code
-      const codeResponse = await fetch(`http://localhost:8000/agents/${agentId}/code`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code }),
-      });
+        // Update code
+        const codeResponse = await fetch(`http://localhost:8000/agents/${agentId}/code`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ code }),
+        });
 
-      if (!codeResponse.ok) {
-        const data = await codeResponse.json();
-        throw new Error(data.error || 'Failed to update code');
+        if (!codeResponse.ok) {
+          const data = await codeResponse.json();
+          throw new Error(data.error || 'Failed to update code');
+        }
       }
 
       onUpdate();
@@ -175,14 +284,34 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
 
   const renderConfigTab = () => (
     <>
+      {isCreateMode && (
+        <div className="form-group">
+          <label>Agent ID <span className="required">*</span></label>
+          <div className="input-with-help">
+            <input
+              type="text"
+              value={agentIdInput}
+              onChange={(e) => setAgentIdInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              disabled={isLoading}
+              placeholder="my_custom_agent"
+              required
+            />
+            <span className="help-text">
+              Lowercase letters, numbers, and underscores only
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="form-group">
-        <label>Name</label>
+        <label>Name <span className="required">*</span></label>
         <input
           type="text"
           value={config.name}
           onChange={(e) => setConfig({ ...config, name: e.target.value })}
           disabled={isLoading}
           placeholder="Enter agent name"
+          required
         />
       </div>
 
@@ -198,13 +327,14 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
       </div>
 
       <div className="form-group">
-        <label>Model Name</label>
+        <label>Model Name <span className="required">*</span></label>
         <input
           type="text"
           value={config.model_name}
           onChange={(e) => setConfig({ ...config, model_name: e.target.value })}
           disabled={isLoading}
           placeholder="Enter model name"
+          required
         />
       </div>
 
@@ -222,6 +352,8 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
             }}
             disabled={isLoading}
             className="number-input"
+            min="0.1"
+            step="0.1"
           />
           <span className="help-text">
             Time between agent executions
@@ -248,14 +380,16 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
       <div className="form-group command-editor">
         <div className="command-header">
           <label>Commands</label>
-          <button 
-            type="button"
-            className="add-command-button"
-            onClick={() => setCommands(DEFAULT_COMMAND_TEMPLATE)}
-            disabled={isLoading}
-          >
-            <PlusCircle size={16} /> New Command
-          </button>
+          {!isCreateMode && (
+            <button 
+              type="button"
+              className="add-command-button"
+              onClick={() => setCommands(DEFAULT_COMMAND_TEMPLATE)}
+              disabled={isLoading}
+            >
+              <PlusCircle size={16} /> Reset to Default
+            </button>
+          )}
         </div>
         <CodeMirror
           value={commands}
@@ -333,7 +467,7 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
     <div className="modal-backdrop">
       <div className="modal-content">
         <div className="modal-header">
-          <h2>Edit Agent</h2>
+          <h2>{isCreateMode ? 'Create New Agent' : 'Edit Agent'}</h2>
           <button onClick={onClose} className="close-button">
             <X size={20} />
           </button>
@@ -385,7 +519,7 @@ const EditAgentModal = ({ agentId, isOpen, onClose, onUpdate }: EditAgentModalPr
               className="button primary"
               disabled={isLoading}
             >
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? (isCreateMode ? 'Creating...' : 'Saving...') : (isCreateMode ? 'Create Agent' : 'Save Changes')}
             </button>
           </div>
         </form>

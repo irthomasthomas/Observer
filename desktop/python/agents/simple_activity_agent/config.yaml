@@ -1,6 +1,6 @@
 description: Tracks all activity
-loop_interval_seconds: 0.1
-model_name: deepseek-r1:8b
+loop_interval_seconds: 60.0
+model_name: deepseek-r1:7b
 name: Simple Activity Agent
 system_prompt: "You are a simple activity tracking assistant. Watch the screen and\
   \ describe what the user is doing in a brief phrase.\nJust respond with:\n\nACTIVITY:\

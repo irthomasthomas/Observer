@@ -1,0 +1,405 @@
+[12:17:31] Looking for commands in: /Users/jay/repos/Observer/desktop/python/agents/agent_custom2/commands.py
+[12:17:31] Found commands.py, loading...
+[12:17:31] Commands module loaded. Available commands: ['ACTIVITY']
+[12:17:31] Agent initialized with registry commands: ['ACTIVITY']
+[12:17:37] === BEGIN COT BLOCK ===
+[12:17:37] === PROMPT ===
+[12:17:37] You are an AI assistant. Observe the screen and help the user.
+[12:17:37] Respond with one of these commands:
+[12:17:37] ACTIVITY: <description of what you see>
+[12:17:37] === SCREEN CONTENT ===
+[12:17:37] Last login: Tue Feb 18 11:06:43 on ttys0Q00
+[12:17:37] jay@Qunix ~ % ollama serve
+[12:17:37] 2025/02/18 12:12:13 routes .gou gy TAIFN es aan fs nw es | ee bes ies et mY Bhcouee oOTTh AARAVV. AIN AARAVVY. Al | ARAA AFP. £2.71 ~~ OLLAMA_FLASH_A
+[12:17:37] TTENTION: false OLLAMA_GPU_OVE )LLAMA_LLM_LIBR
+[12:17:37] ARY: OLLAMA_LOAD_TIMEOUT:5mQs OLLAMA_MULTIUS
+[12:17:37] ER_CACHE: false OLLAMA_NOHIST( Observer )s:// localhost
+[12:17:37] http:// localhost: https: localhost:11434 v Connected //0.0.0.@ http
+[12:17:37] : fe http_proxy:
+[12:17:37] S://0.0.0.0 http://0.0.0.
+[12:17:37] https_p roxy: no_p roxy: G Active Agents: 0 / Total: 4
+[12:17:37] time=2025-02-18T12:12:
+[12:17:37] time=2025-@2-18T12:
+[12:17:37] time=2025-02-18T12: : " New Agent Simple Activity Agent
+[12:17:37] time=2025-0@2-18T12:12:
+[12:17:37] time=2025-02-18T12:12:13.445- stopped stopped ‘x2 compute=""
+[12:17:37] driver=0.0 name="""_ total="32.
+[12:17:37] [ GIN ] 2025 / Q2 / 18 - 12:12:19 | Model: deepseek-r1:7b Model: deepseek-r1:7b
+[12:17:37] A custom agent Tracks all activity
+[12:17:37] VV Show Logs \V Show CoT VV Show Logs \V Show CoT
+[12:17:37] Command Tracking Agent Timestamp Agent
+[12:17:37] stopped stopped
+[12:17:37] Model: deepseek-r1:8b Model: deepseek-r1:7b
+[12:17:37] Tracks the CLI commands you use Records all user activity on a file
+[12:17:37] VV Show Logs \V Show CoT VV Show Logs \V Show CoT
+[12:21:40] === RESPONSE ===
+[12:21:40] <think>
+[12:21:40] Okay, let's see what the user provided. They included some system output from running `ollama serve`, which shows logs and statuses of an Ollama server. The output includes details like models being loaded, active agents, command tracking status, etc.
+[12:21:40] The user mentioned that they are using an AI assistant to help them, so I need to figure out what action they want me to take based on this information. They also instructed me to respond with one of the commands: ACTIVITY or something else if necessary.
+[12:21:40] Looking at the output, it seems like everything is running smoothly—there's a good number of active agents, models are loaded correctly, command tracking is set up and working. There's no mention of any errors or issues that need fixing. 
+[12:21:40] So, my role here isn't to report problems but to inform if all is well. The appropriate response would be "ACTIVITY: All systems operational," which indicates that the server is running without any reported issues.
+[12:21:40] </think>
+[12:21:40] ACTIVITY: All systems operational
+[12:21:40] === END COT BLOCK ===
+[12:21:40] Found command: ACTIVITY with params: ['All systems operational']
+[12:21:40] Executing command: ACTIVITY: All systems operational
+[12:21:40] Processing command: ACTIVITY
+[12:21:40] Current registry commands: ['ACTIVITY']
+[12:21:40] Executing ACTIVITY with params: All systems operational
+[12:21:44] === BEGIN COT BLOCK ===
+[12:21:44] === PROMPT ===
+[12:21:44] You are an AI assistant. Observe the screen and help the user.
+[12:21:44] Respond with one of these commands:
+[12:21:44] ACTIVITY: <description of what you see>
+[12:21:44] === SCREEN CONTENT ===
+[12:21:44] Llama_kv_cache_init: kv_size = 8192, offload = 1, type_k = 'f16', type_v = 'f16', n_layer = 28, can_shift
+[12:21:44] Llama_kv_cache_init: CPU KV buffer size = 448.00 MiB
+[12:21:44] Llama_new_context_with_model: An anT&l A+. — AAO AN K=ZD iy (£4F\. FO RA = \i /£4F\. AVA AN M.D
+[12:21:44] Llama_new_context_with_modelL:
+[12:21:44] Llama_new_context_with_modelL: Observer
+[12:21:44] Llama_new_context_with_modelL:
+[12:21:44] Llama_new_context_with_modelL: locathost:11434 v Connected
+[12:21:44] time=2025-@2-18T12:17:40.251-
+[12:21:44] Llama_model_loader: loaded m¢ G Active Agents: 1 / Total: 4 '56-96c415656d3
+[12:21:44] 7T7afbf f962F6cdb2394ab092cchci
+[12:21:44] Llama_model_loader: Dumping 1
+[12:21:44] Llama_model_loader: —- kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv ; Command Tracking Agent Timestamp Agent
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv | stopped ss act man omen
+[12:21:44] Llama_model_loader: kv |, 1, 1, 1,
+[12:21:44] Llama_model_loader: kv ; Model: deepseek-r1:8b Model: deepseek-r1:7b Ft" pees
+[12:21:44] Ll am a_mo del_l fe) ader: kv ' Tracks the CLI commands you use Records all user activity on a file
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader: kv
+[12:21:44] Llama_model_loader:
+[12:21:44] Llama_model_loader: ' VV Show Logs \V Show CoT VV Show Logs \V Show CoT
+[12:21:44] Llama_model_loader:
+[12:21:44] Llama_model_loader:
+[12:21:44] Llama_model_loader:
+[12:21:44] Llama_model_loader:
+[12:21:44] Llama_model_loader:
+[12:21:44] Llm_load_vocab: special_eos_}
+[12:21:44] Llm_load_vocab: special toker™
+[12:21:44] New Agent Simple Activity Agent
+[12:21:44] running stopped
+[12:21:44] Model: deepseek-r1:7b Model: deepseek-r1:7b
+[12:21:44] A custom agent Tracks all activity
+[12:21:44] VV Show Logs VV Show CoT VV Show Logs VV Show CoT
+[12:21:44] OCONOAOUBWNEF &
+[12:23:18] Error in observation loop: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+[12:23:22] === BEGIN COT BLOCK ===
+[12:23:22] === PROMPT ===
+[12:23:22] You are an AI assistant. Observe the screen and help the user.
+[12:23:22] Respond with one of these commands:
+[12:23:22] ACTIVITY: <description of what you see>
+[12:23:22] === SCREEN CONTENT ===
+[12:23:22] ‘@e0@
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] Llama_model_loader:
+[12:23:22] - kv
+[12:23:22] - kv
+[12:23:22] - kv
+[12:23:22] - kv
+[12:23:22] - kv
+[12:23:22] - kv
+[12:23:22] - kv
+[12:23:22] — typ
+[12:23:22] — typ
+[12:23:22] -— typ
+[12:23:22] e £32:
+[12:23:22] e q4_K:
+[12:23:22] e q6_K:
+[12:23:22] ollama serve
+[12:23:22] tokenizer.ggml.bos_token_id
+[12:23:22] tokenizer.ggml.eos_token_id
+[12:23:22] tokenizer.ggml.padding_token_id
+[12:23:22] tokenizer.ggml.add_bos_token
+[12:23:22] tokenizer.ggml.add_eos_token
+[12:23:22] tokenizer. chat_template
+[12:23:22] general.quantization_version
+[12:23:22] 141 tensors
+[12:23:22] 169 tensors
+[12:23:22] 29 tensors
+[12:23:22] llm_load_vocab: special_eos_id is not in special_eog_ids - the tokenizer
+[12:23:22] Lllm_load_vocab: special tokens cache size = 22
+[12:23:22] llm_load_vocab: token to piece cache size = 0.9310 MB
+[12:23:22] format
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] Llm_load_print_meta:
+[12:23:22] arch
+[12:23:22] voca
+[12:23:22] n_vo
+[12:23:22] b type
+[12:23:22] cab
+[12:23:22] n_merges
+[12:23:22] voca
+[12:23:22] b_only
+[12:23:22] model type
+[12:23:22] model ftype
+[12:23:22] model params
+[12:23:22] model size
+[12:23:22] general.name
+[12:23:22] BOS
+[12:23:22] EOS
+[12:23:22] EOT
+[12:23:22] AND)
+[12:23:22] LF t
+[12:23:22] FIM
+[12:23:22] EOG
+[12:23:22] EOG
+[12:23:22] max
+[12:23:22] token
+[12:23:22] token
+[12:23:22] token
+[12:23:22] token
+[12:23:22] oken
+[12:23:22] PRE token
+[12:23:22] SUF token
+[12:23:22] MID token
+[12:23:22] PAD token
+[12:23:22] REP token
+[12:23:22] SEP token
+[12:23:22] token
+[12:23:22] token
+[12:23:22] token
+[12:23:22] token
+[12:23:22] token length
+[12:23:22] GGUF V3 (latest)
+[12:23:22] qwen2
+[12:23:22] BPE
+[12:23:22] 152064
+[12:23:22] 151387
+[12:23:22] 1
+[12:23:22] ?B
+[12:23:22] all F32
+[12:23:22] 7.62 B
+[12:23:22] 4.36 GiB (4.91 BPW)
+[12:23:22] DeepSeek R1 Distill Qwen 7B
+[12:23:22] 151646 '<| begin_of_sentence | >'
+[12:23:22] 151643 '<| end_of_sentence | >'
+[12:23:22] 151643 '<| end_of_sentence| >'
+[12:23:22] 151643 '<| end_of_sentence| >'
+[12:23:22] 148848 'AI'
+[12:23:22] 151659 '<|fim_prefix|>'
+[12:23:22] 151661 '<|fim_suffix|>'
+[12:23:22] 151660 '<|fim_middle|>'
+[12:23:22] 151662 '<|fim_pad|>'
+[12:23:22] 151663 '<|repo_name|>'
+[12:23:22] 151664 '<|file_sep|>'
+[12:23:22] 151643 '<| end_of_sentence| >'
+[12:23:22] 151662 '<|fim_pad|>'
+[12:23:22] 151663 '<|repo_name|>'
+[12:23:22] 151664 '<|file_sep|>'
+[12:23:22] 256
+[12:23:22] Llama_model_load: vocab only —- skipping tensors
+[12:23:22] | 4m3s | 127.0.0.1 |§ROST "/api/generate"
+[12:23:22] [GIN] 2025/02/18 - 12:21:40 | 200m
+[12:23:22] u32 = 151646
+[12:23:22] u32 = 151643
+[12:23:22] u32 = 151643
+[12:23:22] bool = true
+[12:23:22] bool = false
+[12:23:22] str = {% if not add_generation_prompt is de...
+[12:23:22] config may be incorrect
+[12:23:22] Error in observation loop: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x12823e2d0>: Failed to establish a new connection: [Errno 61] Connection refused'))
+[12:23:27] === BEGIN COT BLOCK ===
+[12:23:27] === PROMPT ===
+[12:23:27] You are an AI assistant. Observe the screen and help the user.
+[12:23:27] Respond with one of these commands:
+[12:23:27] ACTIVITY: <description of what you see>
+[12:23:27] === SCREEN CONTENT ===
+[12:23:27] ‘@e0@
+[12:23:27] Llama_model_loader:
+[12:23:27] Llama_model_loader:
+[12:23:27] Llama_model_loader:
+[12:23:27] Llama_model_loader:
+[12:23:27] Llama_model_loader:
+[12:23:27] Llama_model_loader:
+[12:23:27] Llama_model_loader:
+[12:23:27] Llama_model_loader:
+[12:23:27] Llama_model_loader:
+[12:23:27] kv 20:
+[12:23:27] kv 21:
+[12:23:27] kv 22:
+[12:23:27] kv 23:
+[12:23:27] kv 24:
+[12:23:27] kv 25:
+[12:23:27] type f32:
+[12:23:27] type q4_K:
+[12:23:27] type q6_K:
+[12:23:27] tokenizer.ggml.eos_token_id
+[12:23:27] tokenizer.ggml.padding_token_id
+[12:23:27] tokenizer.ggml.add_bos_token
+[12:23:27] tokenizer.ggml.add_eos_token
+[12:23:27] tokenizer. chat_template
+[12:23:27] general. quantization_version
+[12:23:27] 141 tensors
+[12:23:27] 169 tensors
+[12:23:27] 29 tensors
+[12:23:27] llm_load_vocab: special_eos_id is not in special_eog_ids - the tokenizer
+[12:23:27] Lllm_load_vocab: special tokens cache size = 22
+[12:23:27] llm_load_vocab: token to piece cache size = 0.9310 MB
+[12:23:27] format
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] Llm_load_print_meta:
+[12:23:27] arch
+[12:23:27] vocab type
+[12:23:27] n_vo
+[12:23:27] cab
+[12:23:27] n_merges
+[12:23:27] vocab_only
+[12:23:27] model type
+[12:23:27] model ftype
+[12:23:27] model params
+[12:23:27] model size
+[12:23:27] general.name
+[12:23:27] BOS token
+[12:23:27] EOS token
+[12:23:27] EOT token
+[12:23:27] PAD token
+[12:23:27] LF token
+[12:23:27] FIM
+[12:23:27] FIM
+[12:23:27] FIM
+[12:23:27] FIM
+[12:23:27] FIM
+[12:23:27] FIM
+[12:23:27] E0G
+[12:23:27] E0G
+[12:23:27] E0G
+[12:23:27] E0G
+[12:23:27] max
+[12:23:27] PRE
+[12:23:27] SUF
+[12:23:27] MID
+[12:23:27] a ND)
+[12:23:27] REP
+[12:23:27] SEP
+[12:23:27] tok
+[12:23:27] tok
+[12:23:27] tok
+[12:23:27] tok
+[12:23:27] token length
+[12:23:27] token
+[12:23:27] token
+[12:23:27] token
+[12:23:27] token
+[12:23:27] token
+[12:23:27] token
+[12:23:27] en
+[12:23:27] en
+[12:23:27] en
+[12:23:27] en
+[12:23:27] GGUF V3 (latest)
+[12:23:27] qwen2
+[12:23:27] BPE
+[12:23:27] 152064
+[12:23:27] 151387
+[12:23:27] 1
+[12:23:27] ?B
+[12:23:27] all F32
+[12:23:27] 7.62 B
+[12:23:27] 4.36 GiB (4.91 BPW)
+[12:23:27] DeepSeek R1 Distill Qwen 7B
+[12:23:27] 151646 '<| begin_of_sentence | >'
+[12:23:27] 151643 '<| end_of_sentence | >'
+[12:23:27] 151643 '<| end_of_sentence| >'
+[12:23:27] 151643 '<| end_of_sentence| >'
+[12:23:27] 148848 'AI'
+[12:23:27] 151659 '<|fim_prefix|>'
+[12:23:27] 151661 '<|fim_suffix|>'
+[12:23:27] 151660 '<|fim_middle|>'
+[12:23:27] 151662 '<|fim_pad|>'
+[12:23:27] 151663 '<|repo_name|>'
+[12:23:27] 151664 '<|file_sep|>'
+[12:23:27] 151643 '<| end_of_sentence| >'
+[12:23:27] 151662 '<|fim_pad|>'
+[12:23:27] 151663 '<|repo_name|>'
+[12:23:27] 151664 '<|file_sep|>'
+[12:23:27] 256
+[12:23:27] Llama_model_load: vocab only —- skipping tensors
+[12:23:27] [GIN] 2025/02/18 -— 12:21:40 |
+[12:23:27] AC{GIN] 2025/02/18 — 12:23:18 |
+[12:23:27] jay@Qunix ~ %
+[12:23:27] u32 = 151643
+[12:23:27] u32 = 151643
+[12:23:27] bool = true
+[12:23:27] bool = false
+[12:23:27] str = {% if not add_generation_prompt is de...
+[12:23:27] u32 = 2
+[12:23:27] config may be incorrect
+[12:23:27] 4m3s | 127.0.0.1 | "/api/generate"
+[12:23:27] | 1m33s | 127.0.0.1 | "/api/generate"
+[12:23:27] Error in observation loop: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10face0f0>: Failed to establish a new connection: [Errno 61] Connection refused'))

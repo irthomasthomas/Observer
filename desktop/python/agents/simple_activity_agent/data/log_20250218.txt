@@ -1,0 +1,12 @@
+[11:02:50] Looking for commands in: /Users/jay/repos/Observer/desktop/python/agents/simple_activity_agent/commands.py
+[11:02:50] Found commands.py, loading...
+[11:02:50] Commands module loaded. Available commands: ['ACTIVITY']
+[11:02:50] Agent initialized with registry commands: ['ACTIVITY']
+[11:03:32] Looking for commands in: /Users/jay/repos/Observer/desktop/python/agents/simple_activity_agent/commands.py
+[11:03:32] Found commands.py, loading...
+[11:03:32] Commands module loaded. Available commands: ['ACTIVITY']
+[11:03:32] Agent initialized with registry commands: ['ACTIVITY']
+[11:03:43] Looking for commands in: /Users/jay/repos/Observer/desktop/python/agents/simple_activity_agent/commands.py
+[11:03:43] Found commands.py, loading...
+[11:03:43] Commands module loaded. Available commands: ['ACTIVITY']
+[11:03:43] Agent initialized with registry commands: ['ACTIVITY']

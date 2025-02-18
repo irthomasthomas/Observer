@@ -59,3 +59,33 @@ h1 {
 .start-server-button.starting {
   background: #1976d2;
 }
+
+.add-agent-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background-color: #2563eb;
+  color: white;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-left: 16px;
+}
+
+.add-agent-button:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.add-agent-button:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.stats-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

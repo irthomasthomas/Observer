@@ -1,6 +1,6 @@
 import './App.css'
 import { useState, useEffect } from 'react';
-import { RotateCw, Edit2 } from 'lucide-react';
+import { RotateCw, Edit2, PlusCircle } from 'lucide-react';
 import EditAgentModal from './EditAgentModal';
 import LogViewer from './LogViewer';  
 
@@ -33,9 +33,17 @@ export function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(false);
 
   const handleEditClick = (agentId: string) => {
     setSelectedAgent(agentId);
+    setIsCreateMode(false);
+    setIsEditModalOpen(true);
+  };
+
+  const handleAddAgentClick = () => {
+    setSelectedAgent(null);
+    setIsCreateMode(true);
     setIsEditModalOpen(true);
   };
 
@@ -211,6 +219,15 @@ export function App() {
             <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
           <p>Active Agents: {agents.filter(a => a.status === 'running').length} / Total: {agents.length}</p>
+          <button
+            onClick={handleAddAgentClick}
+            className="add-agent-button"
+            disabled={serverStatus !== 'online'}
+            title={serverStatus !== 'online' ? 'Connect to Ollama server first' : 'Add new agent'}
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Add Agent</span>
+          </button>
         </div>
       </header>
 
@@ -252,13 +269,15 @@ export function App() {
         ))}
       </div>
 
-      {selectedAgent && (
+      {isEditModalOpen && (
         <EditAgentModal
           agentId={selectedAgent}
           isOpen={isEditModalOpen}
+          isCreateMode={isCreateMode}
           onClose={() => {
             setIsEditModalOpen(false);
             setSelectedAgent(null);
+            setIsCreateMode(false);
           }}
           onUpdate={fetchAgents}
         />

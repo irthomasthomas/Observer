@@ -35,6 +35,12 @@ class AgentConfig(BaseModel):
 class CodeUpdate(BaseModel):
     code: str
 
+class CreateAgentRequest(BaseModel):
+    agent_id: str
+    config: AgentConfig
+    code: str
+    commands: str
+
 config = GlobalConfig()
 
 # Configure logging
@@ -497,6 +503,64 @@ async def update_agent_commands(agent_id: str, commands: dict):
     except Exception as e:
         logger.error(f"Error updating agent commands: {e}")
         return {"error": f"Failed to update agent commands: {str(e)}"}
+
+@app.post("/agents/create")
+async def create_agent(request: CreateAgentRequest):
+    """Create a new agent with the provided configuration"""
+    try:
+        # Validate agent_id format
+        if not request.agent_id or not request.agent_id.replace('_', '').isalnum():
+            return {"error": "Invalid agent ID. Use only letters, numbers, and underscores."}
+            
+        # Create agent directory path
+        agents_dir = Path(__file__).parent / "agents"
+        agent_dir = agents_dir / request.agent_id
+        
+        # Check if agent already exists
+        if agent_dir.exists():
+            return {"error": f"Agent with ID '{request.agent_id}' already exists"}
+            
+        # Create agent directory
+        os.makedirs(agent_dir, exist_ok=True)
+        
+        # Create data subdirectory
+        data_dir = agent_dir / "data"
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # Create config.yaml file
+        config_path = agent_dir / "config.yaml"
+        with open(config_path, 'w') as f:
+            yaml.dump({
+                "name": request.config.name,
+                "description": request.config.description,
+                "model_name": request.config.model_name,
+                "system_prompt": request.config.system_prompt
+            }, f)
+            
+        # Create agent.py file
+        agent_path = agent_dir / "agent.py"
+        with open(agent_path, 'w') as f:
+            f.write(request.code)
+            
+        # Create commands.py file
+        commands_path = agent_dir / "commands.py"
+        with open(commands_path, 'w') as f:
+            f.write(request.commands)
+            
+        logger.info(f"Successfully created new agent: {request.agent_id}")
+        return {"status": "created", "agent_id": request.agent_id}
+        
+    except Exception as e:
+        logger.error(f"Error creating agent: {e}", exc_info=True)
+        # Clean up any partial files if an error occurred
+        if 'agent_dir' in locals() and agent_dir.exists():
+            try:
+                import shutil
+                shutil.rmtree(agent_dir)
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up after failed agent creation: {cleanup_error}")
+                
+        raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
