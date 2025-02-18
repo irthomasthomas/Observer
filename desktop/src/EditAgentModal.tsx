@@ -3,6 +3,7 @@ import { X, PlusCircle } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
+import './styles/modal.css';
 
 interface EditAgentModalProps {
   agentId: string;

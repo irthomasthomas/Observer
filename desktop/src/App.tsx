@@ -4,6 +4,13 @@ import { RotateCw, Edit2 } from 'lucide-react';
 import EditAgentModal from './EditAgentModal';
 import LogViewer from './LogViewer';  
 
+import './styles/layout.css';
+import './styles/header.css';
+import './styles/agents.css';
+import './styles/status.css';
+import './styles/buttons.css';
+import './styles/modal.css';
+
 interface Agent {
   id: string;
   name: string;

@@ -1,0 +1,61 @@
+/* styles/header.css */
+header {
+  margin-bottom: 20px;
+}
+
+h1 {
+  margin: 0;
+  margin-bottom: 10px;
+}
+
+.server-config {
+  margin-bottom: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.server-input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  flex: 1;
+  max-width: 200px;
+}
+
+.server-check-button,
+.start-server-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.server-check-button {
+  background: #f5f5f5;
+}
+
+.server-check-button.online {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.server-check-button.offline {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.start-server-button {
+  background: #2196f3;
+  color: white;
+}
+
+.start-server-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.start-server-button.starting {
+  background: #1976d2;
+}

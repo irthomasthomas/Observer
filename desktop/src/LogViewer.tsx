@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Pause, Play } from 'lucide-react';
+import './styles/logviewer.css';
 
 interface Log {
   timestamp: string;
@@ -16,8 +17,8 @@ const LogViewer = ({ agentId }: LogViewerProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewType, setViewType] = useState<'logs' | 'cot' | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const MAX_LOGS = 15;
 
   const fetchLogs = async () => {
     try {
@@ -28,14 +29,12 @@ const LogViewer = ({ agentId }: LogViewerProps) => {
       const data = await response.json();
       if ('error' in data) throw new Error(data.error);
       
-      // Filter logs based on view type
       const filteredLogs = data
         .filter((log: Log) => viewType === 'cot' ? log.type === 'cot' : log.type === 'action')
-        .slice(0, MAX_LOGS);
+        .slice(0, 15);
       
       setLogs(filteredLogs);
       
-      // Auto-scroll to bottom for new logs
       if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
@@ -49,29 +48,39 @@ const LogViewer = ({ agentId }: LogViewerProps) => {
   useEffect(() => {
     if (viewType) {
       fetchLogs();
-      const interval = setInterval(fetchLogs, 2000);
-      return () => clearInterval(interval);
+      let intervalId: number | undefined;
+      
+      if (autoRefresh) {
+        intervalId = window.setInterval(fetchLogs, 2000);
+      }
+      
+      return () => {
+        if (intervalId !== undefined) {
+          window.clearInterval(intervalId);
+        }
+      };
     }
-  }, [viewType, agentId]);
+  }, [viewType, agentId, autoRefresh]);
 
   const handleViewToggle = (type: 'logs' | 'cot') => {
     setViewType(viewType === type ? null : type);
   };
 
-  // Extract content between <think> tags
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(!autoRefresh);
+  };
+
   const extractThinkContent = (message: string) => {
     const thinkMatch = message.match(/<think>([\s\S]*?)<\/think>/);
     return thinkMatch ? thinkMatch[1].trim() : message;
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-4">
-      <div className="flex gap-4 mb-4">
+    <div className="log-viewer">
+      <div className="log-controls">
         <button 
           onClick={() => handleViewToggle('logs')}
-          className={`flex items-center gap-2 px-4 py-2 rounded ${
-            viewType === 'logs' ? 'bg-blue-500 text-white' : 'bg-gray-200'
-          }`}
+          className={`log-button logs ${viewType === 'logs' ? 'active' : ''}`}
         >
           {viewType === 'logs' ? <ChevronUp /> : <ChevronDown />}
           <span>{viewType === 'logs' ? 'Hide' : 'Show'} Logs</span>
@@ -79,64 +88,59 @@ const LogViewer = ({ agentId }: LogViewerProps) => {
         
         <button 
           onClick={() => handleViewToggle('cot')}
-          className={`flex items-center gap-2 px-4 py-2 rounded ${
-            viewType === 'cot' ? 'bg-green-500 text-white' : 'bg-gray-200'
-          }`}
+          className={`log-button cot ${viewType === 'cot' ? 'active' : ''}`}
         >
           {viewType === 'cot' ? <ChevronUp /> : <ChevronDown />}
           <span>{viewType === 'cot' ? 'Hide' : 'Show'} CoT</span>
         </button>
 
         {viewType && (
-          <button
-            onClick={fetchLogs}
-            className={`p-2 rounded ${isLoading ? 'animate-spin' : ''}`}
-            disabled={isLoading}
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
+          <div className="refresh-controls">
+            <button
+              onClick={fetchLogs}
+              className={`refresh-button ${isLoading ? 'spinning' : ''}`}
+              disabled={isLoading}
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+            <button
+              onClick={toggleAutoRefresh}
+              className={`auto-refresh-button ${autoRefresh ? 'active' : ''}`}
+              title={autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
+            >
+              {autoRefresh ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+            </button>
+          </div>
         )}
       </div>
       
       {error && (
-        <div className="text-red-500 mb-4">
+        <div className="error-message">
           Error: {error}
         </div>
       )}
 
       {viewType && (
-        <div ref={scrollRef} className="border rounded-lg max-h-96 overflow-y-auto">
-          <div className="p-4 space-y-4">
-            {logs.length === 0 ? (
-              <div className="text-gray-500 text-center py-4">
-                No {viewType === 'cot' ? 'Chain of Thought' : 'logs'} available
-              </div>
-            ) : (
-              [...logs].reverse().map((log, index) => (
-                <div 
-                  key={index} 
-                  className={`p-3 rounded ${
-                    viewType === 'cot' 
-                      ? 'bg-gray-50' 
-                      : 'bg-white border'
-                  }`}
-                >
-                  <div className="text-sm text-gray-500 mb-1">
-                    [{log.timestamp}]
-                  </div>
-                  <div className={`${
-                    viewType === 'cot' 
-                      ? 'whitespace-pre-wrap font-mono text-sm' 
-                      : ''
-                  }`}>
-                    {viewType === 'cot' 
-                      ? extractThinkContent(log.message)
-                      : log.message}
-                  </div>
+        <div ref={scrollRef} className="logs-container">
+          {logs.length === 0 ? (
+            <div className="no-logs">
+              No {viewType === 'cot' ? 'Chain of Thought' : 'logs'} available
+            </div>
+          ) : (
+            [...logs].reverse().map((log, index) => (
+              <div 
+                key={index} 
+                className={`log-entry ${viewType === 'cot' ? 'cot' : ''}`}
+              >
+                <div className="log-timestamp">
+                  [{log.timestamp}]
                 </div>
-              ))
-            )}
-          </div>
+                <div className={`log-message ${viewType === 'cot' ? 'cot' : ''}`}>
+                  {viewType === 'cot' ? extractThinkContent(log.message) : log.message}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
