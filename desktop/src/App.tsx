@@ -2,7 +2,8 @@ import './App.css'
 import { useState, useEffect } from 'react';
 import { RotateCw, Edit2, PlusCircle } from 'lucide-react';
 import EditAgentModal from './EditAgentModal';
-import LogViewer from './LogViewer';  
+import LogViewer from './LogViewer';
+import StartupDialogs from './StartupDialogs';
 
 import './styles/layout.css';
 import './styles/header.css';
@@ -10,6 +11,7 @@ import './styles/agents.css';
 import './styles/status.css';
 import './styles/buttons.css';
 import './styles/modal.css';
+import './styles/dialog.css';
 
 interface Agent {
   id: string;
@@ -34,6 +36,7 @@ export function App() {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
+  const [showStartupDialog, setShowStartupDialog] = useState(true);
 
   const handleEditClick = (agentId: string) => {
     setSelectedAgent(agentId);
@@ -45,6 +48,10 @@ export function App() {
     setSelectedAgent(null);
     setIsCreateMode(true);
     setIsEditModalOpen(true);
+  };
+
+  const handleDismissStartupDialog = () => {
+    setShowStartupDialog(false);
   };
 
   const updateServerConfig = async (host: string, port: string) => {
@@ -97,21 +104,43 @@ export function App() {
   const startOllamaServer = async () => {
     try {
       setIsStartingServer(true);
+      setError(null); // Clear any previous errors
+      
+      // Show a starting message
+      setError('Starting Ollama server, please wait...');
+      
       const response = await fetch('http://localhost:8000/config/start-ollama', {
         method: 'POST'
       });
       
+      const data = await response.json();
+      
       if (response.ok) {
-        setError(null);
-        setTimeout(checkOllamaServer, 2000);
+        if (data.status === 'success') {
+          setError(null);
+          // Wait a bit longer before checking server status to allow Ollama to fully initialize
+          setTimeout(checkOllamaServer, 3000);
+        } else if (data.status === 'unknown') {
+          // Server process started but couldn't be verified
+          setError(`${data.message}. Attempting to connect anyway...`);
+          setTimeout(checkOllamaServer, 3000);
+        } else {
+          // Other errors returned with 200 status
+          setError(data.error || 'Failed to start Ollama server');
+        }
       } else {
-        const data = await response.json();
-        setError(data.error || 'Failed to start Ollama server');
+        const errorDetail = data.error || data.detail || 'Unknown error occurred';
+        setError(`Server error: ${errorDetail}`);
+        console.error('Server error response:', data);
       }
     } catch (err) {
-      setError('Failed to start Ollama server');
+      console.error('Error in startOllamaServer:', err);
+      setError(`Failed to communicate with backend server: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
-      setIsStartingServer(false);
+      // Keep the starting state for a minimum time to avoid UI flashing
+      setTimeout(() => {
+        setIsStartingServer(false);
+      }, 1000);
     }
   };
 
@@ -179,10 +208,18 @@ export function App() {
 
   useEffect(() => {
     fetchAgents();
+    checkOllamaServer();
   }, []);
 
   return (
     <div className="container">
+      {showStartupDialog && (
+        <StartupDialogs 
+          serverStatus={serverStatus}
+          onDismiss={handleDismissStartupDialog} 
+        />
+      )}
+
       <header>
         <h1>Observer</h1>
         <div className="server-config">

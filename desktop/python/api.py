@@ -14,8 +14,11 @@ import yaml
 import logging
 from datetime import datetime, timedelta
 import re
-
-
+import psutil
+from typing import Tuple
+import traceback
+import platform
+import subprocess
 
 class ServerAddress(BaseModel):
     host: str
@@ -172,6 +175,33 @@ def run_agent(agent_id, agent):
             del running_agents[agent_id]
         if agent_id in agent_threads:
             del agent_threads[agent_id]
+
+def is_ollama_running() -> Tuple[bool, str]:
+    """
+    Checks if Ollama server is already running.
+    
+    Returns:
+        Tuple containing:
+        - Boolean indicating if Ollama is running
+        - Process ID as string if running, empty string if not
+    """
+    # Method 1: Check if the process is running
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            if 'ollama' in proc.info['name'].lower():
+                return True, str(proc.info['pid'])
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+    
+    # Method 2: Try to connect to the default Ollama endpoint
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=1)
+        if response.status_code == 200:
+            return True, "unknown"  # Running but couldn't find the process
+    except requests.RequestException:
+        pass
+        
+    return False, ""
 
 
 @app.get("/agents")
@@ -561,6 +591,114 @@ async def create_agent(request: CreateAgentRequest):
                 logger.error(f"Error cleaning up after failed agent creation: {cleanup_error}")
                 
         raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(e)}")
+
+
+@app.post("/config/start-ollama")
+async def start_ollama_server():
+    """
+    Attempts to start the Ollama server as a background process with enhanced logging.
+    Returns success or error message.
+    """
+    logger.info("Received request to start Ollama server")
+    
+    # First check if Ollama is already running
+    try:
+        is_running, pid = is_ollama_running()
+        if is_running:
+            logger.info(f"Ollama server is already running with PID: {pid}")
+            return {"status": "success", "message": f"Ollama server is already running with PID: {pid}"}
+    except Exception as e:
+        logger.error(f"Error checking if Ollama is running: {str(e)}")
+        # Continue anyway to try starting the server
+    
+    # Check if ollama is installed
+    try:
+        # Just check if we can find the executable
+        which_result = subprocess.run(
+            ["which" if platform.system() != "Windows" else "where", "ollama"], 
+            capture_output=True, 
+            text=True
+        )
+        if which_result.returncode != 0:
+            logger.error("Ollama executable not found in PATH")
+            return {
+                "status": "error", 
+                "error": "Ollama executable not found. Please make sure Ollama is installed and in your PATH."
+            }
+        else:
+            ollama_path = which_result.stdout.strip()
+            logger.info(f"Found Ollama at: {ollama_path}")
+    except Exception as e:
+        logger.error(f"Error checking for Ollama executable: {str(e)}")
+    
+    try:
+        system = platform.system()
+        logger.info(f"Detected operating system: {system}")
+        
+        if system == "Windows":
+            # For Windows
+            logger.info("Attempting to start Ollama on Windows")
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            
+            process = subprocess.Popen(
+                ["cmd", "/c", "start", "/b", "ollama", "serve"],
+                startupinfo=startupinfo,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            logger.info(f"Windows process started with PID: {process.pid}")
+            
+        elif system == "Darwin":  # macOS
+            # Simpler approach for macOS
+            logger.info("Attempting to start Ollama on macOS")
+            process = subprocess.Popen(
+                ["ollama", "serve"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            logger.info(f"macOS process started with PID: {process.pid}")
+            
+        else:  # Linux and other Unix-like systems
+            logger.info("Attempting to start Ollama on Linux/Unix")
+            # Don't use shell=True for security, use explicit command list
+            # Use preexec_fn to create a new session
+            process = subprocess.Popen(
+                ["ollama", "serve"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                preexec_fn=os.setsid
+            )
+            logger.info(f"Linux process started with PID: {process.pid}")
+        
+        # Give Ollama a moment to start
+        import time
+        time.sleep(2)
+        
+        # Verify Ollama started successfully
+        verification_attempt = is_ollama_running()
+        if verification_attempt[0]:
+            logger.info(f"Successfully verified Ollama is now running with PID: {verification_attempt[1]}")
+            return {"status": "success", "message": "Ollama server started and verified running"}
+        else:
+            logger.warning("Started Ollama process but couldn't verify it's running")
+            return {
+                "status": "unknown", 
+                "message": "Ollama process was started but couldn't verify if it's running properly"
+            }
+            
+    except FileNotFoundError as fnf:
+        error_msg = f"Ollama executable not found: {str(fnf)}"
+        logger.error(error_msg)
+        return {"status": "error", "error": error_msg}
+        
+    except Exception as e:
+        error_msg = f"Failed to start Ollama server: {str(e)}\n{traceback.format_exc()}"
+        logger.error(error_msg)
+        return {"status": "error", "error": str(e)}
+
 
 if __name__ == "__main__":
     import uvicorn
