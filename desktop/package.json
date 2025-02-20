@@ -1,10 +1,11 @@
 {
   "name": "@observer/desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "pre-build": "sh python/setup_bundled_python.sh",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"

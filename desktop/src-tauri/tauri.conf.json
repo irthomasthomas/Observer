@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "identifier": "com.observer.dev",
   "productName": "Observer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "build": {
     "frontendDist": "../dist"
   },

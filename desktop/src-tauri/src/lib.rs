@@ -51,45 +51,42 @@ fn start_python_api(app_handle: &tauri::AppHandle) {
     log_to_file("Attempting to start Python API...");
     check_and_clear_port();
 
-    // Get resource path and directory
-    match app_handle.path().resolve("python/api.py", tauri::path::BaseDirectory::Resource) {
-        Ok(path) => {
-            let resource_dir = path.parent().unwrap();
+    match app_handle.path().resolve("python", tauri::path::BaseDirectory::Resource) {
+        Ok(python_dir) => {
+            let api_path = python_dir.join("api.py");
+            let python_exe = python_dir.join("python-bundle/bin/python3");
             
-            // Create error log path
-            let error_log = if cfg!(target_os = "windows") {
-                "C:\\Temp\\observer_error.txt"
-            } else {
-                "/tmp/observer_error.txt"
-            };
-            
-            // Open error log file
-            let err_file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(error_log)
-                .expect("Failed to open error log");
-                
-            // Redirect stderr to file
-            let child = Command::new("python3")
-                .arg(path.to_str().unwrap())
-                .current_dir(resource_dir)
-                .stdout(Stdio::null())
-                .stderr(Stdio::from(err_file))
+            // Start process with the known working path
+            let child = Command::new(python_exe.to_str().unwrap())
+                .arg(api_path.to_str().unwrap())
+                .current_dir(&python_dir)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
                 .spawn();
                 
-            // Log process info
-            match &child {
-                Ok(process) => log_to_file(&format!("Started API with PID: {}", process.id())),
-                Err(e) => log_to_file(&format!("Failed to start API: {}", e)),
+            if let Ok(mut process) = child {
+                if let Some(stderr) = process.stderr.take() {
+                    std::thread::spawn(move || {
+                        use std::io::{BufRead, BufReader};
+                        let reader = BufReader::new(stderr);
+                        for line in reader.lines() {
+                            if let Ok(line) = line {
+                                log_to_file(&format!("API stderr: {}", line));
+                            }
+                        }
+                    });
+                }
+                log_to_file(&format!("Started API with PID: {}", process.id()));
+                *PYTHON_PROCESS.lock().unwrap() = Some(process);
+            } else if let Err(e) = &child {
+                log_to_file(&format!("Failed to start API: {}", e));
             }
-            
-            *PYTHON_PROCESS.lock().unwrap() = child.ok();
         },
-        Err(e) => log_to_file(&format!("Failed to resolve path: {}", e)),
+        Err(e) => log_to_file(&format!("Failed to resolve python dir: {}", e)),
     }
 }
+
+
 
 // Rest of the functions remain the same
 fn check_and_clear_port() {

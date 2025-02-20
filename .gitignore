@@ -298,3 +298,5 @@ cython_debug/
 
 .DS_Store
 .DS_Store?
+desktop/src-tauri/target/*
+desktop/src-tauri/python/python-bundle
