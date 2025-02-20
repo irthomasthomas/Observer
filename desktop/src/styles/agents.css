@@ -67,3 +67,56 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.agent-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.schedule-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.schedule-button:hover {
+  background-color: #e0e0e0;
+}
+
+.schedules-list {
+  margin-top: 10px;
+}
+
+.schedule-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.schedule-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.schedule-name {
+  font-weight: bold;
+}
+
+.schedule-expression {
+  font-family: monospace;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.schedule-next-run {
+  font-size: 0.8em;
+  color: #888;
+}

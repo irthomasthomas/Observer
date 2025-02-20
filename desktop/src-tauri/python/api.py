@@ -1,30 +1,35 @@
+import io
+import json
+import os
+import platform
+import re
+import subprocess
+import sys
+import threading
+import time
+import traceback
+from collections import deque
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import List, Optional, Tuple
+import logging
+
+import importlib.util
+import psutil
+import requests
+import yaml
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import threading
-import os
-import importlib.util
-from pathlib import Path
-from core.base_agent import BaseAgent
 from pydantic import BaseModel
-import json
-from pathlib import Path
-import requests
-from typing import Optional
-import yaml
-import logging
-from datetime import datetime, timedelta
-import re
-import psutil
-from typing import Tuple
-import traceback
-import platform
-import subprocess
-from collections import deque
-import time
-import sys 
-import io
 
+# from apscheduler.schedulers.background import BackgroundScheduler
+# from apscheduler.triggers.cron import CronTrigger
+# from apscheduler.jobstores.base import JobLookupError
 
+from core.base_agent import BaseAgent
+
+# CONFIG CLASSES
 
 class ServerAddress(BaseModel):
     host: str
@@ -50,20 +55,6 @@ class CreateAgentRequest(BaseModel):
     code: str
     commands: str
 
-config = GlobalConfig()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Create a buffer to store logs
-log_buffer = deque(maxlen=1000)  # Store last 1000 log entries
-log_lock = threading.Lock()
-
-# Create a custom handler that writes to our buffer
 class BufferLogHandler(logging.Handler):
     def emit(self, record):
         try:
@@ -76,6 +67,34 @@ class BufferLogHandler(logging.Handler):
                 })
         except Exception:
             self.handleError(record)
+
+
+class ScheduleRequest(BaseModel):
+    agent_id: str
+    cron_expression: str  # e.g. "0 22 * * *" for 10PM daily
+    name: Optional[str] = None
+    
+class ScheduleResponse(BaseModel):
+    id: str
+    agent_id: str
+    cron_expression: str
+    name: Optional[str] = None
+    next_run_time: Optional[str] = None
+
+# INITIALIZATION
+
+config = GlobalConfig()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Create a buffer to store logs
+log_buffer = deque(maxlen=1000)  # Store last 1000 log entries
+log_lock = threading.Lock()
 
 # Add the handler to the root logger
 buffer_handler = BufferLogHandler()
@@ -99,58 +118,26 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-@app.post("/config/update-server")
-async def update_server(address: ServerAddress):
-    """Update global Ollama server address"""
-    config.ollama_host = address.host
-    config.ollama_port = address.port
-    return {"status": "updated"}
-
-@app.post("/config/check-server")
-async def check_server(address: ServerAddress):
-    """Check if Ollama server is accessible"""
-    try:
-        # Update the global config when checking
-        config.ollama_host = address.host
-        config.ollama_port = address.port
-        
-        response = requests.get(
-            f"http://{address.host}:{address.port}/",
-            timeout=5
-        )
-        if response.status_code == 200:
-            return {"status": "online"}
-        return {"status": "offline", "error": f"Server responded with status {response.status_code}"}
-    except requests.exceptions.ConnectionError:
-        return {"status": "offline", "error": "Could not connect to server"}
-    except requests.exceptions.Timeout:
-        return {"status": "offline", "error": "Connection timed out"}
-    except Exception as e:
-        logger.error(f"Error checking Ollama server: {e}")
-        return {"status": "offline", "error": str(e)}
-
-
-@app.middleware("http")
-async def debug_cors(request, call_next):
-    logger.debug(f"Incoming request from origin: {request.headers.get('origin')}")
-    logger.debug(f"Request headers: {request.headers}")
-    response = await call_next(request)
-    logger.debug(f"Response headers: {response.headers}")
-    return response
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "ok",
-        "timestamp": datetime.now().isoformat(),
-        "endpoints": ["/health", "/agents", "/agents/{agent_id}/start", "/agents/{agent_id}/stop"]
-    }
+# scheduler = BackgroundScheduler()
+# scheduler.start()
+#
+# # Path to store schedules
+# SCHEDULES_FILE = Path(__file__).parent / "schedules.json"
+#
+# # Initialize schedules file if it doesn't exist
+# if not SCHEDULES_FILE.exists():
+#     with open(SCHEDULES_FILE, 'w') as f:
+#         json.dump([], f)
 
 # Store running agents and threads
 running_agents = {}
 agent_threads = {}
 
+"""
+
+METHODS SECTION
+
+"""
 
 def discover_agents():
     """Scan the agents directory and return available agents"""
@@ -231,6 +218,155 @@ def is_ollama_running() -> Tuple[bool, str]:
         pass
         
     return False, ""
+
+# Load existing schedules on startup
+def load_schedules():
+    """Load schedules from JSON file"""
+    try:
+        with open(SCHEDULES_FILE, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        return []
+
+# Save schedules to file
+def save_schedules(schedules):
+    """Save schedules to JSON file"""
+    with open(SCHEDULES_FILE, 'w') as f:
+        json.dump(schedules, f, indent=2)
+
+# Schedule agent to run
+def schedule_agent_job(schedule_id, agent_id, cron_expression):
+    """Schedule an agent to run according to cron expression"""
+    logger.info(f"Scheduling agent {agent_id} with cron: {cron_expression}")
+    
+    def run_scheduled_agent():
+        """Function to run when the schedule triggers"""
+        logger.info(f"Running scheduled agent {agent_id} (schedule: {schedule_id})")
+        # We'll reuse the start_agent logic but need to handle the case
+        # where the agent is already running
+        if agent_id in running_agents:
+            logger.warning(f"Scheduled agent {agent_id} is already running")
+            return
+            
+        try:
+            # Find and load the agent class (simplified - using existing start_agent logic)
+            agent_path = Path(__file__).parent / "agents" / agent_id / "agent.py"
+            if not agent_path.exists():
+                logger.error(f"Scheduled agent path not found: {agent_path}")
+                return
+                
+            spec = importlib.util.spec_from_file_location("module", agent_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            agent_classes = [(name, cls) for name, cls in module.__dict__.items() 
+                          if name.endswith('Agent') and name != 'BaseAgent' and issubclass(cls, BaseAgent)]
+            
+            if not agent_classes:
+                logger.error(f"No agent class found for scheduled run: {agent_id}")
+                return
+            
+            agent_name, agent_class = agent_classes[0]
+            
+            # Create and start the agent
+            agent = agent_class(
+                agent_model="deepseek-r1:8b", 
+                host=config.ollama_host
+            )
+            running_agents[agent_id] = agent
+            
+            thread = threading.Thread(target=run_agent, args=(agent_id, agent))
+            agent_threads[agent_id] = thread
+            thread.start()
+            
+            logger.info(f"Successfully started scheduled agent: {agent_id}")
+        except Exception as e:
+            logger.error(f"Error starting scheduled agent: {e}", exc_info=True)
+    
+    # Add the job to the scheduler
+    job = scheduler.add_job(
+        run_scheduled_agent,
+        CronTrigger.from_crontab(cron_expression),
+        id=schedule_id,
+        replace_existing=True
+    )
+    
+    return job
+
+# Initialize schedules from file on startup
+def initialize_schedules():
+    """Initialize all schedules from the schedules file"""
+    logger.info("Initializing schedules from file")
+    schedules = load_schedules()
+    
+    for schedule in schedules:
+        try:
+            schedule_agent_job(
+                schedule['id'],
+                schedule['agent_id'],
+                schedule['cron_expression']
+            )
+            logger.info(f"Restored schedule: {schedule['id']} for agent: {schedule['agent_id']}")
+        except Exception as e:
+            logger.error(f"Failed to restore schedule {schedule['id']}: {e}")
+
+"""
+
+BEGIN
+
+FASTAPI SECTION
+
+POST AND GET REQUESTS
+
+"""
+
+@app.post("/config/update-server")
+async def update_server(address: ServerAddress):
+    """Update global Ollama server address"""
+    config.ollama_host = address.host
+    config.ollama_port = address.port
+    return {"status": "updated"}
+
+@app.post("/config/check-server")
+async def check_server(address: ServerAddress):
+    """Check if Ollama server is accessible"""
+    try:
+        # Update the global config when checking
+        config.ollama_host = address.host
+        config.ollama_port = address.port
+        
+        response = requests.get(
+            f"http://{address.host}:{address.port}/",
+            timeout=5
+        )
+        if response.status_code == 200:
+            return {"status": "online"}
+        return {"status": "offline", "error": f"Server responded with status {response.status_code}"}
+    except requests.exceptions.ConnectionError:
+        return {"status": "offline", "error": "Could not connect to server"}
+    except requests.exceptions.Timeout:
+        return {"status": "offline", "error": "Connection timed out"}
+    except Exception as e:
+        logger.error(f"Error checking Ollama server: {e}")
+        return {"status": "offline", "error": str(e)}
+
+
+@app.middleware("http")
+async def debug_cors(request, call_next):
+    logger.debug(f"Incoming request from origin: {request.headers.get('origin')}")
+    logger.debug(f"Request headers: {request.headers}")
+    response = await call_next(request)
+    logger.debug(f"Response headers: {response.headers}")
+    return response
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": ["/health", "/agents", "/agents/{agent_id}/start", "/agents/{agent_id}/stop"]
+    }
 
 
 @app.get("/agents")

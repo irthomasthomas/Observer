@@ -1,9 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import legacy from '@vitejs/plugin-legacy';
 
 export default defineConfig(async () => ({
-  plugins: [react()],
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+  plugins: [
+    react(),
+    legacy({
+      targets: ['chrome >= 87', 'safari >= 13'],
+      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
+      polyfills: true
+    })
+  ],
   clearScreen: false,
   server: {
     port: 1420,
@@ -16,26 +23,12 @@ export default defineConfig(async () => ({
     sourcemap: !!process.env.TAURI_DEBUG,
     rollupOptions: {
       output: {
-        manualChunks: {
-          codemirror: [
-            '@uiw/react-codemirror',
-            '@codemirror/lang-python',
-            '@uiw/codemirror-theme-vscode',
-            '@codemirror/state',
-            '@codemirror/view',
-            '@codemirror/language',
-            '@lezer/common',
-            '@lezer/highlight'
-          ]
+        manualChunks: (id) => {
+          if (id.includes('codemirror') || id.includes('lezer')) {
+            return 'codemirror';
+          }
         }
       }
     }
-  },
-  optimizeDeps: {
-    include: [
-      '@uiw/react-codemirror',
-      '@codemirror/lang-python',
-      '@uiw/codemirror-theme-vscode'
-    ]
   }
 }));

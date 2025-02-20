@@ -1,11 +1,12 @@
 import './App.css'
 import { useState, useEffect } from 'react';
-import { RotateCw, Edit2, PlusCircle, Terminal } from 'lucide-react';
+import { RotateCw, Edit2, PlusCircle, Terminal, Clock} from 'lucide-react';
 import EditAgentModal from './EditAgentModal';
 import LogViewer from './LogViewer';
 import StartupDialogs from './StartupDialogs';
 import TextBubble from './TextBubble';
 import GlobalLogsViewer from './GlobalLogsViewer';
+import ScheduleAgentModal from './ScheduleAgentModal';
 
 import './styles/layout.css';
 import './styles/header.css';
@@ -42,6 +43,8 @@ export function App() {
   const [showStartupDialog, setShowStartupDialog] = useState(false);
   const [showOllamaHelpBubble, setShowOllamaHelpBubble] = useState(false);
   const [showGlobalLogs, setShowGlobalLogs] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [schedulingAgentId, setSchedulingAgentId] = useState<string | null>(null);
 
   const handleEditClick = (agentId: string) => {
     setSelectedAgent(agentId);
@@ -53,6 +56,11 @@ export function App() {
     setSelectedAgent(null);
     setIsCreateMode(true);
     setIsEditModalOpen(true);
+  };
+
+  const handleScheduleClick = (agentId: string) => {
+    setSchedulingAgentId(agentId);
+    setIsScheduleModalOpen(true);
   };
 
   const handleDismissStartupDialog = () => {
@@ -243,8 +251,6 @@ export function App() {
       <header>
         <h1>Observer</h1>
 
-
-
         <div className="server-config">
           <div className="input-container">
             <input
@@ -279,8 +285,6 @@ export function App() {
             {isStartingServer ? 'Starting...' : 'Start Ollama Server'}
           </button>
         </div>
-
-
 
         <div className="stats-container">
           <button 
@@ -329,12 +333,22 @@ export function App() {
               <p className="description">{agent.config?.description || agent.description}</p>
             </div>
             
-            <button
-              onClick={() => toggleAgent(agent.id, agent.status)}
-              className={`button ${agent.status}`}
-            >
-              {agent.status === 'running' ? '⏹ Stop' : '▶️ Start'}
-            </button>
+            <div className="agent-actions">
+              <button
+                onClick={() => toggleAgent(agent.id, agent.status)}
+                className={`button ${agent.status}`}
+              >
+                {agent.status === 'running' ? '⏹ Stop' : '▶️ Start'}
+              </button>
+              
+              <button
+                onClick={() => handleScheduleClick(agent.id)}
+                className="schedule-button"
+                title="Schedule agent runs"
+              >
+                <Clock className="w-4 h-4" />
+              </button>
+            </div>
 
             <LogViewer agentId={agent.id} />
           </div>
@@ -350,6 +364,18 @@ export function App() {
             setIsEditModalOpen(false);
             setSelectedAgent(null);
             setIsCreateMode(false);
+          }}
+          onUpdate={fetchAgents}
+        />
+      )}
+      
+      {isScheduleModalOpen && schedulingAgentId && (
+        <ScheduleAgentModal
+          agentId={schedulingAgentId}
+          isOpen={isScheduleModalOpen}
+          onClose={() => {
+            setIsScheduleModalOpen(false);
+            setSchedulingAgentId(null);
           }}
           onUpdate={fetchAgents}
         />

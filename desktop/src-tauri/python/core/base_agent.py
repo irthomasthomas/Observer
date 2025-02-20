@@ -5,7 +5,7 @@ import re
 import importlib.util
 from datetime import datetime
 from pathlib import Path
-from core.commands import registry, command
+from core.activities import command, file, registry
 
 class BaseAgent:
     def __init__(self, agent_name, host="127.0.0.1", agent_model="deepseek-r1:7b"):
@@ -142,10 +142,9 @@ class BaseAgent:
                 
                 # Execute agent cycle
                 screen_text = self.capture.get_text(self.capture.take_screenshot())
-                state_data = self.get_state_data()
-                system_prompt = self.config['system_prompt'].format(**state_data)
-                prompt = f"{system_prompt}\nCurrent screen content:\n{screen_text}"
-                
+                prompt = registry.inject_files(self.config['system_prompt'])
+                prompt = f"{prompt}\nCurrent screen content:\n{screen_text}"
+                 
                 self.log("=== BEGIN COT BLOCK ===")
                 self.log("=== PROMPT ===")
                 self.log(system_prompt)
@@ -221,6 +220,3 @@ class BaseAgent:
             print(f"Error during agent stop: {e}")
             raise
 
-    def get_state_data(self):
-        """Override this to provide state data for prompt"""
-        return {}
