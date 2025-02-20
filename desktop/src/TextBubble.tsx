@@ -12,7 +12,7 @@ interface TextBubbleProps {
 const TextBubble: React.FC<TextBubbleProps> = ({
   message,
   position = 'top',
-  duration = 6000,
+  duration = 1000,
   icon = true
 }) => {
   const [visible, setVisible] = useState(true);

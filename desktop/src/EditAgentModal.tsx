@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { X, PlusCircle } from 'lucide-react';
-import CodeMirror from '@uiw/react-codemirror';
+import './styles/modal.css';
+
+// Lazy load only the CodeMirror component, not the extensions
+const LazyCodeMirror = lazy(() => import('@uiw/react-codemirror'));
+
+// Import extensions normally
 import { python } from '@codemirror/lang-python';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
-import './styles/modal.css';
 
 interface EditAgentModalProps {
   agentId: string | null;
@@ -28,47 +32,64 @@ interface CreateAgentRequest {
   commands: string;
 }
 
-type TabType = 'config' | 'actions' | 'code';
+type TabType = 'config' | 'actions';
+
 
 const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant. Observe the screen and help the user.
 
 Respond with one of these commands:
-ACTIVITY: <description of what you see>`;
+COMMAND: <tell the agent what to write on the command>`;
 
 const DEFAULT_AGENT_CODE = `from core.base_agent import BaseAgent
 
 class CustomAgent(BaseAgent):
     """A custom agent implementation"""
-    def __init__(self, host="127.0.0.1", agent_model="deepseek-r1:7b"):
+    def init(self, host="127.0.0.1", agent_model="deepseek-r1:7b"):
         super().__init__(agent_name="{agent_id}", host=host, agent_model=agent_model)`;
 
 const DEFAULT_COMMAND_TEMPLATE = `from core.commands import command
-from datetime import datetime
-from pathlib import Path
 
-def ensure_activity_file(agent):
-    """Ensure activity file exists and is ready for writing"""
-    data_dir = agent.data_path
-    activity_file = data_dir / "activities.txt"
-    
-    data_dir.mkdir(exist_ok=True)
-    
-    if not activity_file.exists():
-        activity_file.touch()
-    
-    return activity_file
+@command("COMMAND")
 
+def what_the_command_does(agent, line):
+    """Handle the command, Agent passes argument 'line' """
+    print(line)
 
-@command("ACTIVITY")
-def handle_activity(agent, line):
-    """Handle the ACTIVITY command
-    Records the current activity with timestamp"""
-    activity_file = ensure_activity_file(agent)
-    
-    timestamp = datetime.now().strftime("%I:%M%p").lower()
-    with open(activity_file, "a") as f:
-        f.write(f"{timestamp}: {line}\\n")
 `;
+
+
+// Loading fallback component
+const EditorLoading = () => (
+  <div className="editor-loading" style={{
+    padding: '20px',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    textAlign: 'center',
+    backgroundColor: '#f8f8f8',
+    height: '300px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center'
+  }}>
+    <div className="loading-spinner" style={{
+      border: '4px solid #f3f3f3',
+      borderTop: '4px solid #3498db',
+      borderRadius: '50%',
+      width: '30px',
+      height: '30px',
+      animation: 'spin 1s linear infinite',
+      marginBottom: '10px'
+    }}></div>
+    <p>Loading editor...</p>
+    <style>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
+  </div>
+);
 
 const EditAgentModal = ({ agentId, isOpen, isCreateMode = false, onClose, onUpdate }: EditAgentModalProps) => {
   const [config, setConfig] = useState<AgentConfig>({
@@ -84,6 +105,7 @@ const EditAgentModal = ({ agentId, isOpen, isCreateMode = false, onClose, onUpda
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('config');
+  const [editorIsLoaded, setEditorIsLoaded] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -115,6 +137,16 @@ const EditAgentModal = ({ agentId, isOpen, isCreateMode = false, onClose, onUpda
       setCode(DEFAULT_AGENT_CODE.replace('{agent_id}', agentIdInput));
     }
   }, [agentIdInput, isCreateMode]);
+
+  // Preload editor component when switching to actions tab
+  useEffect(() => {
+    if (activeTab === 'actions' && !editorIsLoaded) {
+      // This will trigger the lazy loading
+      import('@uiw/react-codemirror').then(() => {
+        setEditorIsLoaded(true);
+      });
+    }
+  }, [activeTab, editorIsLoaded]);
 
   const fetchConfig = async () => {
     if (!agentId) return;
@@ -391,74 +423,40 @@ const EditAgentModal = ({ agentId, isOpen, isCreateMode = false, onClose, onUpda
             </button>
           )}
         </div>
-        <CodeMirror
-          value={commands}
-          height="300px"
-          theme={vscodeDark}
-          extensions={[python()]}
-          onChange={(value) => setCommands(value)}
-          basicSetup={{
-            lineNumbers: true,
-            highlightActiveLineGutter: true,
-            highlightSpecialChars: true,
-            foldGutter: true,
-            dropCursor: true,
-            allowMultipleSelections: true,
-            indentOnInput: true,
-            bracketMatching: true,
-            closeBrackets: true,
-            autocompletion: true,
-            rectangularSelection: true,
-            crosshairCursor: true,
-            highlightActiveLine: true,
-            highlightSelectionMatches: true,
-            closeBracketsKeymap: true,
-            defaultKeymap: true,
-            searchKeymap: true,
-            historyKeymap: true,
-            foldKeymap: true,
-            completionKeymap: true,
-            lintKeymap: true,
-          }}
-        />
+        <Suspense fallback={<EditorLoading />}>
+          <LazyCodeMirror
+            value={commands}
+            height="300px"
+            theme={vscodeDark}
+            extensions={[python()]}
+            onChange={(value) => setCommands(value)}
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLineGutter: true,
+              highlightSpecialChars: true,
+              foldGutter: true,
+              dropCursor: true,
+              allowMultipleSelections: true,
+              indentOnInput: true,
+              bracketMatching: true,
+              closeBrackets: true,
+              autocompletion: true,
+              rectangularSelection: true,
+              crosshairCursor: true,
+              highlightActiveLine: true,
+              highlightSelectionMatches: true,
+              closeBracketsKeymap: true,
+              defaultKeymap: true,
+              searchKeymap: true,
+              historyKeymap: true,
+              foldKeymap: true,
+              completionKeymap: true,
+              lintKeymap: true,
+            }}
+          />
+        </Suspense>
       </div>
     </>
-  );
-
-  const renderCodeTab = () => (
-    <div className="form-group code-editor">
-      <label>Agent Code</label>
-      <CodeMirror
-        value={code}
-        height="500px"
-        theme={vscodeDark}
-        extensions={[python()]}
-        onChange={(value) => setCode(value)}
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: true,
-          highlightSpecialChars: true,
-          foldGutter: true,
-          dropCursor: true,
-          allowMultipleSelections: true,
-          indentOnInput: true,
-          bracketMatching: true,
-          closeBrackets: true,
-          autocompletion: true,
-          rectangularSelection: true,
-          crosshairCursor: true,
-          highlightActiveLine: true,
-          highlightSelectionMatches: true,
-          closeBracketsKeymap: true,
-          defaultKeymap: true,
-          searchKeymap: true,
-          historyKeymap: true,
-          foldKeymap: true,
-          completionKeymap: true,
-          lintKeymap: true,
-        }}
-      />
-    </div>
   );
 
   if (!isOpen) return null;
@@ -492,18 +490,11 @@ const EditAgentModal = ({ agentId, isOpen, isCreateMode = false, onClose, onUpda
           >
             Actions
           </button>
-          <button
-            className={`tab-button ${activeTab === 'code' ? 'active' : ''}`}
-            onClick={() => setActiveTab('code')}
-          >
-            Code
-          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           {activeTab === 'config' && renderConfigTab()}
           {activeTab === 'actions' && renderActionsTab()}
-          {activeTab === 'code' && renderCodeTab()}
 
           <div className="button-group">
             <button

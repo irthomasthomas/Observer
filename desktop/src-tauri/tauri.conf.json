@@ -16,7 +16,8 @@
         "resizable": true,
         "title": "Observer",
         "width": 1600,
-        "height": 1200
+        "height": 1200,
+        "devtools": true
       }
     ]
   },

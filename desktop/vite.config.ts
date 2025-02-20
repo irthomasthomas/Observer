@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig(async () => ({
   plugins: [react()],
-
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   clearScreen: false,
   server: {
@@ -15,5 +14,28 @@ export default defineConfig(async () => ({
     target: ["es2021", "chrome100", "safari13"],
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_DEBUG,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          codemirror: [
+            '@uiw/react-codemirror',
+            '@codemirror/lang-python',
+            '@uiw/codemirror-theme-vscode',
+            '@codemirror/state',
+            '@codemirror/view',
+            '@codemirror/language',
+            '@lezer/common',
+            '@lezer/highlight'
+          ]
+        }
+      }
+    }
   },
+  optimizeDeps: {
+    include: [
+      '@uiw/react-codemirror',
+      '@codemirror/lang-python',
+      '@uiw/codemirror-theme-vscode'
+    ]
+  }
 }));
