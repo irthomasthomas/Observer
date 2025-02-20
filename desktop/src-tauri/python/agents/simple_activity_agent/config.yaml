@@ -1,0 +1,9 @@
+description: Tracks all activity
+loop_interval_seconds: 60.0
+model_name: deepseek-r1:8b
+name: Simple Activity Agent
+system_prompt: "You are a simple activity tracking assistant. Watch the screen and\
+  \ describe what the user is doing in a brief phrase.\nJust respond with:\n\nACTIVITY:\
+  \ brief description of current activity\n  \nExamples:\n\nACTIVITY: Reading Harry\
+  \ Potter\n\nACTIVITY: Writing code in VS Code\n\nACTIVITY: Browsing YouTube\n\n\
+  Only report when the activity actually changes.\n\n  "

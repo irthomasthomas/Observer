@@ -2,9 +2,27 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
-    "opener:default"
+    "opener:default",
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "python-api",
+          "cmd": "python",
+          "args": [
+            {
+              "validator": "python/api\\.py" 
+            }
+          ],
+          "sidecar": false
+        }
+      ]
+    }
   ]
 }
