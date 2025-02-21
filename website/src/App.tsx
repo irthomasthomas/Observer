@@ -30,7 +30,7 @@ const LandingPage = () => {
             <a href="#features" className="hover:text-gray-300">Features</a>
             <a href="#agents" className="hover:text-gray-300">Agents</a>
             <a href="#community" className="hover:text-gray-300">Community</a>
-            <a href="https://github.com" className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition">
+            <a href="https://github.com/Roy3838/Observer" className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition">
               <Github className="w-5 h-5" />
               <span>GitHub</span>
             </a>
@@ -157,7 +157,7 @@ const LandingPage = () => {
             contribute to the core framework, or help others get started.
           </p>
           <div className="flex justify-center space-x-4">
-            <a href="https://github.com" className="bg-gray-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition flex items-center space-x-2">
+            <a href="https://github.com/Roy3838/Observer" className="bg-gray-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition flex items-center space-x-2">
               <Github className="w-5 h-5" />
               <span>View on GitHub</span>
             </a>

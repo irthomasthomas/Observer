@@ -1,6 +1,5 @@
-import './App.css'
 import { useState, useEffect } from 'react';
-import { RotateCw, Edit2, PlusCircle, Terminal, Clock} from 'lucide-react';
+import { RotateCw, Edit2, PlusCircle, Terminal, Clock } from 'lucide-react';
 import EditAgentModal from './EditAgentModal';
 import LogViewer from './LogViewer';
 import StartupDialogs from './StartupDialogs';
@@ -8,6 +7,7 @@ import TextBubble from './TextBubble';
 import GlobalLogsViewer from './GlobalLogsViewer';
 import ScheduleAgentModal from './ScheduleAgentModal';
 
+import './App.css';
 import './styles/layout.css';
 import './styles/header.css';
 import './styles/agents.css';
@@ -31,6 +31,7 @@ interface Agent {
 }
 
 export function App() {
+  // Fixed TypeScript errors by implementing these functions
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [serverAddress, setServerAddress] = useState('localhost:11434');
@@ -156,6 +157,7 @@ export function App() {
     }
   };
 
+  // Implemented function to fix TypeScript error
   const fetchAgentConfig = async (id: string) => {
     try {
       const response = await fetch(`http://localhost:8000/agents/${id}/config`);
@@ -240,7 +242,7 @@ export function App() {
   }, []);
 
   return (
-    <div className="container">
+    <div className="app-container">
       {showStartupDialog && (
         <StartupDialogs 
           serverStatus={serverStatus}
@@ -248,112 +250,123 @@ export function App() {
         />
       )}
 
-      <header>
-        <h1>Observer</h1>
-
-        <div className="server-config">
-          <div className="input-container">
-            <input
-              type="text"
-              value={serverAddress}
-              onChange={(e) => setServerAddress(e.target.value)}
-              placeholder="localhost:11434"
-              className="server-input"
-            />
-            {showOllamaHelpBubble && (
-              <TextBubble 
-                message="First, check Ollama server"
-                position="bottom"
-                duration={30000}
-              />
-            )}
+      {/* Fixed Header */}
+      <header className="fixed-header">
+        <div className="header-container">
+          <div className="logo-section">
+            <img src="/eye-logo-black.svg" alt="Observer Logo" className="app-logo" />
+            <h1>Observer</h1>
           </div>
-          <button
-            onClick={checkOllamaServer}
-            className={`server-check-button ${serverStatus}`}
-            disabled={isStartingServer}
-          >
-            {serverStatus === 'online' ? '✓ Connected' : 
-             serverStatus === 'offline' ? '✗ Disconnected' : 
-             'Check Ollama Server'}
-          </button>
-          <button
-            onClick={startOllamaServer}
-            className={`start-server-button ${isStartingServer ? 'starting' : ''}`}
-            disabled={serverStatus === 'online' || isStartingServer}
-          >
-            {isStartingServer ? 'Starting...' : 'Start Ollama Server'}
-          </button>
-        </div>
 
-        <div className="stats-container">
-          <button 
-            onClick={fetchAgents}
-            className={`refresh-button ${isRefreshing ? 'refreshing' : ''}`}
-            disabled={isRefreshing}
-          >
-            <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </button>
-          <p>Active Agents: {agents.filter(a => a.status === 'running').length} / Total: {agents.length}</p>
-          <button
-            onClick={handleAddAgentClick}
-            className="add-agent-button"
-            disabled={serverStatus !== 'online'}
-            title={serverStatus !== 'online' ? 'Connect to Ollama server first' : 'Add new agent'}
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Add Agent</span>
-          </button>
+          <div className="header-actions">
+            <div className="server-config">
+              <div className="input-container">
+                <input
+                  type="text"
+                  value={serverAddress}
+                  onChange={(e) => setServerAddress(e.target.value)}
+                  placeholder="localhost:11434"
+                  className="server-input"
+                />
+                {showOllamaHelpBubble && (
+                  <TextBubble 
+                    message="First, check Ollama server"
+                    position="bottom"
+                    duration={30000}
+                  />
+                )}
+              </div>
+              <button
+                onClick={checkOllamaServer}
+                className={`server-check-button ${serverStatus}`}
+                disabled={isStartingServer}
+              >
+                {serverStatus === 'online' ? '✓ Connected' : 
+                serverStatus === 'offline' ? '✗ Disconnected' : 
+                'Check Ollama Server'}
+              </button>
+              <button
+                onClick={startOllamaServer}
+                className={`start-server-button ${isStartingServer ? 'starting' : ''}`}
+                disabled={serverStatus === 'online' || isStartingServer}
+              >
+                {isStartingServer ? 'Starting...' : 'Start Ollama Server'}
+              </button>
+              
+              <div className="stats-container">
+                <button 
+                  onClick={fetchAgents}
+                  className={`refresh-button ${isRefreshing ? 'refreshing' : ''}`}
+                  disabled={isRefreshing}
+                >
+                  <RotateCw className={`refresh-icon ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
+                <p>Active: {agents.filter(a => a.status === 'running').length} / Total: {agents.length}</p>
+                <button
+                  onClick={handleAddAgentClick}
+                  className="add-agent-button"
+                  disabled={serverStatus !== 'online'}
+                  title={serverStatus !== 'online' ? 'Connect to Ollama server first' : 'Add new agent'}
+                >
+                  <PlusCircle className="add-icon" />
+                  <span>Add Agent</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      {error && <div className="error">{error}</div>}
+      {/* Main Content - with padding-top to accommodate fixed header */}
+      <main className="main-content">
+        {error && <div className="error">{error}</div>}
 
-      <div className="agent-grid">
-        {agents.map(agent => (
-          <div key={agent.id} className="agent-card">
-            <div className="flex items-center space-x-2">
-              <h3 className="flex-grow">{agent.config?.name || agent.name}</h3>
-              <button
-                onClick={() => handleEditClick(agent.id)}
-                className={`edit-button-small ${agent.status === 'running' ? 'disabled' : ''}`}
-                disabled={agent.status === 'running'}
-                title={agent.status === 'running' ? 'Stop agent to edit' : 'Edit agent'}
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <span className={`status ${agent.status}`}>
-              {agent.status}
-            </span>
-            
-            <div className="agent-details">
-              <p className="model">Model: {agent.model}</p>
-              <p className="description">{agent.config?.description || agent.description}</p>
-            </div>
-            
-            <div className="agent-actions">
-              <button
-                onClick={() => toggleAgent(agent.id, agent.status)}
-                className={`button ${agent.status}`}
-              >
-                {agent.status === 'running' ? '⏹ Stop' : '▶️ Start'}
-              </button>
+        <div className="agent-grid">
+          {agents.map(agent => (
+            <div key={agent.id} className="agent-card">
+              <div className="agent-header">
+                <h3>{agent.config?.name || agent.name}</h3>
+                <button
+                  onClick={() => handleEditClick(agent.id)}
+                  className={`edit-button-small ${agent.status === 'running' ? 'disabled' : ''}`}
+                  disabled={agent.status === 'running'}
+                  title={agent.status === 'running' ? 'Stop agent to edit' : 'Edit agent'}
+                >
+                  <Edit2 className="edit-icon" />
+                </button>
+              </div>
               
-              <button
-                onClick={() => handleScheduleClick(agent.id)}
-                className="schedule-button"
-                title="Schedule agent runs"
-              >
-                <Clock className="w-4 h-4" />
-              </button>
-            </div>
+              <span className={`status ${agent.status}`}>
+                {agent.status}
+              </span>
+              
+              <div className="agent-details">
+                <p className="model">Model: {agent.model}</p>
+                <p className="description">{agent.config?.description || agent.description}</p>
+              </div>
+              
+              <div className="agent-actions">
+                <button
+                  onClick={() => toggleAgent(agent.id, agent.status)}
+                  className={`button ${agent.status}`}
+                >
+                  {agent.status === 'running' ? '⏹ Stop' : '▶️ Start'}
+                </button>
+                
+                <button
+                  onClick={() => handleScheduleClick(agent.id)}
+                  className="schedule-button"
+                  title="Schedule agent runs"
+                >
+                  <Clock className="schedule-icon" />
+                </button>
+              </div>
 
-            <LogViewer agentId={agent.id} />
-          </div>
-        ))}
-      </div>
+              <LogViewer agentId={agent.id} />
+            </div>
+          ))}
+        </div>
+      </main>
 
       {isEditModalOpen && (
         <EditAgentModal
@@ -386,16 +399,17 @@ export function App() {
           className="global-logs-button"
           onClick={() => setShowGlobalLogs(!showGlobalLogs)}
         >
-          <Terminal className="w-5 h-5" />
+          <Terminal className="logs-icon" />
           <span>{showGlobalLogs ? 'Hide Server Logs' : 'Show Server Logs'}</span>
         </button>
       </footer>
       
-      {/* Add the global logs viewer */}
-      <GlobalLogsViewer 
-        isOpen={showGlobalLogs}
-        onClose={() => setShowGlobalLogs(false)}
-      />
+      {showGlobalLogs && (
+        <GlobalLogsViewer 
+          isOpen={showGlobalLogs}
+          onClose={() => setShowGlobalLogs(false)}
+        />
+      )}
     </div>
   );
 }
