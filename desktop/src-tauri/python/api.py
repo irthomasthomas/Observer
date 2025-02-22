@@ -11,15 +11,16 @@ import traceback
 from collections import deque
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 import logging
+import base64
 
 import importlib.util
 import psutil
 import requests
 import yaml
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -81,6 +82,16 @@ class ScheduleResponse(BaseModel):
     name: Optional[str] = None
     next_run_time: Optional[str] = None
 
+
+class SimpleOCRRequest(BaseModel):
+    image: str  # Base64 encoded image
+
+class SimpleOCRResponse(BaseModel):
+    text: str
+
+class OCRTextSubmission(BaseModel):
+    text: str
+
 # INITIALIZATION
 
 config = GlobalConfig()
@@ -113,9 +124,9 @@ app.add_middleware(
         "tauri://localhost"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"]
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"]  # Expose all headers
 )
 
 # scheduler = BackgroundScheduler()
@@ -132,6 +143,9 @@ app.add_middleware(
 # Store running agents and threads
 running_agents = {}
 agent_threads = {}
+
+
+request_counter = 0
 
 """
 
@@ -902,6 +916,82 @@ async def open_agent_directory(agent_id: str):
     except Exception as e:
         logger.error(f"Error opening agent directory: {e}")
         return {"error": f"Failed to open agent directory: {str(e)}"}
+
+latest_ocr_text = ""
+
+@app.post("/ocr/simple", response_model=SimpleOCRResponse)
+async def simple_ocr(request: SimpleOCRRequest):
+    """
+    Simple OCR endpoint: receive image, return text
+    """
+    global latest_ocr_text
+    
+    logger.debug(f"Simple OCR request received, image size: {len(request.image)}")
+    
+    try:
+        # Store the image for the frontend to process
+        app.state.latest_ocr_image = request.image
+        logger.debug("Image stored for frontend processing")
+        
+        # If we already have a result from frontend, return it immediately
+        if hasattr(app.state, 'latest_ocr_text') and app.state.latest_ocr_text:
+            text = app.state.latest_ocr_text
+            logger.debug(f"Using existing OCR text, length: {len(text)}")
+            return SimpleOCRResponse(text=text)
+        
+        # Wait for frontend to process (simple polling)
+        timeout = 25  # seconds
+        start_time = time.time()
+        logger.debug(f"Waiting up to {timeout}s for frontend processing")
+        
+        while time.time() - start_time < timeout:
+            if hasattr(app.state, 'latest_ocr_text') and app.state.latest_ocr_text:
+                text = app.state.latest_ocr_text
+                logger.debug(f"Frontend OCR completed, text length: {len(text)}")
+                if text:
+                    logger.debug(f"Sample text: {text[:100]}")
+                return SimpleOCRResponse(text=text)
+            
+            # Wait a bit before checking again
+            time.sleep(0.5)
+            logger.debug("Still waiting for OCR result...")
+        
+        # If no result after timeout, return error
+        logger.error("OCR processing timed out")
+        return SimpleOCRResponse(text="OCR processing timed out")
+        
+    except Exception as e:
+        logger.error(f"Error in simple OCR: {str(e)}")
+        return SimpleOCRResponse(text=f"Error: {str(e)}")
+
+@app.get("/ocr/image")
+async def get_latest_image():
+    """
+    Endpoint for frontend to get the latest image to process
+    """
+    if hasattr(app.state, 'latest_ocr_image'):
+        return {"image": app.state.latest_ocr_image}
+    return {"image": None}
+
+@app.post("/ocr/text")
+async def submit_ocr_text(request: OCRTextSubmission):
+    """
+    Endpoint for frontend to submit OCR text result
+    """
+    text = request.text
+    logger.debug(f"OCR text submitted, length: {len(text)}")
+    if text:
+        logger.debug(f"Sample text: {text[:100]}")
+    
+    app.state.latest_ocr_text = text
+    return {"success": True}
+
+
+# Initialize OCR state on startup
+@app.on_event("startup")
+async def ocr_startup():
+    app.state.latest_ocr_image = None
+    app.state.latest_ocr_text = ""
 
 
 

@@ -132,53 +132,81 @@ class BaseAgent:
         return commands
 
     def start(self):
-        """Start the observation loop"""
+        """Start the observation loop with simple OCR wait logic"""
         self.running = True
         loop_interval = float(self.config.get('loop_interval_seconds', 1.0))
         
         while self.running:
             try:
+                self.log("[DEBUG] Starting agent cycle")
                 cycle_start_time = time.time()
                 
-                # Execute agent cycle
-                screen_text = self.capture.get_text(self.capture.take_screenshot())
+                # Take screenshot
+                self.log("[DEBUG] Taking screenshot")
+                screenshot = self.capture.take_screenshot()
+                
+                # Process OCR
+                self.log("[DEBUG] Processing OCR")
+                screen_text = self.capture.get_text(screenshot)
+                
+                # Check if we got an error message
+                if screen_text in ["OCR processing failed", "OCR processing error", "OCR processing timed out"]:
+                    self.log(f"[DEBUG] OCR failed: {screen_text}. Waiting for next cycle.")
+                    time.sleep(max(0, loop_interval))
+                    continue
+                    
+                # Check if we got empty text
+                if not screen_text or len(screen_text.strip()) < 10:
+                    self.log(f"[DEBUG] OCR returned too little text ({len(screen_text)} chars). Waiting for next cycle.")
+                    time.sleep(max(0, loop_interval))
+                    continue
+                
+                # Prepare prompt
+                self.log("[DEBUG] Preparing prompt with screen content")
                 prompt = registry.inject_files(self.config['system_prompt'])
                 prompt = f"{prompt}\nCurrent screen content:\n{screen_text}"
                  
                 self.log("=== BEGIN COT BLOCK ===")
                 self.log("=== PROMPT ===")
-                self.log(system_prompt)
+                self.log(prompt)
                 self.log("=== SCREEN CONTENT ===")
                 self.log(screen_text)
                 
+                # Generate response
+                self.log("[DEBUG] Sending to LLM for processing")
                 response = self.model.generate(prompt)
                 self.log("=== RESPONSE ===")
                 self.log(response)
                 self.log("=== END COT BLOCK ===")
                 
                 # Process commands
+                self.log("[DEBUG] Extracting commands from response")
                 commands = self.extract_commands(response)
                 for command, params in commands:
                     command_str = f"{command}: {' | '.join(params)}"
                     self.log(f"Executing command: {command_str}")
                     self.process_command(command_str)
                 
-                # Calculate sleep time based on execution duration
+                # Calculate sleep time
                 execution_time = time.time() - cycle_start_time
                 sleep_time = max(0, loop_interval - execution_time)
                 
                 if sleep_time > 0:
+                    self.log(f"[DEBUG] Sleeping for {sleep_time:.2f}s before next cycle")
                     time.sleep(sleep_time)
                 
             except KeyboardInterrupt:
+                self.log("[DEBUG] Keyboard interrupt received, stopping")
                 self.stop()
             except Exception as e:
-                self.log(f"Error in observation loop: {str(e)}")
-                # Still maintain timing on error
+                self.log(f"[DEBUG] Error in observation loop: {str(e)}")
+                # Maintain timing on error
                 execution_time = time.time() - cycle_start_time
                 sleep_time = max(0, loop_interval - execution_time)
                 if sleep_time > 0:
                     time.sleep(sleep_time)
+
+
 
     def stop(self):
         """Stop the agent"""

@@ -1,0 +1,10 @@
+Found existing installation: numpy 1.24.3
+Uninstalling numpy-1.24.3:
+  Would remove:
+    /Users/jay/python-bundle/bin/f2py
+    /Users/jay/python-bundle/bin/f2py3
+    /Users/jay/python-bundle/bin/f2py3.10
+    /Users/jay/python-bundle/lib/python3.10/site-packages/numpy-1.24.3.dist-info/*
+    /Users/jay/python-bundle/lib/python3.10/site-packages/numpy/*
+Proceed (Y/n)? Your response ('i') was not one of the expected responses: y, n, 
+Proceed (Y/n)? 

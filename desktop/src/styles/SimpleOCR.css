@@ -1,0 +1,168 @@
+.simple-ocr-container {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.simple-ocr-container h2 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.button-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.ocr-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+}
+
+.ocr-button:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.ocr-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ocr-button.secondary {
+  background-color: #6b7280;
+}
+
+.ocr-button.secondary:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.progress-container {
+  margin-bottom: 15px;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #3b82f6;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 5px;
+}
+
+.error-message {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
+}
+
+.result-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.image-container, .text-container {
+  flex: 1;
+  min-width: 300px;
+}
+
+.image-container h3, .text-container h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  color: #374151;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 300px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+
+.text-result {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 10px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  min-height: 200px;
+  max-height: 300px;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Add this to your main CSS file for the OCR section */
+.ocr-section {
+  margin-bottom: 20px;
+}
+
+.ocr-toggle-button {
+  background-color: #4b5563;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s;
+}
+
+.ocr-toggle-button:hover {
+  background-color: #374151;
+}
+
+.ocr-toggle-button.active {
+  background-color: #3b82f6;
+}
+
+.ocr-toggle-button.active:hover {
+  background-color: #2563eb;
+}
+
+.ocr-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 768px) {
+  .result-container {
+    flex-direction: column;
+  }
+  
+  .image-container, .text-container {
+    width: 100%;
+  }
+}

@@ -6,6 +6,7 @@ import StartupDialogs from './StartupDialogs';
 import TextBubble from './TextBubble';
 import GlobalLogsViewer from './GlobalLogsViewer';
 import ScheduleAgentModal from './ScheduleAgentModal';
+import OCRService from './OCRService';
 
 import './App.css';
 import './styles/layout.css';
@@ -403,6 +404,8 @@ export function App() {
           <span>{showGlobalLogs ? 'Hide Server Logs' : 'Show Server Logs'}</span>
         </button>
       </footer>
+      
+      <OCRService />
       
       {showGlobalLogs && (
         <GlobalLogsViewer 
