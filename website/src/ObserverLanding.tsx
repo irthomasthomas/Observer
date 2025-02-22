@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 const EyeLogo = ({ mousePosition }) => {
-  const eyeRadius = 45;
-  const pupilRadius = 12;
-  const maxPupilOffset = eyeRadius - pupilRadius - 5;
+  const eyeRadius = 67; // Increased by 1.5x from 45
+  const pupilRadius = 18; // Increased by 1.5x from 12
+  const maxPupilOffset = eyeRadius - pupilRadius - 7;
   
   const calculatePupilPosition = () => {
     if (!mousePosition.x || !mousePosition.y) return { x: 0, y: 0 };
@@ -29,12 +29,12 @@ const EyeLogo = ({ mousePosition }) => {
   const pupilPosition = calculatePupilPosition();
 
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100" className="w-full h-full">
-      <circle cx="0" cy="0" r="45" fill="none" stroke="currentColor" strokeWidth="10"/>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="-75 -75 150 150" className="w-full h-full">
+      <circle cx="0" cy="0" r={eyeRadius} fill="none" stroke="currentColor" strokeWidth="15"/>
       <circle 
         cx={pupilPosition.x} 
         cy={pupilPosition.y} 
-        r="12" 
+        r={pupilRadius} 
         fill="currentColor"
         className="transition-transform duration-75 ease-out"
       />
@@ -56,12 +56,12 @@ const ObserverLanding = () => {
 
   return (
     <div className="container mx-auto px-6 py-16 text-center">
-      <h1 className="text-6xl font-bold mb-8 flex items-center justify-center">
-        <span id="eye-container" className="w-32 h-32 text-white">
+      <div className="flex items-end justify-center">
+        <div id="eye-container" className="w-48 h-48 text-white">
           <EyeLogo mousePosition={mousePosition} />
-        </span>
-        <span className="ml-2 font-golos">bserver</span>
-      </h1>
+        </div>
+        <span className="ml-4 text-[180px] font-golos leading-none">bserver</span>
+      </div>
     </div>
   );
 };
