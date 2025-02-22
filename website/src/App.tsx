@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Github, Terminal, Shield, Cpu, Box, ChevronRight, ArrowRight } from 'lucide-react';
+import ObserverLanding from './components/ObserverLanding';
 
 const LandingPage = () => {
   const [activeAgent, setActiveAgent] = useState(0);
@@ -36,6 +37,8 @@ const LandingPage = () => {
             </a>
           </div>
         </nav>
+
+        <ObserverLanding />
         
         <div className="container mx-auto px-6 py-24 max-w-4xl">
           <h1 className="text-5xl font-bold mb-6">Your Personal AI Assistant, Running Locally</h1>
