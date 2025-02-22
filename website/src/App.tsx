@@ -25,15 +25,15 @@ const LandingPage = () => {
         <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <img src="/eye-logo-white.svg" alt="Observer AI Logo" className="w-8 h-8" />
-            <span className="text-xl font-bold">Observer AI</span>
+            <span className="text-xl font-bold hidden md:inline">Observer AI</span>
           </div>
-          <div className="flex items-center space-x-8">
-            <a href="#features" className="hover:text-gray-300">Features</a>
-            <a href="#agents" className="hover:text-gray-300">Agents</a>
-            <a href="#community" className="hover:text-gray-300">Community</a>
+          <div className="flex items-center space-x-4 md:space-x-8">
+            <a href="#features" className="hover:text-gray-300 hidden md:inline">Features</a>
+            <a href="#agents" className="hover:text-gray-300 hidden md:inline">Agents</a>
+            <a href="#community" className="hover:text-gray-300 hidden md:inline">Community</a>
             <a href="https://github.com/Roy3838/Observer" className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition">
               <Github className="w-5 h-5" />
-              <span>GitHub</span>
+              <span className="hidden md:inline">GitHub</span>
             </a>
           </div>
         </nav>
