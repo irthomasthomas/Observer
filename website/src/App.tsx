@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Github, Terminal, Shield, Cpu, Box, ChevronRight, ArrowRight } from 'lucide-react';
-import ObserverLanding from './components/ObserverLanding';
+import ObserverLanding from './ObserverLanding';
 
 const LandingPage = () => {
   const [activeAgent, setActiveAgent] = useState(0);
