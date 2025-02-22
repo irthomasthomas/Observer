@@ -57,10 +57,10 @@ const ObserverLanding = () => {
   return (
     <div className="container mx-auto px-6 py-16 text-center">
       <div className="flex items-end justify-center">
-        <div id="eye-container" className="w-24 h-24 md:w-48 md:h-48 text-white">
+        <div id="eye-container" className="w-16 h-16 md:w-32 md:h-32 text-white">
           <EyeLogo mousePosition={mousePosition} />
         </div>
-        <span className="ml-2 md:ml-4 text-[90px] md:text-[180px] font-golos leading-none">bserver</span>
+        <span className="ml-2 md:ml-4 text-[64px] md:text-[128px] font-golos leading-none">bserver</span>
       </div>
     </div>
   );
