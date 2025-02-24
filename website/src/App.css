@@ -42,3 +42,42 @@
 .read-the-docs {
   color: #888;
 }
+
+/* New header styles */
+header nav {
+  max-width: 1400px;
+  width: 100%;
+  padding: 1rem 2rem;
+}
+
+header nav .flex.items-center.space-x-2 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+header nav .flex.items-center.space-x-4 {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+header nav a {
+  font-weight: 500;
+}
+
+/* GitHub button styling */
+header nav a[href*="github"] {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+header nav a[href*="github"]:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
