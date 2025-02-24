@@ -23,7 +23,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <header className="bg-gradient-to-b from-gray-900 to-gray-800 text-white">
         <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-1 -ml-1">
+          <div className="flex items-center space-x-6 -ml-1">
             <img src="/eye-logo-white.svg" alt="Observer AI Logo" className="w-6 h-6" />
             <span className="text-xl font-bold hidden md:inline">Observer AI</span>
           </div>
