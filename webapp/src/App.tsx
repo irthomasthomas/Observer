@@ -15,6 +15,7 @@ import {
   captureFrameAndOCR, 
   injectOCRTextIntoPrompt 
 } from './utils/screenCapture';
+import { startAgentLoop, stopAgentLoop, setOllamaServerAddress } from './utils/main_loop';
 
 
 // Simple placeholder components
@@ -63,11 +64,14 @@ export function App() {
     setShowStartupDialog(false);
   };
 
-  // Check Ollama server status
   const checkServerStatus = async () => {
     try {
       setServerStatus('unchecked');
       const [host, port] = serverAddress.split(':');
+      
+      // Set the server address for agent loops
+      setOllamaServerAddress(host, port);
+      
       const result = await checkOllamaServer(host, port);
       
       if (result.status === 'online') {
@@ -80,6 +84,18 @@ export function App() {
     } catch (err) {
       setServerStatus('offline');
       setError('Failed to connect to Ollama server');
+    }
+  };
+
+  const handleServerAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+    const newAddress = e.target.value;
+    setServerAddress(newAddress);
+    
+    // Update server address for agent loops when input changes
+    if (newAddress.includes(':')) {
+      const [host, port] = newAddress.split(':');
+      setOllamaServerAddress(host, port);
     }
   };
 
@@ -123,60 +139,26 @@ const toggleAgent = async (id: string, currentStatus: string): Promise<void> => 
     setError(null);
     const newStatus = currentStatus === 'running' ? 'stopped' : 'running';
     
-    // Get the agent object
-    const agent = agents.find(a => a.id === id);
-    
     if (newStatus === 'running') {
       console.log(`Starting agent ${id}...`);
-      
-      // Check if the agent needs OCR
-      if (agent && agent.system_prompt && agent.system_prompt.includes('SCREEN_OCR')) {
-        console.log('Found SCREEN_OCR in system prompt. Starting screen capture...');
-        
-        // Start the screen capture (only asks for permission once)
-        const stream = await startScreenCapture();
-        
-        if (stream) {
-          // Take the initial screenshot and perform OCR
-          const ocrResult = await captureFrameAndOCR();
-          
-          if (ocrResult.success && ocrResult.text) {
-            // Create a modified system prompt with the OCR text injected
-            const modifiedPrompt = injectOCRTextIntoPrompt(
-              agent.system_prompt,
-              ocrResult.text
-            );
-            
-            // Log the modified prompt
-            console.log('System prompt with OCR results:');
-            console.log(modifiedPrompt);
-            
-            // Display in an alert for testing purposes
-            alert(`Modified system prompt with OCR results:\n\n${modifiedPrompt}`);
-          } else {
-            console.error('OCR failed:', ocrResult.error);
-            alert(`OCR failed: ${ocrResult.error}`);
-          }
-        } else {
-          console.error('Failed to start screen capture');
-          setError('Failed to start screen capture');
-        }
-      }
+      // Start the agent loop (no need to pass server params as they're set globally)
+      await startAgentLoop(id);
     } else {
-      // If stopping the agent, also stop the screen capture
-      stopScreenCapture();
-      console.log(`Stopping agent ${id} and screen capture...`);
+      console.log(`Stopping agent ${id}...`);
+      // Stop the agent loop
+      stopAgentLoop(id);
     }
     
-    // Continue with normal agent status update
+    // Update agent status in the database
     await updateAgentStatus(id, newStatus as 'running' | 'stopped');
+    
+    // Refresh the agent list
     await fetchAgents();
   } catch (err) {
     setError(err instanceof Error ? err.message : 'Failed to toggle agent status');
     console.error('Error toggling agent:', err);
   }
 }
-
 
   // Save agent (create or update)
   const handleSaveAgent = async (agent: CompleteAgent, code: string) => {
@@ -311,6 +293,10 @@ const toggleAgent = async (id: string, currentStatus: string): Promise<void> => 
                 >
                   {agent.status === 'running' ? '⏹ Stop' : '▶️ Start'}
                 </button>
+
+                <div className="text-sm bg-gray-100 px-2 py-1 rounded">
+                  {agent.loop_interval_seconds}s
+                </div>
                 
                 <button
                   onClick={() => handleScheduleClick(agent.id)}

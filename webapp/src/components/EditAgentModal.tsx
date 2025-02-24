@@ -106,6 +106,18 @@ const EditAgentModal = ({
             className="w-full p-2 border rounded"
           />
         </div>
+
+        <div className="mb-4">
+          <label className="block mb-1">Loop Interval (seconds)</label>
+          <input 
+            type="number" 
+            value={loopInterval} 
+            onChange={(e) => setLoopInterval(parseFloat(e.target.value))} 
+            className="w-full p-2 border rounded"
+            min="0.1"
+            step="0.1"
+          />
+        </div>
         
         <div className="mb-4">
           <label className="block mb-1">System Prompt</label>

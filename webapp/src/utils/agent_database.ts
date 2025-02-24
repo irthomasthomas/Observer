@@ -141,7 +141,7 @@ export async function listAgents(): Promise<CompleteAgent[]> {
     const config = configs[index] || {
       model_name: '',
       system_prompt: '',
-      loop_interval_seconds: 1.0
+      loop_interval_seconds: 10.0
     };
     
     return {
