@@ -1,3 +1,4 @@
+// src/utils/main_loop.ts
 import { CompleteAgent, getAgent } from './agent_database';
 import { 
   startScreenCapture, 
@@ -5,8 +6,8 @@ import {
   captureFrameAndOCR, 
   injectOCRTextIntoPrompt 
 } from './screenCapture';
-import { sendPromptToOllama } from './ollamaApi'; // Add this import
-
+import { sendPromptToOllama } from './ollamaApi';
+import { Logger } from './logging'; // Import the Logger
 
 const activeLoops: Record<string, {
   intervalId: number,
@@ -26,19 +27,17 @@ let serverPort = '11434';
 export function setOllamaServerAddress(host: string, port: string): void {
   serverHost = host;
   serverPort = port;
+  Logger.info('SERVER', `Ollama server address set to ${host}:${port}`);
 }
-
 
 /**
  * Start the main execution loop for an agent
  * @param agentId The ID of the agent to start
- * @param serverHost Ollama server host
- * @param serverPort Ollama server port
  */
 export async function startAgentLoop(agentId: string): Promise<void> {
   // Check if already running
   if (activeLoops[agentId]?.isRunning) {
-    console.log(`Agent ${agentId} is already running`);
+    Logger.warn(agentId, `Agent is already running`);
     return;
   }
 
@@ -47,21 +46,25 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     const agent = await getAgent(agentId);
     
     if (!agent) {
-      throw new Error(`Agent ${agentId} not found`);
+      const error = `Agent ${agentId} not found`;
+      Logger.error(agentId, error);
+      throw new Error(error);
     }
     
-    console.log(`Starting agent loop for ${agent.name} (${agentId})`);
+    Logger.info(agentId, `Starting agent loop for ${agent.name}`);
     
     // Initialize screen capture if needed
     if (agent.system_prompt.includes('SCREEN_OCR')) {
-      console.log(`Agent ${agentId} requires screen access for OCR`);
+      Logger.info(agentId, `Agent requires screen access for OCR, requesting permission...`);
       const stream = await startScreenCapture();
       
       if (!stream) {
-        throw new Error('Failed to start screen capture');
+        const error = 'Failed to start screen capture';
+        Logger.error(agentId, error);
+        throw new Error(error);
       }
       
-      console.log(`Screen capture started for agent ${agentId}`);
+      Logger.info(agentId, `Screen capture started successfully`);
     }
     
     // Store server connection info in the loop object
@@ -78,18 +81,21 @@ export async function startAgentLoop(agentId: string): Promise<void> {
       agent.loop_interval_seconds * 1000
     );
     
+    Logger.info(agentId, `Agent loop scheduled every ${agent.loop_interval_seconds} seconds`);
+    
     // Store the loop information
     activeLoops[agentId] = loopInfo;
     
     // Run first iteration immediately
+    Logger.info(agentId, `Running first iteration immediately`);
     await executeAgentIteration(agentId);
     
   } catch (error) {
-    console.error(`Error starting agent ${agentId}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    Logger.error(agentId, `Error starting agent: ${errorMessage}`, error);
     throw error;
   }
 }
-
 
 /**
  * Stop the main execution loop for an agent
@@ -99,13 +105,20 @@ export function stopAgentLoop(agentId: string): void {
   const loop = activeLoops[agentId];
   
   if (loop && loop.isRunning) {
-    console.log(`Stopping agent loop for ${agentId}`);
+    Logger.info(agentId, `Stopping agent loop`);
     
     // Clear the interval
     window.clearInterval(loop.intervalId);
     
-    // Stop screen capture
-    stopScreenCapture();
+    // Stop screen capture if this is the last active agent using it
+    const otherAgentsUsingScreenCapture = Object.entries(activeLoops)
+      .filter(([id, l]) => id !== agentId && l.isRunning)
+      .some(([_, l]) => true); // Just check if any remain
+      
+    if (!otherAgentsUsingScreenCapture) {
+      Logger.info(agentId, `Stopping screen capture (no other agents are using it)`);
+      stopScreenCapture();
+    }
     
     // Update the loop status
     activeLoops[agentId] = {
@@ -113,32 +126,33 @@ export function stopAgentLoop(agentId: string): void {
       isRunning: false
     };
     
-    console.log(`Agent loop for ${agentId} stopped`);
+    Logger.info(agentId, `Agent loop stopped successfully`);
+  } else {
+    Logger.warn(agentId, `Attempted to stop agent that wasn't running`);
   }
 }
 
 /**
  * Execute a single iteration of the agent's loop
  * @param agentId The ID of the agent
- * @param serverHost Ollama server host
- * @param serverPort Ollama server port
  */
-
 async function executeAgentIteration(agentId: string): Promise<void> {
   try {
     // Check if the loop is still active
     if (!activeLoops[agentId]?.isRunning) {
-      console.log(`Skipping execution for stopped agent ${agentId}`);
+      Logger.debug(agentId, `Skipping execution for stopped agent`);
       return;
     }
     
-    console.log(`Executing iteration for agent ${agentId}`);
+    Logger.debug(agentId, `Starting agent iteration`);
     
     // Get the latest agent data
     const agent = await getAgent(agentId);
     
     if (!agent) {
-      throw new Error(`Agent ${agentId} not found`);
+      const error = `Agent ${agentId} not found`;
+      Logger.error(agentId, error);
+      throw new Error(error);
     }
     
     // Get the system prompt
@@ -146,7 +160,7 @@ async function executeAgentIteration(agentId: string): Promise<void> {
     
     // Check if we need to inject OCR
     if (systemPrompt.includes('SCREEN_OCR')) {
-      console.log(`Performing OCR for agent ${agentId}`);
+      Logger.info(agentId, `Performing OCR for screen analysis`);
       
       // Capture the screen and perform OCR
       const ocrResult = await captureFrameAndOCR();
@@ -154,18 +168,18 @@ async function executeAgentIteration(agentId: string): Promise<void> {
       if (ocrResult.success && ocrResult.text) {
         // Inject the OCR text into the prompt
         systemPrompt = injectOCRTextIntoPrompt(systemPrompt, ocrResult.text);
-        console.log(`OCR injected into prompt for agent ${agentId}`);
+        Logger.info(agentId, `OCR successful, text injected into prompt`, {
+          textLength: ocrResult.text.length,
+          textPreview: ocrResult.text.slice(0, 100) + (ocrResult.text.length > 100 ? '...' : '')
+        });
       } else {
-        console.error(`OCR failed for agent ${agentId}:`, ocrResult.error);
+        Logger.error(agentId, `OCR failed: ${ocrResult.error || 'Unknown error'}`);
       }
     }
     
-    // Log the system prompt
-    console.log(`System prompt for agent ${agentId}:`, systemPrompt);
-    
     // Send the prompt to Ollama and get response
     try {
-      console.log(`Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
+      Logger.info(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
       
       const response = await sendPromptToOllama(
         serverHost,
@@ -174,20 +188,24 @@ async function executeAgentIteration(agentId: string): Promise<void> {
         systemPrompt
       );
       
-      console.log(`Response from Ollama for agent ${agentId}:`, response);
+      Logger.info(agentId, `Received response from Ollama`, {
+        responseLength: response.length,
+        responsePreview: response.slice(0, 100) + (response.length > 100 ? '...' : '')
+      });
       
       // Here you would process the response
       // For example, save it to a log or trigger actions based on it
       
     } catch (error) {
-      console.error(`Error calling Ollama for agent ${agentId}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      Logger.error(agentId, `Error calling Ollama: ${errorMessage}`, error);
     }
     
   } catch (error) {
-    console.error(`Error in agent iteration ${agentId}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    Logger.error(agentId, `Error in agent iteration: ${errorMessage}`, error);
   }
 }
-
 
 /**
  * Check if an agent's loop is currently running

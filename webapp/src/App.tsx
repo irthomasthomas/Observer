@@ -19,11 +19,11 @@ import {
   injectOCRTextIntoPrompt 
 } from './utils/screenCapture';
 import { startAgentLoop, stopAgentLoop, setOllamaServerAddress } from './utils/main_loop';
+import { Logger } from './utils/logging';
+import AgentLogViewer from './components/AgentLogViewer';
+import GlobalLogsViewer from './components/GlobalLogsViewer';
 
-
-// Simple placeholder components
-const LogViewer = ({ agentId }: { agentId: string }) => <div>Log Viewer for {agentId}</div>;
-const GlobalLogsViewer = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => <div>Global Logs Viewer Placeholder</div>;
+// Simple placeholder component
 const ScheduleAgentModal = ({ agentId, isOpen, onClose, onUpdate }: { agentId: string, isOpen: boolean, onClose: () => void, onUpdate: () => void }) => <div>Schedule Agent Modal Placeholder</div>;
 
 export function App() {
@@ -47,6 +47,7 @@ export function App() {
     setSelectedAgent(agentId);
     setIsCreateMode(false);
     setIsEditModalOpen(true);
+    Logger.info('APP', `Opening editor for agent ${agentId}`);
   };
 
   // Handle add agent button click
@@ -54,34 +55,42 @@ export function App() {
     setSelectedAgent(null);
     setIsCreateMode(true);
     setIsEditModalOpen(true);
+    Logger.info('APP', 'Creating new agent');
   };
 
   // Handle schedule button click
   const handleScheduleClick = (agentId: string) => {
     setSchedulingAgentId(agentId);
     setIsScheduleModalOpen(true);
+    Logger.info('APP', `Opening schedule modal for agent ${agentId}`);
   };
 
   // Handle delete agent button click
   const handleDeleteClick = async (agentId: string) => {
-    if (window.confirm(`Are you sure you want to delete agent "${agents.find(a => a.id === agentId)?.name}"?`)) {
+    const agent = agents.find(a => a.id === agentId);
+    if (!agent) return;
+    
+    if (window.confirm(`Are you sure you want to delete agent "${agent.name}"?`)) {
       try {
         setError(null);
+        Logger.info('APP', `Deleting agent "${agent.name}" (${agentId})`);
         
         // Stop the agent if it's running
-        const agent = agents.find(a => a.id === agentId);
-        if (agent && agent.status === 'running') {
+        if (agent.status === 'running') {
+          Logger.info(agentId, `Stopping agent before deletion`);
           stopAgentLoop(agentId);
         }
         
         // Delete the agent from the database
         await deleteAgent(agentId);
+        Logger.info('APP', `Agent "${agent.name}" deleted successfully`);
         
         // Refresh the agent list
         await fetchAgents();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to delete agent');
-        console.error('Error deleting agent:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to delete agent';
+        setError(errorMessage);
+        Logger.error('APP', `Failed to delete agent: ${errorMessage}`, err);
       }
     }
   };
@@ -96,6 +105,8 @@ export function App() {
       setServerStatus('unchecked');
       const [host, port] = serverAddress.split(':');
       
+      Logger.info('SERVER', `Checking connection to Ollama server at ${host}:${port}`);
+      
       // Set the server address for agent loops
       setOllamaServerAddress(host, port);
       
@@ -104,13 +115,17 @@ export function App() {
       if (result.status === 'online') {
         setServerStatus('online');
         setError(null);
+        Logger.info('SERVER', `Connected successfully to Ollama server at ${host}:${port}`);
       } else {
         setServerStatus('offline');
         setError(result.error || 'Failed to connect to Ollama server');
+        Logger.error('SERVER', `Failed to connect to Ollama server: ${result.error || 'Unknown error'}`);
       }
     } catch (err) {
       setServerStatus('offline');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError('Failed to connect to Ollama server');
+      Logger.error('SERVER', `Error checking server status: ${errorMessage}`, err);
     }
   };
 
@@ -122,6 +137,7 @@ export function App() {
     if (newAddress.includes(':')) {
       const [host, port] = newAddress.split(':');
       setOllamaServerAddress(host, port);
+      Logger.debug('SERVER', `Server address updated to ${host}:${port}`);
     }
   };
 
@@ -129,10 +145,14 @@ export function App() {
   const fetchAgents = async () => {
     try {
       setIsRefreshing(true);
+      Logger.info('APP', 'Fetching agents from database');
+      
       const agentsData = await listAgents();
       setAgents(agentsData);
+      Logger.info('APP', `Found ${agentsData.length} agents in database`);
       
       // Fetch code for all agents
+      Logger.debug('APP', 'Fetching agent code');
       const agentCodePromises = agentsData.map(async agent => {
         const code = await getAgentCode(agent.id);
         return { 
@@ -153,8 +173,9 @@ export function App() {
       setAgentCodes(newCodes);
       setError(null);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError('Failed to fetch agents from database');
-      console.error('Error fetching agents:', err);
+      Logger.error('APP', `Error fetching agents: ${errorMessage}`, err);
     } finally {
       setIsRefreshing(false);
     }
@@ -164,25 +185,32 @@ export function App() {
     try {
       setError(null);
       const newStatus = currentStatus === 'running' ? 'stopped' : 'running';
+      const agent = agents.find(a => a.id === id);
+      
+      if (!agent) {
+        throw new Error(`Agent ${id} not found`);
+      }
       
       if (newStatus === 'running') {
-        console.log(`Starting agent ${id}...`);
-        // Start the agent loop (no need to pass server params as they're set globally)
+        Logger.info(id, `Starting agent "${agent.name}"`);
+        // Start the agent loop
         await startAgentLoop(id);
       } else {
-        console.log(`Stopping agent ${id}...`);
+        Logger.info(id, `Stopping agent "${agent.name}"`);
         // Stop the agent loop
         stopAgentLoop(id);
       }
       
       // Update agent status in the database
       await updateAgentStatus(id, newStatus as 'running' | 'stopped');
+      Logger.info(id, `Agent status updated to "${newStatus}" in database`);
       
       // Refresh the agent list
       await fetchAgents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle agent status');
-      console.error('Error toggling agent:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      Logger.error('APP', `Failed to toggle agent status: ${errorMessage}`, err);
     }
   }
 
@@ -190,18 +218,45 @@ export function App() {
   const handleSaveAgent = async (agent: CompleteAgent, code: string) => {
     try {
       setError(null);
+      const isNew = !agents.some(a => a.id === agent.id);
+      
+      Logger.info('APP', isNew 
+        ? `Creating new agent "${agent.name}"` 
+        : `Updating agent "${agent.name}" (${agent.id})`
+      );
+      
       await saveAgent(agent, code);
+      Logger.info('APP', `Agent "${agent.name}" saved successfully`);
+      
       await fetchAgents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save agent');
-      console.error('Error saving agent:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      Logger.error('APP', `Failed to save agent: ${errorMessage}`, err);
     }
   };
 
   // Initial data load
   useEffect(() => {
+    Logger.info('APP', 'Application starting');
     fetchAgents();
     checkServerStatus();
+    
+    // Add a window event listener to log uncaught errors
+    const handleWindowError = (event: ErrorEvent) => {
+      Logger.error('APP', `Uncaught error: ${event.message}`, {
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error
+      });
+    };
+    
+    window.addEventListener('error', handleWindowError);
+    
+    return () => {
+      window.removeEventListener('error', handleWindowError);
+    };
   }, []);
 
   // Optional: Show dialog again if server status changes to offline
@@ -364,7 +419,8 @@ export function App() {
                 </button>
               </div>
 
-              <LogViewer agentId={agent.id} />
+              {/* Agent-specific log viewer */}
+              <AgentLogViewer agentId={agent.id} />
             </div>
           ))}
         </div>
@@ -396,19 +452,19 @@ export function App() {
       )}
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t">
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-30">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <button 
             className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
             onClick={() => setShowGlobalLogs(!showGlobalLogs)}
           >
             <Terminal className="h-5 w-5" />
-            <span>{showGlobalLogs ? 'Hide Server Logs' : 'Show Server Logs'}</span>
+            <span>{showGlobalLogs ? 'Hide System Logs' : 'Show System Logs'}</span>
           </button>
         </div>
       </footer>
       
-      {/* Logs Viewer */}
+      {/* Global Logs Viewer */}
       {showGlobalLogs && (
         <GlobalLogsViewer 
           isOpen={showGlobalLogs}
