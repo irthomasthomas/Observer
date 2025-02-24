@@ -5,12 +5,14 @@ website/dist
 website/build
 website/src-tauri/target
 website/src-tauri/Cargo.lock
+webapp/node_modules
 **/*.rs.bk
 
 
 
 
 desktop/node_modules
+desktop/public/assets/
 desktop/.pnp
 .pnp.js
 

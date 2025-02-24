@@ -5,7 +5,8 @@
   "type": "module",
   "workspaces": [
     "desktop",
-    "website"
+    "website",
+    "webapp"
   ],
   "scripts": {
     "desktop:dev": "npm run dev -w desktop",
@@ -15,6 +16,9 @@
     "website:dev": "npm run dev -w website",
     "website:build": "npm run build -w website",
     "website:preview": "npm run preview -w website",
+    "webapp:dev": "npm run dev -w webapp",
+    "webapp:build": "npm run build -w webapp",
+    "webapp:preview": "npm run preview -w webapp",
     "build": "npm run build --workspaces"
   },
   "devDependencies": {

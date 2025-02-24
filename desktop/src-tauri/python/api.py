@@ -966,11 +966,10 @@ async def simple_ocr(request: SimpleOCRRequest):
 
 @app.get("/ocr/image")
 async def get_latest_image():
-    """
-    Endpoint for frontend to get the latest image to process
-    """
     if hasattr(app.state, 'latest_ocr_image'):
-        return {"image": app.state.latest_ocr_image}
+        image = app.state.latest_ocr_image
+        app.state.latest_ocr_image = None  # Clear after retrieval
+        return {"image": image}
     return {"image": None}
 
 @app.post("/ocr/text")

@@ -12,7 +12,15 @@ const OCRService = () => {
     const initWorker = async () => {
       try {
         console.log('[DEBUG] Initializing OCR worker...');
-        const newWorker = await createWorker('eng');
+
+        const newWorker = await createWorker('eng', 1, {
+          workerPath: 'https://unpkg.com/tesseract.js@6.0.0/dist/worker.min.js',
+          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+          corePath: 'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
+          logger: m => console.log('[Tesseract]', m)
+        });
+
+
         setWorker(newWorker);
         setStatus('ready');
         console.log('[DEBUG] OCR worker ready');
