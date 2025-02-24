@@ -9,6 +9,13 @@ import {
 } from './utils/agent_database';
 import { RotateCw, Edit2, PlusCircle, Terminal, Clock } from 'lucide-react';
 import EditAgentModal from './components/EditAgentModal';
+import { 
+  startScreenCapture, 
+  stopScreenCapture, 
+  captureFrameAndOCR, 
+  injectOCRTextIntoPrompt 
+} from './utils/screenCapture';
+
 
 // Simple placeholder components
 const LogViewer = ({ agentId }: { agentId: string }) => <div>Log Viewer for {agentId}</div>;
@@ -111,18 +118,65 @@ export function App() {
     }
   };
 
-  // Toggle agent running status
-  const toggleAgent = async (id: string, currentStatus: string) => {
-    try {
-      setError(null);
-      const newStatus = currentStatus === 'running' ? 'stopped' : 'running';
-      await updateAgentStatus(id, newStatus as 'running' | 'stopped');
-      await fetchAgents();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle agent status');
-      console.error('Error toggling agent:', err);
+const toggleAgent = async (id: string, currentStatus: string): Promise<void> => {
+  try {
+    setError(null);
+    const newStatus = currentStatus === 'running' ? 'stopped' : 'running';
+    
+    // Get the agent object
+    const agent = agents.find(a => a.id === id);
+    
+    if (newStatus === 'running') {
+      console.log(`Starting agent ${id}...`);
+      
+      // Check if the agent needs OCR
+      if (agent && agent.system_prompt && agent.system_prompt.includes('SCREEN_OCR')) {
+        console.log('Found SCREEN_OCR in system prompt. Starting screen capture...');
+        
+        // Start the screen capture (only asks for permission once)
+        const stream = await startScreenCapture();
+        
+        if (stream) {
+          // Take the initial screenshot and perform OCR
+          const ocrResult = await captureFrameAndOCR();
+          
+          if (ocrResult.success && ocrResult.text) {
+            // Create a modified system prompt with the OCR text injected
+            const modifiedPrompt = injectOCRTextIntoPrompt(
+              agent.system_prompt,
+              ocrResult.text
+            );
+            
+            // Log the modified prompt
+            console.log('System prompt with OCR results:');
+            console.log(modifiedPrompt);
+            
+            // Display in an alert for testing purposes
+            alert(`Modified system prompt with OCR results:\n\n${modifiedPrompt}`);
+          } else {
+            console.error('OCR failed:', ocrResult.error);
+            alert(`OCR failed: ${ocrResult.error}`);
+          }
+        } else {
+          console.error('Failed to start screen capture');
+          setError('Failed to start screen capture');
+        }
+      }
+    } else {
+      // If stopping the agent, also stop the screen capture
+      stopScreenCapture();
+      console.log(`Stopping agent ${id} and screen capture...`);
     }
-  };
+    
+    // Continue with normal agent status update
+    await updateAgentStatus(id, newStatus as 'running' | 'stopped');
+    await fetchAgents();
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to toggle agent status');
+    console.error('Error toggling agent:', err);
+  }
+}
+
 
   // Save agent (create or update)
   const handleSaveAgent = async (agent: CompleteAgent, code: string) => {
@@ -157,7 +211,7 @@ export function App() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <img src="/eye-logo-black.svg" alt="Observer Logo" className="h-8 w-8" />
-              <h1 className="text-xl font-semibold">Observer Web</h1>
+              <h1 className="text-xl font-semibold">Observer</h1>
             </div>
 
             <div className="flex items-center space-x-4">
