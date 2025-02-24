@@ -27,7 +27,6 @@ const EyeLogo = ({ mousePosition }) => {
   };
   
   const pupilPosition = calculatePupilPosition();
-
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="-75 -75 150 150" className="w-full h-full">
       <circle cx="0" cy="0" r={eyeRadius} fill="none" stroke="currentColor" strokeWidth="15"/>
@@ -44,23 +43,22 @@ const EyeLogo = ({ mousePosition }) => {
 
 const ObserverLanding = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-
+  
   useEffect(() => {
     const handleMouseMove = (e) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
-
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
-
+  
   return (
     <div className="container mx-auto px-6 py-16 text-center">
       <div className="flex items-end justify-center">
-        <div id="eye-container" className="w-16 h-16 md:w-32 md:h-32 text-white">
+        <div id="eye-container" className="w-14 h-14 md:w-28 md:h-28 text-white -mt-1">
           <EyeLogo mousePosition={mousePosition} />
         </div>
-        <span className="ml-2 md:ml-4 text-[64px] md:text-[128px] font-golos leading-none">bserver</span>
+        <span className="ml-0.5 md:ml-1 text-[64px] md:text-[128px] font-golos leading-none">bserver</span>
       </div>
     </div>
   );
