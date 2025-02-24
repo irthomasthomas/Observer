@@ -19,6 +19,9 @@ const LandingPage = () => {
   ];
 
   return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero Section */}
+      <header className="bg-gradient-to-b from-gray-900 to-gray-800 text-white">
         <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-1 pl-0">
             <img src="/eye-logo-white.svg" alt="Observer AI Logo" className="w-7 h-7" />
@@ -54,7 +57,6 @@ const LandingPage = () => {
           </div>
         </div>
       </header>
-
       {/* Features Section */}
       <section className="py-20 bg-white" id="features">
         <div className="container mx-auto px-6">
