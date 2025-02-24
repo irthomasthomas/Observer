@@ -5,10 +5,13 @@ import {
   saveAgent, 
   updateAgentStatus, 
   getAgentCode,
+  deleteAgent,
   CompleteAgent 
 } from './utils/agent_database';
-import { RotateCw, Edit2, PlusCircle, Terminal, Clock } from 'lucide-react';
+import { RotateCw, Edit2, PlusCircle, Terminal, Clock, Trash2 } from 'lucide-react';
 import EditAgentModal from './components/EditAgentModal';
+import StartupDialogs from './components/StartupDialogs';
+import TextBubble from './components/TextBubble';
 import { 
   startScreenCapture, 
   stopScreenCapture, 
@@ -20,7 +23,6 @@ import { startAgentLoop, stopAgentLoop, setOllamaServerAddress } from './utils/m
 
 // Simple placeholder components
 const LogViewer = ({ agentId }: { agentId: string }) => <div>Log Viewer for {agentId}</div>;
-const StartupDialogs = ({ serverStatus, onDismiss }: { serverStatus: string, onDismiss: () => void }) => <div>Startup Dialogs Placeholder</div>;
 const GlobalLogsViewer = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => <div>Global Logs Viewer Placeholder</div>;
 const ScheduleAgentModal = ({ agentId, isOpen, onClose, onUpdate }: { agentId: string, isOpen: boolean, onClose: () => void, onUpdate: () => void }) => <div>Schedule Agent Modal Placeholder</div>;
 
@@ -29,12 +31,13 @@ export function App() {
   const [agentCodes, setAgentCodes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [serverAddress, setServerAddress] = useState('localhost:11434');
+  const [showServerHint, setShowServerHint] = useState(true);
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
-  const [showStartupDialog, setShowStartupDialog] = useState(false);
+  const [showStartupDialog, setShowStartupDialog] = useState(true); // Always show at startup
   const [showGlobalLogs, setShowGlobalLogs] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [schedulingAgentId, setSchedulingAgentId] = useState<string | null>(null);
@@ -57,6 +60,30 @@ export function App() {
   const handleScheduleClick = (agentId: string) => {
     setSchedulingAgentId(agentId);
     setIsScheduleModalOpen(true);
+  };
+
+  // Handle delete agent button click
+  const handleDeleteClick = async (agentId: string) => {
+    if (window.confirm(`Are you sure you want to delete agent "${agents.find(a => a.id === agentId)?.name}"?`)) {
+      try {
+        setError(null);
+        
+        // Stop the agent if it's running
+        const agent = agents.find(a => a.id === agentId);
+        if (agent && agent.status === 'running') {
+          stopAgentLoop(agentId);
+        }
+        
+        // Delete the agent from the database
+        await deleteAgent(agentId);
+        
+        // Refresh the agent list
+        await fetchAgents();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete agent');
+        console.error('Error deleting agent:', err);
+      }
+    }
   };
 
   // Handle startup dialog dismiss
@@ -88,7 +115,6 @@ export function App() {
   };
 
   const handleServerAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-
     const newAddress = e.target.value;
     setServerAddress(newAddress);
     
@@ -134,31 +160,31 @@ export function App() {
     }
   };
 
-const toggleAgent = async (id: string, currentStatus: string): Promise<void> => {
-  try {
-    setError(null);
-    const newStatus = currentStatus === 'running' ? 'stopped' : 'running';
-    
-    if (newStatus === 'running') {
-      console.log(`Starting agent ${id}...`);
-      // Start the agent loop (no need to pass server params as they're set globally)
-      await startAgentLoop(id);
-    } else {
-      console.log(`Stopping agent ${id}...`);
-      // Stop the agent loop
-      stopAgentLoop(id);
+  const toggleAgent = async (id: string, currentStatus: string): Promise<void> => {
+    try {
+      setError(null);
+      const newStatus = currentStatus === 'running' ? 'stopped' : 'running';
+      
+      if (newStatus === 'running') {
+        console.log(`Starting agent ${id}...`);
+        // Start the agent loop (no need to pass server params as they're set globally)
+        await startAgentLoop(id);
+      } else {
+        console.log(`Stopping agent ${id}...`);
+        // Stop the agent loop
+        stopAgentLoop(id);
+      }
+      
+      // Update agent status in the database
+      await updateAgentStatus(id, newStatus as 'running' | 'stopped');
+      
+      // Refresh the agent list
+      await fetchAgents();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to toggle agent status');
+      console.error('Error toggling agent:', err);
     }
-    
-    // Update agent status in the database
-    await updateAgentStatus(id, newStatus as 'running' | 'stopped');
-    
-    // Refresh the agent list
-    await fetchAgents();
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Failed to toggle agent status');
-    console.error('Error toggling agent:', err);
   }
-}
 
   // Save agent (create or update)
   const handleSaveAgent = async (agent: CompleteAgent, code: string) => {
@@ -177,6 +203,13 @@ const toggleAgent = async (id: string, currentStatus: string): Promise<void> => 
     fetchAgents();
     checkServerStatus();
   }, []);
+
+  // Optional: Show dialog again if server status changes to offline
+  useEffect(() => {
+    if (serverStatus === 'offline') {
+      setShowStartupDialog(true);
+    }
+  }, [serverStatus]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -201,7 +234,7 @@ const toggleAgent = async (id: string, currentStatus: string): Promise<void> => 
                 <input
                   type="text"
                   value={serverAddress}
-                  onChange={(e) => setServerAddress(e.target.value)}
+                  onChange={handleServerAddressChange}
                   placeholder="api.observer.local"
                   className="px-3 py-2 border rounded-md"
                 />
@@ -219,6 +252,7 @@ const toggleAgent = async (id: string, currentStatus: string): Promise<void> => 
                    serverStatus === 'offline' ? '✗ Disconnected' : 
                    'Check Server'}
                 </button>
+
               </div>
 
               <div className="flex items-center space-x-4">
@@ -245,6 +279,16 @@ const toggleAgent = async (id: string, currentStatus: string): Promise<void> => 
         </div>
       </header>
 
+          {showServerHint && (
+            <div className="fixed z-60" style={{ top: '70px', right: '35%' }}>
+              <TextBubble 
+                message="Enter your Ollama server address here (default: localhost:11434)" 
+                duration={7000} 
+              />
+            </div>
+          )}
+
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
         {error && (
@@ -256,15 +300,28 @@ const toggleAgent = async (id: string, currentStatus: string): Promise<void> => 
             <div key={agent.id} className="bg-white rounded-lg shadow-md p-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">{agent.name}</h3>
-                <button
-                  onClick={() => handleEditClick(agent.id)}
-                  className={`p-2 rounded-md hover:bg-gray-100 ${
-                    agent.status === 'running' ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  disabled={agent.status === 'running'}
-                >
-                  <Edit2 className="h-5 w-5" />
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleEditClick(agent.id)}
+                    className={`p-2 rounded-md hover:bg-gray-100 ${
+                      agent.status === 'running' ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    disabled={agent.status === 'running'}
+                    title="Edit agent"
+                  >
+                    <Edit2 className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClick(agent.id)}
+                    className={`p-2 rounded-md hover:bg-red-100 ${
+                      agent.status === 'running' ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    disabled={agent.status === 'running'}
+                    title="Delete agent"
+                  >
+                    <Trash2 className="h-5 w-5 text-red-500" />
+                  </button>
+                </div>
               </div>
               
               <span className={`inline-block px-2 py-1 rounded-full text-sm ${
