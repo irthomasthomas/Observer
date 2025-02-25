@@ -5,7 +5,9 @@ website/dist
 website/build
 website/src-tauri/target
 website/src-tauri/Cargo.lock
+
 webapp/node_modules
+webapp/dist
 **/*.rs.bk
 
 
