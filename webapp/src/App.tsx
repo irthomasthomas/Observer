@@ -25,9 +25,8 @@ import { startAgentLoop, stopAgentLoop, setOllamaServerAddress } from './utils/m
 import { Logger } from './utils/logging';
 import AgentLogViewer from './components/AgentLogViewer';
 import GlobalLogsViewer from './components/GlobalLogsViewer';
+import ScheduleAgentModal, { isAgentScheduled, getScheduledTime } from './components/ScheduleAgentModal';
 
-// Simple placeholder component
-const ScheduleAgentModal = ({ agentId, isOpen, onClose, onUpdate }: { agentId: string, isOpen: boolean, onClose: () => void, onUpdate: () => void }) => <div>Schedule Agent Modal Placeholder</div>;
 
 export function App() {
   const [agents, setAgents] = useState<CompleteAgent[]>([]);
@@ -48,6 +47,8 @@ export function App() {
     inProgress: boolean;
     results: Array<{ filename: string; success: boolean; error?: string }>;
   }>({ inProgress: false, results: [] });
+  
+  // We don't need any additional state for the button appearance
   
   // Reference to the file input element
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -161,7 +162,7 @@ export function App() {
         // Refresh the agent list
         await fetchAgents();
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to delete agent';
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         setError(errorMessage);
         Logger.error('APP', `Failed to delete agent: ${errorMessage}`, err);
       }
@@ -260,6 +261,9 @@ export function App() {
       
       setAgentCodes(newCodes);
       setError(null);
+      
+      // No need to track starting agents
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError('Failed to fetch agents from database');
@@ -296,6 +300,8 @@ export function App() {
       // Refresh the agent list
       await fetchAgents();
     } catch (err) {
+      // No need to track starting agents
+      
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       Logger.error('APP', `Failed to toggle agent status: ${errorMessage}`, err);
@@ -515,7 +521,17 @@ export function App() {
               
               <div className="mt-4 flex items-center space-x-4">
                 <button
-                  onClick={() => toggleAgent(agent.id, agent.status)}
+                  onClick={(e) => {
+                    // For stopped agents, change button text immediately
+                    if (agent.status === 'stopped') {
+                      // Change just this button's text and style
+                      const btn = e.currentTarget;
+                      btn.innerText = '⏳ Starting Up';
+                      btn.className = 'px-4 py-2 rounded-md bg-yellow-500 text-white hover:bg-yellow-600';
+                    }
+                    // Call the actual toggle function
+                    toggleAgent(agent.id, agent.status);
+                  }}
                   className={`px-4 py-2 rounded-md ${
                     agent.status === 'running'
                       ? 'bg-red-500 text-white hover:bg-red-600'
@@ -528,14 +544,23 @@ export function App() {
                 <div className="text-sm bg-gray-100 px-2 py-1 rounded">
                   {agent.loop_interval_seconds}s
                 </div>
-                
+
                 <button
                   onClick={() => handleScheduleClick(agent.id)}
-                  className="p-2 rounded-md hover:bg-gray-100"
-                  title="Schedule agent runs"
+                  className={`p-2 rounded-md ${
+                    isAgentScheduled(agent.id)
+                      ? 'bg-yellow-100 hover:bg-yellow-200'
+                      : 'hover:bg-gray-100'
+                  }`}
+                  title={isAgentScheduled(agent.id) 
+                    ? `Scheduled: ${getScheduledTime(agent.id)?.toLocaleString()}` 
+                    : "Schedule agent runs"}
                 >
-                  <Clock className="h-5 w-5" />
+                  <Clock className={`h-5 w-5 ${
+                    isAgentScheduled(agent.id) ? 'text-yellow-600' : ''
+                  }`} />
                 </button>
+
               </div>
 
               {/* Agent-specific log viewer */}
