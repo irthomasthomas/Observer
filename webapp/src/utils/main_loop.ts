@@ -1,5 +1,5 @@
 // src/utils/main_loop.ts
-import { CompleteAgent, getAgent } from './agent_database';
+import { CompleteAgent, getAgent, getAgentCode } from './agent_database';
 import { 
   startScreenCapture, 
   stopScreenCapture, 
@@ -8,6 +8,7 @@ import {
 } from './screenCapture';
 import { sendPromptToOllama } from './ollamaApi';
 import { Logger } from './logging'; // Import the Logger
+import { processAgentCommands } from './agent-commands.ts'
 
 const activeLoops: Record<string, {
   intervalId: number,
@@ -192,9 +193,16 @@ async function executeAgentIteration(agentId: string): Promise<void> {
         responseLength: response.length,
         responsePreview: response.slice(0, 100) + (response.length > 100 ? '...' : '')
       });
+
+      // Get the agent code
+      const agentCode = await getAgentCode(agentId) || '';
+
+      // Process commands
+      const commandsExecuted = await processAgentCommands(agentId, response, agentCode);
+      if (commandsExecuted) {
+        Logger.info(agentId, `Commands executed from agent response`);
+      }
       
-      // Here you would process the response
-      // For example, save it to a log or trigger actions based on it
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
