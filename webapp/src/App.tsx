@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { checkOllamaServer } from './utils/ollamaServer';
 import { 
   listAgents, 
@@ -6,9 +6,12 @@ import {
   updateAgentStatus, 
   getAgentCode,
   deleteAgent,
-  CompleteAgent 
+  CompleteAgent,
+  importAgentFromFile,
+  importAgentsFromFiles 
 } from './utils/agent_database';
-import { RotateCw, Edit2, PlusCircle, Terminal, Clock, Trash2 } from 'lucide-react';
+import { loadInitialAgents } from './utils/initialAgentLoader';
+import { RotateCw, Edit2, PlusCircle, Terminal, Clock, Trash2, Upload } from 'lucide-react';
 import EditAgentModal from './components/EditAgentModal';
 import StartupDialogs from './components/StartupDialogs';
 import TextBubble from './components/TextBubble';
@@ -41,6 +44,15 @@ export function App() {
   const [showGlobalLogs, setShowGlobalLogs] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [schedulingAgentId, setSchedulingAgentId] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<{
+    inProgress: boolean;
+    results: Array<{ filename: string; success: boolean; error?: string }>;
+  }>({ inProgress: false, results: [] });
+  
+  // Reference to the file input element
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Flag to track if initial agents have been loaded
+  const initialAgentsLoaded = useRef(false);
 
   // Handle edit button click
   const handleEditClick = async (agentId: string) => {
@@ -56,6 +68,67 @@ export function App() {
     setIsCreateMode(true);
     setIsEditModalOpen(true);
     Logger.info('APP', 'Creating new agent');
+  };
+
+  // Handle import button click
+  const handleImportClick = () => {
+    // Clear previous import results
+    setImportStatus({ inProgress: false, results: [] });
+    
+    // Trigger the hidden file input
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+    Logger.info('APP', 'Opening file selector for agent import');
+  };
+  
+  // Handle file selection for import
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    
+    if (!files || files.length === 0) {
+      Logger.info('APP', 'No files selected for import');
+      return;
+    }
+    
+    Logger.info('APP', `Selected ${files.length} file(s) for import`);
+    setImportStatus({ inProgress: true, results: [] });
+    
+    try {
+      setError(null);
+      const results = await importAgentsFromFiles(Array.from(files));
+      
+      setImportStatus({ 
+        inProgress: false, 
+        results 
+      });
+      
+      // Log import results
+      const successCount = results.filter(r => r.success).length;
+      Logger.info('APP', `Import completed: ${successCount}/${results.length} agents imported successfully`);
+      
+      if (successCount > 0) {
+        // Refresh the agent list
+        await fetchAgents();
+      }
+      
+      // Show error if any imports failed
+      const failedImports = results.filter(r => !r.success);
+      if (failedImports.length > 0) {
+        const errorMessages = failedImports.map(r => `${r.filename}: ${r.error}`).join('; ');
+        setError(`Failed to import ${failedImports.length} agent(s): ${errorMessages}`);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Import failed: ${errorMessage}`);
+      setImportStatus({ inProgress: false, results: [] });
+      Logger.error('APP', `Import error: ${errorMessage}`, err);
+    }
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   // Handle schedule button click
@@ -150,6 +223,21 @@ export function App() {
       const agentsData = await listAgents();
       setAgents(agentsData);
       Logger.info('APP', `Found ${agentsData.length} agents in database`);
+      
+      // Check if we need to load initial agents
+      if (agentsData.length === 0 && !initialAgentsLoaded.current) {
+        Logger.info('APP', 'No agents found, loading initial agents');
+        await loadInitialAgents(true);
+        initialAgentsLoaded.current = true;
+        
+        // Fetch agents again after loading initial agents
+        const updatedAgentsData = await listAgents();
+        setAgents(updatedAgentsData);
+        Logger.info('APP', `After loading initial agents: ${updatedAgentsData.length} agents in database`);
+      } else if (!initialAgentsLoaded.current) {
+        // Mark as loaded even if we didn't need to load them
+        initialAgentsLoaded.current = true;
+      }
       
       // Fetch code for all agents
       Logger.debug('APP', 'Fetching agent code');
@@ -268,6 +356,16 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Hidden file input for agent import */}
+      <input 
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept=".json"
+        multiple
+        className="hidden"
+      />
+      
       {showStartupDialog && (
         <StartupDialogs 
           serverStatus={serverStatus}
@@ -328,24 +426,45 @@ export function App() {
                   <PlusCircle className="h-5 w-5" />
                   <span>Add Agent</span>
                 </button>
+                <button
+                  onClick={handleImportClick}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                  disabled={importStatus.inProgress}
+                >
+                  <Upload className="h-5 w-5" />
+                  <span>{importStatus.inProgress ? 'Importing...' : 'Import'}</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-          {showServerHint && (
-            <div className="fixed z-60" style={{ top: '70px', right: '35%' }}>
-              <TextBubble 
-                message="Enter your Ollama server address here (default: localhost:11434)" 
-                duration={7000} 
-              />
-            </div>
-          )}
-
+      {showServerHint && (
+        <div className="fixed z-60" style={{ top: '70px', right: '35%' }}>
+          <TextBubble 
+            message="Enter your Ollama server address here (default: localhost:11434)" 
+            duration={7000} 
+          />
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
+        {/* Import Results */}
+        {importStatus.results.length > 0 && (
+          <div className="mb-4 p-4 bg-blue-50 rounded-md">
+            <h3 className="font-medium mb-2">Import Results:</h3>
+            <ul className="list-disc pl-5">
+              {importStatus.results.map((result, index) => (
+                <li key={index} className={result.success ? 'text-green-600' : 'text-red-600'}>
+                  {result.filename}: {result.success ? 'Success' : `Failed - ${result.error}`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {error && (
           <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">{error}</div>
         )}

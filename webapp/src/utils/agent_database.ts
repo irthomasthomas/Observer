@@ -276,3 +276,162 @@ export async function deleteAgent(agentId: string): Promise<void> {
     tx.onerror = () => reject(tx.error);
   });
 }
+
+
+// Types for import/export
+export interface AgentExport {
+  metadata: {
+    id: string;
+    name: string;
+    description: string;
+    status: 'running' | 'stopped';
+  };
+  config: {
+    model_name: string;
+    system_prompt: string;
+    loop_interval_seconds: number;
+  };
+  code: string;
+}
+
+/**
+ * Import an agent from a file
+ * @param file The JSON file containing the agent data
+ * @returns A promise that resolves to the imported agent
+ */
+export async function importAgentFromFile(file: File): Promise<CompleteAgent> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = async (event) => {
+      try {
+        // Parse the file content
+        const content = event.target?.result as string;
+        const agentData = JSON.parse(content) as AgentExport;
+        
+        // Validate the agent data
+        if (!agentData.metadata || !agentData.config || !agentData.code) {
+          throw new Error('Invalid agent file format. Missing required sections.');
+        }
+        
+        // Create a complete agent object
+        const agent: CompleteAgent = {
+          ...agentData.metadata,
+          ...agentData.config
+        };
+        
+        // Save the agent to the database
+        const savedAgent = await saveAgent(agent, agentData.code);
+        resolve(savedAgent);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    reader.onerror = () => reject(new Error('Failed to read the file'));
+    
+    // Read the file as text
+    reader.readAsText(file);
+  });
+}
+
+/**
+ * Import multiple agents from files
+ * @param files Array of JSON files containing agent data
+ * @returns A promise that resolves to an array of results with success/failure status
+ */
+export async function importAgentsFromFiles(files: File[]): Promise<Array<{
+  filename: string;
+  success: boolean;
+  agent?: CompleteAgent;
+  error?: string;
+}>> {
+  const results = [];
+  
+  for (const file of files) {
+    try {
+      const agent = await importAgentFromFile(file);
+      results.push({
+        filename: file.name,
+        success: true,
+        agent
+      });
+    } catch (error) {
+      results.push({
+        filename: file.name,
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+  
+  return results;
+}
+
+/**
+ * Export an agent to a JSON file
+ * @param agentId The ID of the agent to export
+ * @returns A promise that resolves to a Blob containing the agent data
+ */
+export async function exportAgentToFile(agentId: string): Promise<Blob> {
+  // Get the agent
+  const agent = await getAgent(agentId);
+  if (!agent) {
+    throw new Error(`Agent with ID ${agentId} not found`);
+  }
+  
+  // Get the agent code
+  const code = await getAgentCode(agentId);
+  if (code === null) {
+    throw new Error(`Code for agent with ID ${agentId} not found`);
+  }
+  
+  // Create the export object
+  const exportData: AgentExport = {
+    metadata: {
+      id: agent.id,
+      name: agent.name,
+      description: agent.description,
+      status: agent.status
+    },
+    config: {
+      model_name: agent.model_name,
+      system_prompt: agent.system_prompt,
+      loop_interval_seconds: agent.loop_interval_seconds
+    },
+    code
+  };
+  
+  // Convert to JSON and create a blob
+  const json = JSON.stringify(exportData, null, 2);
+  return new Blob([json], { type: 'application/json' });
+}
+
+/**
+ * Download an agent as a JSON file
+ * @param agentId The ID of the agent to download
+ */
+export async function downloadAgent(agentId: string): Promise<void> {
+  try {
+    const blob = await exportAgentToFile(agentId);
+    
+    // Create a download link
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `agent-${agentId}.json`;
+    
+    // Trigger the download
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 0);
+  } catch (error) {
+    console.error('Failed to download agent:', error);
+    throw error;
+  }
+}

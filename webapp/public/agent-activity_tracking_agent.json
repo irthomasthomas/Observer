@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "id": "activity_tracking_agent",
+    "name": "Activity Tracking Agent",
+    "description": "This agent tracks your activity.",
+    "status": "stopped"
+  },
+  "config": {
+    "model_name": "deepseek-r1:8b",
+    "system_prompt": "You are a simple activity tracking assistant. Watch the screen and describe what the user is doing in a brief phrase.\nJust respond with:\n\nACTIVITY: brief description of current activity\n\nExamples:\n\nACTIVITY: Reading Harry Potter\n\nOnly report when the activity actually changes\n<screen content>\nSCREEN_OCR\n</screencontent>",
+    "loop_interval_seconds": 60
+  },
+  "code": "// to implement\n\n\n"
+}
