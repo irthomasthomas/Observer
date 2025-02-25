@@ -1,5 +1,5 @@
 // src/utils/main_loop.ts
-import { CompleteAgent, getAgent, getAgentCode } from './agent_database';
+import { getAgent, getAgentCode } from './agent_database';
 import { 
   startScreenCapture, 
   stopScreenCapture, 
@@ -114,7 +114,7 @@ export function stopAgentLoop(agentId: string): void {
     // Stop screen capture if this is the last active agent using it
     const otherAgentsUsingScreenCapture = Object.entries(activeLoops)
       .filter(([id, l]) => id !== agentId && l.isRunning)
-      .some(([_, l]) => true); // Just check if any remain
+      .some(([_]) => true);
       
     if (!otherAgentsUsingScreenCapture) {
       Logger.info(agentId, `Stopping screen capture (no other agents are using it)`);

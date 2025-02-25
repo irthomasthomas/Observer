@@ -16,7 +16,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isExpanded, setIsExpanded] = useState(expanded);
-  const [minLevel, setMinLevel] = useState<LogLevel>(LogLevel.INFO);
+  const [minLevel] = useState<LogLevel>(LogLevel.INFO);
   const [hasUnreadLogs, setHasUnreadLogs] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 

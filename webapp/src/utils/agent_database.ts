@@ -31,7 +31,7 @@ export async function openDB(): Promise<IDBDatabase> {
     request.onsuccess = () => resolve(request.result);
     
     // Create the object stores when database is first created
-    request.onupgradeneeded = (event) => {
+    request.onupgradeneeded = () => {
       const db = request.result;
       
       // Store for agent metadata

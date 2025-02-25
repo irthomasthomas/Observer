@@ -24,8 +24,11 @@ export async function startScreenCapture(): Promise<MediaStream | null> {
   
   try {
     console.log('Starting screen capture...');
-    const stream = await navigator.mediaDevices.getDisplayMedia({ 
-      video: { mediaSource: "screen" } 
+
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        cursor: "always"
+      } as any
     });
     
     // Store the stream for later use
@@ -40,7 +43,7 @@ export async function startScreenCapture(): Promise<MediaStream | null> {
     return stream;
   } catch (error) {
     console.error('Screen capture error:', error);
-    return null;
+    throw error;
   }
 }
 

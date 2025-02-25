@@ -7,7 +7,6 @@ import {
   getAgentCode,
   deleteAgent,
   CompleteAgent,
-  importAgentFromFile,
   importAgentsFromFiles 
 } from './utils/agent_database';
 import { loadInitialAgents } from './utils/initialAgentLoader';
@@ -15,12 +14,6 @@ import { RotateCw, Edit2, PlusCircle, Terminal, Clock, Trash2, Upload } from 'lu
 import EditAgentModal from './components/EditAgentModal';
 import StartupDialogs from './components/StartupDialogs';
 import TextBubble from './components/TextBubble';
-import { 
-  startScreenCapture, 
-  stopScreenCapture, 
-  captureFrameAndOCR, 
-  injectOCRTextIntoPrompt 
-} from './utils/screenCapture';
 import { startAgentLoop, stopAgentLoop, setOllamaServerAddress } from './utils/main_loop';
 import { Logger } from './utils/logging';
 import AgentLogViewer from './components/AgentLogViewer';
@@ -33,7 +26,7 @@ export function App() {
   const [agentCodes, setAgentCodes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [serverAddress, setServerAddress] = useState('localhost:11434');
-  const [showServerHint, setShowServerHint] = useState(true);
+  const [showServerHint] = useState(true);
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
