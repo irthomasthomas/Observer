@@ -28,9 +28,9 @@ const LandingPage = () => {
             <span className="text-xl font-bold font-golos hidden md:inline">Observer AI</span>
           </div>
           <div className="flex items-center space-x-7 md:space-x-9 -mr-2">
-            <a href="#features" className="hover:text-gray-300 hidden md:inline">Features</a>
-            <a href="#agents" className="hover:text-gray-300 hidden md:inline">Agents</a>
-            <a href="#community" className="hover:text-gray-300 hidden md:inline">Community</a>
+            <a href="https://app.observer-ai.com" className="hover:text-gray-300 hidden md:inline">Features</a>
+            <a href="https://app.observer-ai.com" className="hover:text-gray-300 hidden md:inline">Agents</a>
+            <a href="https://github.com/Roy3838/Observer" className="hover:text-gray-300 hidden md:inline">Community</a>
             <a href="https://github.com/Roy3838/Observer" className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition">
               <Github className="w-5 h-5" />
               <span className="hidden md:inline">GitHub</span>
@@ -47,11 +47,11 @@ const LandingPage = () => {
             all while keeping your data private and secure.
           </p>
           <div className="flex space-x-4">
-            <a href="#getting-started" className="bg-white text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition flex items-center space-x-2">
+            <a href="https://app.observer-ai.com" className="bg-white text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition flex items-center space-x-2">
               <span>Get Started</span>
               <ArrowRight className="w-4 h-4" />
             </a>
-            <a href="#docs" className="bg-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition">
+            <a href="https://github.com/Roy3838/Observer" className="bg-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition">
               Documentation
             </a>
           </div>
