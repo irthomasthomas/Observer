@@ -1,18 +1,8 @@
 // src/utils/agent-commands.ts
 import { Logger } from './logging';
-import * as fs from 'fs';
-import * as path from 'path';
 
-// Utilities for commands to use
+// Define a simplified utilities object (no filesystem operations)
 const commandUtilities = {
-  writeToFile: (agentId: string, filename: string, content: string) => {
-    const dataDir = path.join('./data', agentId);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    fs.appendFileSync(path.join(dataDir, filename), content);
-  },
-  
   getCurrentTime: () => {
     return new Date().toLocaleTimeString([], {
       hour: 'numeric', 
