@@ -21,6 +21,8 @@ desktop/build
 desktop/src-tauri/target
 desktop/src-tauri/Cargo.lock
 
+observer_ollama/dist				
+observer_ollama/observer_ollama.egg-info	
 **/*.rs.bk
 
 .pnp.js
