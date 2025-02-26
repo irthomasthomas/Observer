@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { checkOllamaServer } from './utils/ollamaServer';
+import { checkOllamaServer } from '@utils/ollamaServer';
 import { 
   listAgents, 
   saveAgent, 
@@ -8,17 +8,17 @@ import {
   deleteAgent,
   CompleteAgent,
   importAgentsFromFiles 
-} from './utils/agent_database';
-import { loadInitialAgents } from './utils/initialAgentLoader';
+} from '@utils/agent_database';
+import { loadInitialAgents } from '@utils/initialAgentLoader';
 import { RotateCw, Edit2, PlusCircle, Terminal, Clock, Trash2, Upload } from 'lucide-react';
-import EditAgentModal from './components/EditAgentModal';
-import StartupDialogs from './components/StartupDialogs';
-import TextBubble from './components/TextBubble';
-import { startAgentLoop, stopAgentLoop, setOllamaServerAddress } from './utils/main_loop';
-import { Logger } from './utils/logging';
-import AgentLogViewer from './components/AgentLogViewer';
-import GlobalLogsViewer from './components/GlobalLogsViewer';
-import ScheduleAgentModal, { isAgentScheduled, getScheduledTime } from './components/ScheduleAgentModal';
+import EditAgentModal from '@components/EditAgentModal';
+import StartupDialogs from '@components/StartupDialogs';
+import TextBubble from '@components/TextBubble';
+import { startAgentLoop, stopAgentLoop, setOllamaServerAddress } from '@utils/main_loop';
+import { Logger } from '@utils/logging';
+import AgentLogViewer from '@components/AgentLogViewer';
+import GlobalLogsViewer from '@components/GlobalLogsViewer';
+import ScheduleAgentModal, { isAgentScheduled, getScheduledTime } from '@components/ScheduleAgentModal';
 
 
 export function App() {
