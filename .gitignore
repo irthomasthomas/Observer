@@ -1,31 +1,29 @@
-website/node_modules
-website/.pnp
-.pnp.js
+
 website/dist
 website/build
+
 website/src-tauri/target
 website/src-tauri/Cargo.lock
 
-webapp/node_modules
-webapp/dist
-**/*.rs.bk
+website/node_modules
+website/.pnp
 
-
-
+app/node_modules
+app/dist
 
 desktop/node_modules
 desktop/public/assets/
 desktop/.pnp
-.pnp.js
 
-# Production build
 desktop/dist
 desktop/build
 
-# Tauri
 desktop/src-tauri/target
 desktop/src-tauri/Cargo.lock
+
 **/*.rs.bk
+
+.pnp.js
 
 # Python
 __pycache__/
