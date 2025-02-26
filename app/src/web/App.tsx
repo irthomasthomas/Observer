@@ -25,7 +25,7 @@ export function App() {
   const [agents, setAgents] = useState<CompleteAgent[]>([]);
   const [agentCodes, setAgentCodes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [serverAddress, setServerAddress] = useState('localhost:11434');
+  const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [showServerHint] = useState(true);
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
   const [isRefreshing, setIsRefreshing] = useState(false);

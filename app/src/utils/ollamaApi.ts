@@ -13,7 +13,7 @@ export async function sendPromptToOllama(
   prompt: string
 ): Promise<string> {
   try {
-    const url = `http://${host}:${port}/api/generate`;
+    const url = `https://${host}:${port}/api/generate`;
     
     const response = await fetch(url, {
       method: 'POST',

@@ -5,7 +5,7 @@ interface ServerResponse {
 
 export async function checkOllamaServer(host: string, port: string): Promise<ServerResponse> {
   try {
-    const response = await fetch(`http://${host}:${port}/api/tags`, {
+    const response = await fetch(`https://${host}:${port}/api/tags`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
