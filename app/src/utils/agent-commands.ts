@@ -1,7 +1,5 @@
-// src/utils/agent-commands.ts
 import { Logger } from './logging';
 import { getAgentMemory, updateAgentMemory } from './agent_database';
-
 // Define utilities object with memory functions
 const commandUtilities = {
   getCurrentTime: () => {
@@ -13,15 +11,14 @@ const commandUtilities = {
   },
   
   // Add memory functions to the utilities
-  getAgentMemory: async (agentId) => {
+  getAgentMemory: async (agentId: string) => {
     return await getAgentMemory(agentId);
   },
   
-  updateAgentMemory: async (agentId, memory) => {
+  updateAgentMemory: async (agentId: string, memory: any) => {
     await updateAgentMemory(agentId, memory);
   }
 };
-
 // Extract commands from agent code
 export function extractCommands(agentId: string, codeText: string): Record<string, Function> {
   const commands: Record<string, Function> = {};
@@ -61,7 +58,6 @@ export function extractCommands(agentId: string, codeText: string): Record<strin
   
   return commands;
 }
-
 // Process text for commands
 export async function processAgentCommands(
   agentId: string, 
