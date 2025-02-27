@@ -439,15 +439,17 @@ export function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* CSS for memory flash animation */}
-      <style jsx global>{`
-        @keyframes memory-flash {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-        .animate-pulse {
-          animation: memory-flash 1.5s ease-in-out infinite;
-        }
-      `}</style>
+      <style>
+        {`
+          @keyframes memory-flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
+          .animate-pulse {
+            animation: memory-flash 1.5s ease-in-out infinite;
+          }
+        `}
+      </style>
       {/* Hidden file input for agent import */}
       <input 
         type="file"
