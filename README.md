@@ -35,7 +35,42 @@ app.observer-ai.com
 
 ## 🏗️ Building Your Own Agent
 
-TODO
+Creating your own Observer AI agent is simple and accessible to both beginners and experienced developers.
+
+### Quick Start
+
+1. Navigate to the Agent Dashboard and click "Create New Agent"
+2. Fill in the "Configuration" tab with basic details (name, description, model, loop interval)
+3. Use the "Actions" tab to visually build your agent's behavior by dragging blocks:
+  - **Screen** block: Captures screen content via OCR
+  - **Agent Memory** block: Accesses other agents' stored information
+
+### Advanced Options
+
+For more control, the "Code" tab allows you to:
+- Define a custom system prompt
+- Create commands using this format:
+
+```javascript
+//COMMAND_NAME
+function(params) {
+ // Command logic using utilities like:
+ utilities.getCurrentTime();
+ utilities.pushNotification("Title", {body: "Message"});
+ utilities.updateAgentMemory(agentId, content);
+}
+```
+
+The agent executes these when it outputs COMMAND_NAME: parameters in its response.
+
+### Example: Activity Tracker
+A simple agent that logs what you're doing:
+
+- System prompt with Screen block to capture content
+- ACTIVITY command that saves observations to memory
+
+Deploy & Share
+Save your agent, test it from the dashboard, and export the configuration to share with others!
 
 ## 🤝 Contributing
 
