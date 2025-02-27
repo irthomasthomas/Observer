@@ -17,10 +17,11 @@ export interface CompleteAgent {
 
 // Database setup
 const DB_NAME = 'observer-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const AGENT_STORE = 'agents';
 const CONFIG_STORE = 'configs';
 const CODE_STORE = 'code';
+const MEMORY_STORE = 'memories';
 
 // Open the database
 export async function openDB(): Promise<IDBDatabase> {
@@ -48,6 +49,11 @@ export async function openDB(): Promise<IDBDatabase> {
       // Store for agent code
       if (!db.objectStoreNames.contains(CODE_STORE)) {
         db.createObjectStore(CODE_STORE, { keyPath: 'id' });
+      }
+      
+      // Store for agent memories
+      if (!db.objectStoreNames.contains(MEMORY_STORE)) {
+        db.createObjectStore(MEMORY_STORE, { keyPath: 'id' });
       }
     };
   });
@@ -114,6 +120,12 @@ export async function saveAgent(
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+  
+  // Initialize memory with empty string if it doesn't exist yet
+  const memory = await getAgentMemory(agent.id);
+  if (memory === null) {
+    await updateAgentMemory(agent.id, '');
+  }
   
   return agent;
 }
@@ -227,6 +239,40 @@ export async function getAgentCode(agentId: string): Promise<string | null> {
   });
 }
 
+// Get agent memory
+export async function getAgentMemory(agentId: string): Promise<string> {
+  const db = await openDB();
+  
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(MEMORY_STORE, 'readonly');
+    const store = tx.objectStore(MEMORY_STORE);
+    const request = store.get(agentId);
+    
+    request.onsuccess = () => {
+      const result = request.result;
+      resolve(result ? result.memory : '');
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Update agent memory
+export async function updateAgentMemory(agentId: string, memory: string): Promise<void> {
+  const db = await openDB();
+  
+  const tx = db.transaction(MEMORY_STORE, 'readwrite');
+  const store = tx.objectStore(MEMORY_STORE);
+  
+  await new Promise<void>((resolve, reject) => {
+    const request = store.put({
+      id: agentId,
+      memory
+    });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
 // Update agent status
 export async function updateAgentStatus(agentId: string, status: 'running' | 'stopped'): Promise<CompleteAgent | null> {
   const agent = await getAgent(agentId);
@@ -249,7 +295,7 @@ export async function updateAgentStatus(agentId: string, status: 'running' | 'st
 export async function deleteAgent(agentId: string): Promise<void> {
   const db = await openDB();
   
-  const tx = db.transaction([AGENT_STORE, CONFIG_STORE, CODE_STORE], 'readwrite');
+  const tx = db.transaction([AGENT_STORE, CONFIG_STORE, CODE_STORE, MEMORY_STORE], 'readwrite');
   
   // Delete from all stores
   await Promise.all([
@@ -265,6 +311,11 @@ export async function deleteAgent(agentId: string): Promise<void> {
     }),
     new Promise<void>((resolve, reject) => {
       const request = tx.objectStore(CODE_STORE).delete(agentId);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    }),
+    new Promise<void>((resolve, reject) => {
+      const request = tx.objectStore(MEMORY_STORE).delete(agentId);
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     })
@@ -292,6 +343,7 @@ export interface AgentExport {
     loop_interval_seconds: number;
   };
   code: string;
+  memory: string;
 }
 
 /**
@@ -322,6 +374,10 @@ export async function importAgentFromFile(file: File): Promise<CompleteAgent> {
         
         // Save the agent to the database
         const savedAgent = await saveAgent(agent, agentData.code);
+        
+        // Save the memory
+        await updateAgentMemory(agent.id, agentData.memory || '');
+        
         resolve(savedAgent);
       } catch (error) {
         reject(error);
@@ -386,6 +442,9 @@ export async function exportAgentToFile(agentId: string): Promise<Blob> {
     throw new Error(`Code for agent with ID ${agentId} not found`);
   }
   
+  // Get the agent memory
+  const memory = await getAgentMemory(agentId);
+  
   // Create the export object
   const exportData: AgentExport = {
     metadata: {
@@ -399,7 +458,8 @@ export async function exportAgentToFile(agentId: string): Promise<Blob> {
       system_prompt: agent.system_prompt,
       loop_interval_seconds: agent.loop_interval_seconds
     },
-    code
+    code,
+    memory
   };
   
   // Convert to JSON and create a blob
@@ -435,3 +495,4 @@ export async function downloadAgent(agentId: string): Promise<void> {
     throw error;
   }
 }
+

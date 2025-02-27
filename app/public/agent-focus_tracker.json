@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "id": "focus_tracker",
+    "name": "Focus Tracking Assistant",
+    "description": "This assistant compiles a list of time used in certain applications",
+    "status": "stopped"
+  },
+  "config": {
+    "model_name": "deepseek-r1:8b",
+    "system_prompt": "You are a Focus Tracker agent that monitors application switching frequency and duration.\nYour job is to observe the screen, identify which applications are being used, and register use time of applications.\nRespond only with the following format:\nFOCUSSTAT: [Brief description of new activity]\n\nThis is the user's previous activities, if the last activity is similar to the current activity. Don't respond with the command.\n\n$MEMORY@focus_tracker\n\n<Screen>\n$SCREEN_OCR\n</Screen>\n\nFOCUSSTAT: [Concise observation about new activity.\nRemember only use the command when the activity is new.",
+    "loop_interval_seconds": 60
+  },
+  "code": "//FOCUSSTAT\nfunction(line) {\n  const currentMemory = utilities.getAgentMemory(agentId);\n  const time = utilities.getCurrentTime();\n  currentMemory.then(memory => {\n    utilities.updateAgentMemory(agentId, memory + \"\\n\" + time + line);\n  });\n}"
+}

@@ -1,7 +1,8 @@
 // src/utils/agent-commands.ts
 import { Logger } from './logging';
+import { getAgentMemory, updateAgentMemory } from './agent_database';
 
-// Define a simplified utilities object (no filesystem operations)
+// Define utilities object with memory functions
 const commandUtilities = {
   getCurrentTime: () => {
     return new Date().toLocaleTimeString([], {
@@ -9,6 +10,15 @@ const commandUtilities = {
       minute: '2-digit',
       hour12: true
     }).toLowerCase();
+  },
+  
+  // Add memory functions to the utilities
+  getAgentMemory: async (agentId) => {
+    return await getAgentMemory(agentId);
+  },
+  
+  updateAgentMemory: async (agentId, memory) => {
+    await updateAgentMemory(agentId, memory);
   }
 };
 
@@ -33,9 +43,12 @@ export function extractCommands(agentId: string, codeText: string): Record<strin
       // Extract function body
       const functionCode = lines.slice(1).join('\n');
       
-      // Create function with proper context
+      // Create function with proper context - now properly handling async functions
       const commandFn = new Function('agentId', 'utilities', `
-        return ${functionCode}.bind(null);
+        const fn = ${functionCode};
+        return async function(params) {
+          return await fn.call(null, params);
+        };
       `)(agentId, commandUtilities);
       
       commands[commandName] = commandFn;
@@ -58,12 +71,16 @@ export async function processAgentCommands(
   // Extract commands from agent code
   const commands = extractCommands(agentId, agentCode);
   
-  // Find command patterns in text (COMMAND: params or just COMMAND)
-  const commandRegex = /([A-Z]{2,})(?::\s*(.*?))?(?=\n[A-Z]{2,}:|$)/gs;
+  // Filter out content inside <think>...</think> tags
+  const filteredText = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+  
+  // Find command patterns in filtered text
+  // Uses an improved regex that properly captures full commands with parameters
+  const commandRegex = /\b([A-Z_]{2,})(?::(?:\s*)(.*))?(?=\s|$)/gm;
   let match;
   let commandExecuted = false;
   
-  while ((match = commandRegex.exec(text)) !== null) {
+  while ((match = commandRegex.exec(filteredText)) !== null) {
     const [_, commandName, params = ""] = match;
     
     if (commands[commandName]) {

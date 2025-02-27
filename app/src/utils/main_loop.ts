@@ -1,5 +1,9 @@
 // src/utils/main_loop.ts
-import { getAgent, getAgentCode } from './agent_database';
+import { 
+  getAgent, 
+  getAgentCode, 
+  getAgentMemory, 
+} from './agent_database';
 import { 
   startScreenCapture, 
   stopScreenCapture, 
@@ -134,6 +138,17 @@ export function stopAgentLoop(agentId: string): void {
 }
 
 /**
+ * Helper function to inject memory into prompt
+ * @param prompt The system prompt
+ * @param memory The memory string to inject
+ * @param agentId The agent ID
+ * @returns Updated prompt with memory injected
+ */
+function injectMemoryIntoPrompt(prompt: string, memory: string, agentId: string): string {
+  return prompt.replace(`$MEMORY@${agentId}`, memory);
+}
+
+/**
  * Execute a single iteration of the agent's loop
  * @param agentId The ID of the agent
  */
@@ -160,7 +175,7 @@ async function executeAgentIteration(agentId: string): Promise<void> {
     let systemPrompt = agent.system_prompt;
     
     // Check if we need to inject OCR
-    if (systemPrompt.includes('SCREEN_OCR')) {
+    if (systemPrompt.includes('$SCREEN_OCR')) {
       Logger.info(agentId, `Performing OCR for screen analysis`);
       
       // Capture the screen and perform OCR
@@ -178,9 +193,25 @@ async function executeAgentIteration(agentId: string): Promise<void> {
       }
     }
     
+    // Check if we need to inject memory
+    if (systemPrompt.includes(`$MEMORY@${agentId}`)) {
+      Logger.info(agentId, `Injecting agent memory into prompt`);
+      
+      // Get the agent's memory
+      const memory = await getAgentMemory(agentId);
+      
+      // Inject the memory into the prompt
+      systemPrompt = injectMemoryIntoPrompt(systemPrompt, memory, agentId);
+      
+      Logger.info(agentId, `Memory injected into prompt`, {
+        memoryLength: memory.length,
+        memoryPreview: memory.slice(0, 100) + (memory.length > 100 ? '...' : '')
+      });
+    }
+    
     // Send the prompt to Ollama and get response
     try {
-      Logger.info(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
+      Logger.info(agentId, `Sending prompt ${systemPrompt} to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
       
       const response = await sendPromptToOllama(
         serverHost,
@@ -189,20 +220,20 @@ async function executeAgentIteration(agentId: string): Promise<void> {
         systemPrompt
       );
       
-      Logger.info(agentId, `Received response from Ollama`, {
-        responseLength: response.length,
-        responsePreview: response.slice(0, 100) + (response.length > 100 ? '...' : '')
-      });
+      //Logger.info(agentId, `Received response from Ollama`, {
+      //  responseLength: response.length,
+      //  responsePreview: response.slice(0, 100) + (response.length > 100 ? '...' : '')
+      //});
+      Logger.info(agentId, `Received ${response}`)
 
       // Get the agent code
       const agentCode = await getAgentCode(agentId) || '';
-
-      // Process commands
+      
+      // Process other commands
       const commandsExecuted = await processAgentCommands(agentId, response, agentCode);
       if (commandsExecuted) {
         Logger.info(agentId, `Commands executed from agent response`);
       }
-      
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

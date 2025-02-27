@@ -10,7 +10,7 @@ import {
   importAgentsFromFiles 
 } from '@utils/agent_database';
 import { loadInitialAgents } from '@utils/initialAgentLoader';
-import { RotateCw, Edit2, PlusCircle, Terminal, Clock, Trash2, Upload } from 'lucide-react';
+import { RotateCw, Edit2, PlusCircle, Terminal, Clock, Trash2, Upload, Brain } from 'lucide-react';
 import EditAgentModal from '@components/EditAgentModal';
 import StartupDialogs from '@components/StartupDialogs';
 import TextBubble from '@components/TextBubble';
@@ -19,6 +19,7 @@ import { Logger } from '@utils/logging';
 import AgentLogViewer from '@components/AgentLogViewer';
 import GlobalLogsViewer from '@components/GlobalLogsViewer';
 import ScheduleAgentModal, { isAgentScheduled, getScheduledTime } from '@components/ScheduleAgentModal';
+import MemoryManager from '@components/MemoryManager';
 
 
 export function App() {
@@ -36,6 +37,8 @@ export function App() {
   const [showGlobalLogs, setShowGlobalLogs] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [schedulingAgentId, setSchedulingAgentId] = useState<string | null>(null);
+  const [isMemoryManagerOpen, setIsMemoryManagerOpen] = useState(false);
+  const [memoryAgentId, setMemoryAgentId] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<{
     inProgress: boolean;
     results: Array<{ filename: string; success: boolean; error?: string }>;
@@ -130,6 +133,13 @@ export function App() {
     setSchedulingAgentId(agentId);
     setIsScheduleModalOpen(true);
     Logger.info('APP', `Opening schedule modal for agent ${agentId}`);
+  };
+
+  // Handle memory button click
+  const handleMemoryClick = (agentId: string) => {
+    setMemoryAgentId(agentId);
+    setIsMemoryManagerOpen(true);
+    Logger.info('APP', `Opening memory manager for agent ${agentId}`);
   };
 
   // Handle delete agent button click
@@ -554,6 +564,13 @@ export function App() {
                   }`} />
                 </button>
 
+                <button
+                  onClick={() => handleMemoryClick(agent.id)}
+                  className="p-2 rounded-md hover:bg-purple-100"
+                  title="View and edit agent memory"
+                >
+                  <Brain className="h-5 w-5 text-purple-600" />
+                </button>
               </div>
 
               {/* Agent-specific log viewer */}
@@ -587,6 +604,19 @@ export function App() {
           onUpdate={fetchAgents}
         />
       )}
+      
+      {/* Memory Manager */}
+      {isMemoryManagerOpen && memoryAgentId && (
+        <MemoryManager
+          agentId={memoryAgentId}
+          agentName={agents.find(a => a.id === memoryAgentId)?.name || memoryAgentId}
+          isOpen={isMemoryManagerOpen}
+          onClose={() => {
+            setIsMemoryManagerOpen(false);
+            setMemoryAgentId(null);
+          }}
+        />
+      )}
 
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-30">
@@ -611,5 +641,6 @@ export function App() {
     </div>
   );
 }
+
 
 export default App;

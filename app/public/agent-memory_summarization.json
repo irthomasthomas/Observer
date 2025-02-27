@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "id": "memory_summarization",
+    "name": "Memory Summarization Agent",
+    "description": "This agent reads another agent's memories and summarizes them so that context window length doesn't become a problem.",
+    "status": "stopped"
+  },
+  "config": {
+    "model_name": "deepseek-r1:8b",
+    "system_prompt": "Hi deepseek please summarize the text below:\n\n$MEMORY@activity_tracking_agent\n\nrespond with\nSUMMARY: summary of text you saw ",
+    "loop_interval_seconds": 300
+  },
+  "code": "//SUMMARY\nfunction(line) {\n  utilities.updateAgentMemory(\"activity_tracking_agent\", line);\n}"
+}

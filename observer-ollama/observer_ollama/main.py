@@ -160,6 +160,20 @@ def start_ollama_server():
         logger.error("Ollama executable not found. Please install Ollama first.")
         sys.exit(1)
 
+def get_local_ip():
+    """Get the local IP address for network access"""
+    try:
+        # Create a socket that connects to an external server to determine local IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # We don't actually need to send data
+        s.connect(('8.8.8.8', 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception as e:
+        logger.warning(f"Could not determine local IP: {e}")
+        return "0.0.0.0"
+
 def prepare_certificates(cert_dir):
     """Prepare SSL certificates"""
     cert_path = Path(cert_dir) / "cert.pem"
@@ -220,17 +234,23 @@ def run_server(port, cert_dir, auto_start):
     def signal_handler(sig, frame):
         logger.info("Shutting down...")
         if ollama_process:
-            logger.info("Terminating Ollama process...")
-            ollama_process.terminate()
+            logger.info("Ollama process is up")
         httpd.shutdown()
         sys.exit(0)
     
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
+    # Get local IP for network access
+    local_ip = get_local_ip()
+    
+    # Display server information in Vite-like format
+    print("\n\033[1m OLLAMA-PROXY \033[0m ready")
+    print(f"  ➜  \033[36mLocal:   \033[0mhttps://localhost:{port}/")
+    print(f"  ➜  \033[36mNetwork: \033[0mhttps://{local_ip}:{port}/")
+    print("\n  Use the Network URL when accessing from another machine\n")
+    
     # Start server
-    logger.info(f"Proxy running at https://localhost:{port}")
-    logger.info("Press Ctrl+C to stop")
     httpd.serve_forever()
 
 def main():
