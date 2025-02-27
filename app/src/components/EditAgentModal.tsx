@@ -1,9 +1,10 @@
+// src/components/EditAgentModal.tsx
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { CompleteAgent } from '../utils/agent_database';
 import { Download } from 'lucide-react';
+import ActionsTab from './ActionsTab';
 
-// Define tab types
-type TabType = 'config' | 'actions';
+type TabType = 'config' | 'actions' | 'code';
 
 // Lazy load CodeMirror component
 const LazyCodeMirror = lazy(() => import('@uiw/react-codemirror'));
@@ -63,9 +64,9 @@ const EditAgentModal = ({
     }
   }, [agent, existingCode]);
 
-  // Preload editor when switching to actions tab
+  // Preload editor when switching to code tab
   useEffect(() => {
-    if (activeTab === 'actions' && !editorIsLoaded) {
+    if (activeTab === 'code' && !editorIsLoaded) {
       // This will trigger the lazy loading
       import('@uiw/react-codemirror').then(() => {
         setEditorIsLoaded(true);
@@ -193,7 +194,7 @@ const EditAgentModal = ({
     </>
   );
 
-  const renderActionsTab = () => (
+  const renderCodeTab = () => (
     <>
       <div className="mb-4">
         <label className="block mb-1">System Prompt</label>
@@ -279,12 +280,24 @@ const EditAgentModal = ({
           >
             Actions
           </button>
+          <button
+            className={`px-4 py-2 font-medium ${activeTab === 'code' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('code')}
+          >
+            Code
+          </button>
         </div>
         
         {/* Tab content */}
         <div>
           {activeTab === 'config' && renderConfigTab()}
-          {activeTab === 'actions' && renderActionsTab()}
+          {activeTab === 'actions' && (
+            <ActionsTab 
+              systemPrompt={systemPrompt} 
+              onSystemPromptChange={setSystemPrompt} 
+            />
+          )}
+          {activeTab === 'code' && renderCodeTab()}
         </div>
         
         <div className="flex justify-end space-x-4 mt-6">

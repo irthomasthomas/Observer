@@ -13,6 +13,7 @@ import {
 import { sendPromptToOllama } from './ollamaApi';
 import { Logger } from './logging'; // Import the Logger
 import { processAgentCommands } from './agent-commands.ts'
+import { clearCommands } from './command_registry';
 
 const activeLoops: Record<string, {
   intervalId: number,
@@ -114,7 +115,10 @@ export function stopAgentLoop(agentId: string): void {
     
     // Clear the interval
     window.clearInterval(loop.intervalId);
-    
+
+    // Clear agent commands
+    clearCommands(agentId);
+
     // Stop screen capture if this is the last active agent using it
     const otherAgentsUsingScreenCapture = Object.entries(activeLoops)
       .filter(([id, l]) => id !== agentId && l.isRunning)
