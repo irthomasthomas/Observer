@@ -143,7 +143,7 @@ export function stopAgentLoop(agentId: string): void {
  * @param agentId The current agent ID
  * @returns Updated prompt with all memories injected
  */
-async function injectAllMemoriesIntoPrompt(prompt: string, agentId: string): Promise<string> {
+async function injectAllMemoriesIntoPrompt(prompt: string): Promise<string> {
   let updatedPrompt = prompt;
   
   // Look for all memory references in the format $MEMORY@agentId
@@ -229,7 +229,7 @@ async function executeAgentIteration(agentId: string): Promise<void> {
       Logger.info(agentId, `Injecting memories into prompt`);
       
       // Inject all memories using our new helper function
-      systemPrompt = await injectAllMemoriesIntoPrompt(systemPrompt, agentId);
+      systemPrompt = await injectAllMemoriesIntoPrompt(systemPrompt);
       
       Logger.info(agentId, `All memories injected into prompt`);
     }
