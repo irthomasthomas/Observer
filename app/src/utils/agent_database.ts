@@ -1,5 +1,7 @@
 // utils/agent_database.ts
 // Database utilities for agent management with unified CompleteAgent type
+//
+import { dispatchMemoryUpdate } from '@components/MemoryManager';
 
 // Unified CompleteAgent Type
 export interface CompleteAgent {
@@ -271,6 +273,7 @@ export async function updateAgentMemory(agentId: string, memory: string): Promis
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
+  dispatchMemoryUpdate(agentId);
 }
 
 // Update agent status

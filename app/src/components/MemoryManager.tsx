@@ -1,7 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Trash2 } from 'lucide-react';
 import { getAgentMemory, updateAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
+
+// Create a custom event for memory updates
+export const MEMORY_UPDATE_EVENT = 'agent-memory-update';
+
+// Dispatch a memory update event
+export function dispatchMemoryUpdate(agentId: string) {
+  const event = new CustomEvent(MEMORY_UPDATE_EVENT, { 
+    detail: { agentId } 
+  });
+  window.dispatchEvent(event);
+}
 
 interface MemoryManagerProps {
   agentId: string;
@@ -22,19 +33,64 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({
   const [isClearing, setIsClearing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Polling interval for memory updates (in milliseconds)
+  const pollingInterval = 2000;
+  const pollingTimer = useRef<number | null>(null);
+  
+  // Start polling for memory updates when the component is open
   useEffect(() => {
     if (isOpen) {
+      // Initial load
       loadMemory();
+      
+      // Set up polling for updates
+      pollingTimer.current = window.setInterval(() => {
+        loadMemory(false); // Silent update (no logging for routine checks)
+      }, pollingInterval);
+      
+      // Clean up interval on unmount or when closing
+      return () => {
+        if (pollingTimer.current !== null) {
+          window.clearInterval(pollingTimer.current);
+          pollingTimer.current = null;
+        }
+      };
     }
   }, [isOpen, agentId]);
+  
+  // Listen for memory update events
+  useEffect(() => {
+    const handleMemoryUpdate = (event: CustomEvent) => {
+      if (event.detail.agentId === agentId && isOpen) {
+        loadMemory(false); // Silent update
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
+    };
+  }, [agentId, isOpen]);
 
-  const loadMemory = async () => {
+  const loadMemory = async (logActivity = true) => {
     try {
       setError(null);
       const agentMemory = await getAgentMemory(agentId);
+      
+      // Skip update if memory hasn't changed
+      if (agentMemory === savedMemory && memory === savedMemory) {
+        return;
+      }
+      
       setMemory(agentMemory);
       setSavedMemory(agentMemory);
-      Logger.info(agentId, `Memory loaded (${agentMemory.length} characters)`);
+      
+      if (logActivity) {
+        Logger.info(agentId, `Memory loaded (${agentMemory.length} characters)`);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to load memory: ${errorMessage}`);

@@ -19,7 +19,7 @@ import { Logger } from '@utils/logging';
 import AgentLogViewer from '@components/AgentLogViewer';
 import GlobalLogsViewer from '@components/GlobalLogsViewer';
 import ScheduleAgentModal, { isAgentScheduled, getScheduledTime } from '@components/ScheduleAgentModal';
-import MemoryManager from '@components/MemoryManager';
+import MemoryManager, { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
 
 
 export function App() {
@@ -29,6 +29,7 @@ export function App() {
   const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [showServerHint] = useState(true);
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
+  const [startingAgents, setStartingAgents] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -39,6 +40,7 @@ export function App() {
   const [schedulingAgentId, setSchedulingAgentId] = useState<string | null>(null);
   const [isMemoryManagerOpen, setIsMemoryManagerOpen] = useState(false);
   const [memoryAgentId, setMemoryAgentId] = useState<string | null>(null);
+  const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
   const [importStatus, setImportStatus] = useState<{
     inProgress: boolean;
     results: Array<{ filename: string; success: boolean; error?: string }>;
@@ -137,6 +139,13 @@ export function App() {
 
   // Handle memory button click
   const handleMemoryClick = (agentId: string) => {
+    // Remove from flashing memories if it's there
+    if (flashingMemories.has(agentId)) {
+      const newFlashing = new Set(flashingMemories);
+      newFlashing.delete(agentId);
+      setFlashingMemories(newFlashing);
+    }
+    
     setMemoryAgentId(agentId);
     setIsMemoryManagerOpen(true);
     Logger.info('APP', `Opening memory manager for agent ${agentId}`);
@@ -279,37 +288,77 @@ export function App() {
   const toggleAgent = async (id: string, currentStatus: string): Promise<void> => {
     try {
       setError(null);
-      const newStatus = currentStatus === 'running' ? 'stopped' : 'running';
       const agent = agents.find(a => a.id === id);
       
       if (!agent) {
         throw new Error(`Agent ${id} not found`);
       }
+
+      // Check if the agent is currently in "starting up" state
+      const isStartingUp = startingAgents.has(id);
       
-      if (newStatus === 'running') {
-        Logger.info(id, `Starting agent "${agent.name}"`);
-        // Start the agent loop
-        await startAgentLoop(id);
-      } else {
+      // If it's starting up or already running, we want to stop it
+      if (isStartingUp || currentStatus === 'running') {
         Logger.info(id, `Stopping agent "${agent.name}"`);
+        
         // Stop the agent loop
         stopAgentLoop(id);
+        
+        // Remove from starting agents set if it was there
+        if (isStartingUp) {
+          setStartingAgents(prev => {
+            const updated = new Set(prev);
+            updated.delete(id);
+            return updated;
+          });
+        }
+        
+        // Update agent status in the database
+        await updateAgentStatus(id, 'stopped');
+        Logger.info(id, `Agent status updated to "stopped" in database`);
+      } else {
+        // Agent is stopped, let's start it
+        Logger.info(id, `Starting agent "${agent.name}"`);
+        
+        // Add to starting agents set
+        setStartingAgents(prev => {
+          const updated = new Set(prev);
+          updated.add(id);
+          return updated;
+        });
+        
+        try {
+          // Start the agent loop
+          await startAgentLoop(id);
+          
+          // Update agent status in the database
+          await updateAgentStatus(id, 'running');
+          Logger.info(id, `Agent status updated to "running" in database`);
+        } finally {
+          // Always remove from starting agents set, even if there was an error
+          setStartingAgents(prev => {
+            const updated = new Set(prev);
+            updated.delete(id);
+            return updated;
+          });
+        }
       }
-      
-      // Update agent status in the database
-      await updateAgentStatus(id, newStatus as 'running' | 'stopped');
-      Logger.info(id, `Agent status updated to "${newStatus}" in database`);
       
       // Refresh the agent list
       await fetchAgents();
     } catch (err) {
-      // No need to track starting agents
+      // Remove from starting agents set if there was an error
+      setStartingAgents(prev => {
+        const updated = new Set(prev);
+        updated.delete(id);
+        return updated;
+      });
       
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       Logger.error('APP', `Failed to toggle agent status: ${errorMessage}`, err);
     }
-  }
+  };
 
   // Save agent (create or update)
   const handleSaveAgent = async (agent: CompleteAgent, code: string) => {
@@ -333,6 +382,30 @@ export function App() {
     }
   };
 
+  // Setup memory update listener
+  useEffect(() => {
+    const handleMemoryUpdate = (event: CustomEvent) => {
+      const updatedAgentId = event.detail.agentId;
+      
+      // Only add to flashing set if the memory manager for this agent is not open
+      if (updatedAgentId !== memoryAgentId || !isMemoryManagerOpen) {
+        setFlashingMemories(prev => {
+          const newSet = new Set(prev);
+          newSet.add(updatedAgentId);
+          return newSet;
+        });
+        
+        Logger.debug('APP', `Memory updated for agent ${updatedAgentId}, setting flash indicator`);
+      }
+    };
+    
+    window.addEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
+    };
+  }, [memoryAgentId, isMemoryManagerOpen]);
+  
   // Initial data load
   useEffect(() => {
     Logger.info('APP', 'Application starting');
@@ -365,6 +438,16 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* CSS for memory flash animation */}
+      <style jsx global>{`
+        @keyframes memory-flash {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+        .animate-pulse {
+          animation: memory-flash 1.5s ease-in-out infinite;
+        }
+      `}</style>
       {/* Hidden file input for agent import */}
       <input 
         type="file"
@@ -523,25 +606,23 @@ export function App() {
               </div>
               
               <div className="mt-4 flex items-center space-x-4">
+
+
                 <button
-                  onClick={(e) => {
-                    // For stopped agents, change button text immediately
-                    if (agent.status === 'stopped') {
-                      // Change just this button's text and style
-                      const btn = e.currentTarget;
-                      btn.innerText = '⏳ Starting Up';
-                      btn.className = 'px-4 py-2 rounded-md bg-yellow-500 text-white hover:bg-yellow-600';
-                    }
-                    // Call the actual toggle function
-                    toggleAgent(agent.id, agent.status);
-                  }}
+                  onClick={() => toggleAgent(agent.id, agent.status)}
                   className={`px-4 py-2 rounded-md ${
-                    agent.status === 'running'
-                      ? 'bg-red-500 text-white hover:bg-red-600'
-                      : 'bg-green-500 text-white hover:bg-green-600'
+                    startingAgents.has(agent.id)
+                      ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                      : agent.status === 'running'
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-green-500 text-white hover:bg-green-600'
                   }`}
                 >
-                  {agent.status === 'running' ? '⏹ Stop' : '▶️ Start'}
+                  {startingAgents.has(agent.id)
+                    ? '⏳ Starting Up'
+                    : agent.status === 'running'
+                      ? '⏹ Stop'
+                      : '▶️ Start'}
                 </button>
 
                 <div className="text-sm bg-gray-100 px-2 py-1 rounded">
@@ -566,10 +647,16 @@ export function App() {
 
                 <button
                   onClick={() => handleMemoryClick(agent.id)}
-                  className="p-2 rounded-md hover:bg-purple-100"
+                  className={`p-2 rounded-md hover:bg-purple-100 ${
+                    flashingMemories.has(agent.id) ? 'animate-pulse' : ''
+                  }`}
                   title="View and edit agent memory"
                 >
-                  <Brain className="h-5 w-5 text-purple-600" />
+                  <Brain className={`h-5 w-5 ${
+                    flashingMemories.has(agent.id) 
+                      ? 'text-purple-600 animate-pulse' 
+                      : 'text-purple-600'
+                  }`} />
                 </button>
               </div>
 
@@ -641,6 +728,5 @@ export function App() {
     </div>
   );
 }
-
 
 export default App;
