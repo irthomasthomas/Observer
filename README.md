@@ -19,17 +19,18 @@ Observer AI is a privacy-first platform that lets you run AI agents with Ollama,
 ## 🚀 Getting Started
 
 ```bash
-# Make sure Ollama is installed
-pip install ollama
-
 # For local inference run observer-ollama
 pip install observer-ollama
 
-# Install dependencies
-npm install
+# Click on the link provided so that your browser accepts self signed CERTS (signed by your computer)
+#  OLLAMA-PROXY  ready
+#  ➜  Local:   https://localhost:3838/
+#  ➜  Network: https://10.0.0.138:3838/
 
 # Go to webapp:
 app.observer-ai.com
+
+# Enter your inference IP 
 ```
 
 ## 🏗️ Building Your Own Agent
