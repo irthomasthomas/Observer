@@ -1,5 +1,5 @@
-// src/components/ActionsTab.tsx
-import React, { useState, useEffect } from 'react';
+// src/components/ActionsTab.tsx (updated version with fixes)
+import React, { useState, useEffect, useRef } from 'react';
 import { CompleteAgent, listAgents } from '../utils/agent_database';
 
 interface BlockData {
@@ -29,6 +29,9 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
     { type: 'text', value: systemPrompt }
   ]);
   
+  // Reference to keep track of textareas for auto-resizing
+  const textAreaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+  
   // Load available agents on component mount
   useEffect(() => {
     const loadAgents = async () => {
@@ -43,12 +46,100 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
     loadAgents();
   }, []);
   
+  // Function to auto-resize textareas
+  const adjustTextareaHeight = (textarea: HTMLTextAreaElement | null) => {
+    if (!textarea) return;
+    
+    // Reset height to ensure proper scrollHeight calculation
+    textarea.style.height = 'auto';
+    
+    // Set height to scrollHeight to fit content
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  };
+  
+  // Adjust all textareas on render
+  useEffect(() => {
+    textAreaRefs.current.forEach(textarea => {
+      adjustTextareaHeight(textarea);
+    });
+  }, [promptBlocks]);
+  
   // When system prompt changes externally, update our blocks
   useEffect(() => {
-    // This is a simplified approach - in a real implementation
-    // you would parse the systemPrompt to detect and preserve existing blocks
-    setPromptBlocks([{ type: 'text', value: systemPrompt }]);
-  }, [systemPrompt]);
+    // Parse the system prompt to find existing special tokens
+    const screenRegex = /\$SCREEN_OCR/g;
+    const memoryRegex = /\$MEMORY@([a-z0-9_]+)/g;
+    
+    let newBlocks: BlockData[] = [];
+    let lastIndex = 0;
+    let match;
+    
+    // Find all $SCREEN_OCR tokens
+    while ((match = screenRegex.exec(systemPrompt)) !== null) {
+      // Add text before the token
+      if (match.index > lastIndex) {
+        newBlocks.push({
+          type: 'text',
+          value: systemPrompt.substring(lastIndex, match.index)
+        });
+      }
+      
+      // Add the screen block
+      newBlocks.push({
+        type: 'block',
+        value: 'screen'
+      });
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Reset regex lastIndex
+    memoryRegex.lastIndex = 0;
+    
+    // Find all $MEMORY@agentId tokens in the remaining text
+    let remainingText = systemPrompt.substring(lastIndex);
+    lastIndex = 0;
+    
+    while ((match = memoryRegex.exec(remainingText)) !== null) {
+      // Add text before the token
+      if (match.index > lastIndex) {
+        newBlocks.push({
+          type: 'text',
+          value: remainingText.substring(lastIndex, match.index)
+        });
+      }
+      
+      // Add the memory block
+      const agentId = match[1];
+      const agent = availableAgents.find(a => a.id === agentId);
+      
+      newBlocks.push({
+        type: 'block',
+        value: 'memory',
+        metadata: {
+          agentId,
+          agentName: agent?.name || agentId
+        }
+      });
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add any remaining text
+    if (lastIndex < remainingText.length) {
+      newBlocks.push({
+        type: 'text',
+        value: remainingText.substring(lastIndex)
+      });
+    }
+    
+    // If we didn't find any special tokens, just use the system prompt as a single text block
+    if (newBlocks.length === 0) {
+      newBlocks = [{ type: 'text', value: systemPrompt }];
+    }
+    
+    setPromptBlocks(newBlocks);
+  }, [systemPrompt, availableAgents]);
   
   // Convert our block structure back to a plain string for the actual systemPrompt
   useEffect(() => {
@@ -65,30 +156,26 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
   }, [promptBlocks, onSystemPromptChange]);
   
   // Handle dropping a block into the editor
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+  const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>, blockIndex: number) => {
     e.preventDefault();
     const blockType = e.dataTransfer.getData('blockType');
     const agentId = e.dataTransfer.getData('agentId');
     const agentName = e.dataTransfer.getData('agentName');
     
     if (blockType === 'screen' || blockType === 'memory') {
-      // Insert block at dropIndex
+      // Get the target textarea
+      const textarea = e.target as HTMLTextAreaElement;
+      const dropPosition = textarea.selectionStart || 0;
+      
       const newBlocks = [...promptBlocks];
-      const targetBlock = newBlocks[dropIndex];
+      const targetBlock = newBlocks[blockIndex];
       
       if (targetBlock && targetBlock.type === 'text') {
-        // Split the text block at cursor position
-        const targetElement = e.target as HTMLElement;
-        const dropPosition = 
-          targetElement.tagName === 'TEXTAREA' ? 
-          (targetElement as HTMLTextAreaElement).selectionStart || 0 : 
-          0;
-        
         const beforeText = targetBlock.value.substring(0, dropPosition);
         const afterText = targetBlock.value.substring(dropPosition);
         
         // Replace the text block with text before, new block, text after
-        newBlocks.splice(dropIndex, 1, 
+        newBlocks.splice(blockIndex, 1, 
           { type: 'text', value: beforeText },
           { 
             type: 'block', 
@@ -97,16 +184,9 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
           },
           { type: 'text', value: afterText }
         );
-      } else {
-        // Insert after the current block
-        newBlocks.splice(dropIndex + 1, 0, { 
-          type: 'block', 
-          value: blockType,
-          metadata: blockType === 'memory' ? { agentId, agentName } : undefined
-        });
+        
+        setPromptBlocks(newBlocks);
       }
-      
-      setPromptBlocks(newBlocks);
     }
   };
   
@@ -143,7 +223,7 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
         <div className="mb-4">
           <label className="block mb-1">System Prompt</label>
           <div 
-            className="w-full p-2 border rounded font-mono text-sm min-h-[12rem] bg-white flex flex-wrap items-start"
+            className="w-full p-2 border rounded font-mono text-sm bg-white flex flex-wrap min-h-[12rem] overflow-auto"
             onDragOver={(e) => e.preventDefault()}
           >
             {promptBlocks.map((block, index) => {
@@ -151,16 +231,27 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
                 return (
                   <textarea
                     key={`text-${index}`}
+                    ref={(el) => {
+                      textAreaRefs.current[index] = el;
+                      adjustTextareaHeight(el);
+                    }}
                     value={block.value}
                     onChange={(e) => {
                       const newBlocks = [...promptBlocks];
                       newBlocks[index].value = e.target.value;
                       setPromptBlocks(newBlocks);
+                      
+                      // Adjust height on content change
+                      adjustTextareaHeight(e.target);
                     }}
-                    className="border-none outline-none resize-none overflow-hidden min-w-[4rem] flex-grow"
-                    style={{ height: 'auto' }}
+                    className="border-none outline-none resize-none overflow-hidden min-w-[4rem] flex-grow w-full"
+                    onInput={(e) => adjustTextareaHeight(e.target as HTMLTextAreaElement)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => handleDrop(e, index)}
+                    onClick={(e) => {
+                      // Ensure textarea has focus for proper cursor positioning
+                      (e.target as HTMLTextAreaElement).focus();
+                    }}
                   />
                 );
               } else if (block.type === 'block') {
@@ -217,22 +308,26 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
             </div>
             
             {showAgentDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-full bg-white border rounded shadow-lg z-10">
+              <div className="absolute top-full left-0 mt-1 w-full bg-white border rounded shadow-lg z-10 max-h-40 overflow-y-auto">
                 <ul>
-                  {availableAgents.map(agent => (
-                    <li 
-                      key={agent.id} 
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <div
-                        draggable="true"
-                        onDragStart={(e) => handleDragStart(e, 'memory', agent.id, agent.name)}
-                        className="w-full cursor-grab"
+                  {availableAgents.length > 0 ? (
+                    availableAgents.map(agent => (
+                      <li 
+                        key={agent.id} 
+                        className="p-2 hover:bg-gray-100 cursor-pointer"
                       >
-                        {agent.name}
-                      </div>
-                    </li>
-                  ))}
+                        <div
+                          draggable="true"
+                          onDragStart={(e) => handleDragStart(e, 'memory', agent.id, agent.name)}
+                          className="w-full cursor-grab"
+                        >
+                          {agent.name}
+                        </div>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="p-2 text-gray-500">No agents available</li>
+                  )}
                 </ul>
               </div>
             )}
