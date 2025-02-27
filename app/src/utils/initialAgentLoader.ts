@@ -19,7 +19,10 @@ export async function loadInitialAgents(isEmpty: boolean): Promise<void> {
     // List of default agent files to load
     const defaultAgentFiles = [
       'agent-activity_tracking_agent.json',
-      'agent-command_tracking_agent.json'
+      'agent-command_tracking_agent.json',
+      'agent-documentation_agent.json',
+      'agent-focus_tracker.json',
+      'agent-memory_summarization.json'
     ];
     
     // Fetch each file from the public directory
