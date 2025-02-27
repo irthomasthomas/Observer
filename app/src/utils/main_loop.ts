@@ -138,14 +138,45 @@ export function stopAgentLoop(agentId: string): void {
 }
 
 /**
- * Helper function to inject memory into prompt
+ * Replace all memory references in a prompt with actual memory content
  * @param prompt The system prompt
- * @param memory The memory string to inject
- * @param agentId The agent ID
- * @returns Updated prompt with memory injected
+ * @param agentId The current agent ID
+ * @returns Updated prompt with all memories injected
  */
-function injectMemoryIntoPrompt(prompt: string, memory: string, agentId: string): string {
-  return prompt.replace(`$MEMORY@${agentId}`, memory);
+async function injectAllMemoriesIntoPrompt(prompt: string, agentId: string): Promise<string> {
+  let updatedPrompt = prompt;
+  
+  // Look for all memory references in the format $MEMORY@agentId
+  const memoryRegex = /\$MEMORY@([a-zA-Z0-9_]+)/g;
+  let match;
+  
+  // Store all promises to fetch memories
+  const memoryPromises: Promise<{id: string, memory: string}>[] = [];
+  const agentIds: string[] = [];
+  
+  // Find all agent IDs referenced in the prompt
+  while ((match = memoryRegex.exec(prompt)) !== null) {
+    const referencedAgentId = match[1];
+    agentIds.push(referencedAgentId);
+    
+    // Fetch the memory for this agent
+    memoryPromises.push(
+      getAgentMemory(referencedAgentId)
+        .then(memory => ({ id: referencedAgentId, memory }))
+        .catch(() => ({ id: referencedAgentId, memory: `[Error: Unable to access memory for agent ${referencedAgentId}]` }))
+    );
+  }
+  
+  // Wait for all memories to be fetched
+  const memories = await Promise.all(memoryPromises);
+  
+  // Replace each memory reference with the actual memory content
+  for (const { id, memory } of memories) {
+    const memoryPlaceholder = `$MEMORY@${id}`;
+    updatedPrompt = updatedPrompt.replace(memoryPlaceholder, memory);
+  }
+  
+  return updatedPrompt;
 }
 
 /**
@@ -193,20 +224,14 @@ async function executeAgentIteration(agentId: string): Promise<void> {
       }
     }
     
-    // Check if we need to inject memory
-    if (systemPrompt.includes(`$MEMORY@${agentId}`)) {
-      Logger.info(agentId, `Injecting agent memory into prompt`);
+    // Check if we need to inject memories (any agent's memory, not just our own)
+    if (systemPrompt.includes('$MEMORY@')) {
+      Logger.info(agentId, `Injecting memories into prompt`);
       
-      // Get the agent's memory
-      const memory = await getAgentMemory(agentId);
+      // Inject all memories using our new helper function
+      systemPrompt = await injectAllMemoriesIntoPrompt(systemPrompt, agentId);
       
-      // Inject the memory into the prompt
-      systemPrompt = injectMemoryIntoPrompt(systemPrompt, memory, agentId);
-      
-      Logger.info(agentId, `Memory injected into prompt`, {
-        memoryLength: memory.length,
-        memoryPreview: memory.slice(0, 100) + (memory.length > 100 ? '...' : '')
-      });
+      Logger.info(agentId, `All memories injected into prompt`);
     }
     
     // Send the prompt to Ollama and get response
@@ -220,10 +245,6 @@ async function executeAgentIteration(agentId: string): Promise<void> {
         systemPrompt
       );
       
-      //Logger.info(agentId, `Received response from Ollama`, {
-      //  responseLength: response.length,
-      //  responsePreview: response.slice(0, 100) + (response.length > 100 ? '...' : '')
-      //});
       Logger.info(agentId, `Received ${response}`)
 
       // Get the agent code
