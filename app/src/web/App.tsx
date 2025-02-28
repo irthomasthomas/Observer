@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Terminal } from 'lucide-react';
+import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { 
   listAgents, 
   updateAgentStatus, 
@@ -25,7 +26,10 @@ import MemoryManager from '@components/MemoryManager';
 import ErrorDisplay from '@components/ErrorDisplay';
 import AgentImportHandler from '@components/AgentImportHandler';
 
-export function App() {
+// Inner component with auth context
+function AppContent() {
+  const { isAuthenticated, user, loginWithRedirect, logout, isLoading } = useAuth0();
+  
   const [agents, setAgents] = useState<CompleteAgent[]>([]);
   const [agentCodes, setAgentCodes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -299,6 +303,13 @@ export function App() {
     Logger.info('APP', 'Application starting');
     fetchAgents();
     
+    // Log authentication status
+    if (isAuthenticated) {
+      Logger.info('AUTH', `User authenticated: ${user?.name || user?.email || 'Unknown user'}`);
+    } else if (!isLoading) {
+      Logger.info('AUTH', 'User not authenticated');
+    }
+    
     // Add a window event listener to log uncaught errors
     const handleWindowError = (event: ErrorEvent) => {
       Logger.error('APP', `Uncaught error: ${event.message}`, {
@@ -314,7 +325,14 @@ export function App() {
     return () => {
       window.removeEventListener('error', handleWindowError);
     };
-  }, []);
+  }, [isAuthenticated, isLoading, user]);
+  
+  // Listen for Auth0 callback completion
+  useEffect(() => {
+    if (!isLoading) {
+      Logger.info('AUTH', `Auth loading complete, authenticated: ${isAuthenticated}`);
+    }
+  }, [isLoading, isAuthenticated]);
 
   // Optional: Show dialog again if server status changes to offline
   useEffect(() => {
@@ -345,7 +363,7 @@ export function App() {
         />
       )}
 
-      {/* App Header */}
+      {/* App Header with Authentication UI */}
       <AppHeader 
         serverStatus={serverStatus}
         setServerStatus={setServerStatus}
@@ -355,7 +373,21 @@ export function App() {
         onRefresh={fetchAgents}
         onAddAgent={handleAddAgentClick}
         setError={setError}
+        authState={{
+          isLoading,
+          isAuthenticated,
+          user,
+          loginWithRedirect,
+          logout
+        }}
       />
+      
+      {/* Debug Auth state - remove after fixing */}
+      <div className="fixed bottom-2 right-2 bg-black bg-opacity-80 text-white p-2 rounded text-xs z-50">
+        Auth: {isAuthenticated ? 'Logged In' : 'Not Logged In'}, 
+        Loading: {isLoading ? 'Yes' : 'No'}
+        {isAuthenticated && user && <div>User: {user.name || user.email}</div>}
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
@@ -441,6 +473,32 @@ export function App() {
         />
       )}
     </div>
+  );
+}
+
+// Main App component
+export function App() {
+  return (
+    <Auth0Provider
+      domain="dev-mzdd3k678tj1ja86.us.auth0.com"
+      clientId="R5iv3RVkWjGZrexFSJ6HqlhSaaGLyFpm"
+      authorizationParams={{
+        redirect_uri: window.location.origin
+      }}
+      cacheLocation="localstorage" // Try using localStorage instead of the default in-memory storage
+      useRefreshTokens={true} // Enable refresh tokens for better session management
+      onRedirectCallback={(appState) => {
+        // Handle successful login redirect
+        console.log("Auth0 redirect callback triggered", appState);
+        window.history.replaceState(
+          {},
+          document.title,
+          appState?.returnTo || window.location.pathname
+        );
+      }}
+    >
+      <AppContent />
+    </Auth0Provider>
   );
 }
 
