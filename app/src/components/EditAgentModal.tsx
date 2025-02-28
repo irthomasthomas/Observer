@@ -1,6 +1,6 @@
 // src/components/EditAgentModal.tsx
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { CompleteAgent } from '../utils/agent_database';
+import { CompleteAgent, downloadAgent } from '@utils/agent_database';
 import { Download } from 'lucide-react';
 import ActionsTab from './ActionsTab';
 
@@ -89,43 +89,12 @@ const EditAgentModal = ({
     onClose();
   };
 
-  // Export current agent as a JSON file
-  const handleExport = () => {
-    // Create the export object
-    const exportData = {
-      metadata: {
-        id: agentId,
-        name: name,
-        description: description,
-        status: agent?.status || 'stopped'
-      },
-      config: {
-        model_name: model,
-        system_prompt: systemPrompt,
-        loop_interval_seconds: loopInterval
-      },
-      code: code
-    };
-    
-    // Convert to JSON and create a blob
-    const json = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    
-    // Create a download link
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `agent-${agentId || 'new'}.json`;
-    
-    // Trigger the download
-    document.body.appendChild(a);
-    a.click();
-    
-    // Clean up
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 0);
+  const handleExport = async () => {
+    try {
+      await downloadAgent(agentId);
+    } catch (error) {
+      console.error('Failed to export agent:', error);
+    }
   };
 
   const renderConfigTab = () => (

@@ -90,7 +90,7 @@ const AgentImportHandler: React.FC<AgentImportHandlerProps> = ({
         type="file"
         ref={fileInputRef}
         onChange={handleFileSelect}
-        accept=".json"
+        accept=".yaml"
         multiple
         className="hidden"
       />

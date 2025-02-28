@@ -2,16 +2,13 @@
 // Database utilities for agent management with unified CompleteAgent type
 //
 import { dispatchMemoryUpdate } from '@components/MemoryManager';
+import yaml from 'js-yaml';
 
-// Unified CompleteAgent Type
 export interface CompleteAgent {
-  // Agent metadata
   id: string;
   name: string;
   description: string;
   status: 'running' | 'stopped';
-  
-  // Configuration
   model_name: string;
   system_prompt: string;
   loop_interval_seconds: number;
@@ -331,27 +328,23 @@ export async function deleteAgent(agentId: string): Promise<void> {
   });
 }
 
-
-// Types for import/export
 export interface AgentExport {
-  metadata: {
-    id: string;
-    name: string;
-    description: string;
-    status: 'running' | 'stopped';
-  };
-  config: {
-    model_name: string;
-    system_prompt: string;
-    loop_interval_seconds: number;
-  };
+  id: string;
+  name: string;
+  description: string;
+  status: 'running' | 'stopped';
+  model_name: string;
+  system_prompt: string;
+  loop_interval_seconds: number;
   code: string;
   memory: string;
 }
 
+
+
 /**
  * Import an agent from a file
- * @param file The JSON file containing the agent data
+ * @param file The YAML file containing the agent data
  * @returns A promise that resolves to the imported agent
  */
 export async function importAgentFromFile(file: File): Promise<CompleteAgent> {
@@ -360,43 +353,40 @@ export async function importAgentFromFile(file: File): Promise<CompleteAgent> {
     
     reader.onload = async (event) => {
       try {
-        // Parse the file content
         const content = event.target?.result as string;
-        const agentData = JSON.parse(content) as AgentExport;
+        const agentData = yaml.load(content) as AgentExport;
         
-        // Validate the agent data
-        if (!agentData.metadata || !agentData.config || !agentData.code) {
-          throw new Error('Invalid agent file format. Missing required sections.');
+        if (!agentData.id || !agentData.name || !agentData.code) {
+          throw new Error('Invalid agent file format. Missing required fields.');
         }
         
-        // Create a complete agent object
         const agent: CompleteAgent = {
-          ...agentData.metadata,
-          ...agentData.config
+          id: agentData.id,
+          name: agentData.name,
+          description: agentData.description || '',
+          status: 'stopped',
+          model_name: agentData.model_name,
+          system_prompt: agentData.system_prompt,
+          loop_interval_seconds: agentData.loop_interval_seconds
         };
         
-        // Save the agent to the database
-        const savedAgent = await saveAgent(agent, agentData.code);
-        
-        // Save the memory
+        await saveAgent(agent, agentData.code);
         await updateAgentMemory(agent.id, agentData.memory || '');
         
-        resolve(savedAgent);
+        resolve(agent);
       } catch (error) {
         reject(error);
       }
     };
     
-    reader.onerror = () => reject(new Error('Failed to read the file'));
-    
-    // Read the file as text
+    reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsText(file);
   });
 }
 
 /**
  * Import multiple agents from files
- * @param files Array of JSON files containing agent data
+ * @param files Array of YAML files containing agent data
  * @returns A promise that resolves to an array of results with success/failure status
  */
 export async function importAgentsFromFiles(files: File[]): Promise<Array<{
@@ -428,67 +418,70 @@ export async function importAgentsFromFiles(files: File[]): Promise<Array<{
 }
 
 /**
- * Export an agent to a JSON file
+ * Export an agent to a YAML file
  * @param agentId The ID of the agent to export
  * @returns A promise that resolves to a Blob containing the agent data
  */
 export async function exportAgentToFile(agentId: string): Promise<Blob> {
-  // Get the agent
   const agent = await getAgent(agentId);
-  if (!agent) {
-    throw new Error(`Agent with ID ${agentId} not found`);
-  }
+  if (!agent) throw new Error(`Agent ${agentId} not found`);
   
-  // Get the agent code
   const code = await getAgentCode(agentId);
-  if (code === null) {
-    throw new Error(`Code for agent with ID ${agentId} not found`);
-  }
+  if (code === null) throw new Error(`Code for agent ${agentId} not found`);
   
-  // Get the agent memory
   const memory = await getAgentMemory(agentId);
   
-  // Create the export object
   const exportData: AgentExport = {
-    metadata: {
-      id: agent.id,
-      name: agent.name,
-      description: agent.description,
-      status: agent.status
-    },
-    config: {
-      model_name: agent.model_name,
-      system_prompt: agent.system_prompt,
-      loop_interval_seconds: agent.loop_interval_seconds
-    },
+    id: agent.id,
+    name: agent.name,
+    description: agent.description,
+    status: agent.status,
+    model_name: agent.model_name,
+    system_prompt: agent.system_prompt,
+    loop_interval_seconds: agent.loop_interval_seconds,
     code,
     memory
   };
   
-  // Convert to JSON and create a blob
-  const json = JSON.stringify(exportData, null, 2);
-  return new Blob([json], { type: 'application/json' });
+  const yamlStr = yaml.dump(exportData);
+  return new Blob([yamlStr], { type: 'application/x-yaml' });
 }
 
-/**
- * Download an agent as a JSON file
- * @param agentId The ID of the agent to download
- */
 export async function downloadAgent(agentId: string): Promise<void> {
   try {
-    const blob = await exportAgentToFile(agentId);
+    const agent = await getAgent(agentId);
+    if (!agent) throw new Error(`Agent ${agentId} not found`);
     
-    // Create a download link
+    const code = await getAgentCode(agentId);
+    if (code === null) throw new Error(`Code for agent ${agentId} not found`);
+    
+    const memory = await getAgentMemory(agentId);
+    
+    // Create YAML-formatted string directly
+    const yamlContent = [
+      `id: ${agent.id}`,
+      `name: ${agent.name}`,
+      `description: ${agent.description}`,
+      `status: ${agent.status}`,
+      `model_name: ${agent.model_name}`,
+      `loop_interval_seconds: ${agent.loop_interval_seconds}`,
+      `system_prompt: |`,
+      `  ${agent.system_prompt.replace(/\n/g, '\n  ')}`,
+      `code: |`,
+      `  ${code.replace(/\n/g, '\n  ')}`,
+      memory ? `memory: |` : 'memory: ""',
+      memory ? `  ${memory.replace(/\n/g, '\n  ')}` : '',
+    ].join('\n');
+
+    const blob = new Blob([yamlContent], { type: 'application/x-yaml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `agent-${agentId}.json`;
+    a.download = `agent-${agentId}.yaml`;
     
-    // Trigger the download
     document.body.appendChild(a);
     a.click();
     
-    // Clean up
     setTimeout(() => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
@@ -498,4 +491,3 @@ export async function downloadAgent(agentId: string): Promise<void> {
     throw error;
   }
 }
-
