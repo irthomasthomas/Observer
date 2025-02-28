@@ -36,7 +36,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   setError,
   authState
 }) => {
-  const [serverAddress, setServerAddress] = useState('localhost:11434');
+  const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [showServerHint] = useState(true);
 
   const checkServerStatus = async () => {
