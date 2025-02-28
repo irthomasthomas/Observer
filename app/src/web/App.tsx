@@ -336,12 +336,6 @@ function AppContent() {
           logout
         }}
       />
-      
-      <div className="fixed bottom-2 right-2 bg-black bg-opacity-80 text-white p-2 rounded text-xs z-50">
-        Auth: {isAuthenticated ? 'Logged In' : 'Not Logged In'}, 
-        Loading: {isLoading ? 'Yes' : 'No'}
-        {isAuthenticated && user && <div>User: {user.name || user.email}</div>}
-      </div>
 
       <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
         <AgentImportHandler 
