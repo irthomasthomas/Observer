@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RotateCw, PlusCircle, Upload } from 'lucide-react';
+import { RotateCw, PlusCircle } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import TextBubble from './TextBubble';

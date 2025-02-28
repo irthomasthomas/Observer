@@ -37,7 +37,52 @@ const AgentImportHandler: React.FC<AgentImportHandlerProps> = ({
     }
     Logger.info('APP', 'Opening file selector for agent import');
   };
-  
+
+  // Handle file selection for import (moved inside the component so it has access to state and refs)
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    
+    if (!files || files.length === 0) {
+      Logger.info('APP', 'No files selected for import');
+      return;
+    }
+    
+    Logger.info('APP', `Selected ${files.length} file(s) for import`);
+    setImportStatus({ inProgress: true, results: [] });
+    
+    try {
+      setError(null);
+      const results = await importAgentsFromFiles(Array.from(files));
+      
+      setImportStatus({ 
+        inProgress: false, 
+        results 
+      });
+      
+      const successCount = results.filter(r => r.success).length;
+      Logger.info('APP', `Import completed: ${successCount}/${results.length} agents imported successfully`);
+      
+      if (successCount > 0) {
+        await onImportComplete();
+      }
+      
+      const failedImports = results.filter(r => !r.success);
+      if (failedImports.length > 0) {
+        const errorMessages = failedImports.map(r => `${r.filename}: ${r.error}`).join('; ');
+        setError(`Failed to import ${failedImports.length} agent(s): ${errorMessages}`);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Import failed: ${errorMessage}`);
+      setImportStatus({ inProgress: false, results: [] });
+      Logger.error('APP', `Import error: ${errorMessage}`, err);
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <>
       {/* Hidden file input for agent import */}
@@ -79,52 +124,3 @@ const AgentImportHandler: React.FC<AgentImportHandlerProps> = ({
 };
 
 export default AgentImportHandler;
-  
-  // Handle file selection for import
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    
-    if (!files || files.length === 0) {
-      Logger.info('APP', 'No files selected for import');
-      return;
-    }
-    
-    Logger.info('APP', `Selected ${files.length} file(s) for import`);
-    setImportStatus({ inProgress: true, results: [] });
-    
-    try {
-      setError(null);
-      const results = await importAgentsFromFiles(Array.from(files));
-      
-      setImportStatus({ 
-        inProgress: false, 
-        results 
-      });
-      
-      // Log import results
-      const successCount = results.filter(r => r.success).length;
-      Logger.info('APP', `Import completed: ${successCount}/${results.length} agents imported successfully`);
-      
-      if (successCount > 0) {
-        // Refresh the agent list
-        await onImportComplete();
-      }
-      
-      // Show error if any imports failed
-      const failedImports = results.filter(r => !r.success);
-      if (failedImports.length > 0) {
-        const errorMessages = failedImports.map(r => `${r.filename}: ${r.error}`).join('; ');
-        setError(`Failed to import ${failedImports.length} agent(s): ${errorMessages}`);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Import failed: ${errorMessage}`);
-      setImportStatus({ inProgress: false, results: [] });
-      Logger.error('APP', `Import error: ${errorMessage}`, err);
-    }
-    
-    // Reset the file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
