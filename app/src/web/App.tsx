@@ -311,13 +311,15 @@ function AppContent() {
           }
         `}
       </style>
-      
-      {showStartupDialog && (
-        <StartupDialogs 
-          serverStatus={serverStatus}
-          onDismiss={handleDismissStartupDialog} 
-        />
-      )}
+
+        {showStartupDialog && (
+          <StartupDialogs 
+            serverStatus={serverStatus}
+            onDismiss={handleDismissStartupDialog}
+            setServerStatus={setServerStatus}
+          />
+        )}
+
 
       <AppHeader 
         serverStatus={serverStatus}

@@ -173,7 +173,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {showServerHint && (
         <div className="fixed z-60" style={{ top: '70px', right: '35%' }}>
           <TextBubble 
-            message="Enter your Ollama server address here (default: localhost:11434)" 
+            message="Enter your Observer-Ollama address here! (default: localhost:3838)" 
             duration={7000} 
           />
         </div>
