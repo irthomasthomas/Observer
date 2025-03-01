@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RotateCw, PlusCircle } from 'lucide-react';
+import { RotateCw, PlusCircle, Menu } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import TextBubble from './TextBubble';
@@ -23,6 +23,7 @@ interface AppHeaderProps {
   onAddAgent: () => void;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   authState?: AuthState;
+  onMenuClick: () => void;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
@@ -34,7 +35,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onRefresh,
   onAddAgent,
   setError,
-  authState
+  authState,
+  onMenuClick
 }) => {
   const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [showServerHint] = useState(true);
@@ -87,6 +89,15 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
+              {/* Hamburger Menu Button */}
+              <button
+                onClick={onMenuClick}
+                className="p-2 rounded-md hover:bg-gray-100"
+                aria-label="Open menu"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              
               <img src="/eye-logo-black.svg" alt="Observer Logo" className="h-8 w-8" />
               <h1 className="text-xl font-semibold">Observer</h1>
             </div>
@@ -132,7 +143,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
                 >
                   <PlusCircle className="h-5 w-5" />
-                  <span>Add Agent</span>
+                  <span>Create Agent</span>
                 </button>
 
                 {/* Authentication UI */}

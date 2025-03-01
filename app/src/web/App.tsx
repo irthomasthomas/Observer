@@ -25,6 +25,8 @@ import ScheduleAgentModal from '@components/ScheduleAgentModal';
 import MemoryManager from '@components/MemoryManager';
 import ErrorDisplay from '@components/ErrorDisplay';
 import AgentImportHandler from '@components/AgentImportHandler';
+import SidebarMenu from '@components/SidebarMenu';
+import CommunityTab from '@components/CommunityTab';
 
 function AppContent() {
   const { isAuthenticated, user, loginWithRedirect, logout, isLoading } = useAuth0();
@@ -45,6 +47,8 @@ function AppContent() {
   const [isMemoryManagerOpen, setIsMemoryManagerOpen] = useState(false);
   const [memoryAgentId, setMemoryAgentId] = useState<string | null>(null);
   const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('myAgents');
   
   // Flag to track if initial agents have been loaded
   const initialAgentsLoaded = useRef(false);
@@ -321,49 +325,70 @@ function AppContent() {
         )}
 
 
-      <AppHeader 
-        serverStatus={serverStatus}
-        setServerStatus={setServerStatus}
-        isRefreshing={isRefreshing}
-        agentCount={agents.length}
-        activeAgentCount={agents.filter(a => a.status === 'running').length}
-        onRefresh={fetchAgents}
-        onAddAgent={handleAddAgentClick}
-        setError={setError}
-        authState={{
-          isLoading,
-          isAuthenticated,
-          user,
-          loginWithRedirect,
-          logout
-        }}
-      />
-
-      <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
-        <AgentImportHandler 
-          onImportComplete={fetchAgents}
+        <AppHeader 
+          serverStatus={serverStatus}
+          setServerStatus={setServerStatus}
+          isRefreshing={isRefreshing}
+          agentCount={agents.length}
+          activeAgentCount={agents.filter(a => a.status === 'running').length}
+          onRefresh={fetchAgents}
+          onAddAgent={handleAddAgentClick}
           setError={setError}
+          authState={{
+            isLoading,
+            isAuthenticated,
+            user,
+            loginWithRedirect,
+            logout
+          }}
+          onMenuClick={() => setIsSidebarOpen(true)}
         />
 
-        {error && <ErrorDisplay message={error} />}
+        {/* Sidebar Menu */}
+        <SidebarMenu 
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            setIsSidebarOpen(false);
+          }}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {agents.map(agent => (
-            <AgentCard 
-              key={agent.id}
-              agent={agent}
-              code={agentCodes[agent.id]}
-              isStarting={startingAgents.has(agent.id)}
-              isMemoryFlashing={flashingMemories.has(agent.id)}
-              onEdit={handleEditClick}
-              onDelete={handleDeleteClick}
-              onToggle={toggleAgent}
-              onSchedule={handleScheduleClick}
-              onMemory={handleMemoryClick}
-            />
-          ))}
-        </div>
-      </main>
+        {/* Main content, replace the TabNavigation and TabContent with this */}
+        <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
+          <AgentImportHandler 
+            onImportComplete={fetchAgents}
+            setError={setError}
+          />
+
+          {error && <ErrorDisplay message={error} />}
+
+          {activeTab === 'myAgents' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {agents.map(agent => (
+                <AgentCard 
+                  key={agent.id}
+                  agent={agent}
+                  code={agentCodes[agent.id]}
+                  isStarting={startingAgents.has(agent.id)}
+                  isMemoryFlashing={flashingMemories.has(agent.id)}
+                  onEdit={handleEditClick}
+                  onDelete={handleDeleteClick}
+                  onToggle={toggleAgent}
+                  onSchedule={handleScheduleClick}
+                  onMemory={handleMemoryClick}
+                />
+              ))}
+            </div>
+          ) : activeTab === 'community' ? (
+            <CommunityTab />
+          ) : (
+            <div className="text-center p-8">
+              <p className="text-gray-500">This feature is coming soon!</p>
+            </div>
+          )}
+        </main>
 
       {isEditModalOpen && (
         <EditAgentModal 
