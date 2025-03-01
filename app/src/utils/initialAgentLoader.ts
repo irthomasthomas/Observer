@@ -1,5 +1,4 @@
 // utils/initialAgentLoader.ts
-
 import { importAgentsFromFiles } from './agent_database';
 import { Logger } from './logging';
 
@@ -12,17 +11,16 @@ export async function loadInitialAgents(isEmpty: boolean): Promise<void> {
     Logger.debug('INIT', 'Database already has agents, skipping initial agent loading');
     return;
   }
-
   Logger.info('INIT', 'Loading initial agents from public directory');
   
   try {
-    // List of default agent files to load
+    // List of default agent files to load (now using YAML extension)
     const defaultAgentFiles = [
-      'agent-activity_tracking_agent.json',
-      'agent-command_tracking_agent.json',
-      'agent-documentation_agent.json',
-      'agent-focus_tracker.json',
-      'agent-memory_summarization.json'
+      'agent-activity_tracking_agent.yaml',
+      'agent-command_tracking_agent.yaml',
+      'agent-documentation_agent.yaml',
+      'agent-focus_tracker.yaml',
+      'agent-memory_summarization.yaml'
     ];
     
     // Fetch each file from the public directory
@@ -35,7 +33,7 @@ export async function loadInitialAgents(isEmpty: boolean): Promise<void> {
         }
         
         const blob = await response.blob();
-        return new File([blob], filename, { type: 'application/json' });
+        return new File([blob], filename, { type: 'application/x-yaml' });
       } catch (error) {
         Logger.error('INIT', `Error fetching default agent file ${filename}:`, error);
         return null;
