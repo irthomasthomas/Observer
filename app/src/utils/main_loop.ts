@@ -16,8 +16,10 @@ import { processAgentCommands } from './agent-commands.ts'
 import { clearCommands } from './command_registry';
 
 const activeLoops: Record<string, {
-  intervalId: number,
+  timeoutId: number | null,
   isRunning: boolean,
+  isExecuting: boolean, // Track if an iteration is currently executing
+  lastExecutionTime: number, // Track when the last execution started
   serverHost?: string,
   serverPort?: string
 }> = {};
@@ -34,6 +36,50 @@ export function setOllamaServerAddress(host: string, port: string): void {
   serverHost = host;
   serverPort = port;
   Logger.info('SERVER', `Ollama server address set to ${host}:${port}`);
+}
+
+/**
+ * Schedule next execution
+ * @param agentId The ID of the agent
+ */
+async function scheduleNextExecution(agentId: string): Promise<void> {
+  // If the agent isn't running anymore, don't schedule
+  if (!activeLoops[agentId]?.isRunning) return;
+  
+  try {
+    const agent = await getAgent(agentId);
+    if (!agent) return;
+    
+    const loop = activeLoops[agentId];
+    if (!loop) return;
+    
+    // Calculate time since last execution
+    const now = Date.now();
+    const elapsed = now - loop.lastExecutionTime;
+    const intervalMs = agent.loop_interval_seconds * 1000;
+    
+    // If we've reached or passed the interval, execute immediately
+    if (elapsed >= intervalMs) {
+      executeAgentIteration(agentId);
+    } else {
+      // Otherwise, set a timeout for the remaining time
+      const remainingTime = intervalMs - elapsed;
+      
+      // Clear any existing timeout
+      if (loop.timeoutId !== null) {
+        window.clearTimeout(loop.timeoutId);
+      }
+      
+      // Set a new timeout
+      loop.timeoutId = window.setTimeout(() => {
+        if (activeLoops[agentId]?.isRunning && !activeLoops[agentId]?.isExecuting) {
+          executeAgentIteration(agentId);
+        }
+      }, remainingTime);
+    }
+  } catch (error) {
+    Logger.error(agentId, `Error scheduling next execution: ${error}`);
+  }
 }
 
 /**
@@ -75,19 +121,13 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     
     // Store server connection info in the loop object
     const loopInfo = {
-      intervalId: 0,
+      timeoutId: null,
       isRunning: true,
+      isExecuting: false,
+      lastExecutionTime: 0,
       serverHost,
       serverPort
     };
-    
-    // Create the interval for the agent loop
-    loopInfo.intervalId = window.setInterval(
-      () => executeAgentIteration(agentId),
-      agent.loop_interval_seconds * 1000
-    );
-    
-    Logger.info(agentId, `Agent loop scheduled every ${agent.loop_interval_seconds} seconds`);
     
     // Store the loop information
     activeLoops[agentId] = loopInfo;
@@ -113,8 +153,10 @@ export function stopAgentLoop(agentId: string): void {
   if (loop && loop.isRunning) {
     Logger.info(agentId, `Stopping agent loop`);
     
-    // Clear the interval
-    window.clearInterval(loop.intervalId);
+    // Clear the timeout
+    if (loop.timeoutId !== null) {
+      window.clearTimeout(loop.timeoutId);
+    }
 
     // Clear agent commands
     clearCommands(agentId);
@@ -132,7 +174,8 @@ export function stopAgentLoop(agentId: string): void {
     // Update the loop status
     activeLoops[agentId] = {
       ...loop,
-      isRunning: false
+      isRunning: false,
+      timeoutId: null
     };
     
     Logger.info(agentId, `Agent loop stopped successfully`);
@@ -188,13 +231,23 @@ async function injectAllMemoriesIntoPrompt(prompt: string): Promise<string> {
  * @param agentId The ID of the agent
  */
 async function executeAgentIteration(agentId: string): Promise<void> {
+  // Check if the loop is still active
+  if (!activeLoops[agentId]?.isRunning) {
+    Logger.debug(agentId, `Skipping execution for stopped agent`);
+    return;
+  }
+  
+  // If already executing, don't start another iteration
+  if (activeLoops[agentId]?.isExecuting) {
+    Logger.debug(agentId, `Already executing, skipping this execution`);
+    return;
+  }
+  
+  // Mark as executing and update last execution time
+  activeLoops[agentId].isExecuting = true;
+  activeLoops[agentId].lastExecutionTime = Date.now();
+  
   try {
-    // Check if the loop is still active
-    if (!activeLoops[agentId]?.isRunning) {
-      Logger.debug(agentId, `Skipping execution for stopped agent`);
-      return;
-    }
-    
     Logger.debug(agentId, `Starting agent iteration`);
     
     // Get the latest agent data
@@ -240,7 +293,7 @@ async function executeAgentIteration(agentId: string): Promise<void> {
     
     // Send the prompt to Ollama and get response
     try {
-      Logger.info(agentId, `Sending prompt ${systemPrompt} to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
+      Logger.info(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
       
       const response = await sendPromptToOllama(
         serverHost,
@@ -249,8 +302,6 @@ async function executeAgentIteration(agentId: string): Promise<void> {
         systemPrompt
       );
       
-      Logger.info(agentId, `Received ${response}`)
-
       // Get the agent code
       const agentCode = await getAgentCode(agentId) || '';
       
@@ -268,6 +319,14 @@ async function executeAgentIteration(agentId: string): Promise<void> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     Logger.error(agentId, `Error in agent iteration: ${errorMessage}`, error);
+  } finally {
+    // Mark as no longer executing
+    if (activeLoops[agentId]) {
+      activeLoops[agentId].isExecuting = false;
+      
+      // Schedule the next execution
+      scheduleNextExecution(agentId);
+    }
   }
 }
 
