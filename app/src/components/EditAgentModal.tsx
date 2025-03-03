@@ -9,9 +9,9 @@ type TabType = 'config' | 'actions' | 'code';
 // Lazy load CodeMirror component
 const LazyCodeMirror = lazy(() => import('@uiw/react-codemirror'));
 
-// Import extensions normally - assuming you'll add these dependencies
-// If not available, you can replace with simpler textarea implementation
+// Import extensions normally - adding both Python and JavaScript languages
 import { python } from '@codemirror/lang-python';
+import { javascript } from '@codemirror/lang-javascript';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 
 interface EditAgentModalProps {
@@ -164,26 +164,56 @@ const EditAgentModal = ({
   );
 
   const renderCodeTab = () => (
-    <>
-      <div className="mb-4">
-        <label className="block mb-1">System Prompt</label>
-        <textarea 
-          value={systemPrompt} 
-          onChange={(e) => setSystemPrompt(e.target.value)} 
-          className="w-full p-2 border rounded font-mono text-sm"
-          rows={6}
-          placeholder="Enter system prompt"
-        />
+    <div className="space-y-4">
+      {/* Code Editor Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="font-medium text-gray-800">Agent Code</h3>
+          <p className="text-sm text-gray-500">Write code that defines your agent's behavior</p>
+        </div>
+        
+        {/* Language selector */}
+        <div className="flex items-center space-x-2">
+          <label htmlFor="code-language" className="text-sm text-gray-600">Language:</label>
+          <select
+            id="code-language"
+            className="border rounded px-2 py-1 text-sm bg-white"
+            defaultValue="javascript"
+          >
+            <option value="javascript">JavaScript</option>
+            <option value="python" disabled>Python (Soon)</option>
+          </select>
+        </div>
       </div>
-      
-      <div className="mb-4">
-        <label className="block mb-1">Code</label>
-        <Suspense fallback={<EditorLoading />}>
+
+      {/* Editor Container with styling */}
+      <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm">
+        {/* Editor Toolbar */}
+        <div className="bg-gray-100 border-b px-3 py-2 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-medium text-gray-700">agent_code.js</span>
+            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">JavaScript</span>
+          </div>
+          <div className="text-xs text-gray-500">
+            {code.length} characters
+          </div>
+        </div>
+
+        {/* CodeMirror Editor */}
+        <Suspense fallback={
+          <div className="flex flex-col items-center justify-center bg-gray-50 h-72 space-y-4">
+            <div className="w-8 h-8 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin"></div>
+            <div>
+              <p className="text-gray-600 font-medium">Loading code editor...</p>
+              <p className="text-xs text-gray-500 text-center">This might take a moment</p>
+            </div>
+          </div>
+        }>
           <LazyCodeMirror
             value={code}
-            height="300px"
+            height="360px"
             theme={vscodeDark}
-            extensions={[python()]}
+            extensions={[javascript()]}
             onChange={(value) => setCode(value)}
             basicSetup={{
               lineNumbers: true,
@@ -211,7 +241,23 @@ const EditAgentModal = ({
           />
         </Suspense>
       </div>
-    </>
+
+      {/* Helpful tips section */}
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+        <h4 className="font-medium mb-1 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Tips for writing agent code
+        </h4>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Use <code className="bg-blue-100 px-1 rounded">getAgentMemory(agentId)</code> to access agent memory</li>
+          <li>Use <code className="bg-blue-100 px-1 rounded">updateAgentMemory(agentId, text)</code> to update memory</li>
+          <li>Use <code className="bg-blue-100 px-1 rounded">logger.info(agentId, message)</code> to log information</li>
+          <li>Your agent loop will run every {loopInterval} seconds</li>
+        </ul>
+      </div>
+    </div>
   );
 
   if (!isOpen) return null;
