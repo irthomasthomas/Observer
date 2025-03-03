@@ -38,7 +38,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   setError,
   authState,
   onMenuClick,
-  shouldHighlightMenu = false
 }) => {
   const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [showServerHint] = useState(true);
