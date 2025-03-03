@@ -48,6 +48,13 @@ function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('myAgents');
 
+  // Reload agent list when switching to the My Agents tab
+  useEffect(() => {
+    if (activeTab === 'myAgents') {
+      fetchAgents();
+    }
+  }, [activeTab]);
+
   const handleEditClick = async (agentId: string) => {
     setSelectedAgent(agentId);
     setIsCreateMode(false);
