@@ -61,6 +61,28 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   }, [agentCount]);
 
+  // Only way of checking if logged in or not, Components weren't re-rendering
+    useEffect(() => {
+      // Save when authenticated 
+      if (authState?.isAuthenticated) {
+        localStorage.setItem('auth_user', JSON.stringify(authState.user || {}));
+        localStorage.setItem('auth_authenticated', 'true');
+      }
+    }, [authState?.isAuthenticated, authState?.user]);
+    
+    // Use local storage to override auth state when needed
+    const isAuthenticated = authState?.isAuthenticated || localStorage.getItem('auth_authenticated') === 'true';
+    const userData = isAuthenticated && !authState?.user ? 
+      JSON.parse(localStorage.getItem('auth_user') || '{}') : 
+      authState?.user;
+      
+    // Custom logout that clears localStorage
+    const handleLogout = () => {
+      localStorage.removeItem('auth_authenticated');
+      localStorage.removeItem('auth_user');
+      authState?.logout({ logoutParams: { returnTo: window.location.origin } });
+    };
+
   const checkServerStatus = async () => {
     try {
       setServerStatus('unchecked');
@@ -189,13 +211,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 {authState ? (
                   authState.isLoading ? (
                     <div className="px-4 py-2 bg-gray-100 rounded">Loading...</div>
-                  ) : authState.isAuthenticated ? (
+                  ) : isAuthenticated ? (
                     <div className="flex items-center space-x-3">
                       <span className="text-sm text-gray-700">
-                        {authState.user?.name || authState.user?.email || 'User'}
+                        {userData?.name || userData?.email || 'User'}
                       </span>
                       <button
-                        onClick={() => authState.logout({ logoutParams: { returnTo: window.location.origin } })}
+                        onClick={handleLogout}
                         className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
                       >
                         Logout
