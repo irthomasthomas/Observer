@@ -10,7 +10,6 @@ type TabType = 'config' | 'actions' | 'code';
 const LazyCodeMirror = lazy(() => import('@uiw/react-codemirror'));
 
 // Import extensions normally - adding both Python and JavaScript languages
-import { python } from '@codemirror/lang-python';
 import { javascript } from '@codemirror/lang-javascript';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 
@@ -24,12 +23,12 @@ interface EditAgentModalProps {
 }
 
 // Loading fallback component for CodeMirror
-const EditorLoading = () => (
-  <div className="border border-gray-300 rounded p-4 h-64 flex flex-col items-center justify-center bg-gray-50">
-    <div className="w-8 h-8 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-2"></div>
-    <p className="text-gray-600">Loading editor...</p>
-  </div>
-);
+//const EditorLoading = () => (
+//  <div className="border border-gray-300 rounded p-4 h-64 flex flex-col items-center justify-center bg-gray-50">
+//    <div className="w-8 h-8 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-2"></div>
+//    <p className="text-gray-600">Loading editor...</p>
+//  </div>
+//);
 
 const EditAgentModal = ({ 
   isOpen, 

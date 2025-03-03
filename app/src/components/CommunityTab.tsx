@@ -1,6 +1,6 @@
 // src/components/CommunityTab.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, RefreshCw, Info, Upload, Plus, AlertTriangle } from 'lucide-react';
+import { Download, RefreshCw, Info, Upload, AlertTriangle } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
 import { useAuth0 } from '@auth0/auth0-react';
