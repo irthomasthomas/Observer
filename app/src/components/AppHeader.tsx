@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RotateCw, PlusCircle, Menu } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
@@ -24,6 +24,7 @@ interface AppHeaderProps {
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   authState?: AuthState;
   onMenuClick: () => void;
+  shouldHighlightMenu?: boolean;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
@@ -36,10 +37,27 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onAddAgent,
   setError,
   authState,
-  onMenuClick
+  onMenuClick,
+  shouldHighlightMenu = false
 }) => {
   const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [showServerHint] = useState(true);
+  const [pulseMenu, setPulseMenu] = useState(false);
+  
+  // Add pulsing effect when shouldHighlightMenu is true
+  useEffect(() => {
+    if (shouldHighlightMenu && agentCount === 0) {
+      // Create a pulsing effect for the menu button
+      setPulseMenu(true);
+      
+      // Stop pulsing after 10 seconds
+      const timer = setTimeout(() => {
+        setPulseMenu(false);
+      }, 10000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [shouldHighlightMenu, agentCount]);
 
   const checkServerStatus = async () => {
     try {
@@ -84,18 +102,37 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <>
+      <style>
+        {`
+          @keyframes menu-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+          }
+          .menu-pulse {
+            animation: menu-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            background-color: rgba(59, 130, 246, 0.1);
+          }
+        `}
+      </style>
+      
       {/* Fixed Header */}
       <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              {/* Hamburger Menu Button */}
+              {/* Hamburger Menu Button with conditional highlight */}
               <button
                 onClick={onMenuClick}
-                className="p-2 rounded-md hover:bg-gray-100"
+                className={`p-2 rounded-md ${pulseMenu ? 'menu-pulse relative' : 'hover:bg-gray-100'}`}
                 aria-label="Open menu"
               >
                 <Menu className="h-6 w-6" />
+                {pulseMenu && (
+                  <span className="absolute top-0 right-0 flex h-3 w-3">
+                    <span className="animate-ping absolute h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative rounded-full h-3 w-3 bg-blue-500"></span>
+                  </span>
+                )}
               </button>
               
               <img src="/eye-logo-black.svg" alt="Observer Logo" className="h-8 w-8" />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Terminal } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { 
@@ -9,7 +9,6 @@ import {
   saveAgent,
   CompleteAgent,
 } from '@utils/agent_database';
-import { loadInitialAgents } from '@utils/initialAgentLoader';
 import { startAgentLoop, stopAgentLoop } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
@@ -19,7 +18,6 @@ import AppHeader from '@components/AppHeader';
 import AgentCard from '@components/AgentCard';
 import EditAgentModal from '@components/EditAgentModal';
 import StartupDialogs from '@components/StartupDialogs';
-// Removed unused AgentLogViewer import
 import GlobalLogsViewer from '@components/GlobalLogsViewer';
 import ScheduleAgentModal from '@components/ScheduleAgentModal';
 import MemoryManager from '@components/MemoryManager';
@@ -49,9 +47,6 @@ function AppContent() {
   const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('myAgents');
-  
-  // Flag to track if initial agents have been loaded
-  const initialAgentsLoaded = useRef(false);
 
   const handleEditClick = async (agentId: string) => {
     setSelectedAgent(agentId);
@@ -123,16 +118,9 @@ function AppContent() {
       setAgents(agentsData);
       Logger.info('APP', `Found ${agentsData.length} agents in database`);
       
-      if (agentsData.length === 0 && !initialAgentsLoaded.current) {
-        Logger.info('APP', 'No agents found, loading initial agents');
-        await loadInitialAgents(true);
-        initialAgentsLoaded.current = true;
-        
-        const updatedAgentsData = await listAgents();
-        setAgents(updatedAgentsData);
-        Logger.info('APP', `After loading initial agents: ${updatedAgentsData.length} agents in database`);
-      } else if (!initialAgentsLoaded.current) {
-        initialAgentsLoaded.current = true;
+      // Check if there are no agents and log it
+      if (agentsData.length === 0) {
+        Logger.info('APP', 'No agents found, user will see empty state message');
       }
       
       Logger.debug('APP', 'Fetching agent code');
@@ -302,6 +290,39 @@ function AppContent() {
     }
   }, [serverStatus]);
 
+  // Add a custom message for empty agent list
+  const EmptyAgentMessage = () => (
+    <div className="col-span-full text-center py-10">
+      <div className="bg-blue-50 rounded-lg p-6 max-w-2xl mx-auto">
+        <h3 className="text-xl font-semibold text-blue-800 mb-3">Ready to Get Started?</h3>
+        <p className="text-blue-600 mb-6">
+          You don't have any agents yet. Explore the Community tab to discover pre-built agents, 
+          or create your own custom agent from scratch.
+        </p>
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <button 
+            onClick={() => setActiveTab('community')} 
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            Explore Community Agents
+          </button>
+          <button 
+            onClick={handleAddAgentClick} 
+            className="px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 transition-colors flex items-center justify-center"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Create New Agent
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <style>
@@ -324,7 +345,6 @@ function AppContent() {
           />
         )}
 
-
         <AppHeader 
           serverStatus={serverStatus}
           setServerStatus={setServerStatus}
@@ -342,6 +362,7 @@ function AppContent() {
             logout
           }}
           onMenuClick={() => setIsSidebarOpen(true)}
+          shouldHighlightMenu={agents.length === 0}
         />
 
         {/* Sidebar Menu */}
@@ -366,7 +387,7 @@ function AppContent() {
 
           {activeTab === 'myAgents' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {agents.map(agent => (
+              {agents.length > 0 ? agents.map(agent => (
                 <AgentCard 
                   key={agent.id}
                   agent={agent}
@@ -379,7 +400,7 @@ function AppContent() {
                   onSchedule={handleScheduleClick}
                   onMemory={handleMemoryClick}
                 />
-              ))}
+              )) : <EmptyAgentMessage />}
             </div>
           ) : activeTab === 'community' ? (
             <CommunityTab />
