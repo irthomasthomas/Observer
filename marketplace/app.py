@@ -10,7 +10,8 @@ app = FastAPI()
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["app.observer-ai.com"],
+    allow_origins=["https://app.observer-ai.com"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
