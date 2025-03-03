@@ -44,9 +44,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [showServerHint] = useState(true);
   const [pulseMenu, setPulseMenu] = useState(false);
   
-  // Add pulsing effect when shouldHighlightMenu is true
+  // Add pulsing effect only when agent count is exactly 0
   useEffect(() => {
-    if (shouldHighlightMenu && agentCount === 0) {
+    if (agentCount === 0) {
       // Create a pulsing effect for the menu button
       setPulseMenu(true);
       
@@ -56,8 +56,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       }, 10000);
       
       return () => clearTimeout(timer);
+    } else {
+      // Make sure pulse is off when agents exist
+      setPulseMenu(false);
     }
-  }, [shouldHighlightMenu, agentCount]);
+  }, [agentCount]);
 
   const checkServerStatus = async () => {
     try {
