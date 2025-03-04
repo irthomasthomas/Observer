@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { CompleteAgent, downloadAgent } from '@utils/agent_database';
-import { Download } from 'lucide-react';
+import { Download, Code, Settings, Terminal, ArrowRight, PlayCircle, Copy } from 'lucide-react';
 import ActionsTab from './ActionsTab';
 
 type TabType = 'config' | 'actions' | 'code';
@@ -18,7 +18,7 @@ interface EditAgentModalProps {
   createMode: boolean;
   agent?: CompleteAgent;
   code?: string;
-  onSave: (agent: CompleteAgent, code: string, excludeThink?: boolean) => void;
+  onSave: (agent: CompleteAgent, code: string) => void;
 }
 
 const EditAgentModal = ({ 
@@ -34,11 +34,30 @@ const EditAgentModal = ({
   const [description, setDescription] = useState('');
   const [model, setModel] = useState('deepseek-r1:8b');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [code, setCode] = useState('console.log("Hello, I am an agent");');
+  const [code, setCode] = useState('// Process the model response however you want\n\nconsole.log(agentId, "Response received:", response.substring(0, 100) + "...");\n\n// Example: Extract and save important information to agent memory\nconst infoMatch = response.match(/important information: (.*?)\\./i);\nif (infoMatch && infoMatch[1]) {\n  const info = infoMatch[1].trim();\n  await utilities.updateAgentMemory(agentId, info);\n  console.log(agentId, "Saved to memory:", info);\n}\n\n// You can perform any actions based on the response content');
   const [loopInterval, setLoopInterval] = useState(1.0);
   const [activeTab, setActiveTab] = useState<TabType>('config');
   const [editorIsLoaded, setEditorIsLoaded] = useState(false);
-  const [excludeThink, setExcludeThink] = useState(false);  // Add exclude think state
+  const [showCodeHelper, setShowCodeHelper] = useState(true);
+  const [selectedCodeSnippet, setSelectedCodeSnippet] = useState<string | null>(null);
+
+  const codeSnippets = [
+    {
+      name: "Remember Response",
+      description: "Store the entire response in agent memory",
+      code: 'await utilities.updateAgentMemory(agentId, response);\nconsole.log(agentId, "Stored complete response in memory");'
+    },
+    {
+      name: "Read/Write Agent Memory",
+      description: "Read memory, append timestamped content, and update another agent",
+      code: 'const currentMemory = await utilities.getAgentMemory(agentId);\nconst time = new Date().toISOString();\nconst updatedMemory = `${currentMemory}\\n[${time}] ${response.substring(0, 100)}`;\n\n// Update this agent\'s memory\nawait utilities.updateAgentMemory(agentId, updatedMemory);\n\n// Update another agent\'s memory (replace with actual agent ID)\nawait utilities.updateAgentMemory("activity_tracking_agent", `Agent ${agentId} processed response at ${time}`);'
+    },
+    {
+      name: "Remove Thought Tags",
+      description: "Clean response by removing <think>...</think> sections",
+      code: 'const cleanedResponse = response.replace(/<think>[\\s\\S]*?<\\/think>/g, \'\');\nconsole.log(agentId, "Cleaned response:", cleanedResponse.substring(0, 100) + "...");\nawait utilities.updateAgentMemory(agentId, cleanedResponse);'
+    }
+  ];
 
   useEffect(() => {
     if (agent) {
@@ -76,8 +95,7 @@ const EditAgentModal = ({
       loop_interval_seconds: loopInterval
     };
     
-    // Pass excludeThink preference to the onSave handler
-    onSave(completeAgent, code, excludeThink);
+    onSave(completeAgent, code);
     onClose();
   };
 
@@ -87,6 +105,14 @@ const EditAgentModal = ({
     } catch (error) {
       console.error('Failed to export agent:', error);
     }
+  };
+
+  const insertCodeSnippet = (snippetCode: string) => {
+    setCode(code => {
+      // Add a newline before the snippet if the code doesn't end with one
+      return code + (code.endsWith('\n') ? '' : '\n') + snippetCode;
+    });
+    setSelectedCodeSnippet(null);
   };
 
   const renderConfigTab = () => (
@@ -156,61 +182,13 @@ const EditAgentModal = ({
   );
 
   const renderCodeTab = () => (
-    <div className="space-y-4">
-      {/* Code Editor Header with Think Toggle */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="font-medium text-gray-800">Agent Code</h3>
-          <p className="text-sm text-gray-500">Write code that defines your agent's behavior</p>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          {/* Exclude Think Toggle */}
-          <div className="flex items-center space-x-2">
-            <label htmlFor="exclude-think" className="text-sm text-gray-600">
-              Exclude &lt;think&gt; blocks:
-            </label>
-            <div className="relative inline-block w-10 mr-2 align-middle select-none">
-              <input
-                type="checkbox"
-                id="exclude-think"
-                checked={excludeThink}
-                onChange={(e) => setExcludeThink(e.target.checked)}
-                className="sr-only"
-              />
-              <div className={`block w-10 h-6 rounded-full transition-colors duration-200 ease-in-out ${
-                excludeThink ? 'bg-blue-500' : 'bg-gray-300'
-              }`}></div>
-              <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${
-                excludeThink ? 'transform translate-x-4' : ''
-              }`}></div>
-            </div>
-            <div className="text-xs text-gray-500 italic">
-              {excludeThink ? 'On' : 'Off'}
-            </div>
-          </div>
-          
-          {/* Language selector */}
-          <div className="flex items-center space-x-2">
-            <label htmlFor="code-language" className="text-sm text-gray-600">Language:</label>
-            <select
-              id="code-language"
-              className="border rounded px-2 py-1 text-sm bg-white"
-              defaultValue="javascript"
-            >
-              <option value="javascript">JavaScript</option>
-              <option value="python" disabled>Python (Soon)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Editor Container with styling */}
+    <div className="space-y-6">
+      {/* Code Editor */}
       <div className="border border-gray-300 rounded-md overflow-hidden shadow-sm">
-        {/* Editor Toolbar */}
         <div className="bg-gray-100 border-b px-3 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-xs font-medium text-gray-700">agent_code.js</span>
+            <Terminal className="h-4 w-4 text-gray-700" />
+            <span className="text-sm font-medium text-gray-700">Agent Code</span>
             <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">JavaScript</span>
           </div>
           <div className="text-xs text-gray-500">
@@ -218,7 +196,6 @@ const EditAgentModal = ({
           </div>
         </div>
 
-        {/* CodeMirror Editor */}
         <Suspense fallback={
           <div className="flex flex-col items-center justify-center bg-gray-50 h-72 space-y-4">
             <div className="w-8 h-8 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin"></div>
@@ -261,20 +238,118 @@ const EditAgentModal = ({
         </Suspense>
       </div>
 
-      {/* Helpful tips section - updated to mention <think> tags */}
-      <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
-        <h4 className="font-medium mb-1 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Tips for writing agent code
-        </h4>
-        <ul className="list-disc pl-5 space-y-1">
-          <li>Use <code className="bg-blue-100 px-1 rounded">utilities.getAgentMemory(agentId)</code> to access agent memory</li>
-          <li>Use <code className="bg-blue-100 px-1 rounded">utilities.updateAgentMemory(agentId, text)</code> to update memory</li>
-          <li>Your agent loop will run every {loopInterval} seconds</li>
-          <li>Use <code className="bg-blue-100 px-1 rounded">&lt;think&gt;...&lt;/think&gt;</code> tags for agent internal reasoning{excludeThink ? ' (currently excluded from processing)' : ''}</li>
-        </ul>
+      {/* New simplified code editor explanation */}
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-sm text-blue-800">
+        <h3 className="font-medium text-lg mb-1 flex items-center">
+          <Terminal className="h-5 w-5 mr-2" />
+          Agent Processing
+        </h3>
+        <p className="mb-2">Your agent code receives the model's response and can process it any way you want.</p>
+        
+        <div className="grid grid-cols-2 gap-4 mb-4 border-b border-blue-200 pb-4">
+          <div className="col-span-1">
+            <h4 className="font-medium mb-1">Available Variables:</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><code className="bg-blue-100 px-1 rounded">response</code> - Full text from the LLM</li>
+              <li><code className="bg-blue-100 px-1 rounded">agentId</code> - Current agent's ID</li>
+              <li><code className="bg-blue-100 px-1 rounded">utilities</code> - Helper functions</li>
+            </ul>
+          </div>
+          
+          <div className="col-span-1">
+            <h4 className="font-medium mb-1">Helper Utilities:</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><code className="bg-blue-100 px-1 rounded">utilities.getAgentMemory(agentId)</code> - Get current memory</li>
+              <li><code className="bg-blue-100 px-1 rounded">utilities.updateAgentMemory(agentId, text)</code> - Update memory</li>
+              <li><code className="bg-blue-100 px-1 rounded">utilities.clearAgentMemory(agentId)</code> - Clear memory</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex items-start">
+          <div className="bg-gray-800 text-gray-200 rounded-md px-3 py-2 mr-3 font-mono text-xs" style={{ minWidth: "26rem" }}>
+            <span className="text-blue-400">// Example:</span><br />
+            <span className="text-blue-400">// Log the first part of the response</span><br />
+            console.log(agentId, <span className="text-yellow-300">"Got response:"</span>, response.substring(0, 50));<br />
+            <br />
+            <span className="text-blue-400">// Extract data from the response</span><br />
+            <span className="text-purple-400">if</span> (response.includes(<span className="text-yellow-300">"weather is sunny"</span>)) {'{'}<br />
+            &nbsp;&nbsp;console.log(agentId, <span className="text-yellow-300">"Found sunny weather!"</span>);<br />
+            &nbsp;&nbsp;<span className="text-blue-400">// Save this to the agent's memory</span><br />
+            &nbsp;&nbsp;<span className="text-green-400">await</span> utilities.updateAgentMemory(agentId, <span className="text-yellow-300">"Weather: Sunny"</span>);<br />
+            {'}'}
+          </div>
+          
+          <div className="text-sm flex-1">
+            <p className="font-medium mb-1">Simplified Flow:</p>
+            <div className="flex items-center space-x-2">
+              <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded-md">LLM Response</div>
+              <ArrowRight className="h-4 w-4 text-gray-500" />
+              <div className="bg-green-100 text-green-800 px-2 py-1 rounded-md">Your Code</div>
+              <ArrowRight className="h-4 w-4 text-gray-500" />
+              <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md">Do Things with Response</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Code Snippets Section */}
+      <div className="bg-white border rounded-md shadow-sm">
+        <div className="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
+          <h3 className="font-medium">Quick Code Snippets</h3>
+          {selectedCodeSnippet ? (
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setSelectedCodeSnippet(null)}
+                className="px-2 py-1 text-xs text-gray-600 bg-gray-200 rounded"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  const snippet = codeSnippets.find(s => s.name === selectedCodeSnippet);
+                  if (snippet) insertCodeSnippet(snippet.code);
+                }}
+                className="px-2 py-1 text-xs text-white bg-blue-500 rounded flex items-center"
+              >
+                <Copy className="h-3 w-3 mr-1" />
+                Insert
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setShowCodeHelper(!showCodeHelper)} 
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              {showCodeHelper ? 'Hide Snippets' : 'Show Snippets'}
+            </button>
+          )}
+        </div>
+        
+        {showCodeHelper && (
+          <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+            {codeSnippets.map((snippet) => (
+              <div 
+                key={snippet.name}
+                className={`border rounded-md p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                  selectedCodeSnippet === snippet.name 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
+                onClick={() => setSelectedCodeSnippet(snippet.name)}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <h4 className="font-medium text-gray-800">{snippet.name}</h4>
+                  <PlayCircle className="h-4 w-4 text-blue-500" />
+                </div>
+                <p className="text-xs text-gray-600 mb-1">{snippet.description}</p>
+                <div className="text-xs text-gray-500 bg-gray-50 p-1 rounded truncate">
+                  {snippet.code.split('\n')[0]}...
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -283,7 +358,7 @@ const EditAgentModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg w-2/3 max-h-[80vh] overflow-y-auto">
+      <div className="bg-white p-6 rounded-lg w-3/4 max-h-[85vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">{createMode ? 'Create Agent' : 'Edit Agent'}</h2>
           
@@ -303,21 +378,24 @@ const EditAgentModal = ({
         {/* Tab navigation */}
         <div className="flex border-b mb-4">
           <button
-            className={`px-4 py-2 font-medium ${activeTab === 'config' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
+            className={`px-4 py-2 font-medium flex items-center ${activeTab === 'config' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
             onClick={() => setActiveTab('config')}
           >
+            <Settings className="h-4 w-4 mr-1" />
             Configuration
           </button>
           <button
-            className={`px-4 py-2 font-medium ${activeTab === 'actions' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
+            className={`px-4 py-2 font-medium flex items-center ${activeTab === 'actions' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
             onClick={() => setActiveTab('actions')}
           >
-            Actions
+            <Code className="h-4 w-4 mr-1" />
+            Context
           </button>
           <button
-            className={`px-4 py-2 font-medium ${activeTab === 'code' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
+            className={`px-4 py-2 font-medium flex items-center ${activeTab === 'code' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
             onClick={() => setActiveTab('code')}
           >
+            <Terminal className="h-4 w-4 mr-1" />
             Code
           </button>
         </div>
