@@ -1,7 +1,11 @@
 // src/utils/agent-commands.ts
 import { Logger } from './logging';
-import { commandUtilities } from './command_utilities';
-import { registerCommand, getCommands, clearCommands } from './command_registry';
+import { utilities } from './agent_utilities'; // Changed from command_utilities
+import { 
+  registerCommand, 
+  getCommands, 
+  clearCommands
+} from './command_registry';
 
 /**
  * Register agent commands from code text
@@ -35,7 +39,7 @@ export function registerAgentCommands(agentId: string, codeText: string): void {
         return async function(params) {
           return await fn.call(null, params);
         };
-      `)(agentId, commandUtilities);
+      `)(agentId, utilities);
       
       // Register the command instead of adding to local map
       registerCommand(agentId, commandName, commandFn);
@@ -45,8 +49,6 @@ export function registerAgentCommands(agentId: string, codeText: string): void {
     }
   }
 }
-
-
 
 /**
  * Process LLM response text and execute any commands
@@ -97,4 +99,3 @@ export async function processAgentCommands(
   
   return false;
 }
-

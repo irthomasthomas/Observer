@@ -29,7 +29,8 @@ window.importAgentProcessor = async (code: string, agentId: string): Promise<Fun
     const url = URL.createObjectURL(blob);
     
     // Import the module
-    const module = await import(/* webpackIgnore: true */ url);
+    // Use @vite-ignore to prevent Vite from trying to analyze the dynamic import
+    const module = await import(/* @vite-ignore */ url);
     
     // Clean up
     URL.revokeObjectURL(url);
@@ -149,9 +150,29 @@ export async function startAgentLoop(agentId: string): Promise<void> {
       Logger.info(agentId, `Screen capture started successfully`);
     }
     
-    // Get agent code and register the output processor
+    // Get agent code and try to dynamically import the processor
     const agentCode = await getAgentCode(agentId) || '';
-    registerProcessor(agentId, agentCode);
+    
+    try {
+      // Only import if agent code contains export
+      if (agentCode.includes('export const outputProcessor')) {
+        const processor = await window.importAgentProcessor(agentCode, agentId);
+        registerProcessor(agentId, processor);
+      } else {
+        // Register a default processor that just logs output
+        registerProcessor(agentId, (line: string) => {
+          Logger.info(agentId, `Agent output: ${line}`);
+          return false;
+        });
+      }
+    } catch (error) {
+      Logger.error(agentId, `Error setting up processor: ${error}`);
+      // Register a default processor
+      registerProcessor(agentId, (line: string) => {
+        Logger.info(agentId, `Agent output: ${line}`);
+        return false;
+      });
+    }
     
     // Store loop information
     activeLoops[agentId] = {
@@ -325,9 +346,9 @@ async function executeAgentIteration(agentId: string): Promise<void> {
         systemPrompt
       );
       
-      // Dynamic import the agent's processor
+      // Refresh processor if needed
       try {
-        // Only import if agent code contains export
+        // Only import if agent code contains export and it's different from what we had before
         if (agentCode.includes('export const outputProcessor')) {
           const processor = await window.importAgentProcessor(agentCode, agentId);
           registerProcessor(agentId, processor);

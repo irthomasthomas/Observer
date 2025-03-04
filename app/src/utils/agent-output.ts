@@ -31,7 +31,9 @@ export async function processOutput(agentId: string, text: string): Promise<bool
   });
   
   // Filter out content inside <think>...</think> tags
-  const filteredText = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+  //const filteredText = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+
+  const filteredTest = text
   
   // Process each non-empty line
   const lines = filteredText.split('\n').filter(line => line.trim());
