@@ -250,9 +250,8 @@ const EditAgentModal = ({
           Tips for writing agent code
         </h4>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Use <code className="bg-blue-100 px-1 rounded">getAgentMemory(agentId)</code> to access agent memory</li>
-          <li>Use <code className="bg-blue-100 px-1 rounded">updateAgentMemory(agentId, text)</code> to update memory</li>
-          <li>Use <code className="bg-blue-100 px-1 rounded">logger.info(agentId, message)</code> to log information</li>
+          <li>Use <code className="bg-blue-100 px-1 rounded">utilities.getAgentMemory(agentId)</code> to access agent memory</li>
+          <li>Use <code className="bg-blue-100 px-1 rounded">utilities.updateAgentMemory(agentId, text)</code> to update memory</li>
           <li>Your agent loop will run every {loopInterval} seconds</li>
         </ul>
       </div>
