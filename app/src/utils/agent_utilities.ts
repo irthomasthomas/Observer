@@ -1,11 +1,11 @@
-// src/utils/command_utilities.ts
+// src/utils/agent_utilities.ts
 import { Logger } from './logging';
 import { getAgentMemory, updateAgentMemory } from './agent_database';
 
 /**
- * Utilities for use in agent commands
+ * Utilities for use in agent output processors
  */
-export const commandUtilities = {
+export const utilities = {
   /**
    * Get the current time in a readable format
    * @returns Formatted time string (e.g. "3:45 pm")
