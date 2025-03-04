@@ -1,4 +1,3 @@
-// src/components/EditAgentModal.tsx
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { CompleteAgent, downloadAgent } from '@utils/agent_database';
 import { Download } from 'lucide-react';
@@ -19,16 +18,8 @@ interface EditAgentModalProps {
   createMode: boolean;
   agent?: CompleteAgent;
   code?: string;
-  onSave: (agent: CompleteAgent, code: string) => void;
+  onSave: (agent: CompleteAgent, code: string, excludeThink?: boolean) => void;
 }
-
-// Loading fallback component for CodeMirror
-//const EditorLoading = () => (
-//  <div className="border border-gray-300 rounded p-4 h-64 flex flex-col items-center justify-center bg-gray-50">
-//    <div className="w-8 h-8 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-2"></div>
-//    <p className="text-gray-600">Loading editor...</p>
-//  </div>
-//);
 
 const EditAgentModal = ({ 
   isOpen, 
@@ -47,6 +38,7 @@ const EditAgentModal = ({
   const [loopInterval, setLoopInterval] = useState(1.0);
   const [activeTab, setActiveTab] = useState<TabType>('config');
   const [editorIsLoaded, setEditorIsLoaded] = useState(false);
+  const [excludeThink, setExcludeThink] = useState(false);  // Add exclude think state
 
   useEffect(() => {
     if (agent) {
@@ -84,7 +76,8 @@ const EditAgentModal = ({
       loop_interval_seconds: loopInterval
     };
     
-    onSave(completeAgent, code);
+    // Pass excludeThink preference to the onSave handler
+    onSave(completeAgent, code, excludeThink);
     onClose();
   };
 
@@ -164,24 +157,51 @@ const EditAgentModal = ({
 
   const renderCodeTab = () => (
     <div className="space-y-4">
-      {/* Code Editor Header */}
+      {/* Code Editor Header with Think Toggle */}
       <div className="flex justify-between items-center">
         <div>
           <h3 className="font-medium text-gray-800">Agent Code</h3>
           <p className="text-sm text-gray-500">Write code that defines your agent's behavior</p>
         </div>
         
-        {/* Language selector */}
-        <div className="flex items-center space-x-2">
-          <label htmlFor="code-language" className="text-sm text-gray-600">Language:</label>
-          <select
-            id="code-language"
-            className="border rounded px-2 py-1 text-sm bg-white"
-            defaultValue="javascript"
-          >
-            <option value="javascript">JavaScript</option>
-            <option value="python" disabled>Python (Soon)</option>
-          </select>
+        <div className="flex items-center space-x-4">
+          {/* Exclude Think Toggle */}
+          <div className="flex items-center space-x-2">
+            <label htmlFor="exclude-think" className="text-sm text-gray-600">
+              Exclude &lt;think&gt; blocks:
+            </label>
+            <div className="relative inline-block w-10 mr-2 align-middle select-none">
+              <input
+                type="checkbox"
+                id="exclude-think"
+                checked={excludeThink}
+                onChange={(e) => setExcludeThink(e.target.checked)}
+                className="sr-only"
+              />
+              <div className={`block w-10 h-6 rounded-full transition-colors duration-200 ease-in-out ${
+                excludeThink ? 'bg-blue-500' : 'bg-gray-300'
+              }`}></div>
+              <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${
+                excludeThink ? 'transform translate-x-4' : ''
+              }`}></div>
+            </div>
+            <div className="text-xs text-gray-500 italic">
+              {excludeThink ? 'On' : 'Off'}
+            </div>
+          </div>
+          
+          {/* Language selector */}
+          <div className="flex items-center space-x-2">
+            <label htmlFor="code-language" className="text-sm text-gray-600">Language:</label>
+            <select
+              id="code-language"
+              className="border rounded px-2 py-1 text-sm bg-white"
+              defaultValue="javascript"
+            >
+              <option value="javascript">JavaScript</option>
+              <option value="python" disabled>Python (Soon)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -241,7 +261,7 @@ const EditAgentModal = ({
         </Suspense>
       </div>
 
-      {/* Helpful tips section */}
+      {/* Helpful tips section - updated to mention <think> tags */}
       <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
         <h4 className="font-medium mb-1 flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -253,6 +273,7 @@ const EditAgentModal = ({
           <li>Use <code className="bg-blue-100 px-1 rounded">utilities.getAgentMemory(agentId)</code> to access agent memory</li>
           <li>Use <code className="bg-blue-100 px-1 rounded">utilities.updateAgentMemory(agentId, text)</code> to update memory</li>
           <li>Your agent loop will run every {loopInterval} seconds</li>
+          <li>Use <code className="bg-blue-100 px-1 rounded">&lt;think&gt;...&lt;/think&gt;</code> tags for agent internal reasoning{excludeThink ? ' (currently excluded from processing)' : ''}</li>
         </ul>
       </div>
     </div>

@@ -21,25 +21,29 @@ declare global {
   }
 }
 
-// Set up dynamic import function
 window.importAgentProcessor = async (code: string, agentId: string): Promise<Function> => {
   try {
     // Create a blob URL from the code
-    const blob = new Blob([code], { type: 'application/javascript' });
+    const blob = new Blob([
+      // Wrap the code in a function that we can invoke
+      `export default function(response, utilities, agentId) {
+        ${code}
+        return true;
+      }`
+    ], { type: 'application/javascript' });
     const url = URL.createObjectURL(blob);
     
     // Import the module
-    // Use @vite-ignore to prevent Vite from trying to analyze the dynamic import
     const module = await import(/* @vite-ignore */ url);
     
     // Clean up
     URL.revokeObjectURL(url);
     
-    // Return the output processor or a default one
-    if (typeof module.outputProcessor === 'function') {
-      return module.outputProcessor;
+    // Return the default export, which is our wrapped function
+    if (typeof module.default === 'function') {
+      return module.default;
     } else {
-      Logger.warn(agentId, 'No outputProcessor export found in agent code');
+      Logger.warn(agentId, 'Failed to create function from agent code');
       return (line: string) => {
         Logger.info(agentId, `Agent output: ${line}`);
         return false;
@@ -152,19 +156,11 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     
     // Get agent code and try to dynamically import the processor
     const agentCode = await getAgentCode(agentId) || '';
-    
+
     try {
-      // Only import if agent code contains export
-      if (agentCode.includes('export const outputProcessor')) {
-        const processor = await window.importAgentProcessor(agentCode, agentId);
-        registerProcessor(agentId, processor);
-      } else {
-        // Register a default processor that just logs output
-        registerProcessor(agentId, (line: string) => {
-          Logger.info(agentId, `Agent output: ${line}`);
-          return false;
-        });
-      }
+      // Import the processor using the new wrapping approach
+      const processor = await window.importAgentProcessor(agentCode, agentId);
+      registerProcessor(agentId, processor);
     } catch (error) {
       Logger.error(agentId, `Error setting up processor: ${error}`);
       // Register a default processor
@@ -345,26 +341,27 @@ async function executeAgentIteration(agentId: string): Promise<void> {
         agent.model_name,
         systemPrompt
       );
+
+
+    // Refresh processor if needed
+    try {
+      // Always refresh the processor with the latest code
+      const processor = await window.importAgentProcessor(agentCode, agentId);
+      registerProcessor(agentId, processor);
       
-      // Refresh processor if needed
-      try {
-        // Only import if agent code contains export and it's different from what we had before
-        if (agentCode.includes('export const outputProcessor')) {
-          const processor = await window.importAgentProcessor(agentCode, agentId);
-          registerProcessor(agentId, processor);
-        }
-        
-        // Process the response with the output processor
-        const processed = await processOutput(agentId, response);
-        
-        if (processed) {
-          Logger.info(agentId, `Response processed successfully`);
-        } else {
-          Logger.info(agentId, `Response generated but no actions taken`);
-        }
-      } catch (error) {
-        Logger.error(agentId, `Error processing agent output: ${error}`);
+      // Process the response with the output processor
+      const processed = await processOutput(agentId, response);
+      Logger.info(agentId, `Response processing started`)
+      
+      if (processed) {
+        Logger.info(agentId, `Response processed successfully`);
+      } else {
+        Logger.info(agentId, `Response processed but no return True found`);
       }
+    } catch (error) {
+      Logger.error(agentId, `Error processing agent output: ${error}`);
+    }
+      
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
