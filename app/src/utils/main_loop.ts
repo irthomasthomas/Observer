@@ -10,7 +10,7 @@ import {
   captureFrameAndOCR, 
   injectOCRTextIntoPrompt 
 } from './screenCapture';
-import { sendPromptToOllama } from './ollamaApi';
+import { sendPrompt } from './sendApi';
 import { Logger } from './logging';
 import { registerProcessor, processOutput, clearProcessor } from './agent-output';
 
@@ -335,7 +335,7 @@ async function executeAgentIteration(agentId: string): Promise<void> {
     try {
       Logger.info(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
       
-      const response = await sendPromptToOllama(
+      const response = await sendPrompt(
         serverHost,
         serverPort,
         agent.model_name,
@@ -417,7 +417,7 @@ export async function executeTestIteration(
     try {
       Logger.info(agentId, `Sending prompt to Ollama (model: ${modelName})`);
       
-      const response = await sendPromptToOllama(
+      const response = await sendPrompt(
         serverHost,
         serverPort,
         modelName,
