@@ -397,3 +397,42 @@ export function getRunningAgentIds(): string[] {
     .filter(([_, loop]) => loop.isRunning)
     .map(([agentId, _]) => agentId);
 }
+
+/**
+ * Execute a single test iteration - this is a simplified version for testing in the UI
+ * @param agentId Agent ID to use (can be temporary)
+ * @param systemPrompt The system prompt to use
+ * @param modelName The model name to use
+ * @returns The model's response text
+ */
+export async function executeTestIteration(
+  agentId: string,
+  systemPrompt: string,
+  modelName: string
+): Promise<string> {
+  try {
+    Logger.debug(agentId, `Starting test iteration with model ${modelName}`);
+    
+    // Send the prompt to Ollama and get response
+    try {
+      Logger.info(agentId, `Sending prompt to Ollama (model: ${modelName})`);
+      
+      const response = await sendPromptToOllama(
+        serverHost,
+        serverPort,
+        modelName,
+        systemPrompt
+      );
+      
+      return response;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      Logger.error(agentId, `Error calling Ollama: ${errorMessage}`, error);
+      throw error;
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    Logger.error(agentId, `Error in test iteration: ${errorMessage}`, error);
+    throw error;
+  }
+}
