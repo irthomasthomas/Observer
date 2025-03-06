@@ -13,19 +13,19 @@ import { executeTestIteration } from '@utils/main_loop';
 // Code snippets collection
 const codeSnippets = [
   {
-    name: "Remember Response",
+    name: "Write to Memory",
     description: "Store the entire response in agent memory",
-    code: 'await utilities.updateAgentMemory(agentId, response);\nconsole.log(agentId, "Stored complete response in memory");'
+    code: 'await utilities.updateAgentMemory(agentId, response);'
   },
   {
     name: "Read/Write Agent Memory",
     description: "Read memory, append timestamped content, and update another agent",
-    code: 'const currentMemory = await utilities.getAgentMemory(agentId);\nconst time = new Date().toISOString();\nconst updatedMemory = `${currentMemory}\\n[${time}] ${response.substring(0, 100)}`;\n\n// Update this agent\'s memory\nawait utilities.updateAgentMemory(agentId, updatedMemory);\n\n// Update another agent\'s memory (replace with actual agent ID)\nawait utilities.updateAgentMemory("activity_tracking_agent", `Agent ${agentId} processed response at ${time}`);'
+    code: '// Preserve previous memory\nconst prev_mem = utilities.getAgentMemory(agentId);\n// Get time\nconst time = "10:38"//utilities.getCurrentTime();\n// Update memory with timestamp\nprev_mem.then(memory => {\n    utilities.updateAgentMemory(agentId, `${memory}[${time}]: ${cleanedResponse}\\n`)\n});'
   },
   {
     name: "Remove Thought Tags",
     description: "Clean response by removing <think>...</think> sections",
-    code: 'const cleanedResponse = response.replace(/<think>[\\s\\S]*?<\\/think>/g, \'\');\nconsole.log(agentId, "Cleaned response:", cleanedResponse.substring(0, 100) + "...");\nawait utilities.updateAgentMemory(agentId, cleanedResponse);'
+    code: 'const cleanedResponse = response.replace(/<think>[\\s\\S]*?<\\/think>/g, \'\').trim();'
   }
 ];
 
