@@ -19,7 +19,7 @@ compute_router = APIRouter()
 # Configuration
 AI_SERVICE_URL = os.environ.get("AI_SERVICE_URL", "https://compute.observer-ai.com")
 DB_PATH = "quota.db"
-FREE_QUOTA = 10  # Number of free requests per IP
+FREE_QUOTA = 20  # Number of free requests per IP
 
 # Initialize database
 def init_db():
@@ -61,15 +61,31 @@ def get_count(ip):
     conn.close()
     return result[0] if result else 0
 
+
+def get_client_ip(request: Request):
+    # Try Cloudflare headers first
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip
+        
+    # Try X-Forwarded-For header
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        # Get the first IP in the chain
+        return x_forwarded_for.split(",")[0].strip()
+        
+    # Fallback to direct client IP
+    return request.client.host
+
 # Routes
 @compute_router.get("/proxy-status")
 async def compute_root():
     return {"status": "Compute proxy is running", "target": AI_SERVICE_URL}
 
-# Check quota endpoint
+
 @compute_router.get("/quota")
 async def check_quota(request: Request):
-    ip = request.client.host
+    ip = get_client_ip(request)
     count = get_count(ip)
     remaining = max(0, FREE_QUOTA - count)
     
@@ -79,11 +95,10 @@ async def check_quota(request: Request):
         "remaining": remaining
     })
 
-# Proxy routes
 @compute_router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 async def proxy_request(request: Request, path: str):
-    # Get client IP
-    ip = request.client.host
+    # Get client IP using the new function
+    ip = get_client_ip(request)
     
     # For POST requests, check and increment the quota
     if request.method == "POST":
