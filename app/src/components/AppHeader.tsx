@@ -77,7 +77,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   // Fetch quota information
   const fetchQuotaInfo = async () => {
-    if (!serverStatus === 'online') return;
+    if (serverStatus !== 'online') return;
     
     try {
       setIsLoadingQuota(true);
