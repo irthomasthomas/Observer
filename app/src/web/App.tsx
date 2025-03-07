@@ -355,8 +355,6 @@ function AppContent() {
         <AppHeader 
           serverStatus={serverStatus}
           setServerStatus={setServerStatus}
-          isRefreshing={isRefreshing}
-          onRefresh={fetchAgents}
           setError={setError}
           authState={{
             isLoading,

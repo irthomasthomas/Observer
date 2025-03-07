@@ -16,8 +16,6 @@ interface AuthState {
 interface AppHeaderProps {
   serverStatus: 'unchecked' | 'online' | 'offline';
   setServerStatus: React.Dispatch<React.SetStateAction<'unchecked' | 'online' | 'offline'>>;
-  isRefreshing: boolean;
-  onRefresh: () => Promise<void>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   authState?: AuthState;
   onMenuClick: () => void;
@@ -27,8 +25,6 @@ interface AppHeaderProps {
 const AppHeader: React.FC<AppHeaderProps> = ({
   serverStatus,
   setServerStatus,
-  isRefreshing,
-  onRefresh,
   setError,
   authState,
   onMenuClick,
@@ -402,7 +398,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       
       {/* Login Hint Bubble */}
       {!isAuthenticated && showLoginHint && (
-        <div className="fixed z-60" style={{ top: '90px', right: '60px' }}>
+        <div className="fixed z-60" style={{ top: '110px', right: '20px' }}>
           <div className="bg-white rounded-lg shadow-lg p-3 max-w-xs relative">
             <button 
               onClick={() => setShowLoginHint(false)}
