@@ -79,7 +79,7 @@ def init_db():
 init_db()
 
 # Routes
-@marketplace_router.get("/")
+@marketplace_router.get("/marketplace-status")
 async def marketplace_root():
     return {"status": "Marketplace service is running"}
 

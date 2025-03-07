@@ -62,7 +62,7 @@ def get_count(ip):
     return result[0] if result else 0
 
 # Routes
-@compute_router.get("/")
+@compute_router.get("/proxy-status")
 async def compute_root():
     return {"status": "Compute proxy is running", "target": AI_SERVICE_URL}
 

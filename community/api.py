@@ -32,9 +32,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(marketplace_router, prefix="/marketplace")
-app.include_router(compute_router, prefix="/compute")
+# Include routers - without prefixes to maintain original URL structure
+app.include_router(marketplace_router)
+# Mount compute router last since it has a catch-all route
+app.include_router(compute_router)
 
 # Root path to check if service is running
 @app.get("/")
@@ -122,9 +123,9 @@ if __name__ == "__main__":
     print("\n\033[1m OBSERVER AI API SERVER \033[0m ready")
     print(f"  ➜  \033[36mLocal:   \033[0mhttps://localhost:{args.port}/")
     print(f"  ➜  \033[36mNetwork: \033[0mhttps://{local_ip}:{args.port}/")
-    print(f"\n  Marketplace: https://localhost:{args.port}/marketplace")
-    print(f"  Compute Proxy: https://localhost:{args.port}/compute")
-    print(f"    - Forwarding to: {args.proxy_target}")
+    print(f"\n  Marketplace routes: https://localhost:{args.port}/agents")
+    print(f"  Compute quota: https://localhost:{args.port}/quota")
+    print(f"  Proxy forwarding to: {args.proxy_target}")
     
     # Run with SSL context
     uvicorn.run(
