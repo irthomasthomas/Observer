@@ -1,24 +1,41 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 import sqlite3
 import datetime
+import logging
 
-app = FastAPI()
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://app.observer-ai.com"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
+logger = logging.getLogger('marketplace')
+
+# Create router
+marketplace_router = APIRouter()
+
+# Database configuration
+DB_PATH = "marketplace.db"
+
+# Data model
+class Agent(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = ""
+    model_name: str
+    system_prompt: Optional[str] = ""
+    loop_interval_seconds: float
+    code: str
+    memory: Optional[str] = ""
+    author: Optional[str] = None
+    author_id: Optional[str] = None
+    date_added: Optional[str] = None
 
 # Initialize database
 def init_db():
-    conn = sqlite3.connect('marketplace.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     # Check if the table exists
@@ -56,27 +73,19 @@ def init_db():
     
     conn.commit()
     conn.close()
+    logger.info("Marketplace database initialized")
 
+# Initialize the database at module load
 init_db()
 
-# Data model
-class Agent(BaseModel):
-    id: str
-    name: str
-    description: Optional[str] = ""
-    model_name: str
-    system_prompt: Optional[str] = ""
-    loop_interval_seconds: float
-    code: str
-    memory: Optional[str] = ""
-    author: Optional[str] = None
-    author_id: Optional[str] = None
-    date_added: Optional[str] = None
-
 # Routes
-@app.get("/agents")
+@marketplace_router.get("/")
+async def marketplace_root():
+    return {"status": "Marketplace service is running"}
+
+@marketplace_router.get("/agents")
 async def list_agents():
-    conn = sqlite3.connect('marketplace.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM agents")
@@ -84,9 +93,9 @@ async def list_agents():
     conn.close()
     return agents
 
-@app.get("/agents/{agent_id}")
+@marketplace_router.get("/agents/{agent_id}")
 async def get_agent(agent_id: str):
-    conn = sqlite3.connect('marketplace.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM agents WHERE id = ?", (agent_id,))
@@ -98,9 +107,9 @@ async def get_agent(agent_id: str):
     
     return dict(agent)
 
-@app.post("/agents")
+@marketplace_router.post("/agents")
 async def create_agent(agent: Agent):
-    conn = sqlite3.connect('marketplace.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     # If date_added is not provided, set it to current time
@@ -123,10 +132,9 @@ async def create_agent(agent: Agent):
     
     return {"success": True}
 
-# For stats and filtering
-@app.get("/agents/statistics")
+@marketplace_router.get("/agents/statistics")
 async def get_agent_statistics():
-    conn = sqlite3.connect('marketplace.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -156,9 +164,9 @@ async def get_agent_statistics():
         "popular_models": models
     }
 
-@app.get("/agents/by-author/{author_id}")
+@marketplace_router.get("/agents/by-author/{author_id}")
 async def get_agents_by_author(author_id: str):
-    conn = sqlite3.connect('marketplace.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM agents WHERE author_id = ?", (author_id,))
@@ -166,5 +174,3 @@ async def get_agents_by_author(author_id: str):
     conn.close()
     
     return agents
-
-# Run with: uvicorn app:app --reload
