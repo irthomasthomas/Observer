@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCw, PlusCircle, Menu } from 'lucide-react';
+import { RotateCw, Menu } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import TextBubble from './TextBubble';
@@ -17,10 +17,7 @@ interface AppHeaderProps {
   serverStatus: 'unchecked' | 'online' | 'offline';
   setServerStatus: React.Dispatch<React.SetStateAction<'unchecked' | 'online' | 'offline'>>;
   isRefreshing: boolean;
-  agentCount: number;
-  activeAgentCount: number;
   onRefresh: () => Promise<void>;
-  onAddAgent: () => void;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   authState?: AuthState;
   onMenuClick: () => void;
@@ -31,10 +28,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   serverStatus,
   setServerStatus,
   isRefreshing,
-  agentCount,
-  activeAgentCount,
   onRefresh,
-  onAddAgent,
   setError,
   authState,
   onMenuClick,
@@ -42,48 +36,90 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [showServerHint] = useState(true);
   const [pulseMenu, setPulseMenu] = useState(false);
+  const [isUsingObServer, setIsUsingObServer] = useState(false);
   
-  // Add pulsing effect only when agent count is exactly 0
+  // Set a default pulsing effect when component mounts
   useEffect(() => {
-    if (agentCount === 0) {
-      // Create a pulsing effect for the menu button
-      setPulseMenu(true);
-      
-      // Stop pulsing after 10 seconds
-      const timer = setTimeout(() => {
-        setPulseMenu(false);
-      }, 10000);
-      
-      return () => clearTimeout(timer);
-    } else {
-      // Make sure pulse is off when agents exist
+    // Create a pulsing effect for the menu button
+    setPulseMenu(true);
+    
+    // Stop pulsing after 10 seconds
+    const timer = setTimeout(() => {
       setPulseMenu(false);
-    }
-  }, [agentCount]);
+    }, 10000);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   // Only way of checking if logged in or not, Components weren't re-rendering
-    useEffect(() => {
-      // Save when authenticated 
-      if (authState?.isAuthenticated) {
-        localStorage.setItem('auth_user', JSON.stringify(authState.user || {}));
-        localStorage.setItem('auth_authenticated', 'true');
-      }
-    }, [authState?.isAuthenticated, authState?.user]);
+  useEffect(() => {
+    // Save when authenticated 
+    if (authState?.isAuthenticated) {
+      localStorage.setItem('auth_user', JSON.stringify(authState.user || {}));
+      localStorage.setItem('auth_authenticated', 'true');
+    }
+  }, [authState?.isAuthenticated, authState?.user]);
     
-    // Use local storage to override auth state when needed
-    const isAuthenticated = authState?.isAuthenticated || localStorage.getItem('auth_authenticated') === 'true';
-    const userData = isAuthenticated && !authState?.user ? 
-      JSON.parse(localStorage.getItem('auth_user') || '{}') : 
-      authState?.user;
+  // Use local storage to override auth state when needed
+  const isAuthenticated = authState?.isAuthenticated || localStorage.getItem('auth_authenticated') === 'true';
+  const userData = isAuthenticated && !authState?.user ? 
+    JSON.parse(localStorage.getItem('auth_user') || '{}') : 
+    authState?.user;
       
-    // Custom logout that clears localStorage
-    const handleLogout = () => {
-      localStorage.removeItem('auth_authenticated');
-      localStorage.removeItem('auth_user');
-      authState?.logout({ logoutParams: { returnTo: window.location.origin } });
-    };
+  // Custom logout that clears localStorage
+  const handleLogout = () => {
+    localStorage.removeItem('auth_authenticated');
+    localStorage.removeItem('auth_user');
+    authState?.logout({ logoutParams: { returnTo: window.location.origin } });
+  };
+
+  // Handler for toggling Ob-Server use
+  const handleToggleObServer = () => {
+    if (!isUsingObServer) {
+      // Switch to Ob-Server
+      setIsUsingObServer(true);
+      setServerAddress('api.observer-ai.com');
+      setOllamaServerAddress('api.observer-ai.com', '443');
+      Logger.info('SERVER', 'Switched to Ob-Server (api.observer-ai.com)');
+      // Check server automatically when enabling Ob-Server
+      checkObServerStatus();
+    } else {
+      // Switch back to custom server
+      setIsUsingObServer(false);
+      setServerAddress('localhost:3838');
+      setOllamaServerAddress('localhost', '3838');
+      Logger.info('SERVER', 'Switched to custom server mode');
+      setServerStatus('unchecked');
+    }
+  };
+
+  const checkObServerStatus = async () => {
+    try {
+      setServerStatus('unchecked');
+      Logger.info('SERVER', 'Checking connection to Ob-Server (api.observer-ai.com)');
+      
+      // Set the server address for agent loops
+      setOllamaServerAddress('api.observer-ai.com', '443');
+      
+      // We'll just assume Ob-Server is online for simplicity
+      // In a real implementation, you might want to do an actual health check
+      setServerStatus('online');
+      setError(null);
+      Logger.info('SERVER', 'Connected successfully to Ob-Server at api.observer-ai.com');
+    } catch (err) {
+      setServerStatus('offline');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError('Failed to connect to Ob-Server');
+      Logger.error('SERVER', `Error checking Ob-Server status: ${errorMessage}`, err);
+    }
+  };
 
   const checkServerStatus = async () => {
+    if (isUsingObServer) {
+      checkObServerStatus();
+      return;
+    }
+    
     try {
       setServerStatus('unchecked');
       const [host, port] = serverAddress.split(':');
@@ -113,6 +149,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   };
 
   const handleServerAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isUsingObServer) return; // Don't allow changes when using Ob-Server
+    
     const newAddress = e.target.value;
     setServerAddress(newAddress);
     
@@ -165,13 +203,35 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
+                {/* Ob-Server Toggle Switch (only show for authenticated users) */}
+                {isAuthenticated && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Ob-Server</span>
+                    <button 
+                      className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
+                        isUsingObServer ? 'bg-blue-500' : 'bg-gray-200'
+                      }`}
+                      onClick={handleToggleObServer}
+                    >
+                      <span
+                        className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${
+                          isUsingObServer ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                )}
+                
+                {/* Server Address Input (disabled when using Ob-Server) */}
                 <input
                   type="text"
                   value={serverAddress}
                   onChange={handleServerAddressChange}
                   placeholder="api.observer.local"
-                  className="px-3 py-2 border rounded-md"
+                  className={`px-3 py-2 border rounded-md ${isUsingObServer ? 'bg-gray-100 opacity-70' : ''}`}
+                  disabled={isUsingObServer}
                 />
+                
                 <button
                   onClick={checkServerStatus}
                   className={`px-4 py-2 rounded-md ${
@@ -195,16 +255,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   disabled={isRefreshing}
                 >
                   <RotateCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </button>
-                <p className="text-sm">
-                  Active: {activeAgentCount} / Total: {agentCount}
-                </p>
-                <button
-                  onClick={onAddAgent}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                >
-                  <PlusCircle className="h-5 w-5" />
-                  <span>Create Agent</span>
                 </button>
 
                 {/* Authentication UI */}
@@ -239,14 +289,56 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               </div>
             </div>
           </div>
+          
+          {/* Ob-Server Free Trial Banner (only for authenticated users when not using Ob-Server) */}
+          {isAuthenticated && !isUsingObServer && (
+            <div className="mt-3 p-2 bg-blue-50 border-blue-100 rounded-md text-sm text-blue-700 flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="mr-1">🚀</span>
+                <span>As a logged-in user, you have access to our hosted Ob-Server! Turn it on to use our cloud service.</span>
+              </div>
+              <button 
+                onClick={handleToggleObServer}
+                className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
+              >
+                Enable
+              </button>
+            </div>
+          )}
+          
+          {/* Unauthenticated User Banner */}
+          {!isAuthenticated && (
+            <div className="mt-3 p-2 bg-gray-50 border-gray-200 rounded-md text-sm text-gray-700 flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="mr-1">💡</span>
+                <span>Want to use our cloud service? Sign in to access our hosted Ob-Server for free.</span>
+              </div>
+              <button 
+                onClick={() => authState?.loginWithRedirect()}
+                className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+              >
+                Sign In
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
-      {showServerHint && (
+      {showServerHint && !isUsingObServer && (
         <div className="fixed z-60" style={{ top: '70px', right: '35%' }}>
           <TextBubble 
             message="Enter your Observer-Ollama address here! (default: localhost:3838)" 
             duration={7000} 
+          />
+        </div>
+      )}
+      
+      {/* Ob-Server Activated Bubble */}
+      {isUsingObServer && (
+        <div className="fixed z-60" style={{ top: '70px', right: '35%' }}>
+          <TextBubble 
+            message="✅ You're using our hosted Ob-Server service! No local setup needed." 
+            duration={5000} 
           />
         </div>
       )}

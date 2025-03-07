@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload } from 'lucide-react';
+import { FileUp, PlusCircle, RotateCw } from 'lucide-react';
 import { importAgentsFromFiles } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
 
@@ -12,11 +12,21 @@ interface ImportResult {
 interface AgentImportHandlerProps {
   onImportComplete: () => Promise<void>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
+  onAddAgent: () => void;
+  agentCount: number;
+  activeAgentCount: number;
+  isRefreshing: boolean;
+  onRefresh: () => Promise<void>;
 }
 
 const AgentImportHandler: React.FC<AgentImportHandlerProps> = ({
   onImportComplete,
-  setError
+  setError,
+  onAddAgent,
+  agentCount,
+  activeAgentCount,
+  isRefreshing,
+  onRefresh
 }) => {
   // Reference to the file input element
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +48,7 @@ const AgentImportHandler: React.FC<AgentImportHandlerProps> = ({
     Logger.info('APP', 'Opening file selector for agent import');
   };
 
-  // Handle file selection for import (moved inside the component so it has access to state and refs)
+  // Handle file selection for import
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     
@@ -95,15 +105,39 @@ const AgentImportHandler: React.FC<AgentImportHandlerProps> = ({
         className="hidden"
       />
       
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={handleImportClick}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-          disabled={importStatus.inProgress}
-        >
-          <Upload className="h-5 w-5" />
-          <span>{importStatus.inProgress ? 'Importing...' : 'Import Agents'}</span>
-        </button>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={onRefresh}
+            className="p-2 rounded-md hover:bg-gray-100"
+            disabled={isRefreshing}
+            title="Refresh agents"
+          >
+            <RotateCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <p className="text-sm font-medium">
+            Active: {activeAgentCount} / Total: {agentCount}
+          </p>
+        </div>
+        
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={onAddAgent}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          >
+            <PlusCircle className="h-5 w-5" />
+            <span>Create Agent</span>
+          </button>
+          
+          <button
+            onClick={handleImportClick}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            disabled={importStatus.inProgress}
+          >
+            <FileUp className="h-5 w-5" />
+            <span>{importStatus.inProgress ? 'Importing...' : 'Import Agents'}</span>
+          </button>
+        </div>
       </div>
       
       {/* Import Results */}

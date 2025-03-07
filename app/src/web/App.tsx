@@ -356,10 +356,7 @@ function AppContent() {
           serverStatus={serverStatus}
           setServerStatus={setServerStatus}
           isRefreshing={isRefreshing}
-          agentCount={agents.length}
-          activeAgentCount={agents.filter(a => a.status === 'running').length}
           onRefresh={fetchAgents}
-          onAddAgent={handleAddAgentClick}
           setError={setError}
           authState={{
             isLoading,
@@ -371,6 +368,7 @@ function AppContent() {
           onMenuClick={() => setIsSidebarOpen(true)}
           shouldHighlightMenu={agents.length === 0}
         />
+
 
         {/* Sidebar Menu */}
         <SidebarMenu 
@@ -388,6 +386,11 @@ function AppContent() {
           <AgentImportHandler 
             onImportComplete={fetchAgents}
             setError={setError}
+            onAddAgent={handleAddAgentClick}
+            agentCount={agents.length}
+            activeAgentCount={agents.filter(a => a.status === 'running').length}
+            isRefreshing={isRefreshing}
+            onRefresh={fetchAgents}
           />
 
           {error && <ErrorDisplay message={error} />}
