@@ -37,6 +37,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [showServerHint] = useState(true);
   const [pulseMenu, setPulseMenu] = useState(false);
   const [isUsingObServer, setIsUsingObServer] = useState(false);
+  const [quotaInfo, setQuotaInfo] = useState<{ used: number; remaining: number } | null>(null);
+  const [isLoadingQuota, setIsLoadingQuota] = useState(false);
   
   // Set a default pulsing effect when component mounts
   useEffect(() => {
@@ -73,6 +75,45 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
+  // Fetch quota information
+  const fetchQuotaInfo = async () => {
+    if (!serverStatus === 'online') return;
+    
+    try {
+      setIsLoadingQuota(true);
+      const host = isUsingObServer ? 'api.observer-ai.com' : serverAddress.split(':')[0];
+      const port = isUsingObServer ? '443' : serverAddress.split(':')[1];
+      
+      // Construct the correct URL based on whether using Ob-Server or local
+      const baseUrl = isUsingObServer 
+        ? `https://api.observer-ai.com`
+        : `https://${host}:${port}`;
+      
+      const response = await fetch(`${baseUrl}/quota`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setQuotaInfo({
+          used: data.used,
+          remaining: data.remaining
+        });
+        Logger.info('QUOTA', `Quota info fetched: ${data.used} used, ${data.remaining} remaining`);
+      } else {
+        Logger.error('QUOTA', `Failed to fetch quota info: ${response.status}`);
+        setQuotaInfo(null);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      Logger.error('QUOTA', `Error fetching quota info: ${errorMessage}`, err);
+      setQuotaInfo(null);
+    } finally {
+      setIsLoadingQuota(false);
+    }
+  };
+
   // Handler for toggling Ob-Server use
   const handleToggleObServer = () => {
     if (!isUsingObServer) {
@@ -90,6 +131,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       setOllamaServerAddress('localhost', '3838');
       Logger.info('SERVER', 'Switched to custom server mode');
       setServerStatus('unchecked');
+      setQuotaInfo(null);
     }
   };
 
@@ -106,6 +148,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       setServerStatus('online');
       setError(null);
       Logger.info('SERVER', 'Connected successfully to Ob-Server at api.observer-ai.com');
+      
+      // Fetch quota information after successful connection
+      fetchQuotaInfo();
     } catch (err) {
       setServerStatus('offline');
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -135,6 +180,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         setServerStatus('online');
         setError(null);
         Logger.info('SERVER', `Connected successfully to Ollama server at ${host}:${port}`);
+        
+        // Fetch quota information after successful connection
+        fetchQuotaInfo();
       } else {
         setServerStatus('offline');
         setError(result.error || 'Failed to connect to Ollama server');
@@ -161,6 +209,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       Logger.debug('SERVER', `Server address updated to ${host}:${port}`);
     }
   };
+
+  // Refresh quota information when status is online or server changes
+  useEffect(() => {
+    if (serverStatus === 'online') {
+      fetchQuotaInfo();
+    }
+  }, [serverStatus, isUsingObServer]);
 
   return (
     <>
@@ -205,20 +260,37 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               <div className="flex items-center space-x-2">
                 {/* Ob-Server Toggle Switch (only show for authenticated users) */}
                 {isAuthenticated && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Ob-Server</span>
-                    <button 
-                      className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
-                        isUsingObServer ? 'bg-blue-500' : 'bg-gray-200'
-                      }`}
-                      onClick={handleToggleObServer}
-                    >
-                      <span
-                        className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${
-                          isUsingObServer ? 'translate-x-6' : 'translate-x-1'
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600">Ob-Server</span>
+                      <button 
+                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
+                          isUsingObServer ? 'bg-blue-500' : 'bg-gray-200'
                         }`}
-                      />
-                    </button>
+                        onClick={handleToggleObServer}
+                      >
+                        <span
+                          className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${
+                            isUsingObServer ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    
+                    {/* Quota Information Display */}
+                    {isUsingObServer && serverStatus === 'online' && (
+                      <div className="text-xs text-center mt-1">
+                        {isLoadingQuota ? (
+                          <span className="text-gray-500">Loading quota...</span>
+                        ) : quotaInfo ? (
+                          <span className={`font-medium ${quotaInfo.remaining < 5 ? 'text-orange-500' : 'text-green-600'}`}>
+                            {quotaInfo.remaining} executions left
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">Quota unavailable</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 
