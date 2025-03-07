@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCw, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import TextBubble from './TextBubble';
@@ -53,12 +53,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
+  // State for the login hint bubble
+  const [showLoginHint, setShowLoginHint] = useState(true);
+
   // Only way of checking if logged in or not, Components weren't re-rendering
   useEffect(() => {
     // Save when authenticated 
     if (authState?.isAuthenticated) {
       localStorage.setItem('auth_user', JSON.stringify(authState.user || {}));
       localStorage.setItem('auth_authenticated', 'true');
+      // Hide login hint when authenticated
+      setShowLoginHint(false);
     }
   }, [authState?.isAuthenticated, authState?.user]);
     
@@ -321,14 +326,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               </div>
 
               <div className="flex items-center space-x-4">
-                <button 
-                  onClick={onRefresh}
-                  className="p-2 rounded-md hover:bg-gray-100"
-                  disabled={isRefreshing}
-                >
-                  <RotateCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </button>
-
+                {/* Removed refresh button */}
+                
                 {/* Authentication UI */}
                 {authState ? (
                   authState.isLoading ? (
@@ -350,7 +349,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                       onClick={() => authState.loginWithRedirect()}
                       className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
                     >
-                      Login
+                      Log In | Sign Up
                     </button>
                   )
                 ) : (
@@ -378,21 +377,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             </div>
           )}
           
-          {/* Unauthenticated User Banner */}
-          {!isAuthenticated && (
-            <div className="mt-3 p-2 bg-gray-50 border-gray-200 rounded-md text-sm text-gray-700 flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="mr-1">💡</span>
-                <span>Want to use our cloud service? Sign in to access our hosted Ob-Server for free.</span>
-              </div>
-              <button 
-                onClick={() => authState?.loginWithRedirect()}
-                className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
-              >
-                Sign In
-              </button>
-            </div>
-          )}
+          {/* Removed the Unauthenticated User Banner from here */}
         </div>
       </header>
 
@@ -412,6 +397,33 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             message="✅ You're using our hosted Ob-Server service! No local setup needed." 
             duration={5000} 
           />
+        </div>
+      )}
+      
+      {/* Login Hint Bubble */}
+      {!isAuthenticated && showLoginHint && (
+        <div className="fixed z-60" style={{ top: '90px', right: '60px' }}>
+          <div className="bg-white rounded-lg shadow-lg p-3 max-w-xs relative">
+            <button 
+              onClick={() => setShowLoginHint(false)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              aria-label="Close"
+            >
+              <span className="text-lg">×</span>
+            </button>
+            <div className="flex items-start mb-2">
+              <span className="mr-2 text-blue-500">💡</span>
+              <p className="text-sm text-gray-700">
+                Want to use our cloud service? Sign in to access our hosted Ob-Server for free.
+              </p>
+            </div>
+            <button 
+              onClick={() => authState?.loginWithRedirect()}
+              className="w-full mt-2 px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+            >
+              Sign In
+            </button>
+          </div>
         </div>
       )}
     </>
