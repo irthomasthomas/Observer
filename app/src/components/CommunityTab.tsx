@@ -36,9 +36,9 @@ interface AgentUpload {
 }
 
 const CommunityTab: React.FC = () => {
-  const { isAuthenticated, loginWithRedirect, user } = useAuth0();
+  const { isAuthenticated: auth0IsAuthenticated, loginWithRedirect, user: auth0User, isLoading } = useAuth0();
   const [agents, setAgents] = useState<MarketplaceAgent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingAgents, setIsLoadingAgents] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<MarketplaceAgent | null>(null);
@@ -52,10 +52,40 @@ const CommunityTab: React.FC = () => {
 
   // Server URL - update this to your Python backend address
   const SERVER_URL = 'https://api.observer-ai.com';
+
+  // Improved auth state handling
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Check localStorage first (for cases where the auth state might not be immediately available)
+    const storedAuthState = localStorage.getItem('auth_authenticated') === 'true';
+    const storedUser = localStorage.getItem('auth_user');
+    
+    if (storedAuthState && storedUser) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(storedUser));
+    }
+    
+    // Update with Auth0 state when available
+    if (!isLoading) {
+      if (auth0IsAuthenticated && auth0User) {
+        setIsAuthenticated(true);
+        setUser(auth0User);
+        // Save auth state to localStorage
+        localStorage.setItem('auth_authenticated', 'true');
+        localStorage.setItem('auth_user', JSON.stringify(auth0User));
+      } else if (!storedAuthState) {
+        // Only reset if there's no stored auth state
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    }
+  }, [auth0IsAuthenticated, auth0User, isLoading]);
   
   const fetchAgents = async () => {
     try {
-      setIsLoading(true);
+      setIsLoadingAgents(true);
       setError(null);
       
       const response = await fetch(`${SERVER_URL}/agents`);
@@ -73,7 +103,7 @@ const CommunityTab: React.FC = () => {
       setError(`Failed to fetch community agents: ${errorMessage}`);
       Logger.error('COMMUNITY', `Error fetching marketplace agents: ${errorMessage}`, err);
     } finally {
-      setIsLoading(false);
+      setIsLoadingAgents(false);
     }
   };
 
@@ -226,8 +256,8 @@ const CommunityTab: React.FC = () => {
 
   const uploadAgentToServer = async (agentData: AgentUpload) => {
     try {
-      // Make sure we have the author information from Auth0
-      if (!user) {
+      // Make sure we have the author information
+      if (!isAuthenticated || !user) {
         throw new Error('You must be logged in to upload agents');
       }
       
@@ -327,9 +357,9 @@ const CommunityTab: React.FC = () => {
           <button 
             onClick={fetchAgents}
             className="flex items-center space-x-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
-            disabled={isLoading}
+            disabled={isLoadingAgents}
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoadingAgents ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
           
@@ -358,7 +388,7 @@ const CommunityTab: React.FC = () => {
         </div>
       )}
       
-      {isLoading ? (
+      {isLoadingAgents ? (
         <div className="text-center p-8">
           <div className="inline-block animate-spin mr-2">
             <RefreshCw className="h-6 w-6 text-blue-500" />
