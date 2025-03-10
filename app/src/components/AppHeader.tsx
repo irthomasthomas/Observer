@@ -51,6 +51,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   // State for the login hint bubble
   const [showLoginHint, setShowLoginHint] = useState(true);
+  
+  // State for the Ob-Server trial bubble
+  const [showObServerTrialBubble, setShowObServerTrialBubble] = useState(true);
 
   // Only way of checking if logged in or not, Components weren't re-rendering
   useEffect(() => {
@@ -125,6 +128,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       Logger.info('SERVER', 'Switched to Ob-Server (api.observer-ai.com)');
       // Check server automatically when enabling Ob-Server
       checkObServerStatus();
+      // Hide the trial bubble when enabling Ob-Server
+      setShowObServerTrialBubble(false);
     } else {
       // Switch back to custom server
       setIsUsingObServer(false);
@@ -133,6 +138,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       Logger.info('SERVER', 'Switched to custom server mode');
       setServerStatus('unchecked');
       setQuotaInfo(null);
+      // Show the trial bubble again when disabling Ob-Server
+      setShowObServerTrialBubble(true);
     }
   };
 
@@ -356,24 +363,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               </div>
             </div>
           </div>
-          
-          {/* Ob-Server Free Trial Banner (only for authenticated users when not using Ob-Server) */}
-          {isAuthenticated && !isUsingObServer && (
-            <div className="mt-3 p-2 bg-blue-50 border-blue-100 rounded-md text-sm text-blue-700 flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="mr-1">🚀</span>
-                <span>As a logged-in user, you have access to our hosted Ob-Server! Turn it on to use our cloud service.</span>
-              </div>
-              <button 
-                onClick={handleToggleObServer}
-                className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
-              >
-                Enable
-              </button>
-            </div>
-          )}
-          
-          {/* Removed the Unauthenticated User Banner from here */}
         </div>
       </header>
 
@@ -418,6 +407,33 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               className="w-full mt-2 px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
             >
               Sign In
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Ob-Server Free Trial Bubble - only for authenticated users when not using Ob-Server */}
+      {isAuthenticated && !isUsingObServer && showObServerTrialBubble && (
+        <div className="fixed z-60" style={{ top: '110px', left: '50%', transform: 'translateX(-50%)' }}>
+          <div className="bg-white rounded-lg shadow-lg p-3 max-w-xs relative">
+            <button 
+              onClick={() => setShowObServerTrialBubble(false)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              aria-label="Close"
+            >
+              <span className="text-lg">×</span>
+            </button>
+            <div className="flex items-start mb-2">
+              <span className="mr-2 text-blue-500">🚀</span>
+              <p className="text-sm text-gray-700">
+                As a logged-in user, you have access to our hosted Ob-Server! Turn it on to use our cloud service.
+              </p>
+            </div>
+            <button 
+              onClick={handleToggleObServer}
+              className="w-full mt-2 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
+            >
+              Enable
             </button>
           </div>
         </div>

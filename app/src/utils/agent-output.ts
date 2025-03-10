@@ -32,7 +32,6 @@ export async function processOutput(agentId: string, text: string): Promise<bool
   });
   
   // Filter out content inside <think>...</think> tags if needed
-  let filteredText = text;
   //if (excludeThink) {
   //  filteredText = text.replace(/<think>[\s\S]*?<\/think>/g, '');
   //  Logger.debug(agentId, `Filtered out <think> blocks from agent output`);
@@ -40,7 +39,7 @@ export async function processOutput(agentId: string, text: string): Promise<bool
 
   try {
     // Process the entire response at once
-    const result = await processor(filteredText, utilities, agentId);
+    const result = await processor(text, utilities, agentId);
     return !!result; // Convert to boolean
   } catch (error) {
     Logger.error(agentId, `Error processing response: ${error}`);
