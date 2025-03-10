@@ -1,114 +1,129 @@
-import { useEffect } from 'react';
-import { Terminal, CheckCircle2, XCircle, LoaderCircle, ArrowRight } from 'lucide-react';
-import { checkOllamaServer } from '@utils/ollamaServer';
+import React, { useState } from 'react';
+import { Terminal, Cloud, Server, ArrowRight, LogIn } from 'lucide-react';
+import LocalServerSetupDialog from './LocalServerSetupDialog';
 
-interface StartupDialogsProps {
-  serverStatus: 'unchecked' | 'online' | 'offline';
+interface StartupDialogProps {
   onDismiss: () => void;
+  onLogin?: () => void; // Optional function to trigger login
+  serverStatus: 'unchecked' | 'online' | 'offline';
   setServerStatus: (status: 'unchecked' | 'online' | 'offline') => void;
 }
 
-const StartupDialogs = ({ serverStatus, onDismiss, setServerStatus }: StartupDialogsProps) => {
-  useEffect(() => {
-    const checkStatus = async () => {
-      const result = await checkOllamaServer('localhost', '3838');
-      setServerStatus(result.status === 'online' ? 'online' : 'offline');
-    };
+const StartupDialog: React.FC<MainStartupDialogProps> = ({
+  onDismiss,
+  onLogin,
+  serverStatus,
+  setServerStatus
+}) => {
+  const [showLocalSetup, setShowLocalSetup] = useState(false);
+  
+  // If local setup is being shown, render that component instead
+  if (showLocalSetup) {
+    return (
+      <LocalServerSetupDialog 
+        serverStatus={serverStatus}
+        setServerStatus={setServerStatus}
+        onDismiss={onDismiss}
+        onBack={() => setShowLocalSetup(false)}
+      />
+    );
+  }
 
-    const timer = setTimeout(checkStatus, 500);
-    return () => clearTimeout(timer);
-  }, [setServerStatus]);
-
-  const StatusIcon = {
-    online: CheckCircle2,
-    offline: XCircle,
-    unchecked: LoaderCircle
-  }[serverStatus];
+  // Simply dismiss the dialog when starting with Ob-Server
+  const handleObServerStart = () => {
+    onDismiss();
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl p-8 max-w-lg w-full mx-4">
+      <div className="bg-white rounded-xl shadow-xl p-8 max-w-3xl w-full mx-4">
         <div className="flex items-center gap-3 mb-6">
           <Terminal className="h-8 w-8 text-blue-500" />
           <h2 className="text-2xl font-semibold">Welcome to Observer</h2>
         </div>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                1
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Install Observer-Ollama</h3>
-                <div className="mt-1.5 bg-gray-100 p-2 rounded-md font-mono text-sm text-gray-700">
-                  pip install observer-ollama
-                </div>
-              </div>
-            </div>
+        <p className="text-gray-600 mb-6">Choose how you want to get started with Observer</p>
 
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                2
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Accept Local Certificates</h3>
-                <p className="mt-1 text-sm text-gray-600">
-                  Click the link provided in your terminal to accept the locally-signed certificates. You'll see a URL like:
-                </p>
-                <div className="mt-1.5 bg-gray-100 p-2 rounded-md font-mono text-sm text-gray-700">
-                  ➜ Local: https://localhost:3838/
-                </div>
-              </div>
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
+          {/* Ob-Server Cloud Card */}
+          <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow bg-blue-50 border-blue-100">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-medium text-blue-700">Ob-Server Cloud</h3>
+              <Cloud className="h-6 w-6 text-blue-500" />
             </div>
+            
+            <ul className="mb-6 space-y-2">
 
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                3
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Connect to Your Server</h3>
-                <p className="mt-1 text-sm text-gray-600">
-                  Enter your local inference server address in the field above.
-                </p>
-              </div>
-            </div>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                <span className="text-gray-700">No installation needed</span>
+              </li>
+
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                <span className="text-gray-700">Easy to use</span>
+              </li>
+
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                <span className="text-gray-700">Privacy respecting</span>
+              </li>
+            </ul>
+            
+            <button
+              onClick={handleObServerStart}
+              className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium mb-3"
+            >
+              Start with Ob-Server
+            </button>
+            
+            {onLogin && (
+              <button 
+                onClick={onLogin} 
+                className="w-full flex items-center justify-center gap-1 text-blue-600 text-sm hover:text-blue-800 transition-colors"
+              >
+                Log in to access <LogIn className="h-3.5 w-3.5 ml-1" />
+              </button>
+            )}
           </div>
-
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50">
-            <StatusIcon className={`h-5 w-5 ${
-              serverStatus === 'online' ? 'text-green-500' :
-              serverStatus === 'offline' ? 'text-red-500' : 'text-gray-400 animate-spin'
-            }`} />
-            <span className="font-medium">
-              {serverStatus === 'online' ? 'Connected successfully' :
-               serverStatus === 'offline' ? 'Connection failed' :
-               'Checking connection...'}
-            </span>
-          </div>
-
-          {serverStatus === 'offline' && (
-            <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm space-y-2">
-              <p className="font-medium">Unable to connect to the Ollama server. Please verify:</p>
-              <ul className="list-disc ml-5 space-y-1">
-                <li>Ollama is running on your system</li>
-                <li>The server address is correct</li>
-                <li>Required models are installed</li>
-              </ul>
+          
+          {/* Local Server Card */}
+          <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-medium text-gray-800">Local Server</h3>
+              <Server className="h-6 w-6 text-gray-500" />
             </div>
-          )}
-
-          <button
-            onClick={onDismiss}
-            className="w-full mt-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 font-medium"
-          >
-            Continue to Observer
-            <ArrowRight className="h-4 w-4" />
-          </button>
+            
+            <ul className="mb-6 space-y-2">
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-500"></div>
+                <span className="text-gray-700">Full Control</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-500"></div>
+                <span className="text-gray-700">Use your own hardware</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-500"></div>
+                <span className="text-gray-700">Complete privacy</span>
+              </li>
+            </ul>
+            
+            <button
+              onClick={() => setShowLocalSetup(true)}
+              className="w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              Set Up Local Server
+            </button>
+          </div>
+        </div>
+        
+        <div className="text-center text-sm text-gray-500">
+          You can switch between options anytime from the header
         </div>
       </div>
     </div>
   );
 };
 
-export default StartupDialogs;
+export default StartupDialog;
