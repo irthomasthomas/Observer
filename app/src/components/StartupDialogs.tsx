@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Cloud, Server, ArrowRight, LogIn } from 'lucide-react';
+import { Terminal, Cloud, Server, LogIn } from 'lucide-react';
 import LocalServerSetupDialog from './LocalServerSetupDialog';
 
 interface StartupDialogProps {
@@ -9,7 +9,7 @@ interface StartupDialogProps {
   setServerStatus: (status: 'unchecked' | 'online' | 'offline') => void;
 }
 
-const StartupDialog: React.FC<MainStartupDialogProps> = ({
+const StartupDialog: React.FC<StartupDialogProps> = ({
   onDismiss,
   onLogin,
   serverStatus,
