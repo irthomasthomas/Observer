@@ -25,6 +25,7 @@ import ErrorDisplay from '@components/ErrorDisplay';
 import AgentImportHandler from '@components/AgentImportHandler';
 import SidebarMenu from '@components/SidebarMenu';
 import CommunityTab from '@components/CommunityTab';
+import GetStarted from '@components/GetStarted';
 
 function AppContent() {
   const { isAuthenticated, user, loginWithRedirect, logout, isLoading } = useAuth0();
@@ -297,38 +298,6 @@ function AppContent() {
     }
   }, [serverStatus]);
 
-  // Add a custom message for empty agent list
-  const EmptyAgentMessage = () => (
-    <div className="col-span-full text-center py-10">
-      <div className="bg-blue-50 rounded-lg p-6 max-w-2xl mx-auto">
-        <h3 className="text-xl font-semibold text-blue-800 mb-3">Ready to Get Started?</h3>
-        <p className="text-blue-600 mb-6">
-          You don't have any agents yet. Explore the Community tab to discover pre-built agents, 
-          or create your own custom agent from scratch.
-        </p>
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <button 
-            onClick={() => setActiveTab('community')} 
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-            </svg>
-            Explore Community Agents
-          </button>
-          <button 
-            onClick={handleAddAgentClick} 
-            className="px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 transition-colors flex items-center justify-center"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Create New Agent
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -408,7 +377,10 @@ function AppContent() {
                   onSchedule={handleScheduleClick}
                   onMemory={handleMemoryClick}
                 />
-              )) : <EmptyAgentMessage />}
+                  )) : <GetStarted 
+                         onExploreCommunity={() => setActiveTab('community')}
+                         onCreateNewAgent={handleAddAgentClick}
+                       />}
             </div>
           ) : activeTab === 'community' ? (
             <CommunityTab />
