@@ -33,44 +33,83 @@ app.observer-ai.com
 # Enter your inference IP 
 ```
 
-## 🏗️ Building Your Own Agent
+# 🏗️ Building Your Own Agent
 
 Creating your own Observer AI agent is simple and accessible to both beginners and experienced developers.
 
-### Quick Start
+## Quick Start
 
 1. Navigate to the Agent Dashboard and click "Create New Agent"
 2. Fill in the "Configuration" tab with basic details (name, description, model, loop interval)
-3. Use the "Actions" tab to visually build your agent's behavior by dragging blocks:
-  - **Screen** block: Captures screen content via OCR
-  - **Agent Memory** block: Accesses other agents' stored information
+3. Use the "Context" tab to visually build your agent's input sources by adding blocks:
+   * **Screen OCR** block: Captures screen content as text via OCR
+   * **Screenshot** block: Captures screen as an image for multimodal models
+   * **Agent Memory** block: Accesses other agents' stored information
 
-### Advanced Options
+## Code Tab
 
-For more control, the "Code" tab allows you to:
-- Define a custom system prompt
-- Create commands using this format:
+The "Code" tab now offers a notebook-style coding experience where you can:
+
+* Write JavaScript code that executes with each agent iteration
+* Access the `response` variable containing the model's output
+* Utilize utilities for various operations:
 
 ```javascript
-//COMMAND_NAME
-function(params) {
- // Command logic using utilities like:
- utilities.getCurrentTime();
- utilities.pushNotification("Title", {body: "Message"});
- utilities.updateAgentMemory(agentId, content);
+// Remove Think tags for deepseek model
+const cleanedResponse = response.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+// Preserve previous memory
+const prev_res = utilities.getAgentMemory(agentId);
+
+// Get time
+const time = utilities.getCurrentTime();
+
+// Update memory with timestamp
+prev_res.then(memory => {
+    utilities.updateAgentMemory(agentId, `${memory} \n[${time}]: ${cleanedResponse} \n`);
+});
+```
+
+Available utilities include:
+* `utilities.getCurrentTime()` - Get the current timestamp
+* `utilities.pushNotification(title, options)` - Send notifications
+* `utilities.updateAgentMemory(agentId, content)` - Store information
+* `utilities.getAgentMemory(agentId)` - Retrieve stored information
+
+## Example: Activity Tracker
+
+A simple agent that logs what you're doing:
+* System prompt with Screen OCR/Screenshot blocks to capture content
+* Code that processes the response and logs observations to memory:
+
+```javascript
+// Extract activity details from response
+const activity = response.includes("ACTIVITY:") 
+    ? response.split("ACTIVITY:")[1].trim() 
+    : response;
+
+// Get previous memory
+const memory = await utilities.getAgentMemory(agentId);
+
+// Add timestamp and save
+const timestamp = utilities.getCurrentTime();
+utilities.updateAgentMemory(
+    agentId, 
+    `${memory}\n[${timestamp}] ${activity}`
+);
+
+// Notify about interesting activities
+if (activity.includes("meeting") || activity.includes("important")) {
+    utilities.pushNotification("Activity Alert", {
+        body: `Detected: ${activity}`
+    });
 }
 ```
 
-The agent executes these when it outputs COMMAND_NAME: parameters in its response.
+## Deploy & Share
 
-### Example: Activity Tracker
-A simple agent that logs what you're doing:
-
-- System prompt with Screen block to capture content
-- ACTIVITY command that saves observations to memory
-
-Deploy & Share
 Save your agent, test it from the dashboard, and export the configuration to share with others!
+
 
 ## 🤝 Contributing
 
