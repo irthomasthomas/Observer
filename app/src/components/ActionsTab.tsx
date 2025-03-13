@@ -3,7 +3,7 @@ import { CompleteAgent, listAgents } from '../utils/agent_database';
 import { Monitor, Brain, ChevronDown, X } from 'lucide-react';
 
 /* --- Global Type Augmentations ---
-   Place these at the top level so they’re available throughout this module.
+   Place these at the top level so they're available throughout this module.
 */
 declare global {
   interface Window {
@@ -87,14 +87,16 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
   
   // When system prompt changes externally, update our blocks
   useEffect(() => {
-    const screenRegex = /\$SCREEN_OCR/g;
+    const screenOcrRegex = /\$SCREEN_OCR/g;
+    const screenImageRegex = /\$SCREEN_64/g;
     const memoryRegex = /\$MEMORY@([a-z0-9_]+)/g;
     
     let newBlocks: BlockData[] = [];
     let lastIndex = 0;
     let match;
     
-    while ((match = screenRegex.exec(systemPrompt)) !== null) {
+    // Process OCR blocks
+    while ((match = screenOcrRegex.exec(systemPrompt)) !== null) {
       if (match.index > lastIndex) {
         newBlocks.push({
           type: 'text',
@@ -103,13 +105,33 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
       }
       newBlocks.push({
         type: 'block',
-        value: 'screen'
+        value: 'screen_ocr'
       });
       lastIndex = match.index + match[0].length;
     }
     
-    memoryRegex.lastIndex = 0;
+    // Reset for image blocks
     let remainingText = systemPrompt.substring(lastIndex);
+    screenImageRegex.lastIndex = 0;
+    lastIndex = 0;
+    
+    while ((match = screenImageRegex.exec(remainingText)) !== null) {
+      if (match.index > lastIndex) {
+        newBlocks.push({
+          type: 'text',
+          value: remainingText.substring(lastIndex, match.index)
+        });
+      }
+      newBlocks.push({
+        type: 'block',
+        value: 'screen_image'
+      });
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Reset for memory blocks
+    remainingText = remainingText.substring(lastIndex);
+    memoryRegex.lastIndex = 0;
     lastIndex = 0;
     
     while ((match = memoryRegex.exec(remainingText)) !== null) {
@@ -151,7 +173,8 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
     const newPrompt = promptBlocks.map(block => {
       if (block.type === 'text') return block.value;
       if (block.type === 'block') {
-        if (block.value === 'screen') return '$SCREEN_OCR';
+        if (block.value === 'screen_ocr') return '$SCREEN_OCR';
+        if (block.value === 'screen_image') return '$SCREEN_64';
         if (block.value === 'memory') return `$MEMORY@${block.metadata?.agentId}`;
       }
       return '';
@@ -210,14 +233,32 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
     window.draggedAgentId = agentId;
     window.draggedAgentName = agentName;
     const ghostElement = document.createElement('div');
-    ghostElement.className = blockType === 'screen' ? 'bg-blue-500' : 'bg-green-500';
+    
+    // Determine color based on block type
+    if (blockType === 'screen_ocr') {
+      ghostElement.className = 'bg-blue-500';
+    } else if (blockType === 'screen_image') {
+      ghostElement.className = 'bg-purple-500';
+    } else {
+      ghostElement.className = 'bg-green-500';
+    }
+    
     ghostElement.style.padding = '4px 8px';
     ghostElement.style.borderRadius = '4px';
     ghostElement.style.color = 'white';
     ghostElement.style.fontSize = '12px';
     ghostElement.style.pointerEvents = 'none';
     ghostElement.style.opacity = '0.7';
-    ghostElement.innerHTML = blockType === 'screen' ? 'Screen' : `Memory${agentName ? ': ' + agentName : ''}`;
+    
+    // Set appropriate label
+    if (blockType === 'screen_ocr') {
+      ghostElement.innerHTML = 'Screen OCR';
+    } else if (blockType === 'screen_image') {
+      ghostElement.innerHTML = 'Screen Shot';
+    } else {
+      ghostElement.innerHTML = `Memory${agentName ? ': ' + agentName : ''}`;
+    }
+    
     document.body.appendChild(ghostElement);
     try {
       e.dataTransfer.setDragImage(ghostElement, 10, 10);
@@ -232,23 +273,32 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
   // Handle drag over a textarea
   const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>, blockIndex: number) => {
     e.preventDefault();
-    const isMemoryBlock = Array.from(e.dataTransfer.types).some(
-      type => type === 'agentid' || type === 'agentId'
-    );
-    const blockType = isMemoryBlock ? 'memory' : 'screen';
+    
+    // Determine block type
+    let blockType;
+    if (window.draggedBlockType === 'screen_ocr') {
+      blockType = 'screen_ocr';
+    } else if (window.draggedBlockType === 'screen_image') {
+      blockType = 'screen_image';
+    } else {
+      blockType = 'memory';
+    }
+    
     setIsDraggingOver(true);
     setDragOverTextareaIndex(blockIndex);
     const textarea = e.currentTarget;
     const textPosition = getTextPositionFromCoords(textarea, e.clientX, e.clientY);
     const { left, top } = calculateGhostPosition(textarea, textPosition);
+    
     let agentName = 'Agent';
     try {
-      if (isMemoryBlock && window.draggedAgentName) {
+      if (blockType === 'memory' && window.draggedAgentName) {
         agentName = window.draggedAgentName;
       }
     } catch (error) {
       console.log('Error accessing agent name:', error);
     }
+    
     setDragInfo({
       blockType,
       agentName,
@@ -256,6 +306,7 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
       left,
       top
     });
+    
     textarea._lastCursorPosition = textPosition;
     textarea.setSelectionRange(textPosition, textPosition);
     textarea.focus();
@@ -310,22 +361,28 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
     setIsDraggingOver(false);
     setDragOverTextareaIndex(null);
     setDragInfo(null);
+    
     const blockType = e.dataTransfer.getData('blockType') || window.draggedBlockType;
     const agentId = e.dataTransfer.getData('agentId') || window.draggedAgentId;
     const agentName = e.dataTransfer.getData('agentName') || window.draggedAgentName;
+    
     window.draggedBlockType = undefined;
     window.draggedAgentId = undefined;
     window.draggedAgentName = undefined;
-    if (blockType === 'screen' || blockType === 'memory') {
+    
+    if (blockType === 'screen_ocr' || blockType === 'screen_image' || blockType === 'memory') {
       const textarea = e.target as HTMLTextAreaElement;
       const dropPosition = textarea._lastCursorPosition !== undefined 
         ? textarea._lastCursorPosition 
         : textarea.selectionStart || 0;
+      
       const newBlocks = [...promptBlocks];
       const targetBlock = newBlocks[blockIndex];
+      
       if (targetBlock && targetBlock.type === 'text') {
         const beforeText = targetBlock.value.substring(0, dropPosition);
         const afterText = targetBlock.value.substring(dropPosition);
+        
         newBlocks.splice(blockIndex, 1, 
           { type: 'text', value: beforeText },
           { 
@@ -335,7 +392,9 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
           },
           { type: 'text', value: afterText }
         );
+        
         setPromptBlocks(newBlocks);
+        
         setTimeout(() => {
           const newTextAreaIndex = blockIndex + 2;
           if (textAreaRefs.current[newTextAreaIndex]) {
@@ -364,11 +423,29 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
   // Render the ghost block indicator during drag
   const renderGhostBlock = () => {
     if (!dragInfo) return null;
-    const isScreen = dragInfo.blockType === 'screen';
-    const bgColor = isScreen ? 'bg-blue-100' : 'bg-green-100';
-    const borderColor = isScreen ? 'border-blue-300' : 'border-green-300';
-    const textColor = isScreen ? 'text-blue-700' : 'text-green-700';
-    const label = isScreen ? 'Screen' : `Memory${dragInfo.agentName ? ': ' + dragInfo.agentName : ''}`;
+    
+    let bgColor, borderColor, textColor, label, icon;
+    
+    if (dragInfo.blockType === 'screen_ocr') {
+      bgColor = 'bg-blue-100';
+      borderColor = 'border-blue-300';
+      textColor = 'text-blue-700';
+      label = 'Screen OCR';
+      icon = <Monitor className="w-4 h-4 mr-1 opacity-60" />;
+    } else if (dragInfo.blockType === 'screen_image') {
+      bgColor = 'bg-purple-100';
+      borderColor = 'border-purple-300';
+      textColor = 'text-purple-700';
+      label = 'Screen Shot';
+      icon = <Monitor className="w-4 h-4 mr-1 opacity-60" />;
+    } else {
+      bgColor = 'bg-green-100';
+      borderColor = 'border-green-300';
+      textColor = 'text-green-700';
+      label = `Memory${dragInfo.agentName ? ': ' + dragInfo.agentName : ''}`;
+      icon = <Brain className="w-4 h-4 mr-1 opacity-60" />;
+    }
+    
     return (
       <div 
         className={`absolute pointer-events-none ${bgColor} ${textColor} border ${borderColor} 
@@ -380,11 +457,7 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
           transition: 'all 0.05s ease-out'
         }}
       >
-        {isScreen ? (
-          <Monitor className="w-4 h-4 mr-1 opacity-60" />
-        ) : (
-          <Brain className="w-4 h-4 mr-1 opacity-60" />
-        )}
+        {icon}
         {label}
       </div>
     );
@@ -431,16 +504,25 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
                   />
                 );
               } else if (block.type === 'block') {
-                let bgColor = 'bg-blue-100 border-blue-300';
-                let textColor = 'text-blue-700';
-                let icon = <Monitor className="w-4 h-4 mr-1" />;
-                let label = 'Screen';
-                if (block.value === 'memory') {
+                let bgColor, textColor, icon, label;
+                
+                if (block.value === 'screen_ocr') {
+                  bgColor = 'bg-blue-100 border-blue-300';
+                  textColor = 'text-blue-700';
+                  icon = <Monitor className="w-4 h-4 mr-1" />;
+                  label = 'Screen OCR';
+                } else if (block.value === 'screen_image') {
+                  bgColor = 'bg-purple-100 border-purple-300';
+                  textColor = 'text-purple-700';
+                  icon = <Monitor className="w-4 h-4 mr-1" />;
+                  label = 'Screen Shot';
+                } else {
                   bgColor = 'bg-green-100 border-green-300';
                   textColor = 'text-green-700';
                   icon = <Brain className="w-4 h-4 mr-1" />;
                   label = `Memory: ${block.metadata?.agentName || 'Unknown Agent'}`;
                 }
+                
                 return (
                   <span 
                     key={`block-${index}`}
@@ -468,18 +550,34 @@ const ActionsTab: React.FC<ActionsTabProps> = ({
         <h3 className="text-lg font-medium mb-3">Available Blocks</h3>
         <p className="text-sm text-gray-600 mb-4">Drag these blocks into your system prompt</p>
         <div className="space-y-4">
-          {/* Screen block */}
+          {/* Screen OCR block */}
           <div 
             className="block p-3 bg-white border border-blue-300 text-blue-700 rounded-lg cursor-grab shadow-sm hover:shadow transition-all duration-200 flex items-center"
             draggable="true"
-            onDragStart={(e) => handleDragStart(e, 'screen')}
+            onDragStart={(e) => handleDragStart(e, 'screen_ocr')}
           >
             <div className="bg-blue-100 p-2 rounded-md mr-3">
               <Monitor className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="font-medium">Screen</p>
+              <p className="font-medium">Screen OCR (Text)</p>
               <p className="text-xs text-gray-500">Access screen content via OCR</p>
+            </div>
+          </div>
+          
+          {/* Screen Image block */}
+          <div 
+            className="block p-3 bg-white border border-purple-300 text-purple-700 rounded-lg cursor-grab shadow-sm hover:shadow transition-all duration-200 flex items-center"
+            draggable="true"
+            onDragStart={(e) => handleDragStart(e, 'screen_image')}
+          >
+            <div className="bg-purple-100 p-2 rounded-md mr-3">
+              <Monitor className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="font-medium">Screen Shot (Image)</p>
+              <p className="text-xs text-gray-500">Send screen as image</p>
+              <p className="text-xs text-purple-600 mt-1 font-medium">Note: Only use with multimodal models</p>
             </div>
           </div>
           
