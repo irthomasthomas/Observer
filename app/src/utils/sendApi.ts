@@ -1,4 +1,7 @@
-import { Logger } from './logging'
+// src/utils/sendApi.ts
+
+// Import the PreProcessorResult interface from the pre-processor file
+import { PreProcessorResult } from './pre-processor';
 
 /**
  * Send a prompt to the Ollama server
@@ -82,7 +85,6 @@ export async function sendPrompt(
     throw error;
   }
 }
-
 /**
  * Fallback function to send a prompt using the native Ollama API
  */

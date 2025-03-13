@@ -21,7 +21,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
   // Screen OCR processor
   'SCREEN_OCR': {
     regex: /\$SCREEN_OCR/g,
-    handler: async (agentId, prompt, match) => {
+    handler: async (agentId: string) => {
       try {
         Logger.info(agentId, `Initializing screen capture for OCR`);
         
@@ -51,7 +51,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
   // Memory processor
   'MEMORY': {
     regex: /\$MEMORY@([a-zA-Z0-9_]+)/g,
-    handler: async (agentId, prompt, match) => {
+    handler: async (_agentId: string, _prompt: string, match: RegExpExecArray) => {
       try {
         // Implementation of memory processor...
         const referencedAgentId = match[1];
@@ -66,7 +66,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
   'SCREEN_64': {
     regex: /\$SCREEN_64/g,
-    handler: async (agentId, prompt, match) => {
+    handler: async (agentId: string) => {
       try {
         Logger.info(agentId, `Capturing screen for image processing`);
         
@@ -126,7 +126,7 @@ export async function preProcess(agentId: string, systemPrompt: string): Promise
     Logger.debug(agentId, 'Starting prompt pre-processing');
     
     // Process each type of placeholder
-    for (const [key, processor] of Object.entries(processors)) {
+    for (const [_, processor] of Object.entries(processors)) {
       // Reset regex to start from beginning
       processor.regex.lastIndex = 0;
       
