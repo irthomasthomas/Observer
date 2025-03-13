@@ -241,7 +241,6 @@ export async function executeTestIteration(
       processedPrompt
     );
     stopScreenCapture();
-    await postProcess(agentId, response, agentCode, utilities);
     
     return response;
   } catch (error) {
