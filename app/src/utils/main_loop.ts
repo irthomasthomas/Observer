@@ -240,6 +240,8 @@ export async function executeTestIteration(
       modelName,
       processedPrompt
     );
+    stopScreenCapture();
+    await postProcess(agentId, response, agentCode, utilities);
     
     return response;
   } catch (error) {
