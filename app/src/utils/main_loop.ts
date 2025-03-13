@@ -1,62 +1,11 @@
 // src/utils/main_loop.ts
-import { 
-  getAgent, 
-  getAgentCode, 
-  getAgentMemory 
-} from './agent_database';
-import { 
-  startScreenCapture,
-  stopScreenCapture, 
-  captureFrameAndOCR, 
-  injectOCRTextIntoPrompt 
-} from './screenCapture';
+import { getAgent, getAgentCode } from './agent_database';
 import { sendPrompt } from './sendApi';
 import { Logger } from './logging';
-import { registerProcessor, processOutput, clearProcessor } from './agent-output';
-
-// For dynamic import of agent processors
-declare global {
-  interface Window {
-    importAgentProcessor: (code: string, agentId: string) => Promise<Function>;
-  }
-}
-
-window.importAgentProcessor = async (code: string, agentId: string): Promise<Function> => {
-  try {
-    // Create a blob URL from the code
-    const blob = new Blob([
-      // Wrap the code in a function that we can invoke
-      `export default function(response, utilities, agentId) {
-        ${code}
-        return true;
-      }`
-    ], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    
-    // Import the module
-    const module = await import(/* @vite-ignore */ url);
-    
-    // Clean up
-    URL.revokeObjectURL(url);
-    
-    // Return the default export, which is our wrapped function
-    if (typeof module.default === 'function') {
-      return module.default;
-    } else {
-      Logger.warn(agentId, 'Failed to create function from agent code');
-      return (line: string) => {
-        Logger.info(agentId, `Agent output: ${line}`);
-        return false;
-      };
-    }
-  } catch (error) {
-    Logger.error(agentId, `Error importing agent processor: ${error}`);
-    return (line: string) => {
-      Logger.info(agentId, `Agent output: ${line}`);
-      return false;
-    };
-  }
-};
+import { preProcess } from './pre-processor';
+import { postProcess } from './post-processor';
+import { utilities } from './agent_utilities';
+import { stopScreenCapture } from './screenCapture';
 
 const activeLoops: Record<string, {
   timeoutId: number | null,
@@ -142,34 +91,6 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     
     Logger.info(agentId, `Starting agent loop for ${agent.name}`);
     
-    // Initialize screen capture if needed
-    if (agent.system_prompt.includes('$SCREEN_OCR')) {
-      Logger.info(agentId, `Agent requires screen access for OCR, requesting permission...`);
-      const stream = await startScreenCapture();
-      
-      if (!stream) {
-        throw new Error('Failed to start screen capture');
-      }
-      
-      Logger.info(agentId, `Screen capture started successfully`);
-    }
-    
-    // Get agent code and try to dynamically import the processor
-    const agentCode = await getAgentCode(agentId) || '';
-
-    try {
-      // Import the processor using the new wrapping approach
-      const processor = await window.importAgentProcessor(agentCode, agentId);
-      registerProcessor(agentId, processor);
-    } catch (error) {
-      Logger.error(agentId, `Error setting up processor: ${error}`);
-      // Register a default processor
-      registerProcessor(agentId, (line: string) => {
-        Logger.info(agentId, `Agent output: ${line}`);
-        return false;
-      });
-    }
-    
     // Store loop information
     activeLoops[agentId] = {
       timeoutId: null,
@@ -204,19 +125,9 @@ export function stopAgentLoop(agentId: string): void {
     if (loop.timeoutId !== null) {
       window.clearTimeout(loop.timeoutId);
     }
-
-    // Clear output processor
-    clearProcessor(agentId);
-
-    // Stop screen capture if this is the last active agent using it
-    const otherAgentsUsingScreenCapture = Object.entries(activeLoops)
-      .filter(([id, l]) => id !== agentId && l.isRunning)
-      .some(([_]) => true);
-      
-    if (!otherAgentsUsingScreenCapture) {
-      Logger.info(agentId, `Stopping screen capture (no other agents are using it)`);
-      stopScreenCapture();
-    }
+    
+    // Stop screen capture when agent is stopped
+    stopScreenCapture();
     
     // Update the loop status
     activeLoops[agentId] = {
@@ -229,43 +140,6 @@ export function stopAgentLoop(agentId: string): void {
   } else {
     Logger.warn(agentId, `Attempted to stop agent that wasn't running`);
   }
-}
-
-/**
- * Replace all memory references in a prompt with actual memory content
- */
-async function injectAllMemoriesIntoPrompt(prompt: string): Promise<string> {
-  let updatedPrompt = prompt;
-  
-  // Look for all memory references in the format $MEMORY@agentId
-  const memoryRegex = /\$MEMORY@([a-zA-Z0-9_]+)/g;
-  let match;
-  
-  // Store all promises to fetch memories
-  const memoryPromises: Promise<{id: string, memory: string}>[] = [];
-  
-  // Find all agent IDs referenced in the prompt
-  while ((match = memoryRegex.exec(prompt)) !== null) {
-    const referencedAgentId = match[1];
-    
-    // Fetch the memory for this agent
-    memoryPromises.push(
-      getAgentMemory(referencedAgentId)
-        .then(memory => ({ id: referencedAgentId, memory }))
-        .catch(() => ({ id: referencedAgentId, memory: `[Error: Unable to access memory for agent ${referencedAgentId}]` }))
-    );
-  }
-  
-  // Wait for all memories to be fetched
-  const memories = await Promise.all(memoryPromises);
-  
-  // Replace each memory reference with the actual memory content
-  for (const { id, memory } of memories) {
-    const memoryPlaceholder = `$MEMORY@${id}`;
-    updatedPrompt = updatedPrompt.replace(memoryPlaceholder, memory);
-  }
-  
-  return updatedPrompt;
 }
 
 /**
@@ -299,74 +173,20 @@ async function executeAgentIteration(agentId: string): Promise<void> {
       throw new Error(`Agent ${agentId} not found`);
     }
     
-    // Get the system prompt
-    let systemPrompt = agent.system_prompt;
+    // 1. Pre-process: Prepare the prompt
+    const systemPrompt = await preProcess(agentId, agent.system_prompt);
     
-    // Check if we need to inject OCR
-    if (systemPrompt.includes('$SCREEN_OCR')) {
-      Logger.info(agentId, `Performing OCR for screen analysis`);
-      
-      // Capture the screen and perform OCR
-      const ocrResult = await captureFrameAndOCR();
-      
-      if (ocrResult.success && ocrResult.text) {
-        // Inject the OCR text into the prompt
-        systemPrompt = injectOCRTextIntoPrompt(systemPrompt, ocrResult.text);
-        Logger.info(agentId, `OCR successful, text injected into prompt`, {
-          textLength: ocrResult.text.length,
-          textPreview: ocrResult.text.slice(0, 100) + (ocrResult.text.length > 100 ? '...' : '')
-        });
-      } else {
-        Logger.error(agentId, `OCR failed: ${ocrResult.error || 'Unknown error'}`);
-      }
-    }
+    // 2. Send prompt to API
+    Logger.info(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
+    const response = await sendPrompt(
+      serverHost,
+      serverPort,
+      agent.model_name,
+      systemPrompt
+    );
     
-    // Check if we need to inject memories
-    if (systemPrompt.includes('$MEMORY@')) {
-      Logger.info(agentId, `Injecting memories into prompt`);
-      
-      // Inject all memories
-      systemPrompt = await injectAllMemoriesIntoPrompt(systemPrompt);
-      
-      Logger.info(agentId, `All memories injected into prompt`);
-    }
-    
-    // Send the prompt to Ollama and get response
-    try {
-      Logger.info(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
-      
-      const response = await sendPrompt(
-        serverHost,
-        serverPort,
-        agent.model_name,
-        systemPrompt
-      );
-
-
-    // Refresh processor if needed
-    try {
-      // Always refresh the processor with the latest code
-      const processor = await window.importAgentProcessor(agentCode, agentId);
-      registerProcessor(agentId, processor);
-      
-      // Process the response with the output processor
-      const processed = await processOutput(agentId, response);
-      Logger.info(agentId, `Response processing started`)
-      
-      if (processed) {
-        Logger.info(agentId, `Response processed successfully`);
-      } else {
-        Logger.info(agentId, `Response processed but no return True found`);
-      }
-    } catch (error) {
-      Logger.error(agentId, `Error processing agent output: ${error}`);
-    }
-      
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      Logger.error(agentId, `Error calling Ollama: ${errorMessage}`, error);
-    }
+    // 3. Post-process: Handle the response
+    await postProcess(agentId, response, agentCode, utilities);
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -400,10 +220,6 @@ export function getRunningAgentIds(): string[] {
 
 /**
  * Execute a single test iteration - this is a simplified version for testing in the UI
- * @param agentId Agent ID to use (can be temporary)
- * @param systemPrompt The system prompt to use
- * @param modelName The model name to use
- * @returns The model's response text
  */
 export async function executeTestIteration(
   agentId: string,
@@ -413,23 +229,19 @@ export async function executeTestIteration(
   try {
     Logger.debug(agentId, `Starting test iteration with model ${modelName}`);
     
+    // Pre-process the prompt (even for tests)
+    const processedPrompt = await preProcess(agentId, systemPrompt);
+    
     // Send the prompt to Ollama and get response
-    try {
-      Logger.info(agentId, `Sending prompt to Ollama (model: ${modelName})`);
-      
-      const response = await sendPrompt(
-        serverHost,
-        serverPort,
-        modelName,
-        systemPrompt
-      );
-      
-      return response;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      Logger.error(agentId, `Error calling Ollama: ${errorMessage}`, error);
-      throw error;
-    }
+    Logger.info(agentId, `Sending prompt to Ollama (model: ${modelName})`);
+    const response = await sendPrompt(
+      serverHost,
+      serverPort,
+      modelName,
+      processedPrompt
+    );
+    
+    return response;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     Logger.error(agentId, `Error in test iteration: ${errorMessage}`, error);

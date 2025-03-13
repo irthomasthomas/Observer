@@ -10,11 +10,6 @@ interface OCRResult {
 // Keep track of active streams
 let activeStream: MediaStream | null = null;
 
-// Function to replace SCREEN_OCR placeholder in a prompt
-export function injectOCRTextIntoPrompt(prompt: string, ocrText: string): string {
-  return prompt.replace('SCREEN_OCR', ocrText);
-}
-
 // Function to start screen capture and return the stream
 export async function startScreenCapture(): Promise<MediaStream | null> {
   // If we already have an active stream, return it
@@ -144,3 +139,50 @@ async function performOCR(imageData: string): Promise<OCRResult> {
     };
   }
 }
+
+// Function to capture a frame from the active stream and return base64 image
+export async function captureScreenImage(): Promise<string | null> {
+  // If no active stream, try to start one
+  if (!activeStream) {
+    const stream = await startScreenCapture();
+    if (!stream) {
+      console.error('Failed to start screen capture');
+      return null;
+    }
+  }
+  
+  try {
+    // Create video element to receive the stream
+    const video = document.createElement('video');
+    video.srcObject = activeStream;
+    
+    // Return a promise that resolves when video frame is processed
+    return new Promise<string | null>((resolve) => {
+      video.onloadedmetadata = async () => {
+        video.play();
+        
+        // Create canvas to capture video frame
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame to canvas
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Get image data as base64 (without the data:image/png;base64, prefix)
+          const base64Image = canvas.toDataURL('image/png').split(',')[1];
+          resolve(base64Image);
+        } else {
+          console.error('Failed to get canvas context');
+          resolve(null);
+        }
+      };
+    });
+  } catch (error) {
+    console.error('Frame capture error:', error);
+    return null;
+  }
+}
+
