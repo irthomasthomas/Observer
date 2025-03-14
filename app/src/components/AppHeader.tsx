@@ -266,41 +266,45 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                {/* Ob-Server Toggle Switch (only show for authenticated users) */}
-                {isAuthenticated && (
-                  <div className="flex flex-col items-center">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-600">Ob-Server</span>
-                      <button 
-                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
-                          isUsingObServer ? 'bg-blue-500' : 'bg-gray-200'
+                {/* Ob-Server Toggle Switch (available to all users) */}
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Ob-Server</span>
+                    <button 
+                      className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
+                        isUsingObServer ? 'bg-blue-500' : 'bg-gray-200'
+                      }`}
+                      onClick={handleToggleObServer}
+                    >
+                      <span
+                        className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${
+                          isUsingObServer ? 'translate-x-6' : 'translate-x-1'
                         }`}
-                        onClick={handleToggleObServer}
-                      >
-                        <span
-                          className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${
-                            isUsingObServer ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    
-                    {/* Quota Information Display */}
-                    {isUsingObServer && serverStatus === 'online' && (
-                      <div className="text-xs text-center mt-1">
-                        {isLoadingQuota ? (
-                          <span className="text-gray-500">Loading quota...</span>
-                        ) : quotaInfo ? (
-                          <span className={`font-medium ${quotaInfo.remaining < 5 ? 'text-orange-500' : 'text-green-600'}`}>
-                            {quotaInfo.remaining} executions left
-                          </span>
-                        ) : (
-                          <span className="text-gray-500">Quota unavailable</span>
-                        )}
-                      </div>
-                    )}
+                      />
+                    </button>
                   </div>
-                )}
+                  
+                  {/* Quota Information Display */}
+                  {isUsingObServer && serverStatus === 'online' && (
+                    <div className="text-xs text-center mt-1">
+                      {isLoadingQuota ? (
+                        <span className="text-gray-500">Loading quota...</span>
+                      ) : quotaInfo ? (
+                        <span className={`font-medium ${
+                          !isAuthenticated && quotaInfo.remaining <= 5 ? 
+                          quotaInfo.remaining === 0 ? 'text-red-500' : 'text-orange-500' 
+                          : 'text-green-600'
+                        }`}>
+                          {isAuthenticated ? 
+                            'Unlimited access' : 
+                            `${quotaInfo.remaining}/${5} executions left`}
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">Quota unavailable</span>
+                      )}
+                    </div>
+                  )}
+                </div>
                 
                 {/* Server Address Input (disabled when using Ob-Server) */}
                 <input
@@ -329,8 +333,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               </div>
 
               <div className="flex items-center space-x-4">
-                {/* Removed refresh button */}
-                
                 {/* Authentication UI */}
                 {authState ? (
                   authState.isLoading ? (
@@ -379,14 +381,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {isUsingObServer && (
         <div className="fixed z-60" style={{ top: '70px', right: '35%' }}>
           <TextBubble 
-            message="✅ You're using our hosted Ob-Server service! No local setup needed." 
+            message={isAuthenticated ? 
+              "✅ You're using our hosted Ob-Server service with unlimited access!" :
+              "✅ You're using our hosted Ob-Server service! Sign in for unlimited access."
+            } 
             duration={5000} 
           />
         </div>
       )}
       
-      {/* Login Hint Bubble */}
-      {!isAuthenticated && showLoginHint && (
+      {/* Login Hint Bubble - show to non-auth users using Ob-Server with low quota */}
+      {!isAuthenticated && isUsingObServer && quotaInfo && quotaInfo.remaining <= 3 && quotaInfo.remaining > 0 && showLoginHint && (
         <div className="fixed z-60" style={{ top: '110px', right: '20px' }}>
           <div className="bg-white rounded-lg shadow-lg p-3 max-w-xs relative">
             <button 
@@ -399,7 +404,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             <div className="flex items-start mb-2">
               <span className="mr-2 text-blue-500">💡</span>
               <p className="text-sm text-gray-700">
-                Want to use our cloud service? Sign in to access our hosted Ob-Server for free.
+                You have {quotaInfo.remaining} executions left. Sign in to get unlimited access!
               </p>
             </div>
             <button 
@@ -412,8 +417,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       )}
       
-      {/* Ob-Server Free Trial Bubble - only for authenticated users when not using Ob-Server */}
-      {isAuthenticated && !isUsingObServer && showObServerTrialBubble && (
+      {/* Ob-Server Free Trial Bubble - for all users not using Ob-Server */}
+      {!isUsingObServer && showObServerTrialBubble && (
         <div className="fixed z-60" style={{ top: '110px', left: '50%', transform: 'translateX(-50%)' }}>
           <div className="bg-white rounded-lg shadow-lg p-3 max-w-xs relative">
             <button 
@@ -426,7 +431,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             <div className="flex items-start mb-2">
               <span className="mr-2 text-blue-500">🚀</span>
               <p className="text-sm text-gray-700">
-                As a logged-in user, you have access to our hosted Ob-Server! Turn it on to use our cloud service.
+                {isAuthenticated ? 
+                  "Try our hosted Ob-Server with unlimited access!" : 
+                  "Try our hosted Ob-Server with 5 free executions! Sign in for unlimited access."}
               </p>
             </div>
             <button 
