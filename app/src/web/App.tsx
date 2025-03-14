@@ -48,6 +48,7 @@ function AppContent() {
   const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('myAgents');
+  const [isUsingObServer, setIsUsingObServer] = useState(false);
 
   // Reload agent list when switching to the My Agents tab
   useEffect(() => {
@@ -318,13 +319,16 @@ function AppContent() {
             serverStatus={serverStatus}
             onDismiss={handleDismissStartupDialog}
             setServerStatus={setServerStatus}
-          />
+            setUseObServer={setIsUsingObServer} // Add this prop
+            />
         )}
 
         <AppHeader 
           serverStatus={serverStatus}
           setServerStatus={setServerStatus}
           setError={setError}
+          isUsingObServer={isUsingObServer} // Add this prop
+          setIsUsingObServer={setIsUsingObServer} // Add this prop
           authState={{
             isLoading,
             isAuthenticated,

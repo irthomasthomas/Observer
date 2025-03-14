@@ -20,6 +20,8 @@ interface AppHeaderProps {
   authState?: AuthState;
   onMenuClick: () => void;
   shouldHighlightMenu?: boolean;
+  isUsingObServer?: boolean;
+  setIsUsingObServer?: (value: boolean) => void;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
@@ -28,13 +30,22 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   setError,
   authState,
   onMenuClick,
+  // New props with optional nature
+  isUsingObServer: externalIsUsingObServer,
+  setIsUsingObServer: externalSetIsUsingObServer
 }) => {
   const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [showServerHint] = useState(true);
   const [pulseMenu, setPulseMenu] = useState(false);
-  const [isUsingObServer, setIsUsingObServer] = useState(false);
+  // Internal state as fallback if external state is not provided
+  const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [quotaInfo, setQuotaInfo] = useState<{ used: number; remaining: number } | null>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
+  
+  // Use either external state/setter or internal state/setter
+  const isUsingObServer = externalIsUsingObServer !== undefined 
+    ? externalIsUsingObServer 
+    : internalIsUsingObServer;
   
   // Set a default pulsing effect when component mounts
   useEffect(() => {
@@ -118,11 +129,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
-  // Handler for toggling Ob-Server use
+  // Modified handler for toggling Ob-Server use
   const handleToggleObServer = () => {
-    if (!isUsingObServer) {
+    const newValue = !isUsingObServer;
+    
+    // Use external setter if provided, otherwise use internal setter
+    if (externalSetIsUsingObServer) {
+      externalSetIsUsingObServer(newValue);
+    } else {
+      setInternalIsUsingObServer(newValue);
+    }
+    
+    // Update server address and other settings based on the toggle
+    if (newValue) {
       // Switch to Ob-Server
-      setIsUsingObServer(true);
       setServerAddress('api.observer-ai.com');
       setOllamaServerAddress('api.observer-ai.com', '443');
       Logger.info('SERVER', 'Switched to Ob-Server (api.observer-ai.com)');
@@ -132,7 +152,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       setShowObServerTrialBubble(false);
     } else {
       // Switch back to custom server
-      setIsUsingObServer(false);
       setServerAddress('localhost:3838');
       setOllamaServerAddress('localhost', '3838');
       Logger.info('SERVER', 'Switched to custom server mode');
@@ -224,6 +243,16 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       fetchQuotaInfo();
     }
   }, [serverStatus, isUsingObServer]);
+
+  // Effect to update server address and check connection when isUsingObServer changes
+  useEffect(() => {
+    if (isUsingObServer) {
+      setServerAddress('api.observer-ai.com');
+      checkObServerStatus();
+    } else {
+      setServerAddress('localhost:3838');
+    }
+  }, [isUsingObServer]);
 
   return (
     <>

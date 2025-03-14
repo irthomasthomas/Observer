@@ -7,13 +7,15 @@ interface StartupDialogProps {
   onLogin?: () => void; // Optional function to trigger login
   serverStatus: 'unchecked' | 'online' | 'offline';
   setServerStatus: (status: 'unchecked' | 'online' | 'offline') => void;
+  setUseObServer?: (value: boolean) => void; // New prop to control Ob-Server state
 }
 
 const StartupDialog: React.FC<StartupDialogProps> = ({
   onDismiss,
   onLogin,
   serverStatus,
-  setServerStatus
+  setServerStatus,
+  setUseObServer
 }) => {
   const [showLocalSetup, setShowLocalSetup] = useState(false);
   
@@ -29,8 +31,13 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
     );
   }
 
-  // Simply dismiss the dialog when starting with Ob-Server
+  // Modified to enable Ob-Server before dismissing the dialog
   const handleObServerStart = () => {
+    // Enable Ob-Server if the setter is provided
+    if (setUseObServer) {
+      setUseObServer(true);
+    }
+    // Then dismiss the dialog
     onDismiss();
   };
 
