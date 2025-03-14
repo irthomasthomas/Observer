@@ -19,7 +19,7 @@ compute_router = APIRouter()
 # Configuration
 AI_SERVICE_URL = os.environ.get("AI_SERVICE_URL", "https://compute.observer-ai.com")
 DB_PATH = "quota.db"
-FREE_QUOTA = 20  # Number of free requests per IP
+FREE_QUOTA = 5  # Number of free requests per IP
 
 # Initialize database
 def init_db():
