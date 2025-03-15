@@ -35,7 +35,7 @@ const SERVER_URL = 'https://api.observer-ai.com';
 const TRENDING_AGENT_IDS = [
   'activity_tracking_agent',
   'command_tracking_agent',
-  'focus_tracker'
+  'multimodal_activity_tracking'
 ];
 
 const GetStarted: React.FC<GetStartedProps> = ({ 
