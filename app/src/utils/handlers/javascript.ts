@@ -17,7 +17,7 @@ export async function executeJavaScript(
       agentId,
       // Define utility functions with full flexibility - allow accessing any agent's memory
       getMemory: async (targetId = agentId) => await utils.getMemory(targetId),
-      setMemory: async (targetId, value) => {
+      setMemory: async (targetId: string, value?: any) => {
         // If only one parameter is provided, assume it's the value for current agent
         if (value === undefined) {
           return await utils.setMemory(agentId, targetId);
