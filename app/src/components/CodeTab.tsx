@@ -15,12 +15,12 @@ const codeSnippets = [
   {
     name: "Write to Memory",
     description: "Store the entire response in agent memory",
-    code: 'await utilities.updateAgentMemory(agentId, response);'
+    code: 'setMemory(agentId, response);'
   },
   {
     name: "Read/Write Agent Memory",
-    description: "Read memory, append timestamped content, and update another agent",
-    code: '// Preserve previous memory\nconst prev_mem = utilities.getAgentMemory(agentId);\n// Get time\nconst time = "10:38"//utilities.getCurrentTime();\n// Update memory with timestamp\nprev_mem.then(memory => {\n    utilities.updateAgentMemory(agentId, `${memory}[${time}]: ${cleanedResponse}\\n`)\n});'
+    description: "Read memory, append timestamped content",
+    code: 'setMemory(`${await getMemory()} \\n[${time()}] ${response}`)'
   },
   {
     name: "Remove Thought Tags",
