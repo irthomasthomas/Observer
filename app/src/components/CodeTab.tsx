@@ -118,8 +118,8 @@ const CodeTab: React.FC<CodeTabProps> = ({
       setIsRunningModel(false);
     }
   };
-  
-  // Run the code against the current response
+
+  // Updated handleRunCode function for CodeTab component
   const handleRunCode = async () => {
     if (isRunningCode || !testResponse) return;
     
@@ -127,70 +127,40 @@ const CodeTab: React.FC<CodeTabProps> = ({
     setTestOutput('');
     
     try {
-      // Create a function from the code
-      const processor = await createProcessorFromCode(code, agentId || 'test-agent');
+      // Import the post-processor
+      const { postProcess } = await import('@utils/post-processor');
       
-      // Create a log capture function to show output
+      // Create an array to capture logs
       const logs: string[] = [];
+      
+      // Save original console.log
       const originalConsoleLog = console.log;
-      console.log = (...args) => {
+      
+      // Replace console.log with our capture function
+      console.log = (...args: any[]) => {
         originalConsoleLog(...args);
         logs.push(args.map(arg => String(arg)).join(' '));
       };
       
-      // Process the response
-      await processor(testResponse, {
-        // Mock utilities for testing
-        updateAgentMemory: async (id: string, data: string) => {
-          logs.push(`[Memory Update] Agent ${id}: ${data.substring(0, 50)}${data.length > 50 ? '...' : ''}`);
-          return true;
-        },
-        getAgentMemory: async (id: string) => {
-          logs.push(`[Memory Read] Agent ${id}`);
-          return `Test memory for ${id}`;
-        }
-      }, agentId || 'test-agent');
+      // Run the post-processor with the current code and response
+      const result = await postProcess(agentId || 'test-agent', testResponse, code);
       
-      // Restore console.log
+      // Add a small delay to ensure all async console logs complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Restore original console.log
       console.log = originalConsoleLog;
       
-      // Show output
-      setTestOutput(logs.join('\n'));
+      // Update UI with result and captured logs
+      setTestOutput(
+        `Post-processing ${result ? 'succeeded' : 'completed without specific action'}\n\n` +
+        logs.join('\n')
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       setTestOutput(`Error executing code: ${errorMessage}`);
     } finally {
       setIsRunningCode(false);
-    }
-  };
-  
-  // Helper function to create a processor from code
-  const createProcessorFromCode = async (code: string, _agentId: string): Promise<Function> => {
-    try {
-      // Create a blob URL from the code
-      const blob = new Blob([
-        // Wrap the code in a function that we can invoke
-        `export default function(response, utilities, agentId) {
-          ${code}
-          return true;
-        }`
-      ], { type: 'application/javascript' });
-      const url = URL.createObjectURL(blob);
-      
-      // Import the module
-      const module = await import(/* @vite-ignore */ url);
-      
-      // Clean up
-      URL.revokeObjectURL(url);
-      
-      // Return the default export, which is our wrapped function
-      if (typeof module.default === 'function') {
-        return module.default;
-      } else {
-        throw new Error('Failed to create function from agent code');
-      }
-    } catch (error) {
-      throw new Error(`Error importing agent processor: ${error}`);
     }
   };
 

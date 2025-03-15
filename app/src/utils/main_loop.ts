@@ -4,7 +4,6 @@ import { sendPrompt } from './sendApi';
 import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
-import { utilities } from './agent_utilities';
 import { stopScreenCapture } from './screenCapture';
 
 const activeLoops: Record<string, {
@@ -186,7 +185,7 @@ async function executeAgentIteration(agentId: string): Promise<void> {
     );
     
     // 3. Post-process: Handle the response
-    await postProcess(agentId, response, agentCode, utilities);
+    await postProcess(agentId, response, agentCode);
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
