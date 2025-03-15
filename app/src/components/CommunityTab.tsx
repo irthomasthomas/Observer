@@ -1,9 +1,10 @@
 // src/components/CommunityTab.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, RefreshCw, Info, Upload, AlertTriangle } from 'lucide-react';
+import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
 import { useAuth0 } from '@auth0/auth0-react';
+import EditAgentModal from './EditAgentModal';
 
 // Type for marketplace agents matching CompleteAgent structure
 interface MarketplaceAgent {
@@ -46,6 +47,10 @@ const CommunityTab: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [myAgents, setMyAgents] = useState<CompleteAgent[]>([]);
   const [selectedUploadAgent, setSelectedUploadAgent] = useState<string | null>(null);
+  
+  // New state for edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<MarketplaceAgent | null>(null);
   
   // File input ref for direct file uploads
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,6 +128,12 @@ const CommunityTab: React.FC = () => {
     fetchAgents();
   }, []);
 
+  // Check if the current user is the author of an agent
+  const isAuthorOfAgent = (agent: MarketplaceAgent): boolean => {
+    if (!isAuthenticated || !user || !agent.author_id) return false;
+    return user.sub === agent.author_id;
+  };
+
   const handleImport = async (agent: MarketplaceAgent) => {
     try {
       setError(null);
@@ -167,6 +178,65 @@ const CommunityTab: React.FC = () => {
 
   const closeDetails = () => {
     setSelectedAgent(null);
+  };
+
+  // New function to handle edit button click
+  const handleEditClick = (agent: MarketplaceAgent) => {
+    if (!isAuthenticated) {
+      loginWithRedirect();
+      return;
+    }
+    
+    setEditingAgent(agent);
+    setShowEditModal(true);
+  };
+
+  // New function to handle saving edited agent
+  const handleSaveEdit = async (completeAgent: CompleteAgent, code: string) => {
+    try {
+      setIsUploading(true);
+      setError(null);
+      
+      if (!isAuthenticated || !user) {
+        throw new Error('You must be logged in to edit agents');
+      }
+      
+      if (!editingAgent) {
+        throw new Error('No agent selected for editing');
+      }
+      
+      // Get memory from the editing agent
+      const memory = editingAgent.memory || '';
+      
+      // Prepare agent data for upload, maintaining original ID and author info
+      const agentData: AgentUpload = {
+        id: editingAgent.id,
+        name: completeAgent.name,
+        description: completeAgent.description,
+        model_name: completeAgent.model_name,
+        system_prompt: completeAgent.system_prompt,
+        loop_interval_seconds: completeAgent.loop_interval_seconds,
+        code,
+        memory,
+        // Keep original author information
+        author: editingAgent.author || user.name || user.email || 'Anonymous User',
+        author_id: editingAgent.author_id || user.sub || '',
+        date_added: editingAgent.date_added || new Date().toISOString()
+      };
+      
+      // Upload to server (will replace existing agent with same ID)
+      await uploadAgentToServer(agentData);
+      
+      setEditingAgent(null);
+      setShowEditModal(false);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to update agent: ${errorMessage}`);
+      Logger.error('COMMUNITY', `Error updating agent: ${errorMessage}`, err);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleUploadClick = () => {
@@ -261,12 +331,12 @@ const CommunityTab: React.FC = () => {
         throw new Error('You must be logged in to upload agents');
       }
       
-      // Add author information to the agent data
+      // Add author information to the agent data if not already present
       const enrichedAgentData = {
         ...agentData,
-        author: user.name || user.email || 'Anonymous User',
-        author_id: user.sub || '',
-        date_added: new Date().toISOString()
+        author: agentData.author || user.name || user.email || 'Anonymous User',
+        author_id: agentData.author_id || user.sub || '',
+        date_added: agentData.date_added || new Date().toISOString()
       };
       
       const response = await fetch(`${SERVER_URL}/agents`, {
@@ -413,6 +483,15 @@ const CommunityTab: React.FC = () => {
                   >
                     <Info className="h-5 w-5" />
                   </button>
+                  {isAuthorOfAgent(agent) && (
+                    <button
+                      onClick={() => handleEditClick(agent)}
+                      className="p-2 rounded-md hover:bg-green-100 text-green-600"
+                      title="Edit your agent"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleImport(agent)}
                     className="p-2 rounded-md hover:bg-blue-100 text-blue-600"
@@ -427,6 +506,12 @@ const CommunityTab: React.FC = () => {
               <span className="inline-block px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-700">
                 Community
               </span>
+              
+              {isAuthorOfAgent(agent) && (
+                <span className="inline-block ml-2 px-2 py-1 rounded-full text-sm bg-green-100 text-green-700">
+                  Your Agent
+                </span>
+              )}
               
               <div className="mt-4">
                 <p className="text-sm text-gray-600">
@@ -519,7 +604,18 @@ const CommunityTab: React.FC = () => {
               </div>
             </div>
             
-            <div className="p-4 border-t flex justify-end">
+            <div className="p-4 border-t flex justify-end space-x-3">
+              {isAuthorOfAgent(selectedAgent) && (
+                <button
+                  onClick={() => {
+                    handleEditClick(selectedAgent);
+                    closeDetails();
+                  }}
+                  className="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600"
+                >
+                  Edit Agent
+                </button>
+              )}
               <button
                 onClick={() => {
                   handleImport(selectedAgent);
@@ -615,6 +711,29 @@ const CommunityTab: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Agent Modal */}
+      {showEditModal && editingAgent && (
+        <EditAgentModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingAgent(null);
+          }}
+          createMode={false}
+          agent={{
+            id: editingAgent.id,
+            name: editingAgent.name,
+            description: editingAgent.description,
+            status: 'stopped',
+            model_name: editingAgent.model_name,
+            system_prompt: editingAgent.system_prompt,
+            loop_interval_seconds: editingAgent.loop_interval_seconds
+          }}
+          code={editingAgent.code}
+          onSave={handleSaveEdit}
+        />
       )}
     </div>
   );
