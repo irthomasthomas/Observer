@@ -119,7 +119,6 @@ const CodeTab: React.FC<CodeTabProps> = ({
     }
   };
 
-  // Updated handleRunCode function for CodeTab component
   const handleRunCode = async () => {
     if (isRunningCode || !testResponse) return;
     
@@ -133,14 +132,32 @@ const CodeTab: React.FC<CodeTabProps> = ({
       // Create an array to capture logs
       const logs: string[] = [];
       
-      // Save original console.log
-      const originalConsoleLog = console.log;
-      
-      // Replace console.log with our capture function
-      console.log = (...args: any[]) => {
-        originalConsoleLog(...args);
-        logs.push(args.map(arg => String(arg)).join(' '));
+      // Create a proxy console object to capture logs
+      const originalConsole = { ...console };
+      const consoleProxy = {
+        log: (...args: any[]) => {
+          originalConsole.log(...args);
+          logs.push(args.map(arg => String(arg)).join(' '));
+        },
+        error: (...args: any[]) => {
+          originalConsole.error(...args);
+          logs.push(`ERROR: ${args.map(arg => String(arg)).join(' ')}`);
+        },
+        warn: (...args: any[]) => {
+          originalConsole.warn(...args);
+          logs.push(`WARNING: ${args.map(arg => String(arg)).join(' ')}`);
+        },
+        info: (...args: any[]) => {
+          originalConsole.info(...args);
+          logs.push(args.map(arg => String(arg)).join(' '));
+        }
       };
+      
+      // Replace console methods with our proxy
+      console.log = consoleProxy.log;
+      console.error = consoleProxy.error;
+      console.warn = consoleProxy.warn;
+      console.info = consoleProxy.info;
       
       // Run the post-processor with the current code and response
       const result = await postProcess(agentId || 'test-agent', testResponse, code);
@@ -148,8 +165,11 @@ const CodeTab: React.FC<CodeTabProps> = ({
       // Add a small delay to ensure all async console logs complete
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Restore original console.log
-      console.log = originalConsoleLog;
+      // Restore original console
+      console.log = originalConsole.log;
+      console.error = originalConsole.error;
+      console.warn = originalConsole.warn;
+      console.info = originalConsole.info;
       
       // Update UI with result and captured logs
       setTestOutput(
