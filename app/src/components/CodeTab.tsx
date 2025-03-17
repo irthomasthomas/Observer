@@ -138,7 +138,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
         return code;
       }
       // Otherwise add the header
-      return '#python -- don\'t remove this!\n' + (code || '');
+      return '#python <-- don\'t remove this!\n' + (code || '');
     }
     // For JS mode, strip the Python header if it exists
     if (code.trim().startsWith('#python')) {
