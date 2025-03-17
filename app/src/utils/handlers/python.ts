@@ -1,6 +1,6 @@
-import { KernelManager, ServerConnection } from '@jupyterlab/services';
+import { KernelManager, ServerConnection, KernelMessage } from '@jupyterlab/services';
 import { Logger } from '../logging';
-import { getJupyterConfig } from './jupyterConfig';
+import { getJupyterConfig } from './JupyterConfig'; // Fixed casing to match actual file name
 
 /**
  * Execute Python code using a Jupyter kernel
@@ -11,13 +11,11 @@ export async function executePython(
   code: string
 ): Promise<boolean> {
   Logger.info(agentId, 'Executing Python code');
-
   const { host, port, token } = getJupyterConfig();
   
   try {
     // Create server settings with token and CORS handling
     const serverSettings = ServerConnection.makeSettings({
-
       baseUrl: `http://${host}:${port}`,
       wsUrl: `ws://${host}:${port}`,
       token: token,
@@ -55,25 +53,28 @@ ${code}
     let hasError = false;
     const future = kernel.requestExecute({ code: fullCode });
     
-    // Handle messages
-    future.onIOPub = (msg) => {
+    // Handle messages with proper type casting
+    future.onIOPub = (msg: KernelMessage.IIOPubMessage) => {
       const msgType = msg.header.msg_type;
       
       if (msgType === 'error') {
         hasError = true;
-        Logger.error(agentId, `Python error: ${msg.content.ename}: ${msg.content.evalue}`);
-      } else if (msgType === 'stream' && msg.content.name === 'stderr') {
-        Logger.warn(agentId, `Python stderr: ${msg.content.text}`);
-      } else if (msgType === 'stream' && msg.content.name === 'stdout') {
-        Logger.info(agentId, `Python stdout: ${msg.content.text}`);
+        const errorContent = msg.content as KernelMessage.IErrorMsg['content'];
+        Logger.error(agentId, `Python error: ${errorContent.ename}: ${errorContent.evalue}`);
+      } else if (msgType === 'stream') {
+        const streamContent = msg.content as KernelMessage.IStreamMsg['content'];
+        if (streamContent.name === 'stderr') {
+          Logger.warn(agentId, `Python stderr: ${streamContent.text}`);
+        } else if (streamContent.name === 'stdout') {
+          Logger.info(agentId, `Python stdout: ${streamContent.text}`);
+        }
       }
     };
     
     // Wait for execution to complete
     await future.done;
     Logger.info(agentId, 'Code execution completed');
-
-    await kernel.shutdown()
+    await kernel.shutdown();
     
     return !hasError;
   } catch (error) {

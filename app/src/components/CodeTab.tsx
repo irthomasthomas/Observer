@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
-import { Terminal, Play, Copy, Info, Check, X, Settings, Zap, ExternalLink, Server } from 'lucide-react';
+import { Play, Copy, Check, X, Zap } from 'lucide-react';
 import { Logger, LogEntry, LogLevel } from '@utils/logging';
 import { getJupyterConfig, setJupyterConfig } from '@utils/handlers/JupyterConfig';
 
@@ -35,13 +35,13 @@ const codeSnippets = [
 const pythonSnippets = [
   {
     name: "Write to Memory",
-    description: "Store the entire response in agent memory",
-    code: 'set_memory(agentId, response)'
+    description: "Store the entire response in agent memory file",
+    code: 'import os\n\n# Create memory directory if it doesn\'t exist\nos.makedirs("memory", exist_ok=True)\n\n# Write to memory file\nwith open(f"memory/{agentId}.txt", "w") as f:\n    f.write(response)'
   },
   {
     name: "Read/Write Agent Memory",
     description: "Read memory, append timestamped content",
-    code: 'set_memory(agentId, f"{get_memory()}\\n[{time()}] {response}")'
+    code: 'import os\nimport datetime\n\n# Create memory directory if it doesn\'t exist\nos.makedirs("memory", exist_ok=True)\n\n# Get current memory content\nmemory_content = ""\nmemory_path = f"memory/{agentId}.txt"\nif os.path.exists(memory_path):\n    with open(memory_path, "r") as f:\n        memory_content = f.read()\n\n# Get current timestamp\ntimestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")\n\n# Append new content with timestamp\nupdated_memory = f"{memory_content}\\n[{timestamp}] {response}"\n\n# Write back to file\nwith open(memory_path, "w") as f:\n    f.write(updated_memory)'
   },
   {
     name: "Remove Thought Tags",
@@ -126,7 +126,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
       }
     } catch (error) {
       setJupyterStatus('error');
-      setTestOutput(prev => prev + `❌ Connection error: ${error}\n`);
+      setTestOutput(prev => prev + `❌ Connection error: ${error instanceof Error ? error.message : String(error)}\n`);
     }
   };
 
@@ -247,7 +247,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
     }
   };
 
-  // In your CodeTab component
+  // Run the code with the model response
   const handleRunCode = async () => {
     if (isRunningCode || !testResponse) return;
     
@@ -277,7 +277,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
       const { postProcess } = await import('@utils/post-processor');
       await postProcess(agentId || 'test-agent', testResponse, code);
     } catch (error) {
-      setTestOutput(prev => prev + `Error executing code: ${error.message}\n`);
+      setTestOutput(prev => prev + `Error executing code: ${error instanceof Error ? error.message : String(error)}\n`);
     } finally {
       // Clean up
       console.log = originalConsole.log;
