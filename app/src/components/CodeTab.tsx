@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import { Terminal, Play, Copy, Info, Check, X, Settings, Zap, ExternalLink, Server } from 'lucide-react';
 import { Logger, LogEntry, LogLevel } from '@utils/logging';
-import { setJupyterConfig } from '@utils/handlers/JupyterConfig';
+import { getJupyterConfig, setJupyterConfig } from '@utils/handlers/JupyterConfig';
 
 // Lazy load CodeMirror component
 const LazyCodeMirror = lazy(() => import('@uiw/react-codemirror'));
@@ -83,9 +83,24 @@ const CodeTab: React.FC<CodeTabProps> = ({
   const [testOutput, setTestOutput] = useState<string>('');
   const testResponseRef = useRef<HTMLTextAreaElement>(null);
 
+  useEffect(() => {
+    const config = getJupyterConfig();
+    setJupyterHost(config.host);
+    setJupyterPort(config.port);
+    setJupyterToken(config.token);
+  }, []);
+
   // Set Jupyter config when values change
   useEffect(() => {
-    setJupyterConfig(jupyterHost, jupyterPort, jupyterToken);
+    // Skip the initial render with default values
+    const isInitialRender = 
+      jupyterHost === '127.0.0.1' && 
+      jupyterPort === '8888' && 
+      jupyterToken === '';
+      
+    if (!isInitialRender) {
+      setJupyterConfig(jupyterHost, jupyterPort, jupyterToken);
+    }
   }, [jupyterHost, jupyterPort, jupyterToken]);
 
   // Test Jupyter connection
