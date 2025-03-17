@@ -28,5 +28,30 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    chunkSizeWarningLimit: 800, // Increase warning threshold
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Vendor chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('scheduler')) {
+              return 'vendor-react';
+            }
+            if (id.includes('jupyterlab')) {
+              return 'vendor-jupyter';
+            }
+            return 'vendor'; // Other dependencies
+          }
+          
+          // App chunks
+          if (id.includes('/src/components/')) {
+            return 'app-components';
+          }
+          if (id.includes('/src/utils/')) {
+            return 'app-utils';
+          }
+        }
+      }
+    }
   },
 });
