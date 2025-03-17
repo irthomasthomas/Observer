@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
-import { Terminal, Play, Copy, Info, Check, X, Settings, Code, Zap, ExternalLink, Server } from 'lucide-react';
-import { Logger } from '@utils/logging';
+import { Terminal, Play, Copy, Info, Check, X, Settings, Zap, ExternalLink, Server } from 'lucide-react';
+import { Logger, LogEntry, LogLevel } from '@utils/logging';
 import { setJupyterConfig } from '@utils/handlers/JupyterConfig';
 
 // Lazy load CodeMirror component
@@ -74,7 +74,6 @@ const CodeTab: React.FC<CodeTabProps> = ({
   const [jupyterPort, setJupyterPort] = useState<string>('8888');
   const [jupyterToken, setJupyterToken] = useState<string>('');
   const [jupyterStatus, setJupyterStatus] = useState<'unknown' | 'checking' | 'connected' | 'error'>('unknown');
-  const [showJupyterSettings, setShowJupyterSettings] = useState<boolean>(false);
   
   // State for the Run functionality
   const [testResponse, setTestResponse] = useState<string>('');
@@ -140,11 +139,6 @@ const CodeTab: React.FC<CodeTabProps> = ({
     const displayCode = getDisplayCode();
     if (displayCode !== code) {
       onCodeChange(displayCode);
-    }
-    
-    // Show Jupyter settings when switching to Python mode
-    if (isPythonMode && jupyterStatus === 'unknown') {
-      setShowJupyterSettings(true);
     }
   }, [isPythonMode]);
 
@@ -238,75 +232,50 @@ const CodeTab: React.FC<CodeTabProps> = ({
     }
   };
 
+  // In your CodeTab component
   const handleRunCode = async () => {
     if (isRunningCode || !testResponse) return;
     
     setIsRunningCode(true);
     setTestOutput('');
     
-    try {
-      // Import the post-processor
-      const { postProcess } = await import('@utils/post-processor');
-      
-      // Create an array to capture logs
-      const logs: string[] = [];
-      
-      // Create a proxy console object to capture logs
-      const originalConsole = { ...console };
-      const consoleProxy = {
-        log: (...args: any[]) => {
-          originalConsole.log(...args);
-          logs.push(args.map(arg => String(arg)).join(' '));
-        },
-        error: (...args: any[]) => {
-          originalConsole.error(...args);
-          logs.push(`ERROR: ${args.map(arg => String(arg)).join(' ')}`);
-        },
-        warn: (...args: any[]) => {
-          originalConsole.warn(...args);
-          logs.push(`WARNING: ${args.map(arg => String(arg)).join(' ')}`);
-        },
-        info: (...args: any[]) => {
-          originalConsole.info(...args);
-          logs.push(args.map(arg => String(arg)).join(' '));
-        }
-      };
-      
-      // Replace console methods with our proxy
-      console.log = consoleProxy.log;
-      console.error = consoleProxy.error;
-      console.warn = consoleProxy.warn;
-      console.info = consoleProxy.info;
-      
-      // Run the post-processor with the current code and response
-      const result = await postProcess(agentId || 'test-agent', testResponse, code);
-      
-      // Add a small delay to ensure all async console logs complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Restore original console
-      console.log = originalConsole.log;
-      console.error = originalConsole.error;
-      console.warn = originalConsole.warn;
-      console.info = originalConsole.info;
-      
-      // Update UI with result and captured logs
-      setTestOutput(
-        `Post-processing ${result ? 'succeeded' : 'completed without specific action'}\n\n` +
-        logs.join('\n')
+    // Create a simple log listener
+    const logListener = (entry: LogEntry) => {
+      const levelText = LogLevel[entry.level];
+      setTestOutput(prev => 
+        prev + `[${levelText}] ${entry.message}\n`
       );
+    };
+    
+    // Override console.log for JS execution
+    const originalConsole = { log: console.log };
+    console.log = (...args) => {
+      originalConsole.log(...args);
+      setTestOutput(prev => prev + args.join(' ') + '\n');
+    };
+    
+    // Add listener to Logger
+    Logger.addListener(logListener);
+    
+    try {
+      // Run post-processor with current code
+      const { postProcess } = await import('@utils/post-processor');
+      await postProcess(agentId || 'test-agent', testResponse, code);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setTestOutput(`Error executing code: ${errorMessage}`);
+      setTestOutput(prev => prev + `Error executing code: ${error.message}\n`);
     } finally {
+      // Clean up
+      console.log = originalConsole.log;
+      Logger.removeListener(logListener);
       setIsRunningCode(false);
     }
   };
 
   return (
     <div className="flex flex-col space-y-4">
-      {/* Language Selection Tabs */}
-      <div className="flex justify-between items-center mb-1 border-b border-gray-200">
+      {/* Language Tabs and Jupyter Config in one bar */}
+      <div className="flex items-center border-b border-gray-200">
+        {/* Language tabs */}
         <div className="flex">
           <button
             onClick={() => handleLanguageSwitch(false)}
@@ -316,10 +285,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            <span className="flex items-center gap-1.5">
-              <Code size={16} />
-              JavaScript
-            </span>
+            JavaScript
           </button>
           <button
             onClick={() => handleLanguageSwitch(true)}
@@ -329,104 +295,87 @@ const CodeTab: React.FC<CodeTabProps> = ({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            <span className="flex items-center gap-1.5">
-              <Code size={16} />
-              Python
-            </span>
+            Python
           </button>
         </div>
-        
-        {/* Jupyter Config Button - Only when in Python mode */}
+
+        {/* Jupyter Config - Only show when Python mode is active */}
         {isPythonMode && (
-          <button
-            onClick={() => setShowJupyterSettings(!showJupyterSettings)}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-sm ${
-              jupyterStatus === 'connected'
-                ? 'text-green-700 bg-green-50 hover:bg-green-100'
-                : jupyterStatus === 'error'
-                ? 'text-red-700 bg-red-50 hover:bg-red-100'
-                : 'text-blue-700 bg-blue-50 hover:bg-blue-100'
-            }`}
-          >
-            {jupyterStatus === 'connected' ? (
-              <Check size={14} className="text-green-600" />
-            ) : jupyterStatus === 'error' ? (
-              <X size={14} className="text-red-600" />
-            ) : (
-              <Server size={14} className="text-blue-600" />
-            )}
-            Jupyter {jupyterStatus === 'connected' ? 'Connected' : 'Settings'}
-          </button>
+          <>
+            <div className="flex-1 flex items-center ml-4 py-1">
+              <div className="text-sm text-blue-700 font-medium mr-2">Jupyter Kernel Configuration</div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center">
+                  <span className="text-sm text-blue-700 mr-1">Host:</span>
+                  <input
+                    type="text"
+                    value={jupyterHost}
+                    onChange={(e) => setJupyterHost(e.target.value)}
+                    className="w-32 px-2 py-1 text-sm border border-blue-300 rounded"
+                    placeholder="127.0.0.1"
+                  />
+                </div>
+                
+                <div className="flex items-center">
+                  <span className="text-sm text-blue-700 mr-1">Port:</span>
+                  <input
+                    type="text"
+                    value={jupyterPort}
+                    onChange={(e) => setJupyterPort(e.target.value)}
+                    className="w-16 px-2 py-1 text-sm border border-blue-300 rounded"
+                    placeholder="8888"
+                  />
+                </div>
+                
+                <div className="flex items-center">
+                  <span className="text-sm text-blue-700 mr-1">Token:</span>
+                  <input
+                    type="password"
+                    value={jupyterToken}
+                    onChange={(e) => setJupyterToken(e.target.value)}
+                    className="w-40 px-2 py-1 text-sm border border-blue-300 rounded"
+                    placeholder="Enter token"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="ml-auto pr-2">
+              {jupyterStatus === 'error' && (
+                <div className="inline-flex items-center mr-2 px-2 py-1 bg-red-100 text-red-800 rounded-md text-xs">
+                  <X size={12} className="mr-1" />
+                  Connection Error
+                </div>
+              )}
+              
+              {jupyterStatus === 'connected' && (
+                <div className="inline-flex items-center mr-2 px-2 py-1 bg-green-100 text-green-800 rounded-md text-xs">
+                  <Check size={12} className="mr-1" />
+                  Connected
+                </div>
+              )}
+              
+              <button
+                onClick={testJupyterConnection}
+                disabled={jupyterStatus === 'checking'}
+                className={`px-3 py-1 rounded-md text-sm font-medium text-white ${
+                  jupyterStatus === 'checking'
+                    ? 'bg-gray-400'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {jupyterStatus === 'checking' ? (
+                  <span className="flex items-center">
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                    Testing...
+                  </span>
+                ) : 'Test Connection'}
+              </button>
+            </div>
+          </>
         )}
       </div>
-      
-      {/* Jupyter Configuration Panel */}
-      {isPythonMode && showJupyterSettings && (
-        <div className="flex items-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
-          <div className="flex flex-1 items-center gap-3">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Host</label>
-              <input
-                type="text"
-                value={jupyterHost}
-                onChange={(e) => setJupyterHost(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="127.0.0.1"
-              />
-            </div>
-            <div className="w-24">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Port</label>
-              <input
-                type="text"
-                value={jupyterPort}
-                onChange={(e) => setJupyterPort(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="8888"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Token</label>
-              <input
-                type="password"
-                value={jupyterToken}
-                onChange={(e) => setJupyterToken(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Jupyter server token"
-              />
-            </div>
-          </div>
-          <div className="ml-4">
-            <button
-              onClick={testJupyterConnection}
-              disabled={jupyterStatus === 'checking'}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium text-white h-9 w-32 flex items-center justify-center ${
-                jupyterStatus === 'checking'
-                  ? 'bg-gray-400'
-                  : jupyterStatus === 'connected'
-                  ? 'bg-green-500 hover:bg-green-600'
-                  : 'bg-blue-500 hover:bg-blue-600'
-              }`}
-            >
-              {jupyterStatus === 'checking' ? (
-                <span className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Testing...
-                </span>
-              ) : jupyterStatus === 'connected' ? (
-                <span className="flex items-center gap-1.5">
-                  <Check size={14} />
-                  Connected
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5">
-                  <ExternalLink size={14} />
-                  Test Connection
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
       
       {/* Top Action Bar */}
       <div className="flex justify-between items-center">
@@ -439,18 +388,14 @@ const CodeTab: React.FC<CodeTabProps> = ({
               }`}
               onClick={toggleResponseVisible}
             >
-              <span className="flex items-center">
-                <Info size={14} className="mr-1.5" />
-                <span className="text-sm font-medium">response</span>
-              </span>
+              <span className="text-sm font-medium">Model's Response</span>
+              <code className="ml-2 px-1.5 py-0.5 bg-blue-200 rounded text-xs">response</code>
             </div>
             
-            <div className="flex items-center px-3 py-1.5 rounded-md text-sm bg-gray-100 text-gray-700">
-              <span className="flex items-center">
-                <Info size={14} className="mr-1.5" />
-                <span className="font-medium">agentId</span>
-                <code className="ml-1.5 px-1.5 py-0.5 bg-gray-200 rounded text-xs">{agentId}</code>
-              </span>
+            <div className="flex items-center px-3 py-1.5 rounded-md bg-gray-100 text-gray-700">
+              <span className="text-sm font-medium">This Agent's ID</span>
+              <code className="ml-2 px-1.5 py-0.5 bg-green-100 rounded text-xs">agentId</code>
+              <code className="ml-1.5 px-1.5 py-0.5 bg-gray-200 rounded text-xs">{agentId}</code>
             </div>
           </div>
         </div>
@@ -466,7 +411,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
           {isRunningModel ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Running Model...
+              Running...
             </>
           ) : (
             <>
@@ -481,12 +426,9 @@ const CodeTab: React.FC<CodeTabProps> = ({
       {testResponseVisible && (
         <div className="border rounded-md overflow-hidden bg-white shadow-sm transition-all duration-200">
           <div className="bg-gray-50 px-3 py-2 border-b flex justify-between items-center">
-            <span className="font-medium text-gray-700 flex items-center">
-              <Terminal size={14} className="mr-1.5" /> 
-              Model Response
-            </span>
+            <span className="font-medium text-gray-700">Model Response</span>
             <span className="text-xs text-gray-500">
-              {testResponse.length > 0 ? `${testResponse.length} characters` : 'Empty'}
+              {testResponse.length > 0 ? `${testResponse.length} characters` : '0 characters'}
             </span>
           </div>
           <textarea
@@ -504,10 +446,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
       <div className="border border-gray-200 rounded-md overflow-hidden shadow-sm bg-white">
         <div className="bg-gray-50 px-3 py-2 border-b flex items-center justify-between">
           <div className="flex items-center">
-            <Code size={16} className="text-gray-700 mr-1.5" />
-            <span className="text-sm font-medium text-gray-700">
-              Agent Code
-            </span>
+            <span className="text-sm font-medium text-gray-700">Agent Code</span>
             <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
               isPythonMode 
                 ? 'bg-blue-100 text-blue-700'
@@ -592,10 +531,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
       {testOutput && (
         <div className="border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm">
           <div className="bg-gray-50 px-3 py-2 border-b flex justify-between items-center">
-            <span className="font-medium text-gray-700 flex items-center">
-              <Terminal size={14} className="mr-1.5" />
-              Execution Output
-            </span>
+            <span className="font-medium text-gray-700">Execution Output</span>
             <button 
               onClick={() => setTestOutput('')}
               className="text-xs text-gray-500 hover:text-gray-700"
@@ -612,10 +548,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
       {/* Code Snippets Section */}
       <div className="mt-2 border border-gray-200 rounded-md overflow-hidden shadow-sm bg-white">
         <div className="bg-gray-50 px-3 py-2 border-b flex justify-between items-center">
-          <span className="font-medium text-gray-700 flex items-center">
-            <Copy size={14} className="mr-1.5" />
-            Code Snippets
-          </span>
+          <span className="font-medium text-gray-700">Quick Code Snippets</span>
           {selectedCodeSnippet ? (
             <div className="flex space-x-2">
               <button 

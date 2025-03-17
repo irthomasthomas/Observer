@@ -8,7 +8,6 @@ import { executePython } from './handlers/python';
  */
 export async function postProcess(agentId: string, response: string, code: string): Promise<boolean> {
 
-  console.log(`postProcess called with agentId: ${agentId}`);
   try {
     Logger.debug(agentId, 'Starting response post-processing');
     
@@ -20,19 +19,16 @@ export async function postProcess(agentId: string, response: string, code: strin
     // Check if the code starts with #python
     if (code.trim().startsWith('#python')) {
       Logger.debug(agentId, 'Detected Python code, using Python handler');
-      
-      try {
-        // Race the execution against a timeout
-        const result = await Promise.race([
-          executePython(response, agentId, code),
-          timeout(5000) // 5 second timeout
-        ]);
-        
-        // Rest of your code...
-      } catch (error) {
-        Logger.error(agentId, `Python execution timed out or failed: ${error}`);
-        return false;
+
+      const result = await executePython(response, agentId, code);
+      if (result){
+        Logger.info(agentId, 'Responsed processed successfully');
       }
+      else {
+        Logger.info(agentId, 'Python execution failed');
+      }
+    
+      return result;
     }
 
 
