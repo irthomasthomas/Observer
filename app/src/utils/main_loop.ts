@@ -183,9 +183,16 @@ async function executeAgentIteration(agentId: string): Promise<void> {
       agent.model_name,
       systemPrompt
     );
-    
-    // 3. Post-process: Handle the response
+
+  Logger.info(agentId, `Response Received: ${response}`);
+  Logger.info(agentId, `About to call postProcess on ${agentId} with agentCode length: ${agentCode.length}`);
+  try {
     await postProcess(agentId, response, agentCode);
+    Logger.info(agentId, `postProcess completed successfully`);
+  } catch (postProcessError) {
+    Logger.error(agentId, `Error in postProcess: ${postProcessError}`, postProcessError);
+  }
+
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
