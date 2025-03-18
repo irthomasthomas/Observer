@@ -23,6 +23,13 @@ An open-source platform for running local AI agents that enhance your computing 
   </tr>
 </table>
 
+## 🚀 Getting Started with Local Inference
+
+```bash
+# For local inference run observer-ollama
+pip install observer-ollama
+
+# Click on the link provided so that your browser accepts self signed CERTS (signed by your computer)
 
 #  OLLAMA-PROXY  ready
 #  ➜  Local:   https://localhost:3838/
