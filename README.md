@@ -5,17 +5,26 @@ An open-source platform for running local AI agents that enhance your computing 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 🚀 Overview
-
-Observer AI is a privacy-first platform that lets you run AI agents with Ollama, locally on your machine. These agents can observe and assist with your computing tasks while ensuring your data never leaves your computer.
-
-### Key Features
-
-- 🔒 **Privacy First**: All processing happens locally on your machine
-- 💻 **Resource Efficient**: Take advantage of unused consumer-grade hardware
-- 🔌 **Extensible**: Easy-to-use framework for creating and sharing custom agents
-- 🤝 **Community Driven**: Growing ecosystem of community-created agents
-- 🐍 **Jupyter Server Support**: Run Python agents with system-level access
+<table>
+  <tr>
+    <td width="60%" valign="top">
+      <h2>🚀 Overview</h2>
+      <p>Observer AI is a privacy-first platform that lets you run AI agents with Ollama, locally on your machine. These agents can observe and assist with your computing tasks while ensuring your data never leaves your computer.</p>
+      
+      <h3>Key Features</h3>
+      <ul>
+        <li>🔒 <strong>Privacy First</strong>: All processing happens locally on your machine</li>
+        <li>💻 <strong>Resource Efficient</strong>: Take advantage of unused consumer-grade hardware</li>
+        <li>🔌 <strong>Extensible</strong>: Easy-to-use framework for creating and sharing custom agents</li>
+        <li>🤝 <strong>Community Driven</strong>: Growing ecosystem of community-created agents</li>
+        <li>🐍 <strong>Jupyter Server Support</strong>: Run Python agents with system-level access</li>
+      </ul>
+    </td>
+    <td width="40%">
+      <img src="assets/observer-diagram.png" alt="ObserverAI Agent Diagram">
+    </td>
+  </tr>
+</table>
 
 ## 🚀 Getting Started with Local Inference
 
