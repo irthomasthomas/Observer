@@ -8,9 +8,6 @@ An open-source platform for running local AI agents that enhance your computing 
 <table>
   <tr>
     <td width="60%" valign="top">
-      <h2>🚀 Overview</h2>
-      <p>Observer AI is a privacy-first platform that lets you run AI agents with Ollama, locally on your machine. These agents can observe and assist with your computing tasks while ensuring your data never leaves your computer.</p>
-      
       <h3>Key Features</h3>
       <ul>
         <li>🔒 <strong>Privacy First</strong>: All processing happens locally on your machine</li>
@@ -26,13 +23,7 @@ An open-source platform for running local AI agents that enhance your computing 
   </tr>
 </table>
 
-## 🚀 Getting Started with Local Inference
 
-```bash
-# For local inference run observer-ollama
-pip install observer-ollama
-
-# Click on the link provided so that your browser accepts self signed CERTS (signed by your computer)
 #  OLLAMA-PROXY  ready
 #  ➜  Local:   https://localhost:3838/
 #  ➜  Network: https://10.0.0.138:3838/
