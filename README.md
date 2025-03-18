@@ -18,7 +18,7 @@ An open-source platform for running local AI agents that enhance your computing 
       </ul>
     </td>
     <td width="40%">
-      <img src="assets/ObserverAgent.png" alt="ObserverAI Agent Diagram">
+    <img src="assets/observer-diagram.png" alt="ObserverAI Agent Diagram" style="max-height: 550px;">
     </td>
   </tr>
 </table>
