@@ -15,8 +15,9 @@ Observer AI is a privacy-first platform that lets you run AI agents with Ollama,
 - 💻 **Resource Efficient**: Take advantage of unused consumer-grade hardware
 - 🔌 **Extensible**: Easy-to-use framework for creating and sharing custom agents
 - 🤝 **Community Driven**: Growing ecosystem of community-created agents
+- 🐍 **Jupyter Server Support**: Run Python agents with system-level access
 
-## 🚀 Getting Started
+## 🚀 Getting Started with Local Inference
 
 ```bash
 # For local inference run observer-ollama
@@ -48,68 +49,82 @@ Creating your own Observer AI agent is simple and accessible to both beginners a
 
 ## Code Tab
 
-The "Code" tab now offers a notebook-style coding experience where you can:
+The "Code" tab now offers a notebook-style coding experience where you can choose between JavaScript or Python execution:
 
-* Write JavaScript code that executes with each agent iteration
-* Access the `response` variable containing the model's output
-* Utilize utilities for various operations:
+### JavaScript (Browser-based)
+
+JavaScript agents run in the browser sandbox, making them ideal for passive monitoring and notifications:
 
 ```javascript
 // Remove Think tags for deepseek model
 const cleanedResponse = response.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
 // Preserve previous memory
-const prev_res = utilities.getAgentMemory(agentId);
+const prevMemory = await getMemory();
 
 // Get time
-const time = utilities.getCurrentTime();
+const time = time();
 
 // Update memory with timestamp
-prev_res.then(memory => {
-    utilities.updateAgentMemory(agentId, `${memory} \n[${time}]: ${cleanedResponse} \n`);
-});
+appendMemory(`[${time}] ${cleanedResponse}`);
 ```
 
 Available utilities include:
-* `utilities.getCurrentTime()` - Get the current timestamp
-* `utilities.pushNotification(title, options)` - Send notifications
-* `utilities.updateAgentMemory(agentId, content)` - Store information
-* `utilities.getAgentMemory(agentId)` - Retrieve stored information
+* `time()` - Get the current timestamp
+* `pushNotification(title, options)` - Send notifications
+* `getMemory()` - Retrieve stored memory (defaults to current agent)
+* `setMemory(content)` - Replace stored memory
+* `appendMemory(content)` - Add to existing memory
 
-## Example: Activity Tracker
+### Python (Jupyter Server)
 
-A simple agent that logs what you're doing:
-* System prompt with Screen OCR/Screenshot blocks to capture content
-* Code that processes the response and logs observations to memory:
+Python agents run on a Jupyter server with system-level access, enabling them to interact directly with your computer:
+
+```python
+#python <-- don't remove this!
+print("Hello World!", response, agentId)
+
+# Example: Analyze screen content and take action
+if "SHUTOFF" in response:
+    # System level commands can be executed here
+    import os
+    # os.system("command")  # Be careful with system commands!
+```
+
+The Python environment receives:
+* `response` - The model's output
+* `agentId` - The current agent's ID
+
+## Example: Command Tracking Agent
+
+A simple agent that responds to specific commands in the model's output:
 
 ```javascript
-// Extract activity details from response
-const activity = response.includes("ACTIVITY:") 
-    ? response.split("ACTIVITY:")[1].trim() 
-    : response;
+//Clean response
+const cleanedResponse = response.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
-// Get previous memory
-const memory = await utilities.getAgentMemory(agentId);
-
-// Add timestamp and save
-const timestamp = utilities.getCurrentTime();
-utilities.updateAgentMemory(
-    agentId, 
-    `${memory}\n[${timestamp}] ${activity}`
-);
-
-// Notify about interesting activities
-if (activity.includes("meeting") || activity.includes("important")) {
-    utilities.pushNotification("Activity Alert", {
-        body: `Detected: ${activity}`
-    });
+//Command Format
+if (cleanedResponse.includes("COMMAND")) {
+  const withoutcommand = cleanedResponse.replace(/COMMAND:/g, '');
+  setMemory(`${await getMemory()} \n[${time()}] ${withoutcommand}`);
 }
 ```
+
+## Jupyter Server Configuration
+
+To use Python agents:
+
+1. Run a Jupyter server on your machine
+2. Configure the connection in the Observer AI interface:
+   * Host: The server address (e.g., 127.0.0.1)
+   * Port: The server port (e.g., 8888)
+   * Token: Your Jupyter server authentication token
+3. Test the connection using the "Test Connection" button
+4. Switch to the Python tab in the code editor to write Python-based agents
 
 ## Deploy & Share
 
 Save your agent, test it from the dashboard, and export the configuration to share with others!
-
 
 ## 🤝 Contributing
 
