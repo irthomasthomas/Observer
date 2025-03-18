@@ -186,7 +186,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
   
   const insertCodeSnippet = (snippetCode: string) => {
     const currentCode = isPythonMode && !code.includes('#python') 
-      ? '#python -- don\'t remove this!\n' + (code || '')
+      ? '#python <-- don\'t remove this!\n' + (code || '')
       : code;
       
     const newCode = currentCode + (currentCode.endsWith('\n') ? '' : '\n') + snippetCode;
@@ -204,7 +204,7 @@ const CodeTab: React.FC<CodeTabProps> = ({
     // If switching to Python and there's code, we need to add the header
     if (pythonMode) {
       if (!code.trim().startsWith('#python')) {
-        onCodeChange('#python -- don\'t remove this!\n' + (code || ''));
+        onCodeChange('#python <-- don\'t remove this!\n' + (code || ''));
       }
     } else {
       // If switching to JS, remove the Python header
