@@ -25,6 +25,14 @@ export async function executeJavaScript(
         // Otherwise set memory for specified agent
         return await utils.setMemory(targetId, value);
       },
+      appendMemory: async (targetId: string, content?: string, separator = '\n') => {
+        // If only one parameter is provided, assume it's content for current agent
+        if (content === undefined) {
+          return await utils.appendMemory(agentId, targetId, separator);
+        }
+        // Otherwise append to specified agent's memory
+        return await utils.appendMemory(targetId, content, separator);
+      },
       notify: utils.notify,
       time: utils.time,
       console: console

@@ -28,7 +28,7 @@ const EditAgentModal = ({
   const [description, setDescription] = useState('');
   const [model, setModel] = useState('deepseek-r1:8b');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [code, setCode] = useState('// Process the model response however you want\n\nconsole.log(agentId, "Response received:", response.substring(0, 100) + "...");\n\n// Example: Extract and save important information to agent memory\nconst infoMatch = response.match(/important information: (.*?)\\./i);\nif (infoMatch && infoMatch[1]) {\n  const info = infoMatch[1].trim();\n  await utilities.updateAgentMemory(agentId, info);\n  console.log(agentId, "Saved to memory:", info);\n}\n\n// You can perform any actions based on the response content');
+  const [code, setCode] = useState('// Process the model response however you want\n\nconsole.log(agentId, "Response received:", response.substring(0, 100) + "...");');
   const [loopInterval, setLoopInterval] = useState(1.0);
   const [activeTab, setActiveTab] = useState<TabType>('config');
 

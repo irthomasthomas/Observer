@@ -32,6 +32,30 @@ export async function setMemory(agentId: string, memory: any): Promise<void> {
 }
 
 /**
+ * Append to agent's memory value
+ * @param agentId The agent's ID
+ * @param content Content to append to memory
+ * @param separator Optional separator between existing memory and new content (default: '\n')
+ */
+export async function appendMemory(agentId: string, content: string, separator: string = '\n'): Promise<void> {
+  try {
+    // Get current memory
+    const currentMemory = await fetchAgentMemory(agentId);
+    
+    // If current memory exists and isn't empty, append with separator
+    // Otherwise just set the content directly
+    const newMemory = currentMemory ? `${currentMemory}${separator}${content}` : content;
+    
+    // Save updated memory
+    await saveAgentMemory(agentId, newMemory);
+    
+    Logger.debug('MEMORY', `Appended to agent ${agentId} memory`);
+  } catch (error) {
+    Logger.error('MEMORY', `Error appending to memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Send a notification
  */
 export function notify(title: string, message: string): void {
