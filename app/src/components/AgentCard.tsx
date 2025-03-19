@@ -27,7 +27,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   onMemory
 }) => {
   const [detailsExpanded, setDetailsExpanded] = useState(false); // Default to collapsed
-  const [conversationExpanded, setConversationExpanded] = useState(false);
+  const [activityExpanded, setActivityExpanded] = useState(false);
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
@@ -35,12 +35,24 @@ const AgentCard: React.FC<AgentCardProps> = ({
       <div className="px-4 py-3 flex justify-between items-center">
         <div className="flex items-center">
           <div className="flex flex-col items-center mr-3">
-            <User className="h-6 w-6 text-blue-600 mb-1" />
-            <Brain 
-              className={`h-6 w-6 text-purple-600 cursor-pointer ${isMemoryFlashing ? 'animate-pulse' : ''}`} 
-              onClick={() => onMemory(agent.id)}
+            <div 
+              className="p-2 rounded-full bg-blue-100 hover:bg-blue-200 transition-all mb-2"
+              title={detailsExpanded ? "Hide details" : "Show details"}
+            >
+              <User 
+                className="h-7 w-7 text-blue-600 cursor-pointer hover:text-blue-800 transition-colors" 
+                onClick={() => setDetailsExpanded(!detailsExpanded)}
+              />
+            </div>
+            <div 
+              className="p-2 rounded-full bg-purple-100 hover:bg-purple-200 transition-all"
               title="View memory"
-            />
+            >
+              <Brain 
+                className={`h-7 w-7 text-purple-600 cursor-pointer hover:text-purple-800 transition-colors ${isMemoryFlashing ? 'animate-pulse' : ''}`} 
+                onClick={() => onMemory(agent.id)}
+              />
+            </div>
           </div>
           <div>
             <h3 className="text-xl font-semibold text-gray-800">{agent.name}</h3>
@@ -71,17 +83,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
               : agent.status === 'running'
                 ? 'Stop'
                 : 'Start'}
-          </button>
-          
-          <button
-            onClick={() => setDetailsExpanded(!detailsExpanded)}
-            className="p-2 border rounded-md hover:bg-gray-50"
-            title={detailsExpanded ? "Collapse details" : "Expand details"}
-          >
-            {detailsExpanded ? 
-              <ChevronUp className="h-5 w-5 text-blue-600" /> : 
-              <ChevronDown className="h-5 w-5 text-blue-600" />
-            }
           </button>
         </div>
       </div>
@@ -135,15 +136,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
             </button>
             
             <button
-              onClick={() => onMemory(agent.id)}
-              className={`px-4 py-2 rounded-md flex items-center ${
-                isMemoryFlashing ? 'bg-purple-100 animate-pulse' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-            >
-              <Brain className="h-5 w-5 mr-1" /> Memory
-            </button>
-            
-            <button
               onClick={() => onDelete(agent.id)}
               className="px-4 py-2 rounded-md flex items-center ml-auto bg-red-50 text-red-600 hover:bg-red-100"
               disabled={agent.status === 'running'}
@@ -154,16 +146,16 @@ const AgentCard: React.FC<AgentCardProps> = ({
         </>
       )}
 
-      {/* Chat button - visible even when details are collapsed */}
+      {/* Activity button - visible even when details are collapsed */}
       <div className="px-4 py-3 border-b">
         <button
-          onClick={() => setConversationExpanded(!conversationExpanded)}
+          onClick={() => setActivityExpanded(!activityExpanded)}
           className="flex items-center gap-2 w-full"
         >
           <MessageCircle className="h-5 w-5 text-blue-600" />
-          <span className="text-lg font-medium">Conversation</span>
+          <span className="text-lg font-medium">Activity</span>
           <div className="ml-auto">
-            {conversationExpanded ? 
+            {activityExpanded ? 
               <ChevronUp className="h-5 w-5 text-gray-500" /> : 
               <ChevronDown className="h-5 w-5 text-gray-500" />
             }
@@ -171,8 +163,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
         </button>
       </div>
 
-      {/* Conversation area */}
-      {conversationExpanded && (
+      {/* Activity area */}
+      {activityExpanded && (
         <div className="bg-white border-t p-4">
           <AgentLogViewer agentId={agent.id} expanded={true} />
         </div>
