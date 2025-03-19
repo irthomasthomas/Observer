@@ -27,6 +27,10 @@ export function setOllamaServerAddress(host: string, port: string): void {
   Logger.info('SERVER', `Ollama server address set to ${host}:${port}`);
 }
 
+export function getOllamaServerAddress(): { host: string, port: string } {
+  return { host: serverHost, port: serverPort };
+}
+
 /**
  * Schedule next execution
  */
