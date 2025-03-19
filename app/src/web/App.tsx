@@ -367,24 +367,25 @@ function AppContent() {
           {error && <ErrorDisplay message={error} />}
 
           {activeTab === 'myAgents' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-wrap gap-6">
               {agents.length > 0 ? agents.map(agent => (
-                <AgentCard 
-                  key={agent.id}
-                  agent={agent}
-                  code={agentCodes[agent.id]}
-                  isStarting={startingAgents.has(agent.id)}
-                  isMemoryFlashing={flashingMemories.has(agent.id)}
-                  onEdit={handleEditClick}
-                  onDelete={handleDeleteClick}
-                  onToggle={toggleAgent}
-                  onSchedule={handleScheduleClick}
-                  onMemory={handleMemoryClick}
-                />
-                  )) : <GetStarted 
-                         onExploreCommunity={() => setActiveTab('community')}
-                         onCreateNewAgent={handleAddAgentClick}
-                       />}
+                <div key={agent.id} className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0">
+                  <AgentCard 
+                    agent={agent}
+                    code={agentCodes[agent.id]}
+                    isStarting={startingAgents.has(agent.id)}
+                    isMemoryFlashing={flashingMemories.has(agent.id)}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteClick}
+                    onToggle={toggleAgent}
+                    onSchedule={handleScheduleClick}
+                    onMemory={handleMemoryClick}
+                  />
+                </div>
+              )) : <GetStarted 
+                   onExploreCommunity={() => setActiveTab('community')}
+                   onCreateNewAgent={handleAddAgentClick}
+                 />}
             </div>
           ) : activeTab === 'community' ? (
             <CommunityTab />
@@ -393,6 +394,11 @@ function AppContent() {
               <p className="text-gray-500">This feature is coming soon!</p>
             </div>
           )}
+
+
+
+
+
         </main>
 
       {isEditModalOpen && (

@@ -1,7 +1,6 @@
-// src/components/AgentLogViewer.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { LogEntry, LogLevel, Logger } from '../utils/logging';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageCircle, Brain } from 'lucide-react';
 
 interface AgentLogViewerProps {
   agentId: string;
@@ -12,20 +11,46 @@ interface AgentLogViewerProps {
 const AgentLogViewer: React.FC<AgentLogViewerProps> = ({ 
   agentId, 
   maxEntries = 50,
-  expanded = false
+  expanded = true
 }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [isExpanded, setIsExpanded] = useState(expanded);
-  const [minLevel] = useState<LogLevel>(LogLevel.INFO);
-  const [hasUnreadLogs, setHasUnreadLogs] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
+
+  // Group logs by iteration
+  const groupedLogs = logs.reduce((groups, log) => {
+    // Look for logs that indicate a new iteration
+    const isIterationStart = log.message.includes('Running first iteration') || 
+                            log.message.includes('Starting iteration') ||
+                            log.message.toLowerCase().includes('agent iteration');
+    
+    if (isIterationStart) {
+      // Start a new group
+      groups.push({
+        iteration: groups.length + 1,
+        timestamp: log.timestamp,
+        logs: [log]
+      });
+    } else if (groups.length > 0) {
+      // Add to the current group
+      groups[groups.length - 1].logs.push(log);
+    } else {
+      // No groups yet, create the first one
+      groups.push({
+        iteration: 1,
+        timestamp: log.timestamp,
+        logs: [log]
+      });
+    }
+    
+    return groups;
+  }, [] as Array<{iteration: number, timestamp: Date, logs: LogEntry[]}>);
 
   // Load logs when component mounts
   useEffect(() => {
     // Get initial logs for this agent
     const initialLogs = Logger.getFilteredLogs({ 
       source: agentId,
-      level: minLevel 
+      level: LogLevel.INFO 
     });
     
     // Only keep the most recent logs based on maxEntries
@@ -33,17 +58,12 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 
     // Subscribe to new logs
     const handleNewLog = (log: LogEntry) => {
-      if (log.source !== agentId || log.level < minLevel) return;
+      if (log.source !== agentId || log.level < LogLevel.INFO) return;
       
       setLogs(prevLogs => {
         const newLogs = [...prevLogs, log];
         return newLogs.slice(-maxEntries);
       });
-      
-      // Set unread flag if the panel is collapsed
-      if (!isExpanded) {
-        setHasUnreadLogs(true);
-      }
     };
 
     Logger.addListener(handleNewLog);
@@ -51,115 +71,78 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     return () => {
       Logger.removeListener(handleNewLog);
     };
-  }, [agentId, maxEntries, minLevel]);
+  }, [agentId, maxEntries]);
 
-  // Scroll to bottom when new logs come in or when expanded
+  // Scroll to bottom when new logs come in
   useEffect(() => {
-    if (isExpanded && logsEndRef.current) {
+    if (expanded && logsEndRef.current) {
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [logs, isExpanded]);
+  }, [logs, expanded]);
 
-  // Clear unread flag when expanding the panel
-  useEffect(() => {
-    if (isExpanded) {
-      setHasUnreadLogs(false);
-    }
-  }, [isExpanded]);
-
-  // Format timestamp
-  const formatTime = (date: Date): string => {
+  // Format timestamp for iteration header
+  const formatIterationTime = (date: Date): string => {
     return date.toLocaleTimeString([], { 
       hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit',
-      hour12: false 
+      minute: '2-digit',
+      hour12: false
     });
   };
 
-  // Helper function to get color for log level
-  const getLevelColor = (level: LogLevel): string => {
-    switch (level) {
-      case LogLevel.DEBUG:
-        return 'text-gray-500';
-      case LogLevel.INFO:
-        return 'text-blue-600';
-      case LogLevel.WARNING:
-        return 'text-amber-600';
-      case LogLevel.ERROR:
-        return 'text-red-600';
-      default:
-        return 'text-gray-800';
-    }
+  // Check if a log message is a memory entry
+  const isMemoryEntry = (log: LogEntry): boolean => {
+    return log.message.includes('COMMAND:') || 
+           (log.details && typeof log.details === 'object' && 
+            'isMemory' in log.details && log.details.isMemory === true);
   };
 
-  // Toggle expanded state
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-    if (!isExpanded) {
-      setHasUnreadLogs(false);
-    }
-  };
+  if (logs.length === 0) {
+    return (
+      <div className="py-10 text-center text-gray-500 italic">
+        No messages yet
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-4 border rounded-md overflow-hidden">
-      {/* Header */}
-      <div 
-        className={`px-3 py-2 flex justify-between items-center cursor-pointer ${
-          hasUnreadLogs 
-            ? 'bg-blue-50 border-blue-200' 
-            : 'bg-gray-50'
-        }`}
-        onClick={toggleExpanded}
-      >
-        <div className="flex items-center">
-          <span className="font-medium text-sm">Activity Log</span>
-          {hasUnreadLogs && (
-            <span className="ml-2 bg-blue-500 text-white text-xs py-0.5 px-1.5 rounded-full">
-              New
+    <div className="max-h-80 overflow-y-auto bg-white p-4 space-y-4">
+      {groupedLogs.map((group, groupIndex) => (
+        <div key={groupIndex} className="space-y-3">
+          {/* Iteration divider */}
+          <div className="text-xs font-medium text-gray-500 text-center relative my-4">
+            <span className="bg-white px-3 relative z-10">
+              Iteration #{group.iteration} • {formatIterationTime(group.timestamp)}
             </span>
-          )}
-        </div>
-        <div>
-          {isExpanded ? (
-            <ChevronUp size={16} />
-          ) : (
-            <ChevronDown size={16} />
-          )}
-        </div>
-      </div>
-
-      {/* Log content */}
-      {isExpanded && (
-        <div className="max-h-48 overflow-y-auto text-xs bg-white p-2">
-          {logs.length === 0 ? (
-            <div className="text-gray-500 italic text-center py-2">
-              No activity recorded yet
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {logs.map((log) => (
-                <div key={log.id} className="hover:bg-gray-50">
-                  <div className="flex">
-                    <span className="text-gray-500 mr-2">{formatTime(log.timestamp)}</span>
-                    <span className={`${getLevelColor(log.level)} flex-grow`}>
-                      {log.message}
-                    </span>
-                  </div>
+            <div className="absolute top-1/2 left-0 w-full h-px bg-gray-200 -z-0"></div>
+          </div>
+          
+          {/* Messages in this iteration */}
+          {group.logs.map((log, logIndex) => (
+            <div key={`${groupIndex}-${logIndex}`} className="mb-3">
+              <div className="flex">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2 flex-shrink-0">
+                  {isMemoryEntry(log) ? (
+                    <Brain className="h-4 w-4 text-purple-600" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4 text-blue-600" />
+                  )}
+                </div>
+                <div className="bg-blue-50 px-3 py-2 rounded-lg max-w-[85%]">
+                  <div className="text-sm">{log.message}</div>
                   {log.details && (
-                    <div className="ml-14 text-xs bg-gray-50 p-1 mt-0.5 rounded border-l-2 border-gray-300 overflow-x-auto">
+                    <div className="mt-1 text-xs text-gray-600 border-t border-gray-200 pt-1">
                       {typeof log.details === 'string'
                         ? log.details
                         : JSON.stringify(log.details, null, 2)}
                     </div>
                   )}
                 </div>
-              ))}
-              <div ref={logsEndRef} />
+              </div>
             </div>
-          )}
+          ))}
         </div>
-      )}
+      ))}
+      <div ref={logsEndRef} />
     </div>
   );
 };
