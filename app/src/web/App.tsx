@@ -459,10 +459,14 @@ function AppContent() {
 }
 
 export function App() {
+  if (!process.env.REACT_APP_AUTH0_DOMAIN || !process.env.REACT_APP_AUTH0_CLIENT_ID) {
+    console.error('Auth0 configuration is missing. Please set REACT_APP_AUTH0_DOMAIN and REACT_APP_AUTH0_CLIENT_ID environment variables.');
+  }
+  
   return (
     <Auth0Provider
-      domain="dev-mzdd3k678tj1ja86.us.auth0.com"
-      clientId="R5iv3RVkWjGZrexFSJ6HqlhSaaGLyFpm"
+      domain={process.env.REACT_APP_AUTH0_DOMAIN || ''}
+      clientId={process.env.REACT_APP_AUTH0_CLIENT_ID || ''}
       authorizationParams={{
         redirect_uri: window.location.origin
       }}

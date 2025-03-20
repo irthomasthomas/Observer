@@ -10,6 +10,7 @@ website/.pnp
 
 app/node_modules
 app/dist
+app/.env
 
 desktop/node_modules
 desktop/public/assets/
