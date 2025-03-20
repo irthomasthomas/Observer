@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Send, Loader2, Zap, XCircle, Save } from 'lucide-react';
+import { Loader2, Zap, XCircle, Save } from 'lucide-react';
 import { streamPrompt } from '@utils/streamApi';
+import { CompleteAgent, saveAgent } from '@utils/agent_database';
 import EditAgentModal from './EditAgentModal';
 
 // Use environment variables for API keys
@@ -174,66 +175,51 @@ AGENT TO BE CREATED:`;
 }
 
 // Function to parse the AI response
-function parseAgentResponse(responseText) {
+function parseAgentResponse(responseText: string): { agent: CompleteAgent, code: string } | null {
   try {
-    const result = {
-      id: '',
-      name: '',
-      description: '',
-      status: 'stopped',
-      model_name: '',
-      system_prompt: '',
-      code: '',
-      loop_interval_seconds: 60,
-      memory: ''
-    };
-    
-    // Regex patterns to extract different sections
-    const idMatch = responseText.match(/^id:\s*(.+)$/m);
-    const nameMatch = responseText.match(/^name:\s*(.+)$/m);
-    const descriptionMatch = responseText.match(/^description:\s*(.+)$/m);
-    const statusMatch = responseText.match(/^status:\s*(.+)$/m);
-    const modelMatch = responseText.match(/^model_name:\s*(.+)$/m);
-    const intervalMatch = responseText.match(/^loop_interval_seconds:\s*(\d+\.?\d*)$/m);
-    
     // Find the starting positions of each section
     const systemPromptStart = responseText.indexOf('system_prompt: |');
     const codeStart = responseText.indexOf('code: |');
     const memoryStart = responseText.indexOf('memory: ');
     
-    // Extract system prompt (between system_prompt and code)
-    if (systemPromptStart !== -1 && codeStart !== -1) {
-      const systemPromptSection = responseText.substring(
-        systemPromptStart + 'system_prompt: |'.length,
-        codeStart
-      ).trim();
-      result.system_prompt = systemPromptSection;
+    if (systemPromptStart === -1 || codeStart === -1 || memoryStart === -1) {
+      return null;
     }
+    
+    // Extract single-line fields with regex
+    const idMatch = responseText.match(/^id:\s*(.+)$/m);
+    const nameMatch = responseText.match(/^name:\s*(.+)$/m);
+    const descriptionMatch = responseText.match(/^description:\s*(.+)$/m);
+    const modelMatch = responseText.match(/^model_name:\s*(.+)$/m);
+    const intervalMatch = responseText.match(/^loop_interval_seconds:\s*(\d+\.?\d*)$/m);
+    
+    if (!idMatch || !nameMatch || !modelMatch || !intervalMatch) {
+      return null;
+    }
+    
+    // Extract system prompt (between system_prompt and code)
+    const systemPromptSection = responseText.substring(
+      systemPromptStart + 'system_prompt: |'.length,
+      codeStart
+    ).trim();
     
     // Extract code (between code and memory)
-    if (codeStart !== -1 && memoryStart !== -1) {
-      const codeSection = responseText.substring(
-        codeStart + 'code: |'.length,
-        memoryStart
-      ).trim();
-      result.code = codeSection;
-    }
+    const codeSection = responseText.substring(
+      codeStart + 'code: |'.length,
+      memoryStart
+    ).trim();
     
-    // Assign extracted values for single-line fields
-    if (idMatch) result.id = idMatch[1].trim();
-    if (nameMatch) result.name = nameMatch[1].trim();
-    if (descriptionMatch) result.description = descriptionMatch[1].trim();
-    if (statusMatch) result.status = statusMatch[1].trim();
-    if (modelMatch) result.model_name = modelMatch[1].trim();
-    if (intervalMatch) result.loop_interval_seconds = parseFloat(intervalMatch[1]);
+    const agent: CompleteAgent = {
+      id: idMatch[1].trim(),
+      name: nameMatch[1].trim(),
+      description: descriptionMatch ? descriptionMatch[1].trim() : '',
+      status: 'stopped',
+      model_name: modelMatch[1].trim(),
+      system_prompt: systemPromptSection,
+      loop_interval_seconds: parseFloat(intervalMatch[1])
+    };
     
-    // Extract memory value
-    const memoryMatch = responseText.match(/memory:\s*"(.*)"/);
-    if (memoryMatch) {
-      result.memory = memoryMatch[1];
-    }
-    
-    return result;
+    return { agent, code: codeSection };
   } catch (error) {
     console.error("Error parsing agent response:", error);
     return null;
@@ -245,14 +231,14 @@ const GenerateAgent: React.FC = () => {
   const [aiResponse, setAiResponse] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const abortControllerRef = useRef<(() => void) | null>(null);
-  
-  // Edit Agent Modal state
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [parsedAgent, setParsedAgent] = useState<any>(null);
-  const [parsedCode, setParsedCode] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const abortControllerRef = useRef<(() => void) | null>(null);
+  
+  // Modal state
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [parsedAgent, setParsedAgent] = useState<CompleteAgent | null>(null);
+  const [parsedCode, setParsedCode] = useState<string>('');
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,7 +267,7 @@ const GenerateAgent: React.FC = () => {
           // Stream completed
           setIsStreaming(false);
         },
-        (error) => {
+        (error: Error) => {
           // Stream error
           setError(`Error: ${error.message}`);
           setIsStreaming(false);
@@ -313,51 +299,48 @@ const GenerateAgent: React.FC = () => {
     setSaveSuccess(false);
   };
   
-  const handleSaveAgent = () => {
+  const handleSaveAgent = async () => {
     setIsSaving(true);
     setError(null);
     
     try {
       const parsed = parseAgentResponse(aiResponse);
-      if (parsed && parsed.id && parsed.name) {
-        setParsedAgent({
-          id: parsed.id,
-          name: parsed.name,
-          description: parsed.description,
-          status: parsed.status || 'stopped',
-          model_name: parsed.model_name,
-          system_prompt: parsed.system_prompt,
-          loop_interval_seconds: parsed.loop_interval_seconds
-        });
-        
-        setParsedCode(parsed.code);
-        setShowModal(true);
-      } else {
-        setError("Failed to parse agent response. Please check the format and ensure it includes all required fields.");
+      if (!parsed) {
+        throw new Error("Failed to parse agent response. Please check the format.");
       }
+      
+      const { agent, code } = parsed;
+      
+      // Open the modal for editing instead of saving directly
+      setParsedAgent(agent);
+      setParsedCode(code);
+      setShowModal(true);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Error saving agent: ${errorMessage}`);
+      setError(`Error parsing agent: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
   };
   
-  const handleSaveModalChanges = (agent, code) => {
-    // Here you would handle saving the agent to your database
-    console.log("Saving agent:", agent);
-    console.log("Code:", code);
-    
-    // Show success message
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+  const handleSaveModalChanges = async (agent: CompleteAgent, code: string) => {
+    try {
+      // Save the agent using the database utility
+      await saveAgent(agent, code);
+      
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        setAiResponse('');
+        setUserInput('');
+      }, 3000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Error saving agent: ${errorMessage}`);
+    }
     
     // Close the modal
     setShowModal(false);
-    
-    // Reset after successful save
-    setAiResponse('');
-    setUserInput('');
   };
 
   return (
@@ -421,7 +404,7 @@ const GenerateAgent: React.FC = () => {
                 ) : (
                   <>
                     <Save className="h-4 w-4 mr-1" />
-                    Save AI Agent
+                    Configure & Save
                   </>
                 )}
               </button>
