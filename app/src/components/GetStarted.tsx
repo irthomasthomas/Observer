@@ -1,174 +1,144 @@
 // src/components/GetStarted.tsx
-
-import React, { useState, useEffect } from 'react';
-import { Logger } from '@utils/logging';
-import { saveAgent, CompleteAgent } from '@utils/agent_database';
-
-interface MarketplaceAgent {
-  id: string;
-  name: string;
-  description: string;
-  model_name: string;
-  system_prompt: string;
-  loop_interval_seconds: number;
-  code?: string;
-  memory?: string;
-  author?: string;
-  author_id?: string;
-  date_added?: string;
-}
+import React, { useState } from 'react';
+import { Plus, Users, Sparkles } from 'lucide-react';
+import GenerateAgent from './GenerateAgent';
 
 interface GetStartedProps {
   onExploreCommunity: () => void;
   onCreateNewAgent: () => void;
-  /**
-   * Optional callback to refresh local agents after import.
-   * For example, you can re-fetch the local DB so the new agent shows up.
-   */
   onAgentImported?: () => void;
 }
 
-const SERVER_URL = 'https://api.observer-ai.com';
-
-// Hard-coded trending agent IDs
-const TRENDING_AGENT_IDS = [
-  'activity_tracking_agent',
-  'command_tracking_agent',
-  'multimodal_activity_tracking'
+// Trending agent examples
+const TRENDING_AGENTS = [
+  { id: 'activity_tracking_agent', name: 'Activity Tracking Agent', description: 'Monitors and logs your computer activities' },
+  { id: 'command_tracking_agent', name: 'Command Tracking Agent', description: 'Logs terminal commands you execute' },
+  { id: 'multimodal_activity_tracking', name: 'Multimodal Activity Tracking', description: 'Tracks activities with text and visual analysis' }
 ];
 
 const GetStarted: React.FC<GetStartedProps> = ({ 
   onExploreCommunity, 
-  onCreateNewAgent, 
-  onAgentImported 
+  onCreateNewAgent,
+  onAgentImported
 }) => {
-  const [trendingAgents, setTrendingAgents] = useState<MarketplaceAgent[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [importingAgentId, setImportingAgentId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchAgents = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const response = await fetch(`${SERVER_URL}/agents`);
-        if (!response.ok) {
-          throw new Error(`Server returned ${response.status}`);
-        }
-
-        const data: MarketplaceAgent[] = await response.json();
-        // Filter out only the trending agents using hard-coded IDs
-        const trending = data.filter(agent => TRENDING_AGENT_IDS.includes(agent.id));
-        setTrendingAgents(trending);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        setError(`Failed to fetch trending agents: ${errorMessage}`);
-        Logger.error('GET_STARTED', `Error fetching agents: ${errorMessage}`, err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAgents();
-  }, []);
-
-  const handleImport = async (agent: MarketplaceAgent) => {
-    try {
-      setError(null);
-      setImportingAgentId(agent.id);
-      Logger.info('GET_STARTED', `Importing trending agent: ${agent.name} (${agent.id})`);
-
-      // Prepare agent for local DB using CompleteAgent structure
-      const localAgent: CompleteAgent = {
-        id: `community_${agent.id}`, // Add prefix to avoid ID conflicts
-        name: `${agent.name} (Community)`,
-        description: agent.description,
-        status: 'stopped',
-        model_name: agent.model_name,
-        system_prompt: agent.system_prompt,
-        loop_interval_seconds: agent.loop_interval_seconds,
-      };
-
-      // Save agent to local database with its code
-      await saveAgent(localAgent, agent.code || '');
-
-      // If you want to import memory as well, do so here:
-      if (agent.memory) {
-        const { updateAgentMemory } = await import('@utils/agent_database');
-        await updateAgentMemory(localAgent.id, agent.memory);
-      }
-
-      alert(`Agent "${agent.name}" imported successfully!`);
-      Logger.info('GET_STARTED', `Trending agent ${agent.name} imported successfully`);
-
-      // Refresh local agent list so it shows up right away
-      onAgentImported?.();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Failed to import agent: ${errorMessage}`);
-      Logger.error('GET_STARTED', `Error importing agent: ${errorMessage}`, err);
-    } finally {
+  const [showAiGenerator, setShowAiGenerator] = useState<boolean>(false);
+  
+  const handleImport = async (agentId: string) => {
+    setImportingAgentId(agentId);
+    // Simulate import process
+    setTimeout(() => {
       setImportingAgentId(null);
-    }
+      onAgentImported?.();
+      alert(`Agent imported successfully!`);
+    }, 1000);
   };
-
+  
   return (
-    <div className="w-full flex justify-center items-center py-10">
-      <div className="bg-blue-50 rounded-lg p-6 max-w-2xl w-full mx-auto">
-        <h3 className="text-xl font-semibold text-blue-800 mb-3 text-center">Ready to Get Started?</h3>
-        <p className="text-blue-600 mb-6 text-center">
-          You don't have any agents yet. Explore the Community tab to discover pre-built agents, 
-          or create your own custom agent from scratch.
+    <div className="w-full max-w-5xl mx-auto py-8 px-4">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 shadow-sm">
+        <h2 className="text-2xl font-bold text-blue-800 mb-4 text-center">Welcome to Observer AI</h2>
+        
+        <p className="text-blue-700 mb-8 text-center max-w-3xl mx-auto">
+          Create agents that can observe, analyze, and respond to what's happening on your screen.
+          Get started with just a few clicks!
         </p>
-
-        {/* Buttons for exploring community or creating a new agent */}
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <button 
-            onClick={onExploreCommunity} 
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
-          >
-            Browse Community Agents
-          </button>
-          <button 
-            onClick={onCreateNewAgent} 
-            className="px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 transition-colors flex items-center justify-center"
-          >
-            Create New Agent
-          </button>
-        </div>
-
-        {/* Trending agents section */}
-        <div className="mt-8">
-          <h4 className="text-lg font-semibold text-blue-800 mb-4 text-center">Trending Agents</h4>
-          {isLoading ? (
-            <div className="text-blue-600 text-center">Loading trending agents...</div>
-          ) : error ? (
-            <div className="text-red-600 text-center">{error}</div>
-          ) : trendingAgents.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {trendingAgents.map(agent => (
-                <div 
-                  key={agent.id} 
-                  className="flex items-center justify-between p-3 border rounded-md bg-white"
-                >
-                  <h4 className="text-sm font-medium">{agent.name}</h4>
-                  <button
-                    onClick={() => handleImport(agent)}
-                    disabled={importingAgentId === agent.id}
-                    className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    title="Import this agent"
-                  >
-                    {/* Show an hourglass if importing, otherwise the download emoji */}
-                    {importingAgentId === agent.id ? '⏳' : '⬇️'}
-                  </button>
-                </div>
-              ))}
+        
+        {/* AI Agent Generator - Main Focus */}
+        <div className="mb-10 max-w-3xl mx-auto">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-t-lg flex items-center">
+            <Sparkles className="h-5 w-5 mr-2" />
+            <div>
+              <h3 className="font-medium">AI Agent Generator</h3>
+              <p className="text-sm opacity-90">
+                Describe what you need in plain English
+              </p>
             </div>
-          ) : (
-            <div className="text-gray-500 text-center">No trending agents available</div>
-          )}
+          </div>
+          
+          <div className="bg-white p-5 rounded-b-lg shadow-sm">
+            {showAiGenerator ? (
+              <GenerateAgent />
+            ) : (
+              <div className="flex">
+                <input
+                  type="text"
+                  placeholder="Example: An agent that detects when I'm viewing sensitive documents..."
+                  className="flex-1 p-3 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                  onClick={() => setShowAiGenerator(true)}
+                  readOnly
+                />
+                <button
+                  className="px-5 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-r-md hover:from-green-600 hover:to-emerald-700 font-medium transition-colors"
+                  onClick={() => setShowAiGenerator(true)}
+                >
+                  Generate
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Two Options Side by Side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10 max-w-3xl mx-auto">
+          {/* Browse Community Option */}
+          <div 
+            onClick={onExploreCommunity}
+            className="bg-white border border-blue-100 rounded-lg p-5 text-center cursor-pointer hover:bg-blue-50 transition-colors flex flex-col items-center shadow-sm"
+          >
+            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+              <Users className="h-7 w-7 text-blue-600" />
+            </div>
+            <h3 className="font-medium text-blue-800 text-lg">Browse Community Agents</h3>
+            <p className="text-gray-600 mt-2">
+              Discover and import ready-made agents from the community library
+            </p>
+          </div>
+          
+          {/* Create New Option */}
+          <div 
+            onClick={onCreateNewAgent}
+            className="bg-white border border-blue-100 rounded-lg p-5 text-center cursor-pointer hover:bg-blue-50 transition-colors flex flex-col items-center shadow-sm"
+          >
+            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+              <Plus className="h-7 w-7 text-blue-600" />
+            </div>
+            <h3 className="font-medium text-blue-800 text-lg">Create Custom Agent</h3>
+            <p className="text-gray-600 mt-2">
+              Build an agent from scratch with full control over all settings
+            </p>
+          </div>
+        </div>
+        
+        {/* Trending agents section */}
+        <div className="max-w-3xl mx-auto">
+          <h4 className="text-xl font-semibold text-blue-800 mb-4">Popular Agents</h4>
+          
+          <div className="grid grid-cols-1 gap-3">
+            {TRENDING_AGENTS.map(agent => (
+              <div 
+                key={agent.id} 
+                className="flex items-center justify-between p-4 border border-blue-100 rounded-lg bg-white shadow-sm hover:bg-blue-50 transition-colors"
+              >
+                <div className="flex-1">
+                  <h4 className="font-medium text-blue-900">{agent.name}</h4>
+                  <p className="text-sm text-gray-600">{agent.description}</p>
+                </div>
+                <button
+                  onClick={() => handleImport(agent.id)}
+                  disabled={importingAgentId === agent.id}
+                  className={`px-4 py-2 rounded-md text-white transition-colors ${
+                    importingAgentId === agent.id
+                      ? 'bg-gray-400'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                  title="Import this agent"
+                >
+                  {importingAgentId === agent.id ? 'Importing...' : 'Import'}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

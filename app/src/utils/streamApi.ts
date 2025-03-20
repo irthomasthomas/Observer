@@ -1,10 +1,9 @@
 // src/utils/streamApi.ts
 
 /**
- * Stream a prompt to the Ollama server and receive chunks of the response
- * @param host Ollama server host
- * @param port Ollama server port
- * @param modelName Name of the model to use
+ * Stream a prompt to the Gemini API and receive chunks of the response
+ * @param apiKey Your Gemini API key
+ * @param modelName Name of the model to use (e.g., "gemini-2.0-flash", "gemma-3-27b-it")
  * @param prompt The prompt text to send
  * @param onChunk Callback function that receives each chunk of text as it arrives
  * @param onComplete Optional callback function that is called when streaming completes
@@ -12,8 +11,7 @@
  * @returns A function that can be called to abort the stream
  */
 export function streamPrompt(
-  host: string,
-  port: string,
+  apiKey: string,
   modelName: string,
   prompt: string,
   onChunk: (text: string) => void,
@@ -27,20 +25,23 @@ export function streamPrompt(
   // Start the streaming process
   (async () => {
     try {
-      // Use the OpenAI-compatible API endpoint for streaming
-      const url = `https://${host}:${port}/v1/chat/completions`;
+      // Construct the URL for the Gemini API streaming endpoint
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`;
       
+      // Prepare the request body
       const requestBody = JSON.stringify({
-        model: modelName,
-        messages: [
+        contents: [
           {
-            role: "user",
-            content: prompt
+            parts: [
+              {
+                text: prompt
+              }
+            ]
           }
-        ],
-        stream: true  // Enable streaming
+        ]
       });
       
+      // Make the API request
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -51,14 +52,14 @@ export function streamPrompt(
       });
       
       if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
+        throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
       }
       
       if (!response.body) {
         throw new Error('Response body is null');
       }
       
-      // Process the stream
+      // Process the stream using the ReadableStream API
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       
@@ -69,26 +70,40 @@ export function streamPrompt(
         // Decode the chunk
         const chunk = decoder.decode(value, { stream: true });
         
-        // OpenAI format sends "data: {json}" lines
-        const lines = chunk
-          .split('\n')
-          .filter(line => line.startsWith('data: ') && line.trim() !== 'data: [DONE]');
+        // Parse Server-Sent Events (SSE)
+        // Format is: "data: {json}\n\n"
+        const lines = chunk.split('\n\n');
         
         for (const line of lines) {
-          try {
-            const jsonStr = line.substring(6); // Remove 'data: ' prefix
-            const parsed = JSON.parse(jsonStr);
-            
-            // Extract the content from the choice delta
-            if (parsed.choices && 
-                parsed.choices[0] && 
-                parsed.choices[0].delta && 
-                parsed.choices[0].delta.content) {
-              onChunk(parsed.choices[0].delta.content);
+          // Skip empty lines
+          if (!line.trim()) continue;
+          
+          // Process data lines
+          if (line.startsWith('data: ')) {
+            try {
+              // Remove 'data: ' prefix
+              const jsonStr = line.substring(6);
+              
+              // Skip end markers
+              if (jsonStr === '[DONE]') continue;
+              
+              // Parse the JSON response
+              const parsed = JSON.parse(jsonStr);
+              
+              // Extract text from the response structure
+              if (parsed.candidates && 
+                  parsed.candidates[0] && 
+                  parsed.candidates[0].content && 
+                  parsed.candidates[0].content.parts && 
+                  parsed.candidates[0].content.parts[0] &&
+                  parsed.candidates[0].content.parts[0].text) {
+                onChunk(parsed.candidates[0].content.parts[0].text);
+              }
+            } catch (e) {
+              // If parsing fails, just continue
+              console.error('Error parsing SSE data:', e);
+              continue;
             }
-          } catch (e) {
-            // If parsing fails, just continue
-            continue;
           }
         }
       }
