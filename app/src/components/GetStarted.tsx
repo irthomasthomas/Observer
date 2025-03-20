@@ -1,4 +1,3 @@
-
 // src/components/GetStarted.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -116,10 +115,10 @@ const GetStarted: React.FC<GetStartedProps> = ({
   };
 
   return (
-    <div className="col-span-full text-center py-10">
-      <div className="bg-blue-50 rounded-lg p-6 max-w-2xl mx-auto">
-        <h3 className="text-xl font-semibold text-blue-800 mb-3">Ready to Get Started?</h3>
-        <p className="text-blue-600 mb-6">
+    <div className="w-full flex justify-center items-center py-10">
+      <div className="bg-blue-50 rounded-lg p-6 max-w-2xl w-full mx-auto">
+        <h3 className="text-xl font-semibold text-blue-800 mb-3 text-center">Ready to Get Started?</h3>
+        <p className="text-blue-600 mb-6 text-center">
           You don't have any agents yet. Explore the Community tab to discover pre-built agents, 
           or create your own custom agent from scratch.
         </p>
@@ -142,11 +141,11 @@ const GetStarted: React.FC<GetStartedProps> = ({
 
         {/* Trending agents section */}
         <div className="mt-8">
-          <h4 className="text-lg font-semibold text-blue-800 mb-4">Trending Agents</h4>
+          <h4 className="text-lg font-semibold text-blue-800 mb-4 text-center">Trending Agents</h4>
           {isLoading ? (
-            <div className="text-blue-600">Loading trending agents...</div>
+            <div className="text-blue-600 text-center">Loading trending agents...</div>
           ) : error ? (
-            <div className="text-red-600">{error}</div>
+            <div className="text-red-600 text-center">{error}</div>
           ) : trendingAgents.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {trendingAgents.map(agent => (
@@ -168,7 +167,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
               ))}
             </div>
           ) : (
-            <div className="text-gray-500">No trending agents available</div>
+            <div className="text-gray-500 text-center">No trending agents available</div>
           )}
         </div>
       </div>
