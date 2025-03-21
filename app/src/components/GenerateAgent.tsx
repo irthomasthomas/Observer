@@ -1,180 +1,112 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Zap, XCircle, Save } from 'lucide-react';
 import { streamPrompt } from '@utils/streamApi';
 import { CompleteAgent, saveAgent } from '@utils/agent_database';
 import EditAgentModal from './EditAgentModal';
+import getSystemPrompt from '@utils/system_prompt'
 
 // Use environment variables for API keys
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''; 
 const DEFAULT_MODEL = import.meta.env.VITE_DEFAULT_MODEL || 'gemini-2.0-flash';
 
-// Simple function to return the system prompt prefix
-function getSystemPrompt() {
-  return `## Agent Creator System Prompt
-
-You are Agent Creator, a specialized AI that creates simple agent configurations from user descriptions. Focus on creating agents that perform targeted tasks with minimal code complexity.
-
-### Model Selection
-- \`deepseek-r1:8b\`: Small reasoning model (text analysis, summarization)
-- \`qwq\`: Large reasoning model (complex reasoning, detailed analysis)
-- \`gemma3:4b\`: Small vision model (basic image recognition)
-- \`gemma3:32b\`: Large vision model (detailed visual analysis)
-
-### Input Processors
-- \`$SCREEN_OCR\`: Captures text from screen
-- \`$SCREEN_64\`: Captures screen as image
-
-### Available Functions
-- \`setMemory(content)\`: Overwrites agent memory with content
-- \`appendMemory(content)\`: Adds content to existing agent memory with a newline
-- \`appendMemory(content, separator)\`: Adds content with custom separator
-- \`time()\`: Returns current timestamp as string
-
-### Code Patterns
-Keep code extremely simple - focus intelligence in the model, not the code:
-
-\`\`\`javascript
-// Store response directly
-setMemory(response);
-
-// Append response with timestamp (preferred for logging)
-appendMemory(\`[\${time()}] \${response}\`);
-
-// Clean response by removing thinking sections
-const cleanedResponse = response.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();
-appendMemory(\`[\${time()}] \${cleanedResponse}\`);
-
-// Command pattern - only save specific commands
-if (response.includes("COMMAND:")) {
-  const command = response.split("COMMAND:")[1].trim();
-  appendMemory(\`[\${time()}] \${command}\`);
-}
-\`\`\`
-
-### Timing Guidelines
-- Fast monitoring: 30-60 seconds
-- Standard monitoring: 120-300 seconds
-- Periodic tasks: 600+ seconds
-
-### Output Format
-\`\`\`
-id: [unique_id_with_underscores]
-name: [Name]
-description: [Brief description]
-status: stopped
-model_name: [model]
-loop_interval_seconds: [interval]
-system_prompt: |
-  [Instructions with input processors]
+// Inline PrettyAgentResponse component
+const PrettyAgentResponse: React.FC<{ responseText: string; isStreaming: boolean }> = ({ 
+  responseText, 
+  isStreaming 
+}) => {
+  const [formattedResponse, setFormattedResponse] = useState<React.ReactNode>("");
   
-code: |
-  [Simple code from patterns above]
+  useEffect(() => {
+    if (!responseText) return;
+    
+    // Extract the part inside triple backticks if present
+    const agentFileRegex = /```\s*\n?([\s\S]*?)```/;
+    const match = responseText.match(agentFileRegex);
+    
+    if (match && match[1]) {
+      // We found content inside triple backticks
+      const beforeContent = responseText.slice(0, match.index).trim();
+      const agentFileContent = match[1];
+      const afterContent = responseText.slice(match.index + match[0].length).trim();
+      
+      // Format the agent file content
+      const formattedAgentContent = formatAgentFile(agentFileContent);
+      
+      // Combine everything
+      setFormattedResponse(
+        <>
+          {beforeContent && <div className="mb-4 text-gray-700">{beforeContent}</div>}
+          <div className="agent-file-container">{formattedAgentContent}</div>
+          {afterContent && <div className="mt-4 text-gray-700">{afterContent}</div>}
+        </>
+      );
+    } else {
+      // No triple backticks found, just return as is
+      setFormattedResponse(<div className="text-gray-700">{responseText}</div>);
+    }
+  }, [responseText]);
   
-memory: ""
-\`\`\`
-
-### Example: Command Tracking Agent
-\`\`\`
-id: command_tracking_agent
-name: Command Tracking Agent
-description: Monitors screen for terminal commands and logs them.
-status: stopped
-model_name: deepseek-r1:8b
-loop_interval_seconds: 30
-system_prompt: |
-  You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
+  // Function to format the agent file content
+  const formatAgentFile = (content: string) => {
+    // Split by lines
+    const lines = content.split('\n');
+    
+    // Process each line to identify key sections
+    return (
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="p-4">
+          {lines.map((line, index) => {
+            // Check if this is a key-value line (like "id: something")
+            if (line.match(/^([a-z_]+):\s*(.+)$/)) {
+              const [_, key, value] = line.match(/^([a-z_]+):\s*(.+)$/);
+              
+              return (
+                <div key={index} className="flex items-start mb-2">
+                  <div className="w-48 font-medium text-gray-600">{key}:</div>
+                  <div className="flex-1 text-gray-800">{value}</div>
+                </div>
+              );
+            }
+            
+            // Section headers with pipe symbol
+            else if (line.match(/^([a-z_]+):\s*\|$/)) {
+              const [_, key] = line.match(/^([a-z_]+):\s*\|$/);
+              
+              return (
+                <div key={index} className="flex flex-col mb-2 mt-4">
+                  <div className="w-full font-medium text-gray-600 border-b border-gray-300 pb-1 mb-2">{key}:</div>
+                </div>
+              );
+            }
+            
+            // If line is empty, add some spacing
+            else if (line.trim() === "") {
+              return <div key={index} className="h-2"></div>;
+            }
+            
+            // Regular content lines (indented under a section)
+            else {
+              return (
+                <div key={index} className="pl-6 text-gray-700 whitespace-pre-wrap mb-1">
+                  {line}
+                </div>
+              );
+            }
+          })}
+        </div>
+        {isStreaming && (
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 h-1 w-full animate-pulse"></div>
+        )}
+      </div>
+    );
+  };
   
-  Look for terminal/console windows and command prompts.
-  
-  Simply respond with:
-  
-  COMMAND: the command that was executed
-  
-  Examples:
-  
-  COMMAND: git push origin main
-  
-  COMMAND: npm install react
-  
-  COMMAND: python script.py
-  
-  
-  Only report when you see a new command being executed.
-  
-  Ignore repeated commands and command output.
-  
-  <Screen>
-  $SCREEN_OCR
-  </Screen>
-  
-  Focus on actual commands, not general terminal text or prompts.
-  
-  And just respond with one sentence:
-  
-  COMMAND: the command that was executed
-  
-  If there are no commands given, just respond with "No Commands Found".
-  
-code: |
-  //Clean response
-  const cleanedResponse = response.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();
-  
-  //Command Format
-  if (cleanedResponse.includes("COMMAND:")) {
-    const command = cleanedResponse.replace("COMMAND:", "").trim();
-    appendMemory(\`[\${time()}] \${command}\`);
-  }
-  
-memory: ""
-\`\`\`
-
-### Example: Dashboard Monitor
-\`\`\`
-id: dashboard_monitor
-name: Dashboard Monitor
-description: Monitors dashboards for changes and alerts on significant updates.
-status: stopped
-model_name: gemma3:32b
-loop_interval_seconds: 120
-system_prompt: |
-  You are a dashboard monitoring agent. Analyze screen content to detect changes in dashboards, charts, and metrics.
-  
-  $SCREEN_64
-  
-  <Screen Text>
-  $SCREEN_OCR
-  </Screen Text>
-  
-  Your task is to:
-  1. Identify dashboards, charts, metrics on screen
-  2. Notice significant changes in values or status
-  
-  If you detect a meaningful change, respond with:
-  ALERT: [describe the specific change]
-  
-  If no significant changes, respond with:
-  "No significant changes detected"
-  
-code: |
-  // Only save alerts
-  if (response.includes("ALERT:")) {
-    appendMemory(\`[\${time()}] \${response}\`);
-  }
-  
-memory: ""
-\`\`\`
-
-Focus on creating agents that:
-1. Have clear command patterns in system prompts
-2. Use minimal code that just saves relevant information
-3. Match the user's requirements precisely
-
-Match the output format EXACTLY, make sure all fields are present and properly formatted.
-
-Respond with a brief one sentence description of the agent, and then output the agentfile with the specified format.
-
-AGENT TO BE CREATED:`;
-}
+  return (
+    <div className="agent-response w-full">
+      {formattedResponse}
+    </div>
+  );
+};
 
 // Function to parse the AI response
 function parseAgentResponse(responseText: string): { agent: CompleteAgent, code: string } | null {
@@ -375,10 +307,10 @@ const GenerateAgent: React.FC = () => {
           </button>
         </form>
       ) : (
-        // Show response
+        // Show response with PrettyAgentResponse
         <div>
-          <div className="bg-gray-50 p-4 rounded-md mb-4 max-h-72 overflow-y-auto border border-gray-200">
-            <div className="whitespace-pre-wrap font-mono text-sm text-gray-800">{aiResponse}</div>
+          <div className="mb-4 max-h-72 overflow-y-auto">
+            <PrettyAgentResponse responseText={aiResponse} isStreaming={isStreaming} />
           </div>
           <div className="flex justify-end space-x-3">
             {isStreaming && (
