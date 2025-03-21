@@ -23,7 +23,7 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isStreaming: boolean
     const agentFileRegex = /```\s*\n?([\s\S]*?)```/;
     const match = responseText.match(agentFileRegex);
     
-    if (match && match[1]) {
+    if (match && match[1] && match.index !== undefined) {
       // We found content inside triple backticks
       const beforeContent = responseText.slice(0, match.index).trim();
       const agentFileContent = match[1];
@@ -57,8 +57,10 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isStreaming: boolean
         <div className="p-4">
           {lines.map((line, index) => {
             // Check if this is a key-value line (like "id: something")
-            if (line.match(/^([a-z_]+):\s*(.+)$/)) {
-              const [_, key, value] = line.match(/^([a-z_]+):\s*(.+)$/);
+            const keyValueMatch = line.match(/^([a-z_]+):\s*(.+)$/);
+            if (keyValueMatch && keyValueMatch.length >= 3) {
+              const key = keyValueMatch[1];
+              const value = keyValueMatch[2];
               
               return (
                 <div key={index} className="flex items-start mb-2">
@@ -69,8 +71,9 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isStreaming: boolean
             }
             
             // Section headers with pipe symbol
-            else if (line.match(/^([a-z_]+):\s*\|$/)) {
-              const [_, key] = line.match(/^([a-z_]+):\s*\|$/);
+            const sectionMatch = line.match(/^([a-z_]+):\s*\|$/);
+            if (sectionMatch && sectionMatch.length >= 2) {
+              const key = sectionMatch[1];
               
               return (
                 <div key={index} className="flex flex-col mb-2 mt-4">
@@ -80,18 +83,16 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isStreaming: boolean
             }
             
             // If line is empty, add some spacing
-            else if (line.trim() === "") {
+            if (line.trim() === "") {
               return <div key={index} className="h-2"></div>;
             }
             
             // Regular content lines (indented under a section)
-            else {
-              return (
-                <div key={index} className="pl-6 text-gray-700 whitespace-pre-wrap mb-1">
-                  {line}
-                </div>
-              );
-            }
+            return (
+              <div key={index} className="pl-6 text-gray-700 whitespace-pre-wrap mb-1">
+                {line}
+              </div>
+            );
           })}
         </div>
         {isStreaming && (
