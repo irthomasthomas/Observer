@@ -171,6 +171,8 @@ Focus on creating agents that:
 
 Match the output format EXACTLY, make sure all fields are present and properly formatted.
 
+Respond with a brief one sentence description of the agent, and then output the agentfile with the specified format.
+
 AGENT TO BE CREATED:`;
 }
 
