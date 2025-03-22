@@ -15,9 +15,9 @@ export async function postProcess(agentId: string, response: string, code: strin
       Logger.debug(agentId, 'Detected Python code, using Python handler');
       const result = await executePython(response, agentId, code);
       if (result) {
-        Logger.info(agentId, 'Response processed successfully');
+        Logger.debug(agentId, 'Response processed successfully');
       } else {
-        Logger.info(agentId, 'Python execution failed');
+        Logger.debug(agentId, 'Python execution failed');
       }
     
       return result;
@@ -28,9 +28,9 @@ export async function postProcess(agentId: string, response: string, code: strin
       const result = await executeJavaScript(response, agentId, code);
       
       if (result) {
-        Logger.info(agentId, 'Response processed successfully');
+        Logger.debug(agentId, 'Response processed successfully');
       } else {
-        Logger.info(agentId, 'Response processed but no specific action taken');
+        Logger.debug(agentId, 'Response processed but no specific action taken');
       }
       
       return result;

@@ -89,7 +89,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({
       setSavedMemory(agentMemory);
       
       if (logActivity) {
-        Logger.info(agentId, `Memory loaded (${agentMemory.length} characters)`);
+        Logger.debug(agentId, `Memory loaded (${agentMemory.length} characters)`);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -104,7 +104,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({
       setIsSaving(true);
       await updateAgentMemory(agentId, memory);
       setSavedMemory(memory);
-      Logger.info(agentId, `Memory saved (${memory.length} characters)`);
+      Logger.debug(agentId, `Memory saved (${memory.length} characters)`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to save memory: ${errorMessage}`);

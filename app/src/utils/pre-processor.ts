@@ -23,7 +23,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$SCREEN_OCR/g,
     handler: async (agentId: string) => {
       try {
-        Logger.info(agentId, `Initializing screen capture for OCR`);
+        Logger.debug(agentId, `Initializing screen capture for OCR`);
         
         // Ensure screen capture is initialized
         const stream = await startScreenCapture();
@@ -35,7 +35,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         const ocrResult = await captureFrameAndOCR();
         
         if (ocrResult.success && ocrResult.text) {
-          Logger.info(agentId, `OCR successful, text injected into prompt`);
+          Logger.debug(agentId, `OCR successful, text injected into prompt`);
           
           return { replacementText: ocrResult.text };
         } else {
@@ -68,7 +68,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$SCREEN_64/g,
     handler: async (agentId: string) => {
       try {
-        Logger.info(agentId, `Capturing screen for image processing`);
+        Logger.debug(agentId, `Capturing screen for image processing`);
         
         // Ensure screen capture is initialized
         const stream = await startScreenCapture();
@@ -147,7 +147,7 @@ export async function preProcess(agentId: string, systemPrompt: string): Promise
         if (processorResult.images && processorResult.images.length > 0) {
           result.images = [...(result.images || []), ...processorResult.images];
         }
-        Logger.info(agentId, `Finished Pre-Processing with prompt:`, result);
+        Logger.debug(agentId, `Finished Pre-Processing with prompt:`, result);
       }
     }
     

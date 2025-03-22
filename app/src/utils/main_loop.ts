@@ -92,7 +92,7 @@ export async function startAgentLoop(agentId: string): Promise<void> {
       throw new Error(`Agent ${agentId} not found`);
     }
     
-    Logger.info(agentId, `Starting agent loop for ${agent.name}`);
+    Logger.debug(agentId, `Starting agent loop for ${agent.name}`);
     
     // Store loop information
     activeLoops[agentId] = {
@@ -105,7 +105,7 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     };
     
     // Run first iteration immediately
-    Logger.info(agentId, `Running first iteration immediately`);
+    Logger.debug(agentId, `Running first iteration immediately`);
     await executeAgentIteration(agentId);
     
   } catch (error) {
@@ -122,7 +122,7 @@ export function stopAgentLoop(agentId: string): void {
   const loop = activeLoops[agentId];
   
   if (loop && loop.isRunning) {
-    Logger.info(agentId, `Stopping agent loop`);
+    Logger.debug(agentId, `Stopping agent loop`);
     
     // Clear the timeout
     if (loop.timeoutId !== null) {
@@ -139,7 +139,7 @@ export function stopAgentLoop(agentId: string): void {
       timeoutId: null
     };
     
-    Logger.info(agentId, `Agent loop stopped successfully`);
+    Logger.debug(agentId, `Agent loop stopped successfully`);
   } else {
     Logger.warn(agentId, `Attempted to stop agent that wasn't running`);
   }
@@ -180,7 +180,7 @@ async function executeAgentIteration(agentId: string): Promise<void> {
     const systemPrompt = await preProcess(agentId, agent.system_prompt);
     
     // 2. Send prompt to API
-    Logger.info(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
+    Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
     const response = await sendPrompt(
       serverHost,
       serverPort,
@@ -188,11 +188,11 @@ async function executeAgentIteration(agentId: string): Promise<void> {
       systemPrompt
     );
 
-  Logger.info(agentId, `Response Received: ${response}`);
-  Logger.info(agentId, `About to call postProcess on ${agentId} with agentCode length: ${agentCode.length}`);
+  Logger.debug(agentId, `Response Received: ${response}`);
+  Logger.debug(agentId, `About to call postProcess on ${agentId} with agentCode length: ${agentCode.length}`);
   try {
     await postProcess(agentId, response, agentCode);
-    Logger.info(agentId, `postProcess completed successfully`);
+    Logger.debug(agentId, `postProcess completed successfully`);
   } catch (postProcessError) {
     Logger.error(agentId, `Error in postProcess: ${postProcessError}`, postProcessError);
   }

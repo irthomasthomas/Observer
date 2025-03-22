@@ -183,7 +183,7 @@ function AppContent() {
           });
         }
         await updateAgentStatus(id, 'stopped');
-        Logger.info(id, `Agent status updated to "stopped" in database`);
+        Logger.debug(id, `Agent status updated to "stopped" in database`);
       } else {
         Logger.info(id, `Starting agent "${agent.name}"`);
         setStartingAgents(prev => {
@@ -195,7 +195,7 @@ function AppContent() {
         try {
           await startAgentLoop(id);
           await updateAgentStatus(id, 'running');
-          Logger.info(id, `Agent status updated to "running" in database`);
+          Logger.debug(id, `Agent status updated to "running" in database`);
         } finally {
           setStartingAgents(prev => {
             const updated = new Set(prev);
