@@ -178,15 +178,27 @@ async function executeAgentIteration(agentId: string): Promise<void> {
     
     // 1. Pre-process: Prepare the prompt
     const systemPrompt = await preProcess(agentId, agent.system_prompt);
-    
+
+    Logger.info(agentId, `Prompt`, {
+      logType: 'model-prompt',
+      content: systemPrompt
+    });
+    console.log(systemPrompt)
+
     // 2. Send prompt to API
     Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
+
     const response = await sendPrompt(
       serverHost,
       serverPort,
       agent.model_name,
       systemPrompt
     );
+
+    Logger.info(agentId, `Response`, {
+      logType: 'model-response',
+      content: response
+    });
 
   Logger.debug(agentId, `Response Received: ${response}`);
   Logger.debug(agentId, `About to call postProcess on ${agentId} with agentCode length: ${agentCode.length}`);

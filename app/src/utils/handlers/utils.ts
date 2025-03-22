@@ -29,6 +29,12 @@ export async function getMemory(agentId: string): Promise<string> {
  */
 export async function setMemory(agentId: string, memory: any): Promise<void> {
   await saveAgentMemory(agentId, memory);
+  
+  // Log the memory update
+  Logger.info(agentId, `Memory Updated`, {
+    logType: 'memory-update',
+    content: memory
+  });
 }
 
 /**
@@ -50,6 +56,16 @@ export async function appendMemory(agentId: string, content: string, separator: 
     await saveAgentMemory(agentId, newMemory);
     
     Logger.debug('MEMORY', `Appended to agent ${agentId} memory`);
+    
+    // Log the memory append
+    Logger.info(agentId, `Memory Appended`, {
+      logType: 'memory-update',
+      content: newMemory,
+      update: {
+        appended: content,
+        separator: separator
+      }
+    });
   } catch (error) {
     Logger.error('MEMORY', `Error appending to memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
