@@ -25,7 +25,11 @@ An open-source platform for running local AI agents that enhance your computing 
 
 ## 🚀 Getting Started with Local Inference
 
+We need to wrap Ollama to use https instead of http so that the browser can connect to it. This is done with self-signed SSL certificates.
+
 ```bash
+# Make sure to have [Ollama](https://ollama.com) installed 
+
 # For local inference run observer-ollama
 pip install observer-ollama
 
@@ -35,10 +39,12 @@ pip install observer-ollama
 #  ➜  Local:   https://localhost:3838/
 #  ➜  Network: https://10.0.0.138:3838/
 
+# Click on proceed to localhost (unsafe), if "Ollama is running" shows up, you're done!
+
 # Go to webapp:
 app.observer-ai.com
 
-# Enter your inference IP 
+# Enter your inference IP (localhost:3838) on the app header.
 ```
 
 # 🏗️ Building Your Own Agent
