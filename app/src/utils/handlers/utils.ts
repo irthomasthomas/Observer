@@ -71,13 +71,32 @@ export async function appendMemory(agentId: string, content: string, separator: 
   }
 }
 
+
 /**
  * Send a notification
  */
 export function notify(title: string, message: string): void {
   try {
-    window.postMessage({ type: 'NOTIFICATION', title, message }, '*');
+    // Check if notifications are supported
+    if (!("Notification" in window)) {
+      Logger.error('NOTIFICATION', 'Browser does not support notifications');
+      return;
+    }
+    
+    // Check permission status
+    if (Notification.permission === "granted") {
+      // Create and show notification
+      new Notification(title, { body: message });
+    } else if (Notification.permission !== "denied") {
+      // Request permission
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          new Notification(title, { body: message });
+        }
+      });
+    }
   } catch (error) {
     Logger.error('NOTIFICATION', `Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
+

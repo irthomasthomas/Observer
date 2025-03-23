@@ -4,6 +4,7 @@ import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import TextBubble from './TextBubble';
 import { Logger } from '@utils/logging';
+import { startScreenCapture, stopScreenCapture } from '@utils/screenCapture';
 
 interface AuthState {
   isLoading: boolean;
@@ -126,6 +127,16 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       setQuotaInfo(null);
     } finally {
       setIsLoadingQuota(false);
+    }
+  };
+
+  const handleScreenCaptureClick = async () => {
+    try {
+      await startScreenCapture();
+      Logger.info('SCREEN', 'Screen capture initialized');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      Logger.error('SCREEN', `Screen capture error: ${errorMessage}`);
     }
   };
 
@@ -288,10 +299,18 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   </span>
                 )}
               </button>
-              
-              <img src="/eye-logo-black.svg" alt="Observer Logo" className="h-8 w-8" />
-              <h1 className="text-xl font-semibold">Observer</h1>
-            </div>
+
+              <img 
+                src="/eye-logo-black.svg" 
+                alt="Observer Logo" 
+                className="h-8 w-8 cursor-pointer hover:opacity-80"
+                onClick={handleScreenCaptureClick}
+                title="Initialize screen capture"
+              />
+
+
+                <h1 className="text-xl font-semibold">Observer</h1>
+              </div> 
 
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">

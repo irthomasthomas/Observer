@@ -38,6 +38,18 @@ export async function startScreenCapture(): Promise<MediaStream | null> {
     return stream;
   } catch (error) {
     console.error('Screen capture error:', error);
+    
+    // Check for Safari's specific error message
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('getDisplayMedia must be called from a user gesture handler')) {
+      // Create a custom error with a more helpful message
+      const enhancedError = new Error(
+        'Browser permission needed: Please click the Observer icon in the top left corner to enable screen capture'
+      );
+      throw enhancedError;
+    }
+    
+    // For other errors, just pass them through
     throw error;
   }
 }
