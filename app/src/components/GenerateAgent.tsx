@@ -1,22 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Loader2, Zap, XCircle, Save } from 'lucide-react';
-import { streamPrompt } from '@utils/streamApi';
+import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent, saveAgent } from '@utils/agent_database';
 import EditAgentModal from './EditAgentModal';
-import getSystemPrompt from '@utils/system_prompt'
-
-// Use environment variables for API keys
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''; 
-const DEFAULT_MODEL = import.meta.env.VITE_DEFAULT_MODEL || 'gemini-2.0-flash';
+import getSystemPrompt from '@utils/system_prompt';
+import { getOllamaServerAddress } from '@utils/main_loop';
 
 // Inline PrettyAgentResponse component
-const PrettyAgentResponse: React.FC<{ responseText: string; isStreaming: boolean }> = ({ 
+const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }> = ({ 
   responseText, 
-  isStreaming 
+  isLoading 
 }) => {
   const [formattedResponse, setFormattedResponse] = useState<React.ReactNode>("");
   
-  useEffect(() => {
+  React.useEffect(() => {
     if (!responseText) return;
     
     // Extract the part inside triple backticks if present
@@ -95,7 +92,7 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isStreaming: boolean
             );
           })}
         </div>
-        {isStreaming && (
+        {isLoading && (
           <div className="bg-gradient-to-r from-blue-50 to-blue-100 h-1 w-full animate-pulse"></div>
         )}
       </div>
@@ -163,12 +160,13 @@ function parseAgentResponse(responseText: string): { agent: CompleteAgent, code:
 
 const GenerateAgent: React.FC = () => {
   const [userInput, setUserInput] = useState<string>('');
-  const [aiResponse, setAiResponse] = useState<string>('');
-  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [visibleResponse, setVisibleResponse] = useState<string>('');
+  const [fullResponse, setFullResponse] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isFakeStreaming, setIsFakeStreaming] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
-  const abortControllerRef = useRef<(() => void) | null>(null);
   
   // Modal state
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -178,58 +176,67 @@ const GenerateAgent: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!userInput.trim() || isStreaming) return;
+    if (!userInput.trim() || isLoading || isFakeStreaming) return;
     
     // Clear previous responses and errors
-    setAiResponse('');
-    setIsStreaming(true);
+    setVisibleResponse('');
+    setFullResponse('');
+    setIsLoading(true);
     setError(null);
     setSaveSuccess(false);
     
     const fullPrompt = `${getSystemPrompt()} ${userInput}`;
     
     try {
-      // Stream the response using our new Gemini API utility
-      const abortStream = streamPrompt(
-        GEMINI_API_KEY,
-        DEFAULT_MODEL,
-        fullPrompt,
-        (chunk) => {
-          // Update UI with each new chunk
-          setAiResponse(prev => prev + chunk);
-        },
-        () => {
-          // Stream completed
-          setIsStreaming(false);
-        },
-        (error: Error) => {
-          // Stream error
-          setError(`Error: ${error.message}`);
-          setIsStreaming(false);
-        }
+      // Get server address from main_loop.ts
+      const { host, port } = getOllamaServerAddress();
+      
+      // Send the prompt using sendApi
+      const response = await sendPrompt(
+        host,
+        port,
+        'gemini-2.0-flash', 
+        { modifiedPrompt: fullPrompt, images: [] }
       );
       
-      // Store the abort function
-      abortControllerRef.current = abortStream;
+      // Update the UI with the complete response
+      setFullResponse(response);
       
+      // Start the fake streaming effect
+      setIsFakeStreaming(true);
+      setIsLoading(false);
+      
+      // Implement fake streaming with a fast typing effect
+      let currentIndex = 0;
+      const streamingSpeed = 15; // Characters per frame
+      
+      const streamInterval = setInterval(() => {
+        currentIndex += streamingSpeed;
+        
+        if (currentIndex >= response.length) {
+          // End of response reached
+          setVisibleResponse(response);
+          setIsFakeStreaming(false);
+          clearInterval(streamInterval);
+        } else {
+          // Show the next chunk of text
+          setVisibleResponse(response.substring(0, currentIndex));
+        }
+      }, 25); // Update every 25ms for a fast but visible effect
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to generate: ${errorMessage}`);
-      setIsStreaming(false);
-    }
-  };
-  
-  const handleCancel = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current();
-      abortControllerRef.current = null;
-      setIsStreaming(false);
+    } finally {
+      if (!isFakeStreaming) {
+        setIsLoading(false);
+      }
     }
   };
   
   const handleReset = () => {
     setUserInput('');
-    setAiResponse('');
+    setVisibleResponse('');
+    setFullResponse('');
     setError(null);
     setSaveSuccess(false);
   };
@@ -239,7 +246,7 @@ const GenerateAgent: React.FC = () => {
     setError(null);
     
     try {
-      const parsed = parseAgentResponse(aiResponse);
+      const parsed = parseAgentResponse(fullResponse);
       if (!parsed) {
         throw new Error("Failed to parse agent response. Please check the format.");
       }
@@ -266,7 +273,8 @@ const GenerateAgent: React.FC = () => {
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
-        setAiResponse('');
+        setVisibleResponse('');
+        setFullResponse('');
         setUserInput('');
       }, 3000);
     } catch (err) {
@@ -280,7 +288,7 @@ const GenerateAgent: React.FC = () => {
 
   return (
     <div className="w-full">
-      {!aiResponse ? (
+      {!fullResponse ? (
         // Input form when no response yet
         <form onSubmit={handleSubmit} className="flex">
           <input
@@ -289,15 +297,15 @@ const GenerateAgent: React.FC = () => {
             onChange={(e) => setUserInput(e.target.value)}
             placeholder="Describe what you want the agent to do..."
             className="flex-1 p-3 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-            disabled={isStreaming}
+            disabled={isLoading}
             autoFocus
           />
           <button
             type="submit"
             className="px-5 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-r-md hover:from-green-600 hover:to-emerald-700 font-medium transition-colors flex items-center"
-            disabled={isStreaming || !userInput.trim()}
+            disabled={isLoading || !userInput.trim()}
           >
-            {isStreaming ? (
+            {isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <>
@@ -311,21 +319,11 @@ const GenerateAgent: React.FC = () => {
         // Show response with PrettyAgentResponse
         <div>
           <div className="mb-4 max-h-72 overflow-y-auto">
-            <PrettyAgentResponse responseText={aiResponse} isStreaming={isStreaming} />
+            <PrettyAgentResponse responseText={visibleResponse} isLoading={isLoading || isFakeStreaming} />
           </div>
           <div className="flex justify-end space-x-3">
-            {isStreaming && (
-              <button
-                onClick={handleCancel}
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors flex items-center"
-              >
-                <XCircle className="h-4 w-4 mr-1" />
-                Cancel
-              </button>
-            )}
-            
             {/* Save Agent button */}
-            {!isStreaming && aiResponse && (
+            {!isLoading && !isFakeStreaming && fullResponse && (
               <button
                 onClick={handleSaveAgent}
                 disabled={isSaving}
