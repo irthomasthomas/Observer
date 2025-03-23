@@ -4,7 +4,7 @@ import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import TextBubble from './TextBubble';
 import { Logger } from '@utils/logging';
-import { startScreenCapture, stopScreenCapture } from '@utils/screenCapture';
+import { startScreenCapture } from '@utils/screenCapture';
 
 interface AuthState {
   isLoading: boolean;
