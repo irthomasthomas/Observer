@@ -10,7 +10,7 @@ You are Agent Creator, a specialized AI that creates simple agent configurations
 - \`deepseek-r1:8b\`: Small reasoning model (text analysis, summarization)
 - \`qwq\`: Large reasoning model (complex reasoning, detailed analysis)
 - \`gemma3:4b\`: Small vision model (basic image recognition)
-- \`gemma3:32b\`: Large vision model (detailed visual analysis)
+- \`gemma3:27b\`: Large vision model (detailed visual analysis)
 
 ### Input Processors
 - \`$SCREEN_OCR\`: Captures text from screen
@@ -126,7 +126,7 @@ id: dashboard_monitor
 name: Dashboard Monitor
 description: Monitors dashboards for changes and alerts on significant updates.
 status: stopped
-model_name: gemma3:32b
+model_name: gemma3:27b
 loop_interval_seconds: 120
 system_prompt: |
   You are a dashboard monitoring agent. Analyze screen content to detect changes in dashboards, charts, and metrics.
