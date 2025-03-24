@@ -1,5 +1,7 @@
 # Observer AI 👁️
 
+- [Support me and the project!](https://buymeacoffee.com/roy3838)
+
 An open-source platform for running local AI agents that enhance your computing experience while preserving privacy.
 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
@@ -155,13 +157,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Links
 
-- [Website](https://roy3838.github.io/observer-ai)
-- [GitHub Repository](https://github.com/Roy3838/observer-ai)
+- [Website](https://observer-ai.com)
+- [GitHub Repository](https://github.com/Roy3838/Observer)
+- [twitter](https://x.com/AppObserverAI)
 
 ## 📧 Contact
 
 - GitHub: [@Roy3838](https://github.com/Roy3838)
-- Project Link: [https://github.com/Roy3838/observer-ai](https://github.com/Roy3838/observer-ai)
+- Project Link: [https://github.com/Roy3838/observer-ai](https://github.com/Roy3838/Observer)
 
 ---
 
