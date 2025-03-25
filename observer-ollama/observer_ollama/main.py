@@ -178,13 +178,38 @@ def prepare_certificates(cert_dir):
     """Prepare SSL certificates"""
     cert_path = Path(cert_dir) / "cert.pem"
     key_path = Path(cert_dir) / "key.pem"
+    config_path = Path(cert_dir) / "openssl.cnf"
     
     # Create certificate directory if it doesn't exist
     os.makedirs(cert_dir, exist_ok=True)
     
+
     # Check if we need to generate certificates
     if not cert_path.exists() or not key_path.exists():
         logger.info("Generating SSL certificates...")
+        
+        # Create a minimal OpenSSL config with SAN entries
+        local_ip = get_local_ip()
+        with open(config_path, 'w') as f:
+            f.write(f"""
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+CN = localhost
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+DNS.2 = app.observer-ai.com
+IP.1 = 127.0.0.1
+IP.2 = {local_ip}
+            """)
+        
         cmd = [
             "openssl", "req", "-x509", 
             "-newkey", "rsa:4096", 
@@ -193,7 +218,7 @@ def prepare_certificates(cert_dir):
             "-nodes", 
             "-keyout", str(key_path), 
             "-out", str(cert_path),
-            "-subj", "/CN=localhost"
+            "-config", str(config_path)
         ]
         try:
             subprocess.run(cmd, check=True, capture_output=True)
