@@ -132,7 +132,8 @@ function parseAgentResponse(responseText: string, agentType: 'browser' | 'python
       let minIndent = Infinity;
       for (const line of lines) {
         if (line.trim() !== '') {
-          const leadingSpaces = line.match(/^\s*/)[0].length;
+          const spaceMatch = line.match(/^\s*/);
+          const leadingSpaces = spaceMatch ? spaceMatch[0].length : 0;
           minIndent = Math.min(minIndent, leadingSpaces);
         }
       }
@@ -159,7 +160,6 @@ function parseAgentResponse(responseText: string, agentType: 'browser' | 'python
       model_name: getId('model_name'),
       system_prompt: systemPromptMatch[1].trimEnd(),
       loop_interval_seconds: parseFloat(getId('loop_interval_seconds')),
-      type: agentType
     };
     
     return { agent, code: codeSection };
