@@ -67,16 +67,18 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   // State for the Ob-Server trial bubble
   const [showObServerTrialBubble, setShowObServerTrialBubble] = useState(true);
 
-  // Only way of checking if logged in or not, Components weren't re-rendering
   useEffect(() => {
-    // Save when authenticated 
     if (authState?.isAuthenticated) {
       localStorage.setItem('auth_user', JSON.stringify(authState.user || {}));
       localStorage.setItem('auth_authenticated', 'true');
-      // Hide login hint when authenticated
       setShowLoginHint(false);
+      
+      // Register with backend when auth state changes and user is authenticated
+      if (isUsingObServer && authState.user?.sub) {
+        registerWithObserver(authState.user.sub);
+      }
     }
-  }, [authState?.isAuthenticated, authState?.user]);
+  }, [authState?.isAuthenticated, authState?.user, isUsingObServer]);
     
   // Use local storage to override auth state when needed
   const isAuthenticated = authState?.isAuthenticated || localStorage.getItem('auth_authenticated') === 'true';
@@ -91,23 +93,72 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
+  // Register user with auth_code
+  const registerWithObserver = async (userId: string) => {
+    try {
+      Logger.info('AUTH', `Registering with Observer backend for user: ${userId}`);
+      console.log('Registering with Observer backend for user:', userId);
+      
+      const response = await fetch('https://api.observer-ai.com/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: userId })
+      });
+      
+      Logger.info('AUTH', `Register response status: ${response.status}`);
+      console.log('Register response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to register with Observer: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      Logger.info('AUTH', `Register response data: ${JSON.stringify(data)}`);
+      console.log('Register response data:', data);
+      
+      if (data.auth_code) {
+        // Store the auth code in localStorage for future API requests
+        localStorage.setItem('observer_auth_code', data.auth_code);
+        Logger.info('AUTH', `Successfully saved auth code: ${data.auth_code}`);
+        console.log('Successfully saved auth code:', data.auth_code);
+        
+        // Verify the auth code was saved correctly
+        const savedCode = localStorage.getItem('observer_auth_code');
+        Logger.info('AUTH', `Verification - auth code in localStorage: ${savedCode}`);
+        console.log('Verification - auth code in localStorage:', savedCode);
+      } else {
+        throw new Error('No auth code received from server');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      Logger.error('AUTH', `Error registering with Observer backend: ${errorMessage}`, err);
+      console.error('Error registering with Observer backend:', errorMessage, err);
+    }
+  };
+
   // Fetch quota information
   const fetchQuotaInfo = async () => {
     if (serverStatus !== 'online') return;
     
     try {
       setIsLoadingQuota(true);
-      const host = isUsingObServer ? 'api.observer-ai.com' : serverAddress.split(':')[0];
-      const port = isUsingObServer ? '443' : serverAddress.split(':')[1];
-      
-      // Construct the correct URL based on whether using Ob-Server or local
       const baseUrl = isUsingObServer 
-        ? `https://api.observer-ai.com`
-        : `https://${host}:${port}`;
+        ? 'https://api.observer-ai.com'
+        : `https://${serverAddress}`;
+      
+      // Prepare headers with auth code if available
+      const headers = { 'Content-Type': 'application/json' };
+      const authCode = localStorage.getItem('observer_auth_code');
+      
+      if (authCode && isUsingObServer) {
+        headers['X-Observer-Auth-Code'] = authCode;
+      }
       
       const response = await fetch(`${baseUrl}/quota`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers
       });
       
       if (response.ok) {
@@ -116,14 +167,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           used: data.used,
           remaining: data.remaining
         });
-        Logger.info('QUOTA', `Quota info fetched: ${data.used} used, ${data.remaining} remaining`);
       } else {
-        Logger.error('QUOTA', `Failed to fetch quota info: ${response.status}`);
         setQuotaInfo(null);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      Logger.error('QUOTA', `Error fetching quota info: ${errorMessage}`, err);
       setQuotaInfo(null);
     } finally {
       setIsLoadingQuota(false);
@@ -181,8 +228,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       // Set the server address for agent loops
       setOllamaServerAddress('api.observer-ai.com', '443');
       
-      // We'll just assume Ob-Server is online for simplicity
-      // In a real implementation, you might want to do an actual health check
+      // Register with the backend if authenticated
+      if (isAuthenticated && userData?.sub) {
+        Logger.info('AUTH', 'User authenticated when checking ObServer, registering...');
+        await registerWithObserver(userData.sub);
+      }
+      
       setServerStatus('online');
       setError(null);
       Logger.info('SERVER', 'Connected successfully to Ob-Server at api.observer-ai.com');

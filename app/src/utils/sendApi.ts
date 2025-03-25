@@ -1,8 +1,6 @@
 // src/utils/sendApi.ts
-
 // Import the PreProcessorResult interface from the pre-processor file
 import { PreProcessorResult } from './pre-processor';
-
 /**
  * Send a prompt to the Ollama server
  * @param host Ollama server host
@@ -26,6 +24,19 @@ export async function sendPrompt(
       : `/v1/chat/completions`; // OpenAI compatible API for text
     
     const url = `https://${host}:${port}${endpoint}`;
+    
+    // Prepare headers with auth code if needed
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Add auth code header if available and using Ob-Server
+    if (host === 'api.observer-ai.com') {
+      const authCode = localStorage.getItem('observer_auth_code');
+      if (authCode) {
+        headers['X-Observer-Auth-Code'] = authCode;
+      }
+    }
     
     let requestBody;
     
@@ -53,9 +64,7 @@ export async function sendPrompt(
     
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: requestBody,
     });
     
@@ -96,6 +105,19 @@ async function sendPromptNative(
 ): Promise<string> {
   const url = `https://${host}:${port}/api/generate`;
   
+  // Prepare headers with auth code if needed
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  // Add auth code header if available and using Ob-Server
+  if (host === 'api.observer-ai.com') {
+    const authCode = localStorage.getItem('observer_auth_code');
+    if (authCode) {
+      headers['X-Observer-Auth-Code'] = authCode;
+    }
+  }
+  
   const requestBody = JSON.stringify({
     model: modelName,
     prompt: preprocessResult.modifiedPrompt,
@@ -105,9 +127,7 @@ async function sendPromptNative(
   
   const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: requestBody,
   });
   
