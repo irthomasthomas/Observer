@@ -16,7 +16,7 @@ const activeLoops: Record<string, {
 }> = {};
 
 let serverHost = 'localhost';
-let serverPort = '11434';
+let serverPort = '3838';
 
 /**
  * Set the Ollama server connection details
