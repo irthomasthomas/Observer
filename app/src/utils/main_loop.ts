@@ -115,7 +115,7 @@ export function stopAgentLoop(agentId: string): void {
 /**
  * Execute a single iteration of the agent's loop
  */
-async function executeAgentIteration(agentId: string): Promise<void> {
+export async function executeAgentIteration(agentId: string): Promise<void> {
   // Check if the loop is still active
   if (!activeLoops[agentId]?.isRunning) {
     Logger.debug(agentId, `Skipping execution for stopped agent`);

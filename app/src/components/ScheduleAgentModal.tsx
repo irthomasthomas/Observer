@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { Logger } from '../utils/logging';
+import { executeAgentIteration } from '../utils/main_loop';
+import { updateAgentStatus } from '../utils/agent_database';
 
 interface ScheduleAgentModalProps {
   agentId: string;
@@ -9,9 +11,7 @@ interface ScheduleAgentModalProps {
   onUpdate: () => void;
 }
 
-// Store scheduled tasks in memory (client-side only)
-// Using an object that persists between component renders
-// This could be replaced with localStorage for persistence between page refreshes
+// Store scheduled tasks in memory
 const scheduledAgents: Record<string, { 
   scheduledTime: Date; 
   timeoutId: number;
@@ -44,6 +44,7 @@ const ScheduleAgentModal: React.FC<ScheduleAgentModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isCurrentlyScheduled, setIsCurrentlyScheduled] = useState<boolean>(false);
   const [scheduledDateTime, setScheduledDateTime] = useState<string | null>(null);
+  const [isOneTime, setIsOneTime] = useState<boolean>(true);  // Default to one-time execution
 
   // Set default date to today and time to next hour
   useEffect(() => {
@@ -53,16 +54,14 @@ const ScheduleAgentModal: React.FC<ScheduleAgentModalProps> = ({
     nextHour.setMinutes(0);
     nextHour.setSeconds(0);
     
-    // Format date as YYYY-MM-DD for input
     const formattedDate = now.toISOString().split('T')[0];
     setDate(formattedDate);
     
-    // Format time as HH:MM for input
     const hours = nextHour.getHours().toString().padStart(2, '0');
     const minutes = nextHour.getMinutes().toString().padStart(2, '0');
     setTime(`${hours}:${minutes}`);
 
-    // Check if this agent is already scheduled
+    // Check if already scheduled
     if (isAgentScheduled(agentId)) {
       setIsCurrentlyScheduled(true);
       const scheduledTime = getScheduledTime(agentId);
@@ -83,7 +82,6 @@ const ScheduleAgentModal: React.FC<ScheduleAgentModalProps> = ({
     try {
       setError(null);
       
-      // Parse the selected date and time
       if (!date || !time) {
         setError('Please select both date and time');
         return;
@@ -92,51 +90,49 @@ const ScheduleAgentModal: React.FC<ScheduleAgentModalProps> = ({
       const scheduledDateTime = new Date(`${date}T${time}`);
       const now = new Date();
       
-      // Validate the scheduled time is in the future
       if (scheduledDateTime <= now) {
         setError('Scheduled time must be in the future');
         return;
       }
       
-      // Calculate timeout in milliseconds
       const timeUntilExecution = scheduledDateTime.getTime() - now.getTime();
       
-      // Cancel any existing schedule for this agent
       cancelScheduledAgent(agentId);
       
-      // Set up the timeout to execute the agent
-      const timeoutId = window.setTimeout(() => {
-        // This will run when the scheduled time arrives
+      const timeoutId = window.setTimeout(async () => {
         Logger.info('SCHEDULE', `Executing scheduled run for agent ${agentId}`);
         
-        // Import functions we need for toggling the agent
-        import('../utils/agent_database').then(({ updateAgentStatus }) => {
-          import('../utils/main_loop').then(({ startAgentLoop }) => {
-            // Start the agent
-            startAgentLoop(agentId)
-              .then(() => updateAgentStatus(agentId, 'running'))
-              .then(() => {
-                // Clean up the schedule after execution
-                delete scheduledAgents[agentId];
-                // Trigger UI refresh
-                onUpdate();
-              })
-              .catch(err => {
-                Logger.error('SCHEDULE', `Failed to execute scheduled agent ${agentId}: ${err.message}`, err);
-              });
-          });
-        });
+        try {
+          if (isOneTime) {
+            // For one-time execution, just run the agent iteration once
+            await executeAgentIteration(agentId);
+            Logger.info('SCHEDULE', `One-time execution completed for agent ${agentId}`);
+          } else {
+            // For continuous execution, start the agent loop
+            const { startAgentLoop } = await import('../utils/main_loop');
+            await startAgentLoop(agentId);
+            await updateAgentStatus(agentId, 'running');
+            Logger.info('SCHEDULE', `Started continuous execution for agent ${agentId}`);
+          }
+          
+          // Clean up one-time schedule
+          if (isOneTime) {
+            delete scheduledAgents[agentId];
+          }
+          
+          onUpdate();
+        } catch (err) {
+          Logger.error('SCHEDULE', `Failed to execute scheduled agent ${agentId}: ${err.message}`, err);
+        }
       }, timeUntilExecution);
       
-      // Store the schedule information
       scheduledAgents[agentId] = {
         scheduledTime: scheduledDateTime,
         timeoutId: timeoutId as unknown as number
       };
       
-      Logger.info('SCHEDULE', `Agent ${agentId} scheduled to run at ${scheduledDateTime.toLocaleString()}`);
+      Logger.info('SCHEDULE', `Agent ${agentId} scheduled to run at ${scheduledDateTime.toLocaleString()} (${isOneTime ? 'one-time' : 'continuous'})`);
       
-      // Close the modal and update the UI
       onUpdate();
       onClose();
       
@@ -149,7 +145,6 @@ const ScheduleAgentModal: React.FC<ScheduleAgentModalProps> = ({
 
   const handleCancel = () => {
     cancelScheduledAgent(agentId);
-    Logger.info('SCHEDULE', `Cancelled scheduled run for agent ${agentId}`);
     setIsCurrentlyScheduled(false);
     setScheduledDateTime(null);
     onUpdate();
@@ -197,6 +192,18 @@ const ScheduleAgentModal: React.FC<ScheduleAgentModalProps> = ({
                 />
                 <Clock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
               </div>
+            </div>
+            
+            <div>
+              <label className="flex items-center text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={isOneTime}
+                  onChange={(e) => setIsOneTime(e.target.checked)}
+                  className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600"
+                />
+                Run once (vs. start continuous execution)
+              </label>
             </div>
           </div>
         )}
