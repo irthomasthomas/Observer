@@ -149,7 +149,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         : `https://${serverAddress}`;
       
       // Prepare headers with auth code if available
-      const headers = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = { 
+        'Content-Type': 'application/json' 
+      };
       const authCode = localStorage.getItem('observer_auth_code');
       
       if (authCode && isUsingObServer) {
