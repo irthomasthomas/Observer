@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Terminal } from 'lucide-react';
+import { Terminal, Server } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { 
   listAgents, 
@@ -26,6 +26,7 @@ import AgentImportHandler from '@components/AgentImportHandler';
 import SidebarMenu from '@components/SidebarMenu';
 import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
+import JupyterServerModal from '@components/JupyterServerModal';
 
 function AppContent() {
   const { isAuthenticated, user, loginWithRedirect, logout, isLoading } = useAuth0();
@@ -49,6 +50,7 @@ function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('myAgents');
   const [isUsingObServer, setIsUsingObServer] = useState(false);
+  const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
 
   // Reload agent list when switching to the My Agents tab
   useEffect(() => {
@@ -352,6 +354,12 @@ function AppContent() {
           }}
         />
 
+        {/* Jupyter Server config */}
+        <JupyterServerModal
+          isOpen={isJupyterModalOpen}
+          onClose={() => setIsJupyterModalOpen(false)}
+        />
+
         {/* Main content, replace the TabNavigation and TabContent with this */}
         <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
           <AgentImportHandler 
@@ -438,15 +446,26 @@ function AppContent() {
 
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-30">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <button 
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
-            onClick={() => setShowGlobalLogs(!showGlobalLogs)}
-          >
-            <Terminal className="h-5 w-5" />
-            <span>{showGlobalLogs ? 'Hide System Logs' : 'Show System Logs'}</span>
-          </button>
+          <div className="flex space-x-3">
+            <button 
+              className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
+              onClick={() => setShowGlobalLogs(!showGlobalLogs)}
+            >
+              <Terminal className="h-5 w-5" />
+              <span>{showGlobalLogs ? 'Hide System Logs' : 'Show System Logs'}</span>
+            </button>
+            
+            <button 
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
+              onClick={() => setIsJupyterModalOpen(true)}
+            >
+              <Server className="h-5 w-5" />
+              <span>Configure Jupyter Server</span>
+            </button>
+          </div>
         </div>
       </footer>
+
       
       {showGlobalLogs && (
         <GlobalLogsViewer 
