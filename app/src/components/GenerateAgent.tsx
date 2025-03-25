@@ -4,9 +4,10 @@ import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent, saveAgent } from '@utils/agent_database';
 import EditAgentModal from './EditAgentModal';
 import getSystemPrompt from '@utils/system_prompt';
+import getPythonSystemPrompt from '@utils/python_system_prompt';
 import { getOllamaServerAddress } from '@utils/main_loop';
 
-// Inline PrettyAgentResponse component
+// UI-only component for displaying formatted agent response
 const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }> = ({ 
   responseText, 
   isLoading 
@@ -43,7 +44,7 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }
     }
   }, [responseText]);
   
-  // Function to format the agent file content
+  // Function to format the agent file content FOR DISPLAY ONLY
   const formatAgentFile = (content: string) => {
     // Split by lines
     const lines = content.split('\n');
@@ -106,49 +107,59 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }
   );
 };
 
-// Function to parse the AI response
-function parseAgentResponse(responseText: string): { agent: CompleteAgent, code: string } | null {
+function parseAgentResponse(responseText: string, agentType: 'browser' | 'python'): { agent: CompleteAgent, code: string } | null {
   try {
-    // Find the starting positions of each section
-    const systemPromptStart = responseText.indexOf('system_prompt: |');
-    const codeStart = responseText.indexOf('code: |');
-    const memoryStart = responseText.indexOf('memory: ');
+    // Extract content from backticks if present
+    const codeBlockMatch = responseText.match(/```([\s\S]*?)```/);
+    const relevantText = codeBlockMatch && codeBlockMatch[1] ? codeBlockMatch[1].trim() : responseText;
     
-    if (systemPromptStart === -1 || codeStart === -1 || memoryStart === -1) {
+    // Extract sections
+    const codeMatch = relevantText.match(/code:\s*\|\s*\n([\s\S]*?)(?=\nmemory:)/);
+    const systemPromptMatch = relevantText.match(/system_prompt:\s*\|\s*\n([\s\S]*?)(?=\ncode:)/);
+    
+    if (!codeMatch || !codeMatch[1] || !systemPromptMatch || !systemPromptMatch[1]) {
       return null;
     }
     
-    // Extract single-line fields with regex
-    const idMatch = responseText.match(/^id:\s*(.+)$/m);
-    const nameMatch = responseText.match(/^name:\s*(.+)$/m);
-    const descriptionMatch = responseText.match(/^description:\s*(.+)$/m);
-    const modelMatch = responseText.match(/^model_name:\s*(.+)$/m);
-    const intervalMatch = responseText.match(/^loop_interval_seconds:\s*(\d+\.?\d*)$/m);
+    // Get the code section
+    let codeSection = codeMatch[1];
     
-    if (!idMatch || !nameMatch || !modelMatch || !intervalMatch) {
-      return null;
+    // Fix Python indentation by removing common leading whitespace
+    if (agentType === 'python') {
+      const lines = codeSection.split('\n');
+      
+      // Find minimum indentation (excluding empty lines)
+      let minIndent = Infinity;
+      for (const line of lines) {
+        if (line.trim() !== '') {
+          const leadingSpaces = line.match(/^\s*/)[0].length;
+          minIndent = Math.min(minIndent, leadingSpaces);
+        }
+      }
+      
+      // Remove the common indentation from all lines
+      if (minIndent < Infinity && minIndent > 0) {
+        codeSection = lines.map(line => 
+          line.trim() === '' ? '' : line.slice(minIndent)
+        ).join('\n');
+      }
     }
     
-    // Extract system prompt (between system_prompt and code)
-    const systemPromptSection = responseText.substring(
-      systemPromptStart + 'system_prompt: |'.length,
-      codeStart
-    ).trim();
-    
-    // Extract code (between code and memory)
-    const codeSection = responseText.substring(
-      codeStart + 'code: |'.length,
-      memoryStart
-    ).trim();
+    // Extract fields
+    const getId = (field: string) => {
+      const match = relevantText.match(new RegExp(`${field}:\\s*([^\\n]+)`));
+      return match && match[1] ? match[1].trim() : '';
+    };
     
     const agent: CompleteAgent = {
-      id: idMatch[1].trim(),
-      name: nameMatch[1].trim(),
-      description: descriptionMatch ? descriptionMatch[1].trim() : '',
+      id: getId('id'),
+      name: getId('name'),
+      description: getId('description'),
       status: 'stopped',
-      model_name: modelMatch[1].trim(),
-      system_prompt: systemPromptSection,
-      loop_interval_seconds: parseFloat(intervalMatch[1])
+      model_name: getId('model_name'),
+      system_prompt: systemPromptMatch[1].trimEnd(),
+      loop_interval_seconds: parseFloat(getId('loop_interval_seconds')),
+      type: agentType
     };
     
     return { agent, code: codeSection };
@@ -158,7 +169,11 @@ function parseAgentResponse(responseText: string): { agent: CompleteAgent, code:
   }
 }
 
-const GenerateAgent: React.FC = () => {
+interface GenerateAgentProps {
+  agentType: 'browser' | 'python';
+}
+
+const GenerateAgent: React.FC<GenerateAgentProps> = ({ agentType }) => {
   const [userInput, setUserInput] = useState<string>('');
   const [visibleResponse, setVisibleResponse] = useState<string>('');
   const [fullResponse, setFullResponse] = useState<string>('');
@@ -169,7 +184,7 @@ const GenerateAgent: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   
   // Modal state
-  const [showModal, setShowModal] = useState<boolean>(false);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [parsedAgent, setParsedAgent] = useState<CompleteAgent | null>(null);
   const [parsedCode, setParsedCode] = useState<string>('');
   
@@ -185,7 +200,8 @@ const GenerateAgent: React.FC = () => {
     setError(null);
     setSaveSuccess(false);
     
-    const fullPrompt = `${getSystemPrompt()} ${userInput}`;
+    // Choose system prompt based on agent type
+    const fullPrompt = `${agentType === 'browser' ? getSystemPrompt() : getPythonSystemPrompt()} ${userInput}`;
     
     try {
       // Get server address from main_loop.ts
@@ -199,7 +215,7 @@ const GenerateAgent: React.FC = () => {
         { modifiedPrompt: fullPrompt, images: [] }
       );
       
-      // Update the UI with the complete response
+      // Store the raw response
       setFullResponse(response);
       
       // Start the fake streaming effect
@@ -222,14 +238,11 @@ const GenerateAgent: React.FC = () => {
           // Show the next chunk of text
           setVisibleResponse(response.substring(0, currentIndex));
         }
-      }, 25); // Update every 25ms for a fast but visible effect
+      }, 25);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to generate: ${errorMessage}`);
-    } finally {
-      if (!isFakeStreaming) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
   
@@ -246,28 +259,31 @@ const GenerateAgent: React.FC = () => {
     setError(null);
     
     try {
-      const parsed = parseAgentResponse(fullResponse);
+      // Parse directly from the raw response text
+      console.log("Raw response before parsing:", fullResponse);
+      const parsed = parseAgentResponse(fullResponse, agentType);
       if (!parsed) {
         throw new Error("Failed to parse agent response. Please check the format.");
       }
       
+      console.log("Parsed agent:", parsed.agent);
+      console.log("Parsed code:", parsed.code);
+      
       const { agent, code } = parsed;
       
-      // Open the modal for editing instead of saving directly
       setParsedAgent(agent);
       setParsedCode(code);
-      setShowModal(true);
+      setShowEditModal(true);
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Error parsing agent: ${errorMessage}`);
-    } finally {
       setIsSaving(false);
     }
   };
   
   const handleSaveModalChanges = async (agent: CompleteAgent, code: string) => {
     try {
-      // Save the agent using the database utility
       await saveAgent(agent, code);
       
       setSaveSuccess(true);
@@ -282,20 +298,19 @@ const GenerateAgent: React.FC = () => {
       setError(`Error saving agent: ${errorMessage}`);
     }
     
-    // Close the modal
-    setShowModal(false);
+    setShowEditModal(false);
+    setIsSaving(false);
   };
 
   return (
     <div className="w-full">
       {!fullResponse ? (
-        // Input form when no response yet
         <form onSubmit={handleSubmit} className="flex">
           <input
             type="text"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Describe what you want the agent to do..."
+            placeholder={`Describe what you want the ${agentType} agent to do...`}
             className="flex-1 p-3 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
             disabled={isLoading}
             autoFocus
@@ -316,13 +331,11 @@ const GenerateAgent: React.FC = () => {
           </button>
         </form>
       ) : (
-        // Show response with PrettyAgentResponse
         <div>
           <div className="mb-4 max-h-72 overflow-y-auto">
             <PrettyAgentResponse responseText={visibleResponse} isLoading={isLoading || isFakeStreaming} />
           </div>
           <div className="flex justify-end space-x-3">
-            {/* Save Agent button */}
             {!isLoading && !isFakeStreaming && fullResponse && (
               <button
                 onClick={handleSaveAgent}
@@ -353,7 +366,6 @@ const GenerateAgent: React.FC = () => {
         </div>
       )}
 
-      {/* Error display */}
       {error && (
         <div className="bg-red-50 text-red-700 p-3 my-4 text-sm rounded-md border border-red-200 flex items-start">
           <XCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
@@ -361,7 +373,6 @@ const GenerateAgent: React.FC = () => {
         </div>
       )}
       
-      {/* Success message */}
       {saveSuccess && (
         <div className="bg-green-50 text-green-700 p-3 my-4 text-sm rounded-md border border-green-200 flex items-start">
           <Save className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
@@ -369,11 +380,13 @@ const GenerateAgent: React.FC = () => {
         </div>
       )}
       
-      {/* Edit Agent Modal */}
-      {showModal && parsedAgent && (
+      {showEditModal && parsedAgent && (
         <EditAgentModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setIsSaving(false);
+          }}
           createMode={true}
           agent={parsedAgent}
           code={parsedCode}

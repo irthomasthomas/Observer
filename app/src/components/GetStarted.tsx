@@ -1,6 +1,6 @@
 // src/components/GetStarted.tsx
 import React, { useState } from 'react';
-import { Plus, Users, Sparkles } from 'lucide-react';
+import { Plus, Users, Sparkles, Terminal, Code } from 'lucide-react';
 import GenerateAgent from './GenerateAgent';
 
 interface GetStartedProps {
@@ -9,7 +9,6 @@ interface GetStartedProps {
   onAgentImported?: () => void;
 }
 
-// Trending agent examples
 const TRENDING_AGENTS = [
   { id: 'activity_tracking_agent', name: 'Activity Tracking Agent', description: 'Monitors and logs your computer activities' },
   { id: 'command_tracking_agent', name: 'Command Tracking Agent', description: 'Logs terminal commands you execute' },
@@ -23,10 +22,10 @@ const GetStarted: React.FC<GetStartedProps> = ({
 }) => {
   const [importingAgentId, setImportingAgentId] = useState<string | null>(null);
   const [showAiGenerator, setShowAiGenerator] = useState<boolean>(false);
+  const [agentType, setAgentType] = useState<'browser' | 'python'>('browser');
   
   const handleImport = async (agentId: string) => {
     setImportingAgentId(agentId);
-    // Simulate import process
     setTimeout(() => {
       setImportingAgentId(null);
       onAgentImported?.();
@@ -39,17 +38,61 @@ const GetStarted: React.FC<GetStartedProps> = ({
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 shadow-sm">
         <h2 className="text-2xl font-bold text-blue-800 mb-4 text-center">Welcome to Observer AI</h2>
         
-        <p className="text-blue-700 mb-8 text-center max-w-3xl mx-auto">
+        <p className="text-blue-700 mb-6 text-center max-w-3xl mx-auto">
           Create agents that can observe, analyze, and respond to what's happening on your screen.
-          Get started with just a few clicks!
         </p>
         
-        {/* AI Agent Generator - Main Focus */}
+        {/* Agent Type Toggle */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-white rounded-lg p-1 flex shadow-sm border border-blue-100">
+            <button
+              onClick={() => setAgentType('browser')}
+              className={`px-4 py-2 rounded-md flex items-center transition-colors ${
+                agentType === 'browser' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-blue-800 hover:bg-blue-50'
+              }`}
+            >
+              <Code className="h-4 w-4 mr-2" />
+              Browser Agent
+            </button>
+            <button
+              onClick={() => setAgentType('python')}
+              className={`px-4 py-2 rounded-md flex items-center transition-colors ${
+                agentType === 'python' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-blue-800 hover:bg-blue-50'
+              }`}
+            >
+              <Terminal className="h-4 w-4 mr-2" />
+              System Agent
+            </button>
+          </div>
+        </div>
+        
+        {/* Agent Type Description */}
+        <div className="mb-6 text-center">
+          {agentType === 'browser' ? (
+            <p className="text-sm text-blue-700">
+              Browser agents run in your browser and can monitor and log activities.
+            </p>
+          ) : (
+            <p className="text-sm text-blue-700">
+              System agents run on your computer with Python and can perform actions on your system.
+              <br />
+              <span className="text-blue-600 font-medium">Requires Jupyter server setup.</span>
+            </p>
+          )}
+        </div>
+        
+        {/* AI Agent Generator */}
         <div className="mb-10 max-w-3xl mx-auto">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-t-lg flex items-center">
             <Sparkles className="h-5 w-5 mr-2" />
             <div>
-              <h3 className="font-medium">AI Agent Generator</h3>
+              <h3 className="font-medium">
+                {agentType === 'browser' ? 'AI Browser Agent Generator' : 'AI System Agent Generator'}
+              </h3>
               <p className="text-sm opacity-90">
                 Describe what you need in plain English
               </p>
@@ -58,12 +101,15 @@ const GetStarted: React.FC<GetStartedProps> = ({
           
           <div className="bg-white p-5 rounded-b-lg shadow-sm">
             {showAiGenerator ? (
-              <GenerateAgent />
+              <GenerateAgent agentType={agentType} />
             ) : (
               <div className="flex">
                 <input
                   type="text"
-                  placeholder="Example: An agent that detects when I'm viewing sensitive documents..."
+                  placeholder={agentType === 'browser' 
+                    ? "Example: An agent that detects when I'm viewing sensitive documents..." 
+                    : "Example: An agent that saves screenshots when I open specific applications..."
+                  }
                   className="flex-1 p-3 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
                   onClick={() => setShowAiGenerator(true)}
                   readOnly
@@ -79,9 +125,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
           </div>
         </div>
         
-        {/* Two Options Side by Side */}
+        {/* Browse Community and Create Custom options */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10 max-w-3xl mx-auto">
-          {/* Browse Community Option */}
           <div 
             onClick={onExploreCommunity}
             className="bg-white border border-blue-100 rounded-lg p-5 text-center cursor-pointer hover:bg-blue-50 transition-colors flex flex-col items-center shadow-sm"
@@ -95,7 +140,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
             </p>
           </div>
           
-          {/* Create New Option */}
           <div 
             onClick={onCreateNewAgent}
             className="bg-white border border-blue-100 rounded-lg p-5 text-center cursor-pointer hover:bg-blue-50 transition-colors flex flex-col items-center shadow-sm"
@@ -110,36 +154,38 @@ const GetStarted: React.FC<GetStartedProps> = ({
           </div>
         </div>
         
-        {/* Trending agents section */}
-        <div className="max-w-3xl mx-auto">
-          <h4 className="text-xl font-semibold text-blue-800 mb-4">Popular Agents</h4>
-          
-          <div className="grid grid-cols-1 gap-3">
-            {TRENDING_AGENTS.map(agent => (
-              <div 
-                key={agent.id} 
-                className="flex items-center justify-between p-4 border border-blue-100 rounded-lg bg-white shadow-sm hover:bg-blue-50 transition-colors"
-              >
-                <div className="flex-1">
-                  <h4 className="font-medium text-blue-900">{agent.name}</h4>
-                  <p className="text-sm text-gray-600">{agent.description}</p>
-                </div>
-                <button
-                  onClick={() => handleImport(agent.id)}
-                  disabled={importingAgentId === agent.id}
-                  className={`px-4 py-2 rounded-md text-white transition-colors ${
-                    importingAgentId === agent.id
-                      ? 'bg-gray-400'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                  title="Import this agent"
+        {/* Show only trending agents for Browser type */}
+        {agentType === 'browser' && (
+          <div className="max-w-3xl mx-auto">
+            <h4 className="text-xl font-semibold text-blue-800 mb-4">Popular Agents</h4>
+            
+            <div className="grid grid-cols-1 gap-3">
+              {TRENDING_AGENTS.map(agent => (
+                <div 
+                  key={agent.id} 
+                  className="flex items-center justify-between p-4 border border-blue-100 rounded-lg bg-white shadow-sm hover:bg-blue-50 transition-colors"
                 >
-                  {importingAgentId === agent.id ? 'Importing...' : 'Import'}
-                </button>
-              </div>
-            ))}
+                  <div className="flex-1">
+                    <h4 className="font-medium text-blue-900">{agent.name}</h4>
+                    <p className="text-sm text-gray-600">{agent.description}</p>
+                  </div>
+                  <button
+                    onClick={() => handleImport(agent.id)}
+                    disabled={importingAgentId === agent.id}
+                    className={`px-4 py-2 rounded-md text-white transition-colors ${
+                      importingAgentId === agent.id
+                        ? 'bg-gray-400'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                    title="Import this agent"
+                  >
+                    {importingAgentId === agent.id ? 'Importing...' : 'Import'}
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
