@@ -41,6 +41,14 @@ def init_db():
     )
     ''')
     
+    # User to auth code mapping table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_auth_mapping (
+        user_id TEXT PRIMARY KEY,
+        auth_code TEXT NOT NULL
+    )
+    ''')
+    
     conn.commit()
     conn.close()
     logger.info("Database initialized")
@@ -49,10 +57,19 @@ def init_db():
 init_db()
 
 # Super simple auth functions
-def store_auth_code(auth_code):
+def store_auth_code(auth_code, user_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    
+    # Store in auth_codes table
     cursor.execute('INSERT OR IGNORE INTO auth_codes (auth_code) VALUES (?)', (auth_code,))
+    
+    # If user_id is provided, store the mapping
+    if user_id:
+        # Store the mapping
+        cursor.execute('INSERT OR REPLACE INTO user_auth_mapping (user_id, auth_code) VALUES (?, ?)', 
+                      (user_id, auth_code))
+    
     conn.commit()
     conn.close()
 
@@ -99,9 +116,22 @@ async def register_auth(request: Request):
         if not user_id:
             return JSONResponse({"error": "Missing user_id"}, status_code=400)
         
-        # Generate simple code - we'll just use the user_id with a random prefix
-        auth_code = secrets.token_hex(16)
-        store_auth_code(auth_code)
+        # Check if user_id already exists in mapping
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Check if user already has an auth code
+        cursor.execute('SELECT auth_code FROM user_auth_mapping WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            # User already exists, return the existing auth code
+            auth_code = result[0]
+        else:
+            # Generate new code for this user
+            auth_code = secrets.token_hex(16)
+            store_auth_code(auth_code, user_id)
         
         return JSONResponse({"auth_code": auth_code})
     except Exception as e:
