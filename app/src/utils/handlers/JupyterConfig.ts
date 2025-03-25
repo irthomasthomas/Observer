@@ -17,7 +17,7 @@ try {
     jupyterHost = config.host || jupyterHost;
     jupyterPort = config.port || jupyterPort;
     jupyterToken = config.token || jupyterToken;
-    Logger.info('CONFIG', 'Loaded Jupyter config from storage');
+    Logger.debug('CONFIG', 'Loaded Jupyter config from storage');
   }
 } catch (error) {
   Logger.error('CONFIG', 'Error loading config:', error);

@@ -34,9 +34,9 @@ export async function executePython(
     const kernelManager = new KernelManager({ serverSettings });
     
     // Start a new kernel directly instead of trying to list kernels first
-    Logger.info(agentId, 'Starting new kernel');
+    Logger.debug(agentId, 'Starting new kernel');
     const kernel = await kernelManager.startNew({ name: 'python3' });
-    Logger.info(agentId, `Started new kernel: ${kernel.id}`);
+    Logger.debug(agentId, `Started new kernel: ${kernel.id}`);
     
     // We already have a kernel from above
     
@@ -49,7 +49,7 @@ ${code}
 `;
     
     // Execute the code
-    Logger.info(agentId, 'Executing code');
+    Logger.debug(agentId, 'Executing code');
     let hasError = false;
     const future = kernel.requestExecute({ code: fullCode });
     
@@ -73,7 +73,7 @@ ${code}
     
     // Wait for execution to complete
     await future.done;
-    Logger.info(agentId, 'Code execution completed');
+    Logger.debug(agentId, 'Code execution completed');
     await kernel.shutdown();
     
     return !hasError;
