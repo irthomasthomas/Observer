@@ -117,15 +117,15 @@ function AppContent() {
   const fetchAgents = async () => {
     try {
       setIsRefreshing(true);
-      Logger.info('APP', 'Fetching agents from database');
+      Logger.debug('APP', 'Fetching agents from database');
       
       const agentsData = await listAgents();
       setAgents(agentsData);
-      Logger.info('APP', `Found ${agentsData.length} agents in database`);
+      Logger.debug('APP', `Found ${agentsData.length} agents in database`);
       
       // Check if there are no agents and log it
       if (agentsData.length === 0) {
-        Logger.info('APP', 'No agents found, user will see empty state message');
+        Logger.debug('APP', 'No agents found, user will see empty state message');
       }
       
       Logger.debug('APP', 'Fetching agent code');
