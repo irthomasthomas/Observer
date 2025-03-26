@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Check, Server } from 'lucide-react';
-import { getJupyterConfig, setJupyterConfig } from '@utils/handlers/JupyterConfig';
+import { getJupyterConfig, setJupyterConfig, testJupyterConnection as testConnection } from '@utils/handlers/JupyterConfig';
 import { Logger } from '@utils/logging';
 
 interface JupyterServerModalProps {
@@ -40,35 +40,19 @@ const JupyterServerModal: React.FC<JupyterServerModalProps> = ({ isOpen, onClose
     }
   };
 
-  // Test Jupyter connection
+
   const testJupyterConnection = async () => {
     setJupyterStatus('checking');
     setTestOutput('Testing connection...');
     
-    try {
-      // Simple fetch to test connection
-      const url = `http://${jupyterHost}:${jupyterPort}/api/kernels`;
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `token ${jupyterToken}`
-        }
-      });
-      
-      if (response.ok) {
-        setJupyterStatus('connected');
-        setTestOutput(`✅ Connected to Jupyter server at ${jupyterHost}:${jupyterPort}`);
-        Logger.info('CONFIG', `Successfully connected to Jupyter server at ${jupyterHost}:${jupyterPort}`);
-      } else {
-        setJupyterStatus('error');
-        setTestOutput(`❌ Connection failed: ${response.status} ${response.statusText}`);
-        Logger.warn('CONFIG', `Jupyter connection failed: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      setJupyterStatus('error');
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setTestOutput(`❌ Connection error: ${errorMessage}`);
-      Logger.error('CONFIG', `Jupyter connection error: ${errorMessage}`);
-    }
+    const result = await testConnection({
+      host: jupyterHost,
+      port: jupyterPort,
+      token: jupyterToken
+    });
+    
+    setJupyterStatus(result.success ? 'connected' : 'error');
+    setTestOutput(result.message);
   };
 
   if (!isOpen) return null;
@@ -173,7 +157,7 @@ const JupyterServerModal: React.FC<JupyterServerModalProps> = ({ isOpen, onClose
                   <div className="w-3 h-3 mr-2 border-2 border-blue-700 border-t-transparent rounded-full animate-spin"></div>
                   Testing...
                 </span>
-              ) : 'Test Connection'}
+              ) : 'Set Connection'}
             </button>
             
             <button

@@ -388,6 +388,7 @@ function AppContent() {
                     onToggle={toggleAgent}
                     onSchedule={handleScheduleClick}
                     onMemory={handleMemoryClick}
+                    onShowJupyterModal={() => setIsJupyterModalOpen(true)}
                   />
                 </div>
               )) : <GetStarted 

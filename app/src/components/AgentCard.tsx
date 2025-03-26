@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Edit2, Trash2, Clock, Brain, MessageCircle, ChevronDown, ChevronUp, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
 import { isAgentScheduled, getScheduledTime } from './ScheduleAgentModal';
+import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 
 interface AgentCardProps {
   agent: CompleteAgent;
@@ -14,183 +15,214 @@ interface AgentCardProps {
   onToggle: (agentId: string, status: string) => Promise<void>;
   onSchedule: (agentId: string) => void;
   onMemory: (agentId: string) => void;
+  onShowJupyterModal: () => void;
 }
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent,
+  code,
   isStarting,
   isMemoryFlashing,
   onEdit,
   onDelete,
   onToggle,
   onSchedule,
-  onMemory
+  onMemory,
+  onShowJupyterModal
 }) => {
-  const [detailsExpanded, setDetailsExpanded] = useState(false); // Default to collapsed
   const [activityExpanded, setActivityExpanded] = useState(false);
+  const [isPythonAgent, setIsPythonAgent] = useState(false);
+
+  // Check if this is a Python agent by examining the code
+  useEffect(() => {
+    if (code && code.trim().startsWith('#python')) {
+      setIsPythonAgent(true);
+    } else {
+      setIsPythonAgent(false);
+    }
+  }, [code]);
+
+  const isRunning = agent.status === 'running';
+  const primaryColor = isPythonAgent ? 'blue' : 'amber';
+  const jupyterConnected = isJupyterConnected();
+
+  const handleToggle = async () => {
+    // Only check Jupyter for Python agents that are not running
+    if (isPythonAgent && agent.status !== 'running') {
+      if (!isJupyterConnected()) {
+        onShowJupyterModal();
+        return;
+      }
+    }
+    // Proceed with normal toggle if not Python or if Jupyter config is valid
+    onToggle(agent.id, agent.status);
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
-      {/* Header */}
-      <div className="px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center">
-          <div className="flex flex-col items-center mr-3">
-            <div 
-              className="p-2 rounded-full bg-blue-100 hover:bg-blue-200 transition-all mb-2"
-              title={detailsExpanded ? "Hide details" : "Show details"}
-            >
-              <User 
-                className="h-7 w-7 text-blue-600 cursor-pointer hover:text-blue-800 transition-colors" 
-                onClick={() => setDetailsExpanded(!detailsExpanded)}
-              />
-            </div>
-            <div 
-              className="p-2 rounded-full bg-purple-100 hover:bg-purple-200 transition-all"
-              title="View memory"
-            >
-              <Brain 
-                className={`h-7 w-7 text-purple-600 cursor-pointer hover:text-purple-800 transition-colors ${isMemoryFlashing ? 'animate-pulse' : ''}`} 
-                onClick={() => onMemory(agent.id)}
-              />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold text-gray-800">{agent.name}</h3>
-            <div className="flex items-center">
-              <div className={`h-2.5 w-2.5 rounded-full mr-2 ${
-                agent.status === 'running' ? 'bg-green-500' : 'bg-gray-400'
-              }`}></div>
-              <span className="text-sm text-gray-600">
-                {agent.status === 'running' ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-          </div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+
+
+      <style>{`
+      @keyframes pulse-grow {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+      }
+      .animate-pulse-grow {
+        animation: pulse-grow 2s ease-in-out infinite;
+      }
+    `}</style>
+      
+      {/* Top section with language badge and action button */}
+      <div className="p-5 pb-0 flex justify-between items-start">
+        {/* Language badge */}
+        <div className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${
+          isPythonAgent 
+            ? 'bg-blue-50 text-blue-700' 
+            : 'bg-amber-50 text-amber-700'
+        }`}>
+          {isPythonAgent ? (
+            <>
+              <Terminal className="w-4 h-4 mr-2" />
+              Python
+            </>
+          ) : (
+            <>
+              <Code className="w-4 h-4 mr-2" />
+              JavaScript
+            </>
+          )}
         </div>
         
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onToggle(agent.id, agent.status)}
-            className={`px-4 py-2 rounded-md text-base font-medium ${
-              isStarting
-                ? 'bg-yellow-100 text-yellow-700'
-                : agent.status === 'running'
-                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                  : 'bg-green-100 text-green-700 hover:bg-green-200'
-            }`}
-          >
-            {isStarting
-              ? 'Starting...'
-              : agent.status === 'running'
-                ? 'Stop'
-                : 'Start'}
-          </button>
-        </div>
+        {/* Action button */}
+        <button
+          onClick={handleToggle}
+          className={`px-6 py-2.5 rounded-lg font-medium flex items-center transition-colors ${
+            isStarting
+              ? 'bg-yellow-100 text-yellow-700'
+              : isRunning
+                ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                : 'bg-green-100 text-green-700 hover:bg-green-200'
+          }`}
+        >
+          {isRunning ? (
+            'Stop'
+          ) : (
+            <>
+              <Play className="w-5 h-5 mr-1" />
+              Start
+            </>
+          )}
+        </button>
       </div>
-
-      {/* Collapsible Details Section */}
-      {detailsExpanded && (
-        <>
-          {/* Model and Update interval badges */}
-          <div className="px-4 py-3 border-t border-b bg-gray-50">
-            <div className="flex flex-wrap gap-3">
-              <div className="text-sm px-3 py-1 bg-blue-50 rounded-full text-blue-700">
+      
+      {/* Main content section */}
+      <div className="p-5">
+        <div className="flex gap-4">
+          {/* Agent avatar with User icon */}
+          <div className={`w-20 h-20 ${isPythonAgent ? 'bg-blue-100' : 'bg-amber-100'} rounded-full flex items-center justify-center`}>
+            <div className={`w-12 h-12 ${isPythonAgent ? 'bg-blue-500' : 'bg-amber-500'} rounded-full flex items-center justify-center ${
+              isRunning ? 'animate-pulse-grow' : ''
+            }`}>
+              <User className="w-7 h-7 text-white" />
+            </div>
+          </div>
+          
+          <div className="flex-1">
+            {/* Agent name and status */}
+            <h3 className="text-2xl font-semibold text-gray-800">{agent.name}</h3>
+            <div className="flex items-center mt-1">
+              <div className={`w-3 h-3 rounded-full mr-2 ${isRunning ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <span className="text-sm text-gray-600">{isRunning ? 'Active' : 'Inactive'}</span>
+            </div>
+            
+            {/* Conditional Button: Memory for JS agents, Jupyter status for Python agents */}
+            {isPythonAgent ? (
+              <div className={`mt-1 flex items-center ${
+                jupyterConnected 
+                  ? 'text-green-600 hover:text-green-800' 
+                  : 'text-red-600 hover:text-red-800'
+              }`}>
+                <Terminal className="h-5 w-5 mr-1" />
+                <span className="text-sm">Jupyter {jupyterConnected ? 'Connected' : 'Disconnected'}</span>
+              </div>
+            ) : (
+              <button 
+                onClick={() => onMemory(agent.id)}
+                className="mt-1 text-purple-600 hover:text-purple-800 flex items-center"
+              >
+                <Brain className={`h-5 w-5 mr-1 ${isMemoryFlashing ? 'animate-pulse' : ''}`} />
+                <span className="text-sm">Memory</span>
+              </button>
+            )}
+            
+            {/* Agent description */}
+            <p className="mt-2 text-gray-600">{agent.description}</p>
+            
+            {/* Tags */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">
                 {agent.model_name}
               </div>
-              
-              <div className="text-sm px-3 py-1 bg-purple-50 rounded-full text-purple-700">
-                Updates every {agent.loop_interval_seconds}s
+              <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">
+                {agent.loop_interval_seconds}s
               </div>
-              
               {isAgentScheduled(agent.id) && (
-                <div className="text-sm px-3 py-1 bg-yellow-50 rounded-full text-yellow-700">
+                <div className="px-3 py-1 bg-yellow-50 rounded-lg text-sm text-yellow-700">
                   Scheduled: {getScheduledTime(agent.id)?.toLocaleString()}
                 </div>
               )}
+
+            </div>
+            
+            {/* Action buttons */}
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => onEdit(agent.id)}
+                className={`px-5 py-2 rounded-lg flex items-center ${
+                  isRunning ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+                disabled={isRunning}
+              >
+                <Edit className="w-4 h-4 mr-2" /> Edit
+              </button>
+              <button
+                onClick={() => onDelete(agent.id)}
+                className={`px-5 py-2 rounded-lg flex items-center ${
+                  isRunning ? 'bg-red-50 text-red-300 cursor-not-allowed' : 'bg-red-50 hover:bg-red-100 text-red-600'
+                }`}
+                disabled={isRunning}
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> Delete
+              </button>
+              
+              {/* Memory button could be added here if needed */}
             </div>
           </div>
-          
-          {/* Description */}
-          <div className="px-4 py-3 border-b">
-            <p className="text-gray-700">{agent.description}</p>
-          </div>
-          
-          {/* Action buttons */}
-          <div className="px-4 py-3 border-b flex flex-wrap gap-2">
-            <button
-              onClick={() => onEdit(agent.id)}
-              className={`px-4 py-2 rounded-md flex items-center ${
-                agent.status === 'running' ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-              disabled={agent.status === 'running'}
-            >
-              <Edit2 className="h-5 w-5 mr-1" /> Edit
-            </button>
-            
-            <button
-              onClick={() => onSchedule(agent.id)}
-              className={`px-4 py-2 rounded-md flex items-center ${
-                isAgentScheduled(agent.id) ? 'bg-yellow-100 hover:bg-yellow-200' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-            >
-              <Clock className="h-5 w-5 mr-1" /> Schedule
-            </button>
-            
-            <button
-              onClick={() => onDelete(agent.id)}
-              className="px-4 py-2 rounded-md flex items-center ml-auto bg-red-50 text-red-600 hover:bg-red-100"
-              disabled={agent.status === 'running'}
-            >
-              <Trash2 className="h-5 w-5 mr-1" /> Delete
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Activity button - visible even when details are collapsed */}
-      <div className="px-4 py-3 border-b">
+        </div>
+      </div>
+      
+      {/* Activity section */}
+      <div>
         <button
           onClick={() => setActivityExpanded(!activityExpanded)}
-          className="flex items-center gap-2 w-full"
+          className="w-full px-5 py-4 flex items-center border-t border-gray-100 hover:bg-gray-50 transition-colors"
         >
-          <MessageCircle className="h-5 w-5 text-blue-600" />
-          <span className="text-lg font-medium">Activity</span>
+          <MessageCircle className="w-6 h-6 text-blue-500 mr-2" />
+          <span className="text-xl font-medium">Activity</span>
           <div className="ml-auto">
             {activityExpanded ? 
-              <ChevronUp className="h-5 w-5 text-gray-500" /> : 
-              <ChevronDown className="h-5 w-5 text-gray-500" />
+              <ChevronUp className="w-5 h-5 text-gray-400" /> :
+              <ChevronDown className="w-5 h-5 text-gray-400" />
             }
           </div>
         </button>
+        
+        {activityExpanded && (
+          <div className="border-t border-gray-100 p-4">
+            <AgentLogViewer agentId={agent.id} expanded={true} />
+          </div>
+        )}
       </div>
-
-      {/* Activity area */}
-      {activityExpanded && (
-        <div className="bg-white border-t p-4">
-          <AgentLogViewer agentId={agent.id} expanded={true} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Parent grid component for handling card layout
-export const AgentCardGrid: React.FC<{ agents: CompleteAgent[] }> = ({ agents }) => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {agents.map(agent => (
-        <div key={agent.id} className="h-fit">
-          <AgentCard 
-            agent={agent}
-            isStarting={false}
-            isMemoryFlashing={false}
-            onEdit={() => {}}
-            onDelete={async () => {}}
-            onToggle={async () => {}}
-            onSchedule={() => {}}
-            onMemory={() => {}}
-          />
-        </div>
-      ))}
     </div>
   );
 };
