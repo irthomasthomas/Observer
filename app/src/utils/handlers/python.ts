@@ -10,7 +10,7 @@ export async function executePython(
   agentId: string,
   code: string
 ): Promise<boolean> {
-  Logger.info(agentId, 'Executing Python code');
+  Logger.debug(agentId, 'Executing Python code');
   const { host, port, token } = getJupyterConfig();
   
   try {
