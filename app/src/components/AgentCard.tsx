@@ -13,7 +13,6 @@ interface AgentCardProps {
   onEdit: (agentId: string) => void;
   onDelete: (agentId: string) => Promise<void>;
   onToggle: (agentId: string, status: string) => Promise<void>;
-  onSchedule: (agentId: string) => void;
   onMemory: (agentId: string) => void;
   onShowJupyterModal: () => void;
 }
@@ -26,7 +25,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
   onEdit,
   onDelete,
   onToggle,
-  onSchedule,
   onMemory,
   onShowJupyterModal
 }) => {
@@ -43,7 +41,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
   }, [code]);
 
   const isRunning = agent.status === 'running';
-  const primaryColor = isPythonAgent ? 'blue' : 'amber';
   const jupyterConnected = isJupyterConnected();
 
   const handleToggle = async () => {

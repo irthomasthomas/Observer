@@ -1,8 +1,26 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { FileUp, PlusCircle, RotateCw, Sparkles } from 'lucide-react';
 import { importAgentsFromFiles } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
 import GenerateAgentModal from './GenerateAgentModal';
+import { CompleteAgent } from '@utils/agent_database'; // Fixed import path
+
+interface ImportResult {
+  filename: string;
+  success: boolean;
+  agent?: CompleteAgent;
+  error?: string;
+}
+
+interface AgentImportHandlerProps {
+  onImportComplete: () => Promise<void>;
+  setError: (message: string | null) => void;
+  onAddAgent: () => void;
+  agentCount: number;
+  activeAgentCount: number;
+  isRefreshing: boolean;
+  onRefresh: () => void;
+}
 
 const AgentImportHandler = ({
   onImportComplete,
@@ -12,12 +30,15 @@ const AgentImportHandler = ({
   activeAgentCount,
   isRefreshing,
   onRefresh
-}) => {
-  const fileInputRef = useRef(null);
-  const [importStatus, setImportStatus] = useState({ inProgress: false, results: [] });
+}: AgentImportHandlerProps) => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importStatus, setImportStatus] = useState<{ inProgress: boolean; results: ImportResult[] }>({ 
+    inProgress: false, 
+    results: [] 
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [agentType, setAgentType] = useState('browser');
-
+  // Unused variable removed
+  
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isRefreshing) {
@@ -34,7 +55,7 @@ const AgentImportHandler = ({
     Logger.info('APP', 'Opening file selector for agent import');
   };
 
-  const handleFileSelect = async (event) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     
@@ -54,7 +75,8 @@ const AgentImportHandler = ({
         setError(`Failed to import ${failedImports.length} agent(s): ${failedImports.map(r => `${r.filename}: ${r.error}`).join('; ')}`);
       }
     } catch (err) {
-      setError(`Import failed: ${err.message || 'Unknown error'}`);
+      const error = err as Error;
+      setError(`Import failed: ${error.message || 'Unknown error'}`);
       setImportStatus({ inProgress: false, results: [] });
     }
     
@@ -76,7 +98,6 @@ const AgentImportHandler = ({
         <div className="flex items-center space-x-3">
           <button
             onClick={() => {
-              setAgentType('browser');
               setIsModalOpen(true);
             }}
             className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600"
@@ -117,7 +138,7 @@ const AgentImportHandler = ({
         </div>
       )}
       
-      <GenerateAgentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} agentType={agentType} />
+      <GenerateAgentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </>
   );
 };

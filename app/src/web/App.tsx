@@ -73,12 +73,6 @@ function AppContent() {
     Logger.info('APP', 'Creating new agent');
   };
 
-  const handleScheduleClick = (agentId: string) => {
-    setSchedulingAgentId(agentId);
-    setIsScheduleModalOpen(true);
-    Logger.info('APP', `Opening schedule modal for agent ${agentId}`);
-  };
-
   const handleMemoryClick = (agentId: string) => {
     if (flashingMemories.has(agentId)) {
       const newFlashing = new Set(flashingMemories);
@@ -386,7 +380,6 @@ function AppContent() {
                     onEdit={handleEditClick}
                     onDelete={handleDeleteClick}
                     onToggle={toggleAgent}
-                    onSchedule={handleScheduleClick}
                     onMemory={handleMemoryClick}
                     onShowJupyterModal={() => setIsJupyterModalOpen(true)}
                   />

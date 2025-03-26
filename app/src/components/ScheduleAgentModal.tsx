@@ -122,7 +122,7 @@ const ScheduleAgentModal: React.FC<ScheduleAgentModalProps> = ({
           
           onUpdate();
         } catch (err) {
-          Logger.error('SCHEDULE', `Failed to execute scheduled agent ${agentId}: ${err.message}`, err);
+          Logger.error('SCHEDULE', `Failed to execute scheduled agent ${agentId}: ${(err as Error).message}`, err);
         }
       }, timeUntilExecution);
       

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Check, Server, Terminal, ArrowRight, ExternalLink } from 'lucide-react';
+import { X, Check, Server, Terminal, ExternalLink } from 'lucide-react';
 import { getJupyterConfig, setJupyterConfig, testJupyterConnection as testConnection } from '@utils/handlers/JupyterConfig';
 import { Logger } from '@utils/logging';
 
