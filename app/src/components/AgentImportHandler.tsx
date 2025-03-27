@@ -38,13 +38,14 @@ const AgentImportHandler = ({
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   // Unused variable removed
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isRefreshing) {
-        onRefresh();
-      }
-    }, 1000); // Refresh every second
+ 
+  // MAKES EDITING AGENTS UNUSABLE
+  //useEffect(() => {
+  //  const interval = setInterval(() => {
+  //    if (!isRefreshing) {
+  //      onRefresh();
+  //    }
+  //  }, 1000); // Refresh every second
 
     return () => clearInterval(interval); // Cleanup on unmount
   }, [isRefreshing, onRefresh]); // Dependencies
