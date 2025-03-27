@@ -46,9 +46,8 @@ const AgentImportHandler = ({
   //      onRefresh();
   //    }
   //  }, 1000); // Refresh every second
-
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, [isRefreshing, onRefresh]); // Dependencies
+  //  return () => clearInterval(interval); // Cleanup on unmount
+  //}, [isRefreshing, onRefresh]); // Dependencies
 
   const handleImportClick = () => {
     setImportStatus({ inProgress: false, results: [] });
