@@ -13,6 +13,7 @@ import signal
 import socket
 import threading
 import time
+import json
 from pathlib import Path
 
 # Setup logging
@@ -43,22 +44,102 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
     
     def send_cors_headers(self):
         origin = self.headers.get('Origin', '')
-        allowed_origins = ['https://app.observer-ai.com', 'http://localhost:3838', 'http://localhost:3001']
+        allowed_origins = ['http://localhost:3000', 'http://localhost:3001', 'https://localhost:3000']
         
-        if origin in allowed_origins:
-            self.send_header("Access-Control-Allow-Origin", origin)
+        if origin in allowed_origins or self.server.dev_mode:
+            self.send_header("Access-Control-Allow-Origin", origin or "*")
         else:
-            self.send_header("Access-Control-Allow-Origin", "https://app.observer-ai.com")
+            self.send_header("Access-Control-Allow-Origin", "*")
             
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, User-Agent")
         self.send_header("Access-Control-Allow-Credentials", "true")
         self.send_header("Access-Control-Max-Age", "86400")  # 24 hours
     
+    def translate_openai_to_ollama(self, body):
+        """
+        Translate OpenAI v1 chat completions format to Ollama native format when images are present
+        """
+        try:
+            request_data = json.loads(body)
+            
+            # Check if this is a chat completion request with a message that has content
+            if not (
+                'messages' in request_data and 
+                isinstance(request_data['messages'], list) and 
+                len(request_data['messages']) > 0 and 
+                'content' in request_data['messages'][0]
+            ):
+                return None, body  # Not a chat request or missing content, pass through
+            
+            # Extract model name and first message content
+            model = request_data.get('model', '')
+            first_message = request_data['messages'][0]
+            content = first_message.get('content', '')
+            
+            # Check if this is a multimodal request (content is a list with images)
+            has_images = False
+            prompt_text = ""
+            images = []
+            
+            if isinstance(content, list):
+                # Process multimodal content
+                for item in content:
+                    if isinstance(item, dict):
+                        if item.get('type') == 'text':
+                            prompt_text += item.get('text', '')
+                        elif item.get('type') == 'image_url':
+                            # Extract image URL - may be base64 or actual URL
+                            image_url = item.get('image_url', {}).get('url', '')
+                            if image_url:
+                                images.append(image_url)
+                                has_images = True
+            else:
+                # Simple text content
+                prompt_text = content
+            
+            # Return the original body if no images are found
+            if not has_images:
+                return None, body
+            
+            # Create the Ollama native format for requests with images
+            ollama_request = {
+                'model': model,
+                'prompt': prompt_text,
+                'images': images,
+                'stream': request_data.get('stream', False)
+            }
+            
+            # Add any other parameters that should be forwarded
+            for key in ['temperature', 'top_p', 'top_k', 'seed']:
+                if key in request_data:
+                    ollama_request[key] = request_data[key]
+            
+            logger.info(f"Translating request to Ollama native format for {len(images)} images")
+            
+            # Return new path and body for Ollama's native API
+            return "/api/generate", json.dumps(ollama_request).encode('utf-8')
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {str(e)}")
+            return None, body
+        except Exception as e:
+            logger.error(f"Translation error: {str(e)}")
+            return None, body
+    
     def proxy_request(self, method):
-        target_url = f"http://localhost:11434{self.path}"
+        target_path = self.path
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length) if content_length > 0 else None
+        
+        # If this is a POST to chat completions endpoint, check if it needs translation
+        if method == "POST" and body and self.path == '/v1/chat/completions':
+            new_path, new_body = self.translate_openai_to_ollama(body)
+            if new_path:
+                target_path = new_path
+                body = new_body
+        
+        target_url = f"http://localhost:11434{target_path}"
         
         req = urllib.request.Request(target_url, data=body, method=method)
         
@@ -69,7 +150,7 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
                 req.add_header(header, self.headers[header])
         
         # Use a much longer timeout for /api/generate endpoint
-        timeout = 300 if self.path == '/api/generate' else 60  # 5 minutes for generate
+        timeout = 300 if target_path == '/api/generate' else 60  # 5 minutes for generate
         
         try:
             with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -83,12 +164,50 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
                 self.send_cors_headers()
                 self.end_headers()
                 
-                # Stream the response back
-                while True:
-                    chunk = response.read(4096)  # Read in chunks
-                    if not chunk:
-                        break
-                    self.wfile.write(chunk)
+                # For native API responses, we need to translate back to OpenAI format
+                if target_path == '/api/generate' and self.path == '/v1/chat/completions':
+                    # Read the entire response
+                    response_data = response.read()
+                    try:
+                        # Parse the response from Ollama's native format
+                        ollama_response = json.loads(response_data)
+                        
+                        # Convert to OpenAI-compatible format
+                        openai_response = {
+                            "id": f"chatcmpl-{time.time()}",
+                            "object": "chat.completion",
+                            "created": int(time.time()),
+                            "model": ollama_response.get("model", "unknown"),
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": ollama_response.get("response", "")
+                                    },
+                                    "finish_reason": "stop"
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": -1,
+                                "completion_tokens": -1,
+                                "total_tokens": -1
+                            }
+                        }
+                        
+                        # Write the transformed response
+                        transformed_response = json.dumps(openai_response).encode('utf-8')
+                        self.wfile.write(transformed_response)
+                    except json.JSONDecodeError:
+                        # If we can't parse it, return as-is
+                        self.wfile.write(response_data)
+                else:
+                    # Stream the response back for non-translated requests
+                    while True:
+                        chunk = response.read(4096)  # Read in chunks
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
                     
         except urllib.error.HTTPError as e:
             # Forward HTTP errors from the target server
@@ -183,7 +302,6 @@ def prepare_certificates(cert_dir):
     # Create certificate directory if it doesn't exist
     os.makedirs(cert_dir, exist_ok=True)
     
-
     # Check if we need to generate certificates
     if not cert_path.exists() or not key_path.exists():
         logger.info("Generating SSL certificates...")
@@ -205,7 +323,6 @@ subjectAltName = @alt_names
 
 [alt_names]
 DNS.1 = localhost
-DNS.2 = app.observer-ai.com
 IP.1 = 127.0.0.1
 IP.2 = {local_ip}
             """)
@@ -231,23 +348,26 @@ IP.2 = {local_ip}
         
     return cert_path, key_path
 
-def run_server(port, cert_dir, auto_start):
+def run_server(port, cert_dir, auto_start, dev_mode):
     """Start the proxy server"""
     # Prepare certificates
     cert_path, key_path = prepare_certificates(cert_dir)
     
     # Start Ollama if not running and auto_start is enabled
-    ollama_process = None
     if auto_start and not check_ollama_running():
-        ollama_process = start_ollama_server()
+        start_ollama_server()
     elif not check_ollama_running():
         logger.warning("Ollama is not running. Proxy may not work until Ollama server is available.")
     else:
         logger.info("Ollama is already running")
     
     # Create server
-    handler = OllamaProxy
-    httpd = socketserver.ThreadingTCPServer(("", port), handler)
+    class CustomThreadingTCPServer(socketserver.ThreadingTCPServer):
+        def __init__(self, *args, **kwargs):
+            self.dev_mode = dev_mode
+            super().__init__(*args, **kwargs)
+    
+    httpd = CustomThreadingTCPServer(("", port), OllamaProxy)
     
     # Configure SSL
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -255,12 +375,9 @@ def run_server(port, cert_dir, auto_start):
     context.load_cert_chain(certfile=cert_path, keyfile=key_path)
     httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
     
-    # Setup graceful shutdown
+    # Setup simplified shutdown
     def signal_handler(sig, frame):
         logger.info("Shutting down...")
-        if ollama_process:
-            logger.info("Ollama process is up")
-        httpd.shutdown()
         sys.exit(0)
     
     signal.signal(signal.SIGINT, signal_handler)
@@ -292,20 +409,7 @@ def main():
     if args.debug:
         logger.setLevel(logging.DEBUG)
     
-    # If in dev mode, modify the OllamaProxy class to allow all origins
-    if args.dev:
-        logger.info("Running in development mode - allowing all origins")
-        def dev_send_cors_headers(self):
-            origin = self.headers.get('Origin', '')
-            self.send_header("Access-Control-Allow-Origin", origin or "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, User-Agent")
-            self.send_header("Access-Control-Allow-Credentials", "true")
-            self.send_header("Access-Control-Max-Age", "86400")
-        
-        OllamaProxy.send_cors_headers = dev_send_cors_headers
-    
-    run_server(args.port, args.cert_dir, not args.no_start)
+    run_server(args.port, args.cert_dir, not args.no_start, args.dev)
 
 if __name__ == "__main__":
     main()
