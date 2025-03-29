@@ -36,7 +36,8 @@ export async function sendPrompt(
       // Ensure preprocessResult.images contains an array of base64 strings
       content = [
         { type: "text", text: preprocessResult.modifiedPrompt },
-        ...preprocessResult.images.map(imageBase64Data => ({ // Iterate through base64 strings
+        // Add the non-null assertion operator (!) after images
+        ...preprocessResult.images!.map(imageBase64Data => ({ // Iterate through base64 strings
           type: "image_url",
           image_url: { // image_url is an object
             url: `data:image/png;base64,${imageBase64Data}` // url's value is the full data URI
