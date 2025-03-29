@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { FileUp, PlusCircle, RotateCw, Sparkles } from 'lucide-react';
 import { importAgentsFromFiles } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
