@@ -24,6 +24,7 @@ import MemoryManager from '@components/MemoryManager';
 import ErrorDisplay from '@components/ErrorDisplay';
 import AgentImportHandler from '@components/AgentImportHandler';
 import SidebarMenu from '@components/SidebarMenu';
+import AvailableModels from '@components/AvailableModels';
 import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
 import JupyterServerModal from '@components/JupyterServerModal';
@@ -391,12 +392,13 @@ function AppContent() {
             </div>
           ) : activeTab === 'community' ? (
             <CommunityTab />
+          ) : activeTab === 'models' ? (
+            <AvailableModels />
           ) : (
             <div className="text-center p-8">
               <p className="text-gray-500">This feature is coming soon!</p>
             </div>
           )}
-
 
 
 

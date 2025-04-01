@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
 import { CompleteAgent, downloadAgent } from '@utils/agent_database';
-import { Download, Code, Settings, Terminal } from 'lucide-react';
+import { Download, Code, Settings, Terminal, ChevronDown } from 'lucide-react';
 import ActionsTab from './ActionsTab';
 import CodeTab from './CodeTab';
+import { listModels } from '@utils/ollamaServer';
+import { getOllamaServerAddress } from '@utils/main_loop';
+import { Logger } from '@utils/logging';
 
 type TabType = 'config' | 'actions' | 'code';
+
+interface Model {
+  name: string;
+  parameterSize?: string;
+}
 
 interface EditAgentModalProps {
   isOpen: boolean;
@@ -31,6 +39,10 @@ const EditAgentModal = ({
   const [code, setCode] = useState('// Process the model response however you want\n\nconsole.log(agentId, "Response received:", response.substring(0, 100) + "...");');
   const [loopInterval, setLoopInterval] = useState(1.0);
   const [activeTab, setActiveTab] = useState<TabType>('config');
+  const [availableModels, setAvailableModels] = useState<Model[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (agent) {
@@ -45,7 +57,35 @@ const EditAgentModal = ({
     if (existingCode) {
       setCode(existingCode);
     }
+    
+    // Fetch available models when the modal opens
+    fetchAvailableModels();
   }, [agent, existingCode]);
+
+  const fetchAvailableModels = async () => {
+    setLoadingModels(true);
+    setModelsError(null);
+    
+    try {
+      const { host, port } = getOllamaServerAddress();
+      Logger.info('AGENT_EDITOR', `Fetching models from server at ${host}:${port}`);
+      
+      const response = await listModels(host, port);
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      setAvailableModels(response.models);
+      Logger.info('AGENT_EDITOR', `Loaded ${response.models.length} models for selection`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setModelsError(errorMessage);
+      Logger.error('AGENT_EDITOR', `Failed to fetch models: ${errorMessage}`);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
 
   const handleSave = () => {
     const completeAgent: CompleteAgent = {
@@ -110,13 +150,82 @@ const EditAgentModal = ({
       
       <div className="mb-4">
         <label className="block mb-1">Model</label>
-        <input 
-          type="text" 
-          value={model} 
-          onChange={(e) => setModel(e.target.value)} 
-          className="w-full p-2 border rounded"
-          placeholder="Enter model name"
-        />
+        <div className="relative">
+          <button
+            type="button"
+            className="w-full p-2 border rounded flex items-center justify-between bg-white"
+            onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+          >
+            <div className="flex items-center">
+              <span>{model}</span>
+              {availableModels.find(m => m.name === model)?.parameterSize && (
+                <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">
+                  {availableModels.find(m => m.name === model)?.parameterSize}
+                </span>
+              )}
+            </div>
+            <ChevronDown className="h-4 w-4 text-gray-500" />
+          </button>
+          
+          {isModelDropdownOpen && (
+            <div className="absolute z-10 mt-1 w-full max-h-60 overflow-auto bg-white border border-gray-200 rounded-md shadow-lg">
+              <div className="p-2 border-b">
+                <input
+                  type="text"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="Search or enter custom model"
+                  className="w-full p-1.5 border rounded text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              
+              {loadingModels ? (
+                <div className="p-2 text-center text-gray-500">Loading models...</div>
+              ) : modelsError ? (
+                <div className="p-2 text-center text-red-500 text-sm">
+                  Error: {modelsError}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fetchAvailableModels();
+                    }}
+                    className="block mx-auto mt-1 text-blue-500 hover:underline text-xs"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : availableModels.length === 0 ? (
+                <div className="p-2 text-center text-gray-500">No models available</div>
+              ) : (
+                <div className="py-1">
+                  {availableModels.map((availableModel) => (
+                    <button
+                      key={availableModel.name}
+                      className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center justify-between ${model === availableModel.name ? 'bg-blue-50 text-blue-700' : ''}`}
+                      onClick={() => {
+                        setModel(availableModel.name);
+                        setIsModelDropdownOpen(false);
+                      }}
+                    >
+                      <span>{availableModel.name}</span>
+                      {availableModel.parameterSize && (
+                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">
+                          {availableModel.parameterSize}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {availableModels.length > 0 && (
+          <p className="text-sm text-gray-500 mt-1">
+            {availableModels.length} models available from your server
+          </p>
+        )}
       </div>
 
       <div className="mb-4">
