@@ -49,7 +49,10 @@ class BaseAPIHandler:
 
 
 from gemini_handler import GeminiAPIHandler
+from openrouter_handler import OpenRouterAPIHandler
 
 # Instantiate and register the Gemini handler.
 gemini_handler = GeminiAPIHandler()
+openrouter_handler = OpenRouterAPIHandler()
+
 logger.info("API_HANDLERS available: %s", list(API_HANDLERS.keys()))
