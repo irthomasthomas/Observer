@@ -91,6 +91,53 @@ class APIServerHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"Model not supported.")
 
+    def do_GET(self):
+        if self.path == "/api/tags":
+            # Create a response similar to Ollama's but simpler
+            all_models = []
+            for handler in api_handlers.API_HANDLERS.values():
+                for model in handler.get_models():
+                    model_entry = {
+                        "name": model["name"],
+                        "model": model["name"],
+                        "details": {}
+                    }
+                    
+                    # Add parameter size if available
+                    if "parameters" in model:
+                        model_entry["details"]["parameter_size"] = model["parameters"]
+                    
+                    all_models.append(model_entry)
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"models": all_models}).encode("utf-8"))
+        
+        elif self.path == "/api/models":
+            # Keep existing /api/models endpoint for compatibility
+            models = []
+            for handler in api_handlers.API_HANDLERS.values():
+                models.extend(handler.get_models())
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"models": models}).encode("utf-8"))
+        
+        elif self.path == "/api/version":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"version": "0.2.0", "server": "Observer AI API Server"}).encode("utf-8"))
+        
+        else:
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b"Not Found")
+
 def get_local_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
