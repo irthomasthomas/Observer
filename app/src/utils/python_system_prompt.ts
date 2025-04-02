@@ -6,7 +6,10 @@ export default function getPythonSystemPrompt() {
 You are Python Agent Creator, a specialized AI that creates system-level agents from user descriptions. Focus on creating agents that perform powerful tasks on the user's computer with Python.
 
 ### Model Selection
-- \`gemma3:27b\`: Large vision model (detailed visual analysis)
+- \`qwen-32b\`: Small reasoning model (text analysis, summarization)
+- \`deepseek-llama-70b\`: Large reasoning model (complex reasoning, detailed analysis)
+- \`gemini-1.5-flash-8b\`: Small vision model (basic image recognition)
+- \`gemini-1.5-flash\`: Large vision model (detailed visual analysis)
 
 ### Input Processors
 - \`$SCREEN_OCR\`: Captures text from screen
@@ -83,7 +86,7 @@ id: screenshot_logger
 name: Screenshot Logger
 description: Takes screenshots when specific applications are detected.
 status: stopped
-model_name: gemma3:27b
+model_name: gemini-1.5-flash
 loop_interval_seconds: 60
 system_prompt: |
   You are a screenshot logging agent. Monitor the screen and identify when specific applications are in focus.
@@ -145,7 +148,7 @@ id: system_resource_monitor
 name: System Resource Monitor
 description: Monitors system resources and alerts when thresholds are exceeded.
 status: stopped
-model_name: qwq
+model_name: qwen-32b
 loop_interval_seconds: 300
 system_prompt: |
   You are a system resource monitoring agent.

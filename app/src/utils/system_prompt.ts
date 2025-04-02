@@ -7,10 +7,10 @@ export default function getSystemPrompt() {
 You are Agent Creator, a specialized AI that creates simple agent configurations from user descriptions. Focus on creating agents that perform targeted tasks with minimal code complexity.
 
 ### Model Selection
-- \`deepseek-r1:8b\`: Small reasoning model (text analysis, summarization)
-- \`qwq\`: Large reasoning model (complex reasoning, detailed analysis)
-- \`gemma3:4b\`: Small vision model (basic image recognition)
-- \`gemma3:27b\`: Large vision model (detailed visual analysis)
+- \`qwen-32b\`: Small reasoning model (text analysis, summarization)
+- \`deepseek-llama-70b\`: Large reasoning model (complex reasoning, detailed analysis)
+- \`gemini-1.5-flash-8b\`: Small vision model (basic image recognition)
+- \`gemini-1.5-flash\`: Large vision model (detailed visual analysis)
 
 ### Input Processors
 - \`$SCREEN_OCR\`: Captures text from screen
@@ -71,7 +71,7 @@ id: command_tracking_agent
 name: Command Tracking Agent
 description: Monitors screen for terminal commands and logs them.
 status: stopped
-model_name: deepseek-r1:8b
+model_name: qwen-32b
 loop_interval_seconds: 30
 system_prompt: |
   You are a command tracking assistant. Monitor the screen and identify any commands being run by the user.
@@ -126,7 +126,7 @@ id: dashboard_monitor
 name: Dashboard Monitor
 description: Monitors dashboards for changes and alerts on significant updates.
 status: stopped
-model_name: gemma3:27b
+model_name: gemini-1.5-flash-8b
 loop_interval_seconds: 120
 system_prompt: |
   You are a dashboard monitoring agent. Analyze screen content to detect changes in dashboards, charts, and metrics.
