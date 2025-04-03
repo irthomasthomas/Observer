@@ -55,7 +55,7 @@ const LandingPage = () => {
           <div className="flex items-center space-x-7 md:space-x-9 -mr-2">
             <a href="https://app.observer-ai.com" className="hover:text-gray-300 hidden md:inline">Features</a>
             <a href="#agents" className="hover:text-gray-300 hidden md:inline">Agents</a>
-            <a href="https://github.com/Roy3838/Observer" className="hover:text-gray-300 hidden md:inline">Community</a>
+            <a href="https://discord.gg/k4ruE6WG" className="hover:text-gray-300 hidden md:inline">Community</a>
             <a href="https://github.com/Roy3838/Observer" className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition">
               <Github className="w-5 h-5" />
               <span className="hidden md:inline">GitHub</span>
@@ -189,7 +189,7 @@ const LandingPage = () => {
             <div className="flex space-x-8">
               <a href="#privacy" className="text-gray-400 hover:text-white">Privacy</a>
               <a href="#terms" className="text-gray-400 hover:text-white">Terms</a>
-              <a href="#contact" className="text-gray-400 hover:text-white">Contact</a>
+              <a href="https://discord.gg/k4ruE6WG" className="text-gray-400 hover:text-white">Contact</a>
             </div>
           </div>
           <div className="mt-8 pt-8 border-t border-gray-800 text-center text-gray-400">
