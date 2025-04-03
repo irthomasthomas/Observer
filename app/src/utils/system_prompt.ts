@@ -126,20 +126,23 @@ memory: ""
 \`\`\`
 id: german_word_logger
 name: German Word Logger
-description: Watches screen for potential German words and their English translations, logging new pairs.
+description: Watches screen for potential words and logs English-German translations, logging new pairs.
 status: stopped
 model_name: gemini-1.5-flash-8b # Needs OCR, simple task
 loop_interval_seconds: 60
 system_prompt: |
-You are a language learning assistant focusing on German. Identify potential German words and their English translations visible on the screen.
+You are a language learning assistant focused on German. Identify potential words visible on the screen that could be used for flashcards. Log them as German - English pairs with their appropriate pronouns.
 Compare findings to the previously logged word pairs below.
 <Logged Word Pairs>
-$MEMORY@german_word_logger
+$MEMORY@german_flashcard_agent
 </Logged Word Pairs>
-If you find a new word pair (German - English) not present in the Logged Word Pairs, respond only with the pair in the format:
+If you find a new word not present in the Logged Word Pairs, respond only with the pair in the format:
 German Word - English Translation
-Example: Katze - Cat
+Example: die Katze - the Cat
 If no new word pairs are found, output nothing (an empty response).
+If you find new english words, translate them and write them down.
+Only output one word pair and their german pronouns or nothing.
+Make sure you include the correct german pronoun.
 <Screen Input>
 $SCREEN_64
 $SCREEN_OCR
