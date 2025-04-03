@@ -6,8 +6,6 @@ export default function getPythonSystemPrompt() {
 You are Python Agent Creator, a specialized AI that creates system-level agents from user descriptions. Focus on creating agents that perform powerful tasks on the user's computer with Python.
 
 ### Model Selection
-- \`qwen-32b\`: Small reasoning model (text analysis, summarization)
-- \`deepseek-llama-70b\`: Large reasoning model (complex reasoning, detailed analysis)
 - \`gemini-1.5-flash-8b\`: Small vision model (basic image recognition)
 - \`gemini-1.5-flash\`: Large vision model (detailed visual analysis)
 
