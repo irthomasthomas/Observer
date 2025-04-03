@@ -6,26 +6,14 @@ import GenerateAgent from './GenerateAgent';
 interface GetStartedProps {
   onExploreCommunity: () => void;
   onCreateNewAgent: () => void;
-  onAgentImported?: () => void;
 }
 
 const GetStarted: React.FC<GetStartedProps> = ({ 
   onExploreCommunity, 
   onCreateNewAgent,
-  onAgentImported
 }) => {
-  const [importingAgentId, setImportingAgentId] = useState<string | null>(null);
   const [showAiGenerator, setShowAiGenerator] = useState<boolean>(false);
   const [agentType, setAgentType] = useState<'browser' | 'python'>('browser');
-  
-  const handleImport = async (agentId: string) => {
-    setImportingAgentId(agentId);
-    setTimeout(() => {
-      setImportingAgentId(null);
-      onAgentImported?.();
-      alert(`Agent imported successfully!`);
-    }, 1000);
-  };
   
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
