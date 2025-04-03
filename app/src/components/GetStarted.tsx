@@ -9,12 +9,6 @@ interface GetStartedProps {
   onAgentImported?: () => void;
 }
 
-const TRENDING_AGENTS = [
-  { id: 'activity_tracking_agent', name: 'Activity Tracking Agent', description: 'Monitors and logs your computer activities' },
-  { id: 'command_tracking_agent', name: 'Command Tracking Agent', description: 'Logs terminal commands you execute' },
-  { id: 'multimodal_activity_tracking', name: 'Multimodal Activity Tracking', description: 'Tracks activities with text and visual analysis' }
-];
-
 const GetStarted: React.FC<GetStartedProps> = ({ 
   onExploreCommunity, 
   onCreateNewAgent,
@@ -153,39 +147,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
             </p>
           </div>
         </div>
-        
-        {/* Show only trending agents for Browser type */}
-        {agentType === 'browser' && (
-          <div className="max-w-3xl mx-auto">
-            <h4 className="text-xl font-semibold text-blue-800 mb-4">Popular Agents</h4>
-            
-            <div className="grid grid-cols-1 gap-3">
-              {TRENDING_AGENTS.map(agent => (
-                <div 
-                  key={agent.id} 
-                  className="flex items-center justify-between p-4 border border-blue-100 rounded-lg bg-white shadow-sm hover:bg-blue-50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium text-blue-900">{agent.name}</h4>
-                    <p className="text-sm text-gray-600">{agent.description}</p>
-                  </div>
-                  <button
-                    onClick={() => handleImport(agent.id)}
-                    disabled={importingAgentId === agent.id}
-                    className={`px-4 py-2 rounded-md text-white transition-colors ${
-                      importingAgentId === agent.id
-                        ? 'bg-gray-400'
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                    title="Import this agent"
-                  >
-                    {importingAgentId === agent.id ? 'Importing...' : 'Import'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
