@@ -171,7 +171,7 @@ const LandingPage = () => {
               <Github className="w-5 h-5" />
               <span>View on GitHub</span>
             </a>
-            <a href="#discord" className="bg-gray-100 text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition">
+            <a href="https://discord.gg/k4ruE6WG" className="bg-gray-100 text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition">
               Join Discord
             </a>
           </div>
