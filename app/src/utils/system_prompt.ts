@@ -33,7 +33,7 @@ Strongly prefer one of these two strategies to ensure minimal code:
 *   **Code Pattern (Default):** Log the agent's *entire* `response` with a timestamp.
     ```javascript
     // Default: Log timestamped response
-    appendMemory(`[${time()}] ${response}`);
+    appendMemory(`[\${time()}] \${response}`);
     ```
 *   **Inputs:** `$SCREEN_64` (and `$SCREEN_OCR` if text focus is needed). **Do NOT include `$MEMORY@...`**.
 
@@ -52,14 +52,14 @@ Strongly prefer one of these two strategies to ensure minimal code:
       // Extract data, removing the prefix and trimming whitespace
       const command = response.replace("COMMAND:", "").trim();
       // Log only the extracted data, timestamped
-      appendMemory(`[${time()}] ${command}`);
+      appendMemory(`[\${time()}] \${command}`);
     }
     ```
     ```javascript
     // Example: Log if response starts with "FOCUSSTAT:"
     if (response.startsWith("FOCUSSTAT:")) {
       const stat = response.replace("FOCUSSTAT:", "").trim();
-      appendMemory(`[${time()}] ${stat}`);
+      appendMemory(`[\${time()}] \${stat}`);
     }
     ```
 *   **Inputs:** `$SCREEN_64`, `$MEMORY@agent_id` (and `$SCREEN_OCR` if text focus is needed).
@@ -115,7 +115,7 @@ code: |
 // Log only if a new command is reported by the agent
 if (response.startsWith("COMMAND:")) {
 const command = response.replace("COMMAND:", "").trim();
-appendMemory([${time()}] ${command});
+appendMemory([\${time()}] \${command});
 }
 memory: ""
 ```
@@ -148,7 +148,7 @@ code: |
 // Log the new word pair if the agent provides one (non-empty response)
 // No prefix check needed here as the response IS the data when non-empty.
 if (response.trim()) {
-appendMemory([${time()}] ${response.trim()});
+appendMemory([\${time()}] \${response.trim()});
 }
 memory: ""
 
