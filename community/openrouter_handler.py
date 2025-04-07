@@ -31,7 +31,7 @@ class OpenRouterAPIHandler(BaseAPIHandler):
             "gemma-3-27b": {
                 "model_id": "google/gemma-3-27b-it:free",
                 "parameters": "27B",
-                "multimodal": False
+                "multimodal": True
             },
             "deepseek-r1": {
                 "model_id": "deepseek-r1-zero:free", # Example
