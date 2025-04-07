@@ -328,6 +328,8 @@ async def list_tags_endpoint():
             try:
                 for model_info in handler.get_models():
                      # Basic mapping, add more fields if your get_models provides them
+                     is_multimodal = model_info.get("multimodal", False)
+
                      model_entry = {
                           "name": model_info.get("name", "unknown"),
                           "model": model_info.get("name", "unknown"),
@@ -338,7 +340,8 @@ async def list_tags_endpoint():
                                "parameter_size": model_info.get("parameters", "N/A"),
                                "quantization_level": model_info.get("quantization", "N/A"),
                                "family": model_info.get("family", handler.name), # Use handler name as family default
-                               "format": model_info.get("format", "N/A")
+                               "format": model_info.get("format", "N/A"),
+                               "multimodal": is_multimodal
                           }
                      }
                      ollama_models.append(model_entry)

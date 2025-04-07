@@ -30,23 +30,28 @@ class OpenRouterAPIHandler(BaseAPIHandler):
             # --- Add your desired mappings here ---
             "gemma-3-27b": {
                 "model_id": "google/gemma-3-27b-it:free",
-                "parameters": "27B"
+                "parameters": "27B",
+                "multimodal": False
             },
             "deepseek-r1": {
                 "model_id": "deepseek-r1-zero:free", # Example
-                "parameters": "671B"
+                "parameters": "671B",
+                "multimodal": False
             },
             "deepseek-v3": {
                 "model_id": "deepseek-v3-base:free", # Example
-                "parameters": "671B"
+                "parameters": "671B",
+                "multimodal": False
             },
              "qwq": {
                  "model_id": "qwen/qwq-32b:free", # Example
-                 "parameters": "32B"
+                 "parameters": "32B",
+                 "multimodal": False
             },
             "deepseek-llama-70b": {
                 "model_id": "deepseek/deepseek-r1-distill-llama-70b:free",
-                "parameters": "70b"
+                "parameters": "70b",
+                "multimodal": False
             }
             # Add more models following this pattern
             # "your-pretty-name": { "model_id": "actual/openrouter-model-id:tag", "parameters": "..."}
@@ -54,7 +59,8 @@ class OpenRouterAPIHandler(BaseAPIHandler):
 
         # Define supported models for display using the pretty names from the map
         self.models = [
-            {"name": display_name, "parameters": model_info.get("parameters", "N/A")}
+            {"name": display_name, "parameters": model_info.get("parameters", "N/A"),
+            "multimodal": model_info.get("multimodal", False)}
             for display_name, model_info in self.model_map.items()
         ]
         # --- End Model Mapping ---
