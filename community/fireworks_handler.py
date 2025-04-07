@@ -37,7 +37,8 @@ class FireworksAPIHandler(BaseAPIHandler):
 
         # Define supported models for display using the pretty names from the map
         self.models = [
-            {"name": display_name, "parameters": model_info.get("parameters", "N/A")}
+            {"name": display_name, "parameters": model_info.get("parameters", "N/A"),
+            "multimodal": model_info.get("multimodal", False)}
             for display_name, model_info in self.model_map.items()
         ]
         # --- End Model Mapping ---
