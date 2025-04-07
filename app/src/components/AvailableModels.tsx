@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { listModels } from '@utils/ollamaServer';
-import { Cpu, RefreshCw } from 'lucide-react';
+import { listModels, Model } from '@utils/ollamaServer'; // Import updated Model interface
+import { Cpu, RefreshCw, Eye } from 'lucide-react'; // <-- Import Eye icon
 import { Logger } from '@utils/logging';
 import { getOllamaServerAddress } from '@utils/main_loop';
 
-interface Model {
-  name: string;
-  parameterSize?: string;
-}
+// No need to redefine Model interface here if imported correctly
 
 const AvailableModels: React.FC = () => {
   const [models, setModels] = useState<Model[]>([]);
@@ -18,18 +15,18 @@ const AvailableModels: React.FC = () => {
   const fetchModels = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       Logger.info('MODELS', 'Fetching available models from server');
       const { host, port } = getOllamaServerAddress();
       Logger.info('MODELS', `Using server address: ${host}:${port}`);
-      
-      const response = await listModels(host, port);
-      
+
+      const response = await listModels(host, port); // Uses updated listModels
+
       if (response.error) {
         throw new Error(response.error);
       }
-      
+
       setModels(response.models);
       Logger.info('MODELS', `Successfully loaded ${response.models.length} models`);
     } catch (err) {
@@ -52,26 +49,27 @@ const AvailableModels: React.FC = () => {
   };
 
   if (loading && !refreshing) {
+    // ... (loading state remains the same)
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin mb-4">
-          <Cpu className="h-8 w-8 text-blue-500" />
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin mb-4">
+            <Cpu className="h-8 w-8 text-blue-500" />
+          </div>
+          <p className="text-gray-600">Loading available models...</p>
         </div>
-        <p className="text-gray-600">Loading available models...</p>
-      </div>
-    );
+      );
   }
 
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Available Models</h2>
-        <button 
+        <button
           onClick={handleRefresh}
           disabled={refreshing}
           className={`flex items-center space-x-2 px-3 py-2 rounded-md ${
-            refreshing 
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+            refreshing
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
           }`}
         >
@@ -79,15 +77,17 @@ const AvailableModels: React.FC = () => {
           <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
         </button>
       </div>
-      
+
       {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-          <p className="text-red-700">Error: {error}</p>
-          <p className="text-sm text-red-600 mt-1">
-            Check that your server is running properly and try again.
-          </p>
-        </div>
+        // ... (error display remains the same)
+         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+           <p className="text-red-700">Error: {error}</p>
+           <p className="text-sm text-red-600 mt-1">
+             Check that your server is running properly and try again.
+           </p>
+         </div>
       ) : models.length === 0 ? (
+        // ... (no models display remains the same)
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
           <p className="text-yellow-700">No models found on the server.</p>
           <p className="text-sm text-yellow-600 mt-1">
@@ -97,32 +97,43 @@ const AvailableModels: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {models.map((model) => (
-            <div 
+            <div
               key={model.name}
               className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex items-start mb-2">
-                <Cpu className="h-5 w-5 text-blue-500 mr-2 mt-1" />
-                <div>
-                  <h3 className="font-medium text-gray-900">{model.name}</h3>
-                  {model.parameterSize && (
-                    <span className="inline-block mt-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      {model.parameterSize}
-                    </span>
-                  )}
+                <Cpu className="h-5 w-5 text-blue-500 mr-2 mt-1 flex-shrink-0" />
+                <div className="flex-grow">
+                  <h3 className="font-medium text-gray-900 break-words">{model.name}</h3>
+                  {/* Container for parameter size and multimodal icon */}
+                  <div className="flex items-center flex-wrap mt-1">
+                    {model.parameterSize && model.parameterSize !== "N/A" && (
+                      <span className="inline-block mr-2 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        {model.parameterSize}
+                      </span>
+                    )}
+                    {/* Conditionally render the Eye icon if multimodal is true */}
+                    {model.multimodal && (
+                      <span title="Supports Multimodal Input" className="inline-block text-xs font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded">
+                        <Eye className="h-3.5 w-3.5 inline-block mr-1 -mt-px" />
+                        Vision
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
-      
-      <div className="mt-6 text-sm text-gray-500">
-        <p>
-          These models are available on your configured model server. 
-          You can use them in your agents by specifying their name.
-        </p>
-      </div>
+
+      {/* ... (footer text remains the same) ... */}
+       <div className="mt-6 text-sm text-gray-500">
+         <p>
+           These models are available on your configured model server.
+           You can use them in your agents by specifying their name.
+         </p>
+       </div>
     </div>
   );
 };

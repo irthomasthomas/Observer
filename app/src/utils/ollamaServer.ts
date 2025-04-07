@@ -6,6 +6,7 @@ interface ServerResponse {
 interface Model {
   name: string;
   parameterSize?: string;
+  multimodal?: boolean;
 }
 
 interface ModelsResponse {
@@ -42,40 +43,33 @@ export async function listModels(host: string, port: string): Promise<ModelsResp
   try {
     const response = await fetch(`https://${host}:${port}/api/tags`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
 
     if (!response.ok) {
-      return { 
-        models: [], 
-        error: `Server responded with status ${response.status}` 
-      };
+      return { models: [], error: `Server responded with status ${response.status}` };
     }
-    
+
     const data = await response.json();
-    
+
     if (!data.models || !Array.isArray(data.models)) {
-      return { 
-        models: [], 
-        error: 'Invalid response format from server' 
-      };
+      return { models: [], error: 'Invalid response format from server' };
     }
-    
-    // Map the server response to our simpler Model interface
+
+    // Map the server response, EXTRACTING the new flag
     const models: Model[] = data.models.map((model: any) => {
       return {
         name: model.name,
-        parameterSize: model.details?.parameter_size
+        parameterSize: model.details?.parameter_size,
+        multimodal: model.details?.multimodal ?? false // <-- EXTRACT AND MAP HERE
       };
     });
-    
+
     return { models };
   } catch (error) {
-    return { 
-      models: [], 
-      error: `Could not retrieve models: ${error instanceof Error ? error.message : String(error)}` 
+    return {
+      models: [],
+      error: `Could not retrieve models: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }
