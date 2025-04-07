@@ -3,7 +3,7 @@ interface ServerResponse {
   error?: string;
 }
 
-interface Model {
+export interface Model {
   name: string;
   parameterSize?: string;
   multimodal?: boolean;

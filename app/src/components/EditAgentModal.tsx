@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Add React import
+import { useState, useEffect } from 'react'; // Add React import
 import { CompleteAgent, downloadAgent } from '@utils/agent_database';
 import { Download, Code, Settings, Terminal, ChevronDown, Eye } from 'lucide-react'; // <-- Import Eye icon
 import ActionsTab from './ActionsTab';
