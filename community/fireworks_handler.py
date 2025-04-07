@@ -25,12 +25,12 @@ class FireworksAPIHandler(BaseAPIHandler):
             # Simple mapping with just two models
             "llama4-scout": {
                 "model_id": "accounts/fireworks/models/llama4-scout-instruct-basic",
-                "parameters": "Scout",
+                "parameters": "109B",
                 "multimodal": True
             },
             "llama4-maverick": {
                 "model_id": "accounts/fireworks/models/llama4-maverick-instruct-basic",
-                "parameters": "Maverick",
+                "parameters": "400B",
                 "multimodal": True
             }
         }
