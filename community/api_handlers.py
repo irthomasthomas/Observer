@@ -99,8 +99,8 @@ from fireworks_handler import FireworksAPIHandler
 # Instantiate and register the handlers.
 # The __init__ method in BaseAPIHandler adds them to API_HANDLERS
 gemini_handler = GeminiAPIHandler()
-openrouter_handler = OpenRouterAPIHandler()
 fireworks_handler = FireworksAPIHandler()
+openrouter_handler = OpenRouterAPIHandler()
 
 logger.info("Initialized API Handlers. Available: %s", list(API_HANDLERS.keys()))
 # --- End Handler Instantiation ---
