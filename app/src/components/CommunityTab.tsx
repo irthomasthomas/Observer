@@ -142,8 +142,8 @@ const CommunityTab: React.FC = () => {
       
       // Prepare agent for local database using CompleteAgent structure
       const localAgent: CompleteAgent = {
-        id: `community_${agent.id}`,  // Add prefix to avoid conflicts
-        name: `${agent.name} (Community)`,
+        id: agent.id,  
+        name: agent.name,
         description: agent.description,
         status: 'stopped',
         model_name: agent.model_name,
