@@ -10,8 +10,24 @@ interface OCRResult {
 // Keep track of active streams
 let activeStream: MediaStream | null = null;
 
+export function isMobileDevice(): boolean {
+
+    if (typeof window === 'undefined') return false; 
+
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+
+    // Simple regex check - sufficient for this purpose
+    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+}
+
 // Function to start screen capture and return the stream
 export async function startScreenCapture(): Promise<MediaStream | null> {
+
+  if (isMobileDevice()){
+      throw new Error("Screen capture is unavailable on mobile. This is a security limitation of mobile operating systems, not this application. Please use a desktop computer for this feature.");
+  }
+
+
   // If we already have an active stream, return it
   if (activeStream) {
     return activeStream;
@@ -44,7 +60,7 @@ export async function startScreenCapture(): Promise<MediaStream | null> {
     if (errorMessage.includes('getDisplayMedia must be called from a user gesture handler')) {
       // Create a custom error with a more helpful message
       const enhancedError = new Error(
-        'Browser permission needed: Please click the Observer icon in the top left corner to enable screen capture'
+        'Safari Users: Browser permission needed, please click the Observer icon in the top left corner to enable screen capture'
       );
       throw enhancedError;
     }
