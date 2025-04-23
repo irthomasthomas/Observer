@@ -392,13 +392,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                         <span className="text-gray-500">Loading quota...</span>
                       ) : quotaInfo ? (
                         <span className={`font-medium ${
-                          !isAuthenticated && quotaInfo.remaining <= 5 ? 
+                          !isAuthenticated && quotaInfo.remaining <= 10 ? 
                           quotaInfo.remaining === 0 ? 'text-red-500' : 'text-orange-500' 
                           : 'text-green-600'
                         }`}>
                           {isAuthenticated ? 
                             'Unlimited access' : 
-                            `${quotaInfo.remaining}/${5} executions left`}
+                            `${quotaInfo.remaining}/${10} executions left`}
                         </span>
                       ) : (
                         <span className="text-gray-500">Quota unavailable</span>
@@ -534,7 +534,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               <p className="text-sm text-gray-700">
                 {isAuthenticated ? 
                   "Try our hosted Ob-Server with unlimited access!" : 
-                  "Try our hosted Ob-Server with 5 free executions! Sign in for unlimited access."}
+                  "Try our hosted Ob-Server with 10 free executions! Sign in for unlimited access."}
               </p>
             </div>
             <button 
