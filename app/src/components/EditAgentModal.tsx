@@ -56,7 +56,7 @@ const EditAgentModal = ({
       setDescription('');
       setModel('deepseek-r1'); // Reset to a sensible default
       setSystemPrompt('');
-      setLoopInterval(1.0);
+      setLoopInterval(60.0);
       setCode('// Process the model response however you want\n\nconsole.log(agentId, "Response received:", response.substring(0, 100) + "...");')
     }
 
