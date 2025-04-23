@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Terminal, Server } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { 
@@ -9,7 +9,7 @@ import {
   saveAgent,
   CompleteAgent,
 } from '@utils/agent_database';
-import { startAgentLoop, stopAgentLoop } from '@utils/main_loop';
+import { startAgentLoop, stopAgentLoop, AGENT_STATUS_CHANGED_EVENT } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
 
@@ -53,12 +53,51 @@ function AppContent() {
   const [isUsingObServer, setIsUsingObServer] = useState(false);
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
 
-  // Reload agent list when switching to the My Agents tab
-  useEffect(() => {
-    if (activeTab === 'myAgents') {
-      fetchAgents();
+  const fetchAgents = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      Logger.debug('APP', 'Fetching agents from database');
+      const agentsData = await listAgents();
+      setAgents(agentsData);
+      Logger.debug('APP', `Found ${agentsData.length} agents`);
+
+      // Fetch codes
+      const codeResults = await Promise.all(
+        agentsData.map(async (a) => ({ id: a.id, code: await getAgentCode(a.id) }))
+      );
+      const newCodes: Record<string, string> = {};
+      codeResults.forEach((r) => {
+        if (r.code) newCodes[r.id] = r.code;
+      });
+      setAgentCodes(newCodes);
+
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch agents from database');
+      Logger.error('APP', `Error fetching agents:`, err);
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [activeTab]);
+  }, []);
+
+  useEffect(() => {
+    const handleAgentStatusChange = (event: CustomEvent) => {
+      const { agentId, status } = event.detail || {};
+      Logger.info('APP', `agentStatusChanged:`, { agentId, status });
+      fetchAgents();
+    };
+
+    window.addEventListener(
+      AGENT_STATUS_CHANGED_EVENT,
+      handleAgentStatusChange as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        AGENT_STATUS_CHANGED_EVENT,
+        handleAgentStatusChange as EventListener
+      );
+    };
+  }, [fetchAgents]);
 
   const handleEditClick = async (agentId: string) => {
     setSelectedAgent(agentId);
@@ -115,50 +154,6 @@ function AppContent() {
     setShowStartupDialog(false);
   };
 
-  const fetchAgents = async () => {
-    try {
-      setIsRefreshing(true);
-      Logger.debug('APP', 'Fetching agents from database');
-      
-      const agentsData = await listAgents();
-      setAgents(agentsData);
-      Logger.debug('APP', `Found ${agentsData.length} agents in database`);
-      
-      // Check if there are no agents and log it
-      if (agentsData.length === 0) {
-        Logger.debug('APP', 'No agents found, user will see empty state message');
-      }
-      
-      Logger.debug('APP', 'Fetching agent code');
-      const agentCodePromises = agentsData.map(async agent => {
-        const code = await getAgentCode(agent.id);
-        return { 
-          id: agent.id, 
-          code 
-        };
-      });
-      
-      const agentCodeResults = await Promise.all(agentCodePromises);
-      const newCodes: Record<string, string> = {};
-      
-      agentCodeResults.forEach(result => {
-        if (result.code) {
-          newCodes[result.id] = result.code;
-        }
-      });
-      
-      setAgentCodes(newCodes);
-      setError(null);
-      
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError('Failed to fetch agents from database');
-      Logger.error('APP', `Error fetching agents: ${errorMessage}`, err);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   const toggleAgent = async (id: string, currentStatus: string): Promise<void> => {
     try {
       setError(null);
@@ -179,8 +174,8 @@ function AppContent() {
             return updated;
           });
         }
-        await updateAgentStatus(id, 'stopped');
-        Logger.debug(id, `Agent status updated to "stopped" in database`);
+        //await updateAgentStatus(id, 'stopped'); // NOW HANDLED BY stopAgentLoop() internally 
+        //Logger.debug(id, `Agent status updated to "stopped" in database`);
       } else {
         Logger.info(id, `Starting agent "${agent.name}"`);
         setStartingAgents(prev => {
@@ -191,8 +186,8 @@ function AppContent() {
         
         try {
           await startAgentLoop(id);
-          await updateAgentStatus(id, 'running');
-          Logger.debug(id, `Agent status updated to "running" in database`);
+          //await updateAgentStatus(id, 'running'); // NOW HANDLED BY startAgentLoop() internally
+          //Logger.debug(id, `Agent status updated to "running" in database`);
         } finally {
           setStartingAgents(prev => {
             const updated = new Set(prev);
@@ -257,6 +252,33 @@ function AppContent() {
       window.removeEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
     };
   }, [memoryAgentId, isMemoryManagerOpen]);
+
+  //useEffect(() => {
+  //  // Handler function for the agent status changed event
+  //  const handleAgentStatusChange = (event: CustomEvent) => {
+  //    // We don't strictly need the details (agentId, status) from the event
+  //    // because we're just going to refetch everything.
+  //    // But logging them can be useful for debugging.
+  //    const { agentId, status } = event.detail || {};
+  //    Logger.info('APP', `Received ${AGENT_STATUS_CHANGED_EVENT} event`, { agentId, status });
+  //
+  //    // Call fetchAgents to refresh the entire agent list from the database
+  //    fetchAgents();
+  //  };
+  //
+  //  // Add the event listener
+  //  window.addEventListener(AGENT_STATUS_CHANGED_EVENT, handleAgentStatusChange as EventListener);
+  //  Logger.info('APP', `Added listener for ${AGENT_STATUS_CHANGED_EVENT}`);
+  //
+  //  // Clean up the event listener when the component unmounts
+  //  return () => {
+  //    window.removeEventListener(AGENT_STATUS_CHANGED_EVENT, handleAgentStatusChange as EventListener);
+  //    Logger.debug('APP', `Removed listener for ${AGENT_STATUS_CHANGED_EVENT}`);
+  //  };
+  //
+  //}, [fetchAgents]);
+
+
   
   useEffect(() => {
     Logger.info('APP', 'Application starting');
@@ -508,13 +530,10 @@ export function App() {
     <Auth0Provider
       domain="dev-mzdd3k678tj1ja86.us.auth0.com"
       clientId="R5iv3RVkWjGZrexFSJ6HqlhSaaGLyFpm"
-      authorizationParams={{
-        redirect_uri: window.location.origin
-      }}
+      authorizationParams={{ redirect_uri: window.location.origin }}
       cacheLocation="localstorage"
       useRefreshTokens={true}
       onRedirectCallback={(appState) => {
-        console.log("Auth0 redirect callback triggered", appState);
         window.history.replaceState(
           {},
           document.title,

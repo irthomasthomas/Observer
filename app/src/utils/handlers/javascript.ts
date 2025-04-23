@@ -1,13 +1,15 @@
 // src/utils/handlers/javascript.ts
 import * as utils from './utils';
 import { Logger } from '../logging';
+// Import the agent loop control functions
+import { startAgentLoop, stopAgentLoop } from '../main_loop';
 
 /**
  * Execute JavaScript handler for processing agent responses
  */
 export async function executeJavaScript(
-  response: string, 
-  agentId: string, 
+  response: string,
+  agentId: string,
   code: string
 ): Promise<boolean> {
   try {
@@ -35,9 +37,19 @@ export async function executeJavaScript(
       },
       notify: utils.notify,
       time: utils.time,
-      console: console
+      console: console,
+
+      startAgent: async (targetAgentId?: string) => { // targetAgentId is optional
+        const idToStart = targetAgentId === undefined ? agentId : targetAgentId;
+        await startAgentLoop(idToStart); 
+      },
+
+      stopAgent: async (targetAgentId?: string) => { 
+        const idToStop = targetAgentId === undefined ? agentId : targetAgentId; 
+        await stopAgentLoop(idToStop); 
+      }
     };
-    
+
     // Create a wrapper function that sets up the context
     const wrappedCode = `
       (async function() {
@@ -50,10 +62,10 @@ export async function executeJavaScript(
         }
       })()
     `;
-    
+
     // Use Function constructor with context binding
     const handler = new Function(...Object.keys(context), wrappedCode);
-    
+
     // Execute with bound context values
     return await handler(...Object.values(context));
   } catch (error) {

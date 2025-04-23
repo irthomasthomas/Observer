@@ -1,5 +1,5 @@
 // src/utils/main_loop.ts
-import { getAgent, getAgentCode } from './agent_database';
+import { getAgent, getAgentCode, updateAgentStatus } from './agent_database';
 import { sendPrompt } from './sendApi';
 import { Logger } from './logging';
 import { preProcess } from './pre-processor';
@@ -13,100 +13,78 @@ const activeLoops: Record<string, {
   serverPort: string
 }> = {};
 
+
+export const AGENT_STATUS_CHANGED_EVENT = 'agentStatusChanged';
+
 let serverHost = 'localhost';
 let serverPort = '3838';
 
-/**
- * Set the Ollama server connection details
- */
 export function setOllamaServerAddress(host: string, port: string): void {
   serverHost = host;
   serverPort = port;
   Logger.info('SERVER', `Ollama server address set to ${host}:${port}`);
 }
 
-export function getOllamaServerAddress(): { host: string, port: string } {
+export function getOllamaServerAddress(): { host: string; port: string } {
   return { host: serverHost, port: serverPort };
 }
 
-/**
- * Start the main execution loop for an agent
- */
 export async function startAgentLoop(agentId: string): Promise<void> {
-  // Check if already running
   if (activeLoops[agentId]?.isRunning) {
     Logger.warn(agentId, `Agent is already running`);
     return;
   }
 
   try {
-    // Get the agent from the database
     const agent = await getAgent(agentId);
-    
-    if (!agent) {
-      throw new Error(`Agent ${agentId} not found`);
-    }
-    
-    Logger.debug(agentId, `Starting agent loop for ${agent.name}`);
-    
-    // Store loop information
-    activeLoops[agentId] = {
-      intervalId: null,
-      isRunning: true,
-      serverHost,
-      serverPort
-    };
-    
-    // Run first iteration immediately
-    Logger.debug(agentId, `Running first iteration immediately`);
+    if (!agent) throw new Error(`Agent ${agentId} not found`);
+
+    activeLoops[agentId] = { intervalId: null, isRunning: true, serverHost, serverPort };
+    await updateAgentStatus(agentId, 'running');
+    window.dispatchEvent(
+      new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
+        detail: { agentId, status: 'running' },
+      })
+    );
+
+    // first iteration immediately
     await executeAgentIteration(agentId);
-    
-    // Then set up the interval for subsequent iterations
+
+    // then schedule
     const intervalMs = agent.loop_interval_seconds * 1000;
     activeLoops[agentId].intervalId = window.setInterval(async () => {
-      // Only proceed if the agent is still running
       if (activeLoops[agentId]?.isRunning) {
         try {
           await executeAgentIteration(agentId);
-        } catch (error) {
-          Logger.error(agentId, `Error in interval execution: ${error}`);
-          // Continue running despite errors
+        } catch (e) {
+          Logger.error(agentId, `Error in interval: ${e}`, e);
         }
       }
     }, intervalMs);
-    
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    Logger.error(agentId, `Error starting agent: ${errorMessage}`, error);
+    // on failure, dispatch “stopped” so UI can recover
+    window.dispatchEvent(
+      new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
+        detail: { agentId, status: 'stopped' },
+      })
+    );
+    // clean up and re-throw…
     throw error;
   }
 }
 
-/**
- * Stop the main execution loop for an agent
- */
-export function stopAgentLoop(agentId: string): void {
+export async function stopAgentLoop(agentId: string): Promise<void> {
   const loop = activeLoops[agentId];
-  
-  if (loop && loop.isRunning) {
-    Logger.debug(agentId, `Stopping agent loop`);
-    
-    // Clear the interval
-    if (loop.intervalId !== null) {
-      window.clearInterval(loop.intervalId);
-    }
-    
-    // Stop screen capture when agent is stopped
+  if (loop?.isRunning) {
+    if (loop.intervalId !== null) window.clearInterval(loop.intervalId);
+    await updateAgentStatus(agentId, 'stopped');
+    window.dispatchEvent(
+      new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
+        detail: { agentId, status: 'stopped' },
+      })
+    );
     stopScreenCapture();
-    
-    // Update the loop status
-    activeLoops[agentId] = {
-      ...loop,
-      isRunning: false,
-      intervalId: null
-    };
-    
-    Logger.debug(agentId, `Agent loop stopped successfully`);
+    activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
   } else {
     Logger.warn(agentId, `Attempted to stop agent that wasn't running`);
   }
