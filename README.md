@@ -84,12 +84,19 @@ const time = time();
 appendMemory(`[${time}] ${cleanedResponse}`);
 ```
 
+> **Note:** any function marked with `*` takes an `agentId` argument.  
+> If you omit `agentId`, it defaults to the agent that’s running the code.
+
 Available utilities include:
-* `time()` - Get the current timestamp
-* `pushNotification(title, options)` - Send notifications
-* `getMemory()` - Retrieve stored memory (defaults to current agent)
-* `setMemory(content)` - Replace stored memory
-* `appendMemory(content)` - Add to existing memory
+
+* `time()` – Get the current timestamp  
+* `pushNotification(title, options)` – Send notifications  
+* `getMemory(agentId)*` – Retrieve stored memory (defaults to current agent)  
+* `setMemory(agentId, content)*` – Replace stored memory  
+* `appendMemory(agentId, content)*` – Add to existing memory  
+* `startAgent(agentId)*` – Starts an agent  
+* `stopAgent(agentId)*` – Stops an agent
+
 
 ### Python (Jupyter Server)
 
