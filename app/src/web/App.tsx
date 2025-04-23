@@ -3,7 +3,6 @@ import { Terminal, Server } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { 
   listAgents, 
-  updateAgentStatus, 
   getAgentCode,
   deleteAgent,
   saveAgent,
