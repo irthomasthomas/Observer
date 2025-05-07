@@ -18,11 +18,14 @@ const GetStarted: React.FC<GetStartedProps> = ({
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 shadow-sm">
-        <h2 className="text-2xl font-bold text-blue-800 mb-4 text-center">Welcome to Observer AI</h2>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6 text-center">Welcome to Observer AI</h2>
         
+        {/* REMOVED: Main description paragraph */}
+        {/* 
         <p className="text-blue-700 mb-6 text-center max-w-3xl mx-auto">
           Create agents that can observe, analyze, and respond to what's happening on your screen.
-        </p>
+        </p> 
+        */}
         
         {/* Agent Type Toggle */}
         <div className="flex justify-center mb-6">
@@ -52,16 +55,17 @@ const GetStarted: React.FC<GetStartedProps> = ({
           </div>
         </div>
         
-        {/* Agent Type Description */}
-        <div className="mb-6 text-center">
+        {/* Agent Type Description - SIMPLIFIED */}
+        <div className="mb-6 text-center min-h-[20px]"> {/* Added min-h for layout consistency */}
           {agentType === 'browser' ? (
-            <p className="text-sm text-blue-700">
-              Browser agents run in your browser and can monitor and log activities.
-            </p>
+            // <p className="text-sm text-blue-700">
+            //   Browser agents run in your browser and can monitor and log activities.
+            // </p>
+            null // No specific message for browser agent after removal
           ) : (
             <p className="text-sm text-blue-700">
-              System agents run on your computer with Python and can perform actions on your system.
-              <br />
+              {/* System agents run on your computer with Python and can perform actions on your system. */}
+              {/* <br /> */} {/* Removed <br /> if it's the only thing left after above line removal */}
               <span className="text-blue-600 font-medium">Requires Jupyter server setup.</span>
             </p>
           )}
@@ -75,9 +79,12 @@ const GetStarted: React.FC<GetStartedProps> = ({
               <h3 className="font-medium">
                 {agentType === 'browser' ? 'AI Browser Agent Generator' : 'AI System Agent Generator'}
               </h3>
+              {/* REMOVED: "Describe what you need in plain English" */}
+              {/* 
               <p className="text-sm opacity-90">
                 Describe what you need in plain English
-              </p>
+              </p> 
+              */}
             </div>
           </div>
           
@@ -107,7 +114,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
           </div>
         </div>
         
-        {/* Browse Community and Create Custom options */}
+        {/* Browse Community and Create Custom options - SIMPLIFIED */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10 max-w-3xl mx-auto">
           <div 
             onClick={onExploreCommunity}
@@ -117,9 +124,12 @@ const GetStarted: React.FC<GetStartedProps> = ({
               <Users className="h-7 w-7 text-blue-600" />
             </div>
             <h3 className="font-medium text-blue-800 text-lg">Browse Community Agents</h3>
+            {/* REMOVED: Description paragraph */}
+            {/* 
             <p className="text-gray-600 mt-2">
               Discover and import ready-made agents from the community library
-            </p>
+            </p> 
+            */}
           </div>
           
           <div 
@@ -130,9 +140,12 @@ const GetStarted: React.FC<GetStartedProps> = ({
               <Plus className="h-7 w-7 text-blue-600" />
             </div>
             <h3 className="font-medium text-blue-800 text-lg">Create Custom Agent</h3>
+            {/* REMOVED: Description paragraph */}
+            {/* 
             <p className="text-gray-600 mt-2">
               Build an agent from scratch with full control over all settings
-            </p>
+            </p> 
+            */}
           </div>
         </div>
       </div>
