@@ -614,9 +614,15 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
             {/* model response */}
             <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold text-indigo-700">
-                  Model Response
+
+                <h3 className="text-lg font-semibold text-indigo-700 flex items-baseline"> {/* Use items-baseline for nice alignment */}
+                    <code 
+                        className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-mono text-lg mr-1.5 shadow-sm border border-blue-200">
+                        response
+                    </code>
+                    Preview
                 </h3>
+
                 <button
                   onClick={handleRunModel}
                   disabled={isRunningModel || !currentModel}
