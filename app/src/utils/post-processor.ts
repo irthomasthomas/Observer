@@ -28,10 +28,8 @@ export async function postProcess(agentId: string, response: string, code: strin
       const result = await executeJavaScript(response, agentId, code);
       
       if (result) {
-        Logger.debug(agentId, 'Response processed successfully');
-      } else {
-        Logger.debug(agentId, 'Response processed but no specific action taken');
-      }
+        Logger.debug(agentId, 'Response processed quickly');
+      } 
       
       return result;
     }

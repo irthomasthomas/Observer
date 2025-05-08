@@ -4,7 +4,7 @@ import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit } from 'lucide-r
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
 import { useAuth0 } from '@auth0/auth0-react';
-import EditAgentModal from './EditAgentModal';
+import EditAgentModal from '@components/EditAgent/EditAgentModal';
 
 // Type for marketplace agents matching CompleteAgent structure
 interface MarketplaceAgent {

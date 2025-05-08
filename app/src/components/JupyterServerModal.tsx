@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Check, Server, Terminal, ExternalLink } from 'lucide-react';
 import { getJupyterConfig, setJupyterConfig, testJupyterConnection as testConnection } from '@utils/handlers/JupyterConfig';
 import { Logger } from '@utils/logging';
+import Modal from '@components/EditAgent/Modal'
 
 interface JupyterServerModalProps {
   isOpen: boolean;
@@ -78,8 +79,13 @@ const JupyterServerModal: React.FC<JupyterServerModalProps> = ({ isOpen, onClose
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className={`bg-white rounded-lg shadow-xl flex transition-all duration-300 ${showTutorial ? "w-full max-w-4xl" : "w-full max-w-lg"}`}>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      className={`flex transition-all duration-300 ${
+        showTutorial ? 'w-full max-w-4xl' : 'w-full max-w-lg'
+      }`}
+    >
         {/* Main Configuration Panel */}
         <div className="flex-1">
           <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -324,8 +330,7 @@ const JupyterServerModal: React.FC<JupyterServerModalProps> = ({ isOpen, onClose
             </div>
           </div>
         )}
-      </div>
-    </div>
+   </Modal>
   );
 };
 

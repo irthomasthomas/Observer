@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Zap, XCircle, Save } from 'lucide-react';
 import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent, saveAgent } from '@utils/agent_database';
-import EditAgentModal from './EditAgentModal';
+import EditAgentModal from './EditAgent/EditAgentModal';
 import getSystemPrompt from '@utils/system_prompt';
 import getPythonSystemPrompt from '@utils/python_system_prompt';
 import { getOllamaServerAddress } from '@utils/main_loop';
