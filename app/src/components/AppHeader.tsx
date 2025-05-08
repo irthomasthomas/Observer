@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react'; // Added LogOut icon
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import TextBubble from './TextBubble';
@@ -262,9 +262,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       </style>
       
       <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-4"> {/* Adjusted padding for smaller screens */}
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
+            {/* Left side: Menu, Logo, Observer Text */}
+            <div className="flex items-center space-x-2 sm:space-x-4"> {/* Adjusted spacing */}
               <button
                 onClick={onMenuClick}
                 className={`p-2 rounded-md ${pulseMenu ? 'menu-pulse relative' : 'hover:bg-gray-100'}`}
@@ -285,19 +286,25 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 onClick={handleScreenCaptureClick}
                 title="Initialize screen capture"
               />
-              <h1 className="text-xl font-semibold">Observer</h1>
+              {/* "Observer" text: Hidden on small screens, visible on md and up */}
+              <h1 className="text-xl font-semibold hidden md:block">Observer</h1>
             </div> 
 
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
+            {/* Right side: Controls and Auth */}
+            <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4"> {/* Adjusted spacing */}
+              {/* Ob-Server Toggle, Server Address Input, Status Button */}
+              <div className="flex items-center space-x-1 sm:space-x-2"> {/* Adjusted spacing */}
+                {/* Ob-Server Toggle */}
                 <div className="flex flex-col items-center">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Ob-Server</span>
+                  <div className="flex items-center space-x-1 sm:space-x-2"> {/* Adjusted spacing */}
+                    {/* "Ob-Server" text: Hidden on small screens, visible on md and up */}
+                    <span className="text-sm text-gray-600 hidden md:inline">Ob-Server</span>
                     <button 
                       className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
                         isUsingObServer ? 'bg-blue-500' : 'bg-gray-200'
                       }`}
                       onClick={handleToggleObServer}
+                      aria-label={isUsingObServer ? "Disable Ob-Server" : "Enable Ob-Server"}
                     >
                       <span
                         className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${
@@ -326,56 +333,83 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     </div>
                   )}
                 </div>
+                {/* Server Address Input: Responsive width */}
                 <input
                   type="text"
                   value={serverAddress}
                   onChange={handleServerAddressChange}
                   placeholder="api.observer.local"
-                  className={`px-3 py-2 border rounded-md ${isUsingObServer ? 'bg-gray-100 opacity-70' : ''}`}
+                  className={`px-2 sm:px-3 py-2 border rounded-md text-sm 
+                              ${isUsingObServer ? 'bg-gray-100 opacity-70' : ''} 
+                              w-24 sm:w-32 md:w-40 lg:w-auto`} // Responsive width
                   disabled={isUsingObServer}
                 />
+                {/* Status Button: Responsive text and padding */}
                 <button
                   onClick={checkServerStatus}
-                  className={`px-4 py-2 rounded-md ${
-                    serverStatus === 'online' 
-                      ? 'bg-green-500 text-white' 
-                      : serverStatus === 'offline'
-                      ? 'bg-red-500 text-white'
-                      : 'bg-gray-200'
-                  }`}
+                  className={`py-2 rounded-md flex items-center justify-center text-sm
+                              ${serverStatus === 'online' 
+                                ? 'bg-green-500 text-white' 
+                                : serverStatus === 'offline'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-gray-200'}
+                              px-2 sm:px-3 md:px-4`} // Responsive padding
                 >
-                  {serverStatus === 'online' ? '✓ Connected' : 
-                   serverStatus === 'offline' ? '✗ Disconnected' : 
-                   'Check Server'}
+                  {serverStatus === 'online' ? (
+                    <>
+                      <span aria-hidden="true">✓</span>
+                      <span className="hidden md:inline ml-1">Connected</span>
+                    </>
+                  ) : serverStatus === 'offline' ? (
+                    <>
+                      <span aria-hidden="true">✗</span>
+                      <span className="hidden md:inline ml-1">Disconnected</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="md:hidden">Check</span>
+                      <span className="hidden md:inline">Check Server</span>
+                    </>
+                  )}
                 </button>
               </div>
-              <div className="flex items-center space-x-4">
+
+              {/* Auth Section */}
+              <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3"> {/* Adjusted spacing */}
                 {authState ? (
                   authState.isLoading ? (
-                    <div className="px-4 py-2 bg-gray-100 rounded">Loading...</div>
+                    <div className="text-sm px-2 sm:px-3 py-2 bg-gray-100 rounded md:text-base md:px-4">Loading...</div>
                   ) : isAuthenticated ? (
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm text-gray-700">
+                    <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3"> {/* Adjusted spacing */}
+                      {/* Username: Hidden on small screens, visible on md and up */}
+                      <span className="text-sm text-gray-700 hidden md:inline">
                         {userData?.name || userData?.email || 'User'}
                       </span>
+                      {/* Logout Button: Icon on small screens, text on md and up */}
                       <button
                         onClick={handleLogout}
-                        className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                        className="bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center justify-center p-2" 
+                        aria-label="Logout"
                       >
-                        Logout
+                      <LogOut className="h-5 w-5" />
                       </button>
                     </div>
                   ) : (
+                    // Log In / Sign Up Button: Responsive text and padding
                     <button
                       onClick={() => authState.loginWithRedirect()}
-                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                      className="bg-green-500 text-white rounded hover:bg-green-600 
+                                 text-sm px-2 py-2 sm:px-3 md:text-base md:px-4" // Responsive padding & text size
                     >
-                      Log In | Sign Up
+                      <span className="md:hidden">Log In</span>
+                      <span className="hidden md:inline">Log In | Sign Up</span>
                     </button>
                   )
                 ) : (
-                  <div className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded text-sm">
-                    Auth not initialized
+                  // Auth not initialized: Responsive text
+                  <div className="bg-yellow-100 text-yellow-800 rounded text-xs sm:text-sm px-2 py-2 sm:px-3">
+                    <span className="md:hidden">Auth...</span>
+                    <span className="hidden md:inline">Auth not initialized</span>
                   </div>
                 )}
               </div>
@@ -423,12 +457,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           </div>
         </div>
       )}
-      
-      {/* REMOVED: Ob-Server Free Trial Bubble
-      {!isUsingObServer && showObServerTrialBubble && (
-        // ... content of the bubble ...
-      )}
-      */}
     </>
   );
 };
