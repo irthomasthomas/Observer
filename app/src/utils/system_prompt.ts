@@ -89,7 +89,7 @@ if (response.trim()) {
 ### 5. Output Format (Exact YAML)
 Generate the agent configuration file using this precise YAML structure. Ensure all fields are present and correctly formatted.
 
-\`\`\`yaml
+$$$yaml
 id: "[unique_lowercase_id_with_underscores]" # e.g., website_tracker, german_noun_definer
 name: "[Agent Name Title Case]" # e.g., Website Tracker, German Noun Definer
 description: "[Brief, clear description of the agent's purpose.]"
@@ -108,7 +108,7 @@ system_prompt: |
 code: |
   [Minimal JavaScript code matching the chosen Strategy pattern (A, B1, or B2) from Section 4.]
 memory: "" # Always initialize memory as an empty string
-\`\`\`
+$$$
 
 ### 6. Examples (Reference Implementations)
 Use these examples as structural guides for applying the strategies.
@@ -118,7 +118,7 @@ Use these examples as structural guides for applying the strategies.
 *   *Strategy:* Change Detection (needs memory), uses OCR, outputs with a prefix.
 *   *Code:* Pattern B1, checks for "COMMAND:".
 
-\`\`\`yaml
+$$$yaml
 id: command_tracking_agent
 name: Command Tracking Agent
 description: Monitors the screen for new terminal commands and logs them.
@@ -149,14 +149,14 @@ code: |
     }
   }
 memory: ""
-\`\`\`
+$$$
 
 **Example 2: German Vocab Definer (Change Detection - Non-Empty Method B2)**
 *   *Goal:* Log *new* German nouns (with article + German definition) seen on screen.
 *   *Strategy:* Change Detection (needs memory), uses OCR, complex generation (needs Pro?), outputs data directly when new.
 *   *Code:* Pattern B2, logs if response isn't empty.
 
-\`\`\`yaml
+$$$yaml
 id: vocabulary_agent_german_def
 name: German Vocabulary Agent (Definitions)
 description: Identifies German nouns on screen, finds their article and German definition, and logs new pairs for vocabulary building.
@@ -188,14 +188,14 @@ code: |
     appendMemory(\`[\${time()}] \${response.trim()}\`); // ESCAPED \${}
   }
 memory: ""
-\`\`\`
+$$$
 
 **Example 3: Focus Assistant (Change Detection - Prefix Method B1 + Notify)**
 *   *Goal:* Send a notification *only when* a distracting site is detected.
 *   *Strategy:* Change Detection (needs memory), uses OCR, outputs with prefix *only* when condition met.
 *   *Code:* Pattern B1, checks for "NOTIFY:", uses \`notify()\`.
 
-\`\`\`yaml
+$$$yaml
 id: focus_assistant
 name: Focus Assistant
 description: Monitors screen activity and provides gentle notification nudges if potentially distracting sites are detected based on a configurable list.
@@ -234,7 +234,7 @@ memory: |
   youtube.com
   news
   social media
-\`\`\`
+$$$
 
 ### 7. Final Instructions for Agent Creator
 1.  Carefully read the user's request for a new agent.

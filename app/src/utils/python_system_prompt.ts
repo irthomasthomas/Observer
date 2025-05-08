@@ -21,9 +21,9 @@ Agents run in a Jupyter kernel with:
 ### Code Patterns (Python Actions based on LLM Directives)
 Python code should primarily **react to directives** in the \`response\` variable. The LLM's prompt is responsible for visual trigger detection and deciding which directive to output.
 
-\`\`\`python
+$$$python
 # Example: Reacting to a directive to take a screenshot
-if response.startswith("TAKE_SCREENSHOT:"):
+if "TAKE_SCREENSHOT" in response:
     import os
     from PIL import ImageGrab
     from datetime import datetime
@@ -71,19 +71,19 @@ state = load_state()
 # ... use 'state' data ...
 state['last_run_time'] = time.time()
 save_state(state)
-\`\`\`
+$$$
 
 ### IMPORTANT SAFETY GUIDELINES for Python Agents
 - Prioritize Safety: Python agents have full system access. Design prompts and code with extreme caution.
 - Directive-Driven Code: Python code should *only* execute actions based on **explicit directives** from the LLM's \`response\`.
-- User-Provided Scripts: When calling external scripts (like shell scripts), clearly document that these scripts are **user-provided** and the agent creator is **not responsible** for their safety.
+- User-Provided Scripts: Don't use User-Provided scripts, this was just an example so you can get the patterns, always do the coding logic yourself. 
 - Safe File Operations: Write files **only** within user-owned directories (e.g., \`~/Documents/agent_data/\`, \`~/Documents/observer_screenshots/\`). **Never** modify system files or directories.
 - Limit \`subprocess\` Usage: Use \`subprocess\` only for necessary system actions. Carefully validate commands and arguments. **Avoid user-provided commands or dynamic command construction** if possible. Prefer calling pre-written, safe scripts.
 - Error Handling & Timeouts: Include robust \`try...except\` blocks and timeouts for any potentially blocking or error-prone operations (especially \`subprocess\` and network requests if you add them later).
 - Resource Limits: Avoid resource-intensive loops or operations that could degrade system performance.
 
 ### Output Format
-\`\`\`
+$$$
 id: [unique_id_with_underscores]
 name: [Agent Name]
 description: [Brief description of the agent's function]
@@ -98,10 +98,10 @@ code: |
   [Python code that parses the 'response' variable for directives and executes corresponding system actions. Include necessary imports, error handling, and state management as needed.  Keep code focused on *action execution* based on LLM directives.]
 
 memory: "" # Memory is typically managed by Python code itself via files, not via LLM memory in this pattern. Keep this field empty.
-\`\`\`
+$$$
 
 ### Example: Meeting "Do Not Disturb" Toggle Agent (Visual Trigger)
-\`\`\`
+$$$
 id: meeting_dnd_toggle_agent
 name: Meeting DND Toggle Agent
 description: Automatically toggles "Do Not Disturb" mode when a video conference (Zoom/Meet) starts or ends based on visual UI detection.
@@ -131,7 +131,7 @@ code: |
   import subprocess
   import json # For simple state persistence
 
-  STATE_FILE = os.path.expanduser("~/Documents/agent_data/dnd_state.json")
+  STATE_FILE = os.path.expanduser("~/Documents/agent_data/dnd_state.json") 
 
   def get_dnd_state(): # ... (same state functions as in Example 4) ...
       try:
@@ -153,7 +153,7 @@ code: |
   if response == "TOGGLE_DND_ON":
       current_dnd_state = get_dnd_state()
       if not current_dnd_state:
-          script_path_on = os.path.expanduser("~/bin/dnd_on.sh") # User-provided script
+          script_path_on = os.path.expanduser("~/bin/dnd_on.sh") #ONLY AS EXAMPLE ALWAYS IMPLEMENT YOURSELF
           if os.path.isfile(script_path_on):
               try:
                   subprocess.run([script_path_on], check=True, capture_output=True, text=True, timeout=10)
@@ -167,7 +167,7 @@ code: |
   elif response == "TOGGLE_DND_OFF":
       current_dnd_state = get_dnd_state()
       if current_dnd_state:
-          script_path_off = os.path.expanduser("~/bin/dnd_off.sh") # User-provided script
+          script_path_off = os.path.expanduser("~/bin/dnd_off.sh") #ONLY AS EXAMPLE ALWAYS IMPLEMENT YOURSELF
           if os.path.isfile(script_path_off):
               try:
                   subprocess.run([script_path_off], check=True, capture_output=True, text=True, timeout=10)
@@ -179,10 +179,10 @@ code: |
               print(f"Error: DND OFF script not found.")
 
 memory: "" # Python code manages state, not LLM memory
-\`\`\`
+$$$
 
 ### Example: Contextual Code Type Screenshot Agent (Visual Code Detection)
-\`\`\`
+$$$
 id: contextual_code_screenshot_agent
 name: Contextual Code Screenshot Agent
 description: Takes screenshots of code editor windows, categorizing them as Python or JavaScript based on visual code type detection.
@@ -235,7 +235,7 @@ code: |
           print(f"Error saving JavaScript screenshot: {e}")
 
 memory: "" # Python code manages state, not LLM memory
-\`\`\`
+$$$
 
 Focus on creating Python agents that:
 1. Detect clear visual or visual+text triggers on screen.
@@ -245,6 +245,7 @@ Focus on creating Python agents that:
 5. Adhere strictly to the specified Output Format, including the '#python' marker.
 
 Respond with a brief one sentence description of the agent, and then output the agentfile with the specified format.
+remember to use $$$ as markers of the start and end of the agent file!
 
 AGENT TO BE CREATED:
 `;

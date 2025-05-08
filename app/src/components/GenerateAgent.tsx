@@ -17,8 +17,9 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }
   React.useEffect(() => {
     if (!responseText) return;
     
-    // Extract the part inside triple backticks if present
-    const agentFileRegex = /```\s*\n?([\s\S]*?)```/;
+    // Extract the part inside triple $$$ if inserted
+    const agentFileRegex = /\$\$\$(?:yaml)?\s*\n?([\s\S]*?)\n?\$\$\$/; 
+
     const match = responseText.match(agentFileRegex);
     
     if (match && match[1] && match.index !== undefined) {
@@ -110,8 +111,10 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }
 function parseAgentResponse(responseText: string, agentType: 'browser' | 'python'): { agent: CompleteAgent, code: string } | null {
   try {
     // Extract content from backticks if present
-    const codeBlockMatch = responseText.match(/```([\s\S]*?)```/);
-    const relevantText = codeBlockMatch && codeBlockMatch[1] ? codeBlockMatch[1].trim() : responseText;
+    //
+    const agentBlockRegex = /\$\$\$(?:yaml)?\s*\n?([\s\S]*?)\n?\$\$\$/;
+    const agentBlockMatch = responseText.match(agentBlockRegex);
+    const relevantText = agentBlockMatch && agentBlockMatch[1] ? agentBlockMatch[1].trim() : responseText.trim();
     
     // Extract sections
     const codeMatch = relevantText.match(/code:\s*\|\s*\n([\s\S]*?)(?=\nmemory:)/);
