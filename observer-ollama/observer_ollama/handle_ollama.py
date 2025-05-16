@@ -28,10 +28,15 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
         self.send_cors_headers()
         self.send_header("Content-Length", "0")
         self.end_headers()
-    
+
     def do_GET(self):
-        logger.debug(f"GET request to {self.path}")
-        self.proxy_request("GET")
+        logger.debug(f"GET request to {self.path} from {self.address_string()}")
+        if self.path == '/quota':
+            self.handle_quota_request()
+        elif self.path == '/favicon.ico':
+            self.handle_favicon_request()
+        else:
+            self.proxy_request("GET")
     
     def do_POST(self):
         logger.debug(f"POST request to {self.path}")
@@ -272,6 +277,27 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             error_msg = f"Proxy error: {str(e)}".encode()
             self.wfile.write(error_msg)
+
+    def handle_quota_request(self):
+        logger.info(f"Handling /quota request from {self.address_string()}")
+        self.send_response(200)
+        self.send_cors_headers()
+        self.send_header("Content-Type", "application/json")
+        
+        response_data = json.dumps({"quota": 999})
+        encoded_response_data = response_data.encode('utf-8')
+        
+        self.send_header("Content-Length", str(len(encoded_response_data)))
+        self.end_headers()
+        self.wfile.write(encoded_response_data)
+        logger.debug(f"Sent /quota response: {response_data}")
+
+    def handle_favicon_request(self):
+        logger.debug(f"Handling /favicon.ico request from {self.address_string()}")
+        self.send_response(204) # No Content is often used for favicon if you don't have one
+        self.send_cors_headers() # May not be strictly necessary for favicon by browsers
+        self.end_headers()
+        logger.debug(f"Sent 204 No Content for /favicon.ico")
 
 def check_ollama_running():
     """Check if Ollama is already running on port 11434"""

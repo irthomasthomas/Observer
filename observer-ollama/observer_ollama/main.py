@@ -5,8 +5,8 @@ import signal
 import sys
 import socketserver
 import ssl
-from ssl_utils import prepare_certificates, get_local_ip
-from handle_ollama import OllamaProxy, check_ollama_running, start_ollama_server
+from .ssl_utils import prepare_certificates, get_local_ip
+from .handle_ollama import OllamaProxy, check_ollama_running, start_ollama_server
 
 # Setup logging
 logging.basicConfig(
