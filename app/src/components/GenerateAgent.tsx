@@ -18,7 +18,7 @@ const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }
     if (!responseText) return;
     
     // Extract the part inside triple $$$ if inserted
-    const agentFileRegex = /\$\$\$(?:yaml)?\s*\n?([\s\S]*?)\n?\$\$\$/; 
+    const agentFileRegex = /\$\$\$\s*\n?([\s\S]*?)\n?\$\$\$/;
 
     const match = responseText.match(agentFileRegex);
     
@@ -112,7 +112,7 @@ function parseAgentResponse(responseText: string, agentType: 'browser' | 'python
   try {
     // Extract content from backticks if present
     //
-    const agentBlockRegex = /\$\$\$(?:yaml)?\s*\n?([\s\S]*?)\n?\$\$\$/;
+    const agentBlockRegex = /\$\$\$\s*\n?([\s\S]*?)\n?\$\$\$/;
     const agentBlockMatch = responseText.match(agentBlockRegex);
     const relevantText = agentBlockMatch && agentBlockMatch[1] ? agentBlockMatch[1].trim() : responseText.trim();
     

@@ -39,12 +39,10 @@ Choose ONE strategy and generate the corresponding minimal \`code\`.
 *   **Goal:** Log relevant information found on the screen during *every* execution cycle.
 *   **Prompt Needs:** Instruct the agent to identify specific information and output it directly and concisely. **No conversational filler.** The entire agent response *is* the data to be logged.
 *   **Code Pattern:** Log the agent's entire \`response\` with a timestamp, assuming the prompt ensures the response is never empty unless no information is found.
-\`\`\`javascript
 // Log timestamped response if it's not empty
 if (response.trim()) {
   appendMemory(\`[\${time()}] \${response.trim()}\`); // ESCAPED \${}
 }
-\`\`\`
 *   **Inputs:** \`$SCREEN_64\` (and \`$SCREEN_OCR\` if text focus needed). **Do NOT include \`$MEMORY@...\`**.
 *   **Example Use Case:** Activity Tracker (logs current activity every cycle).
 
@@ -58,7 +56,6 @@ if (response.trim()) {
     *   Instruct agent to output **nothing** (an empty string or only whitespace) if no relevant change/condition is detected.
 *   **Code Patterns (Choose ONE based on prompt):**
     *   **B1. Prefix Method:** (Use when prompt defines a prefix for relevant output)
-\`\`\`javascript
 // Example: Log only if response starts with "PREFIX:"
 const prefix = "PREFIX:"; // Replace PREFIX with actual prefix from prompt
 if (response.startsWith(prefix)) {
@@ -68,14 +65,11 @@ if (response.startsWith(prefix)) {
     // OR if using notify(): notify("Agent Name", data);
   }
 }
-\`\`\`
     *   **B2. Non-Empty Method:** (Use when prompt outputs data directly *only* if new, otherwise nothing)
-\`\`\`javascript
 // Example: Log the response directly if it's non-empty (implies new data found)
 if (response.trim()) {
   appendMemory(\`[\${time()}] \${response.trim()}\`); // ESCAPED \${}
 }
-\`\`\`
 *   **Inputs:** \`$SCREEN_64\`, \`$MEMORY@agent_id\` (and \`$SCREEN_OCR\` if text focus needed).
 *   **Example Use Cases:** Command Tracker (Prefix Method), German Word Logger (Non-Empty Method), Focus Assistant (Prefix Method + Notify).
 
@@ -89,7 +83,7 @@ if (response.trim()) {
 ### 5. Output Format (Exact YAML)
 Generate the agent configuration file using this precise YAML structure. Ensure all fields are present and correctly formatted.
 
-$$$yaml
+$$$
 id: "[unique_lowercase_id_with_underscores]" # e.g., website_tracker, german_noun_definer
 name: "[Agent Name Title Case]" # e.g., Website Tracker, German Noun Definer
 description: "[Brief, clear description of the agent's purpose.]"
@@ -118,7 +112,7 @@ Use these examples as structural guides for applying the strategies.
 *   *Strategy:* Change Detection (needs memory), uses OCR, outputs with a prefix.
 *   *Code:* Pattern B1, checks for "COMMAND:".
 
-$$$yaml
+$$$
 id: command_tracking_agent
 name: Command Tracking Agent
 description: Monitors the screen for new terminal commands and logs them.
@@ -156,7 +150,7 @@ $$$
 *   *Strategy:* Change Detection (needs memory), uses OCR, complex generation (needs Pro?), outputs data directly when new.
 *   *Code:* Pattern B2, logs if response isn't empty.
 
-$$$yaml
+$$$
 id: vocabulary_agent_german_def
 name: German Vocabulary Agent (Definitions)
 description: Identifies German nouns on screen, finds their article and German definition, and logs new pairs for vocabulary building.
@@ -195,7 +189,7 @@ $$$
 *   *Strategy:* Change Detection (needs memory), uses OCR, outputs with prefix *only* when condition met.
 *   *Code:* Pattern B1, checks for "NOTIFY:", uses \`notify()\`.
 
-$$$yaml
+$$$
 id: focus_assistant
 name: Focus Assistant
 description: Monitors screen activity and provides gentle notification nudges if potentially distracting sites are detected based on a configurable list.
@@ -248,7 +242,7 @@ $$$
 9.  Set default \`loop_interval_seconds\` (e.g., 60) if not specified, or choose a sensible value based on the task.
 10. Assemble the final configuration using the **Exact YAML Output Format** (Section 5).
 11. **CRITICAL:** Double-check that the \`$MEMORY@agent_id\` in the \`system_prompt\` EXACTLY matches the generated \`id\` field if using Change Detection.
-12. Start your response with a brief, one-sentence summary of the agent created (e.g., "Created a Command Tracking Agent using the Change Detection strategy."), followed IMMEDIATELY by the complete agent configuration block in YAML format.
+12. Start your response with a brief, one-sentence summary of the agent created (e.g., "Created a Command Tracking Agent using the Change Detection strategy."), followed IMMEDIATELY by the $$$ identifiers, then complete agent configuration block in YAML format.
 
 AGENT TO BE CREATED BASED ON USER REQUEST:
 `;
