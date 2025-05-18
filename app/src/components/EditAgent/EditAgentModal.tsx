@@ -1,17 +1,11 @@
 import React, {
-  useState,
-  useEffect,
   lazy,
   Suspense,
-  useRef,
-  useCallback
+  useState, // For editorIsLoaded state
+  useEffect // For editorIsLoaded effect
 } from 'react';
 import Modal from '@components/EditAgent/Modal';
-import {
-  CompleteAgent,
-  downloadAgent,
-  listAgents as dbListAgents
-} from '@utils/agent_database';
+import { CompleteAgent } from '@utils/agent_database'; // Keep for Props
 import {
   Download,
   ChevronDown,
@@ -28,65 +22,17 @@ import {
   Server,
   Terminal
 } from 'lucide-react';
-import { listModels, Model } from '@utils/ollamaServer';
-import { getOllamaServerAddress, executeTestIteration } from '@utils/main_loop';
-import { Logger, LogEntry, LogLevel } from '@utils/logging';
-import {
-  getJupyterConfig,
-  testJupyterConnection as utilsTestJupyterConnection
-} from '@utils/handlers/JupyterConfig';
-import { postProcess } from '@utils/post-processor';
 import JupyterServerModal from '@components/JupyterServerModal';
+
+// Import the custom hook
+import { useEditAgentModalLogic } from './useEditAgentModalLogic'; // Adjust path if needed
 
 const LazyCodeMirror = lazy(() => import('@uiw/react-codemirror'));
 import { javascript } from '@codemirror/lang-javascript';
 import { python } from '@codemirror/lang-python';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 
-/* ───────────────────────── snippets ───────────────────────── */
-
-const jsSnippets = [
-  {
-    name: 'Write to Memory',
-    description: 'Store response in memory',
-    code: 'setMemory(agentId, response);'
-  },
-  {
-    name: 'Read/Write Memory',
-    description: 'Append to memory',
-    code: 'setMemory(`${await getMemory()} \\n[${time()}] ${response}`);'
-  },
-  {
-    name: 'Clean Thought Tags',
-    description: 'Remove <think> tags',
-    code:
-      "const cleaned = response.replace(/<think>[\\s\\S]*?<\\/think>/g,'').trim();"
-  }
-];
-
-const pythonSnippets = [
-  {
-    name: 'Write to Memory',
-    description: 'Store response in file',
-    code:
-      'import os\\nos.makedirs("memory", exist_ok=True)\\nwith open(f"memory/{agentId}.txt","w") as f:\\n    f.write(response)'
-  },
-  {
-    name: 'Read/Write Memory',
-    description: 'Append to memory file',
-    code:
-      'import os, datetime\\nos.makedirs("memory", exist_ok=True)\\nf="memory/{agentId}.txt"\\nold=open(f).read() if os.path.exists(f) else ""\\nopen(f,"w").write(old+"\\n["+datetime.datetime.now().isoformat()+"] "+response)'
-  },
-  {
-    name: 'Clean Thought Tags',
-    description: 'Remove <think> tags',
-    code:
-      'import re\\ncleaned=re.sub(r"<think>[\\s\\S]*?</think>","",response).strip()'
-  }
-];
-
 /* ───────────────────────── props ───────────────────────── */
-
 interface EditAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -97,7 +43,6 @@ interface EditAgentModalProps {
 }
 
 /* ───────────────────────── component ───────────────────────── */
-
 const EditAgentModal: React.FC<EditAgentModalProps> = ({
   isOpen,
   onClose,
@@ -106,228 +51,64 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
   code: existingCode,
   onSave
 }) => {
-  /* state */
-  const [agentId, setAgentId] = useState('');
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [currentModel, setCurrentModel] = useState('');
-  const [loopInterval, setLoopInterval] = useState(1.0);
-  const [availableModels, setAvailableModels] = useState<Model[]>([]);
-  const [loadingModels, setLoadingModels] = useState(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
-  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  // Use the custom hook for all logic and state
+  const {
+    agentId, setAgentId, // setAgentId is needed for direct input on ID field
+    name, setName,
+    description, setDescription,
+    currentModel, setCurrentModel,
+    loopInterval, setLoopInterval,
+    availableModels,
+    loadingModels,
+    modelsError,
+    isModelDropdownOpen, setIsModelDropdownOpen,
+    systemPrompt, setSystemPrompt,
+    systemPromptRef,
+    availableAgentsForBlocks,
+    showAgentBlockDropdown, setShowAgentBlockDropdown,
+    agentCode, setAgentCode,
+    isPythonMode, setIsPythonMode,
+    isJupyterModalOpen, setIsJupyterModalOpen,
+    jupyterStatus,
+    testResponse, setTestResponse,
+    isRunningModel,
+    isRunningCode,
+    testOutput,
+    testResponseRef,
+    checkJupyter,
+    insertSystemPromptText,
+    insertCodeSnippet,
+    handleRunModel,
+    handleRunCode,
+    handleSave,
+    handleExport,
+    langSnippets,
+  } = useEditAgentModalLogic({
+    isOpen,
+    onClose,
+    createMode,
+    agent,
+    code: existingCode,
+    onSave
+  });
 
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const systemPromptRef = useRef<HTMLTextAreaElement>(null);
-
-  const [availableAgentsForBlocks, setAvailableAgentsForBlocks] = useState<
-    CompleteAgent[]
-  >([]);
-  const [showAgentBlockDropdown, setShowAgentBlockDropdown] = useState(false);
-
-  const [agentCode, setAgentCode] = useState('');
+  // State and effect for CodeMirror loading remains here as it's UI-specific
   const [editorIsLoaded, setEditorIsLoaded] = useState(false);
-  const [isPythonMode, setIsPythonMode] = useState(false);
-
-  const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
-  const [jupyterStatus, setJupyterStatus] = useState<
-    'unknown' | 'checking' | 'connected' | 'error'
-  >('unknown');
-
-  const [testResponse, setTestResponse] = useState('');
-  const [isRunningModel, setIsRunningModel] = useState(false);
-  const [isRunningCode, setIsRunningCode] = useState(false);
-  const [testOutput, setTestOutput] = useState('');
-  const testResponseRef = useRef<HTMLTextAreaElement>(null);
-
-  /* helpers */
-  const fetchModels = useCallback(async () => {
-    try {
-      setLoadingModels(true);
-      const { host, port } = getOllamaServerAddress();
-      const r = await listModels(host, port);
-      if (r.error) throw new Error(r.error);
-      setAvailableModels(r.models);
-      setCurrentModel(
-        agent?.model_name ?? r.models[0]?.name ?? ''
-      );
-    } catch (e) {
-      setModelsError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoadingModels(false);
-    }
-  }, [agent]);
-
-  const loadAgents = useCallback(async () => {
-    setAvailableAgentsForBlocks(await dbListAgents());
-  }, []);
-
-  const checkJupyter = useCallback(async () => {
-    setJupyterStatus('checking');
-    const res = await utilsTestJupyterConnection(getJupyterConfig());
-    setJupyterStatus(res.success ? 'connected' : 'error');
-  }, []);
-
-  /* initialise on open */
-  useEffect(() => {
-    if (!isOpen) return;
-
-  const defaultCode =
-  `// Process model response
-  console.log(agentId, response.substring(0, 100));
-
-  `;
-
-    if (agent) {
-      setAgentId(agent.id);
-      setName(agent.name);
-      setDescription(agent.description);
-      setLoopInterval(agent.loop_interval_seconds);
-      setSystemPrompt(agent.system_prompt);
-    } else {
-      setAgentId('');
-      setName('');
-      setDescription('');
-      setLoopInterval(60);
-      setSystemPrompt('');
-    }
-
-    setAgentCode(existingCode ?? defaultCode);
-    setIsPythonMode((existingCode ?? defaultCode).trim().startsWith('#python'));
-    setTestResponse('');
-    setTestOutput('');
-
-    fetchModels();
-    loadAgents();
-    checkJupyter();
-  }, [isOpen, agent, existingCode, fetchModels, loadAgents, checkJupyter]);
 
   /* lazy-load CodeMirror */
   useEffect(() => {
     if (isOpen && !editorIsLoaded) {
       import('@uiw/react-codemirror').then(() => setEditorIsLoaded(true));
     }
+    // Optionally reset when modal closes to allow re-triggering "Loading editor..."
+    if (!isOpen && editorIsLoaded) {
+        setEditorIsLoaded(false);
+    }
   }, [isOpen, editorIsLoaded]);
 
-  /* keep #python line in sync */
-  useEffect(() => {
-    if (!isOpen) return;
-    if (isPythonMode && !agentCode.startsWith('#python')) {
-      setAgentCode('#python <-- do not remove this!\\n' + agentCode);
-    }
-    if (!isPythonMode && agentCode.startsWith('#python')) {
-      setAgentCode(agentCode.replace(/^#python.*?\\n/, ''));
-    }
-  }, [isPythonMode, isOpen, agentCode]);
-
-  /* prompt helpers */
-  const insertSystemPromptText = (txt: string) => {
-    const ta = systemPromptRef.current;
-    if (!ta) return;
-    const { selectionStart: s, selectionEnd: e, value: v } = ta;
-    setSystemPrompt(v.slice(0, s) + txt + v.slice(e));
-    requestAnimationFrame(() => {
-      ta.focus();
-      const pos = s + txt.length;
-      ta.setSelectionRange(pos, pos);
-    });
-  };
-
-  /* NEW — snippet helper was missing */
-  const insertCodeSnippet = (snippet: string) => {
-    setAgentCode((c) => c + (c.endsWith('\\n') ? '' : '\\n') + snippet);
-  };
-
-  /* run model */
-  const handleRunModel = async () => {
-    if (isRunningModel || !currentModel) return;
-    setIsRunningModel(true);
-    setTestOutput((p) => 'SYSTEM: running model...\\n' + p);
-    try {
-      const r = await executeTestIteration(
-        agentId || 'test-agent',
-        systemPrompt,
-        currentModel
-      );
-      setTestResponse(r);
-      setTestOutput((p) => `SYSTEM: model returned (${r.length} chars)\\n` + p);
-      testResponseRef.current?.focus();
-    } catch (e) {
-      setTestOutput(
-        (p) => `ERROR: ${e instanceof Error ? e.message : e}\\n` + p
-      );
-    } finally {
-      setIsRunningModel(false);
-    }
-  };
-
-  /* run code */
-  const handleRunCode = async () => {
-    if (isRunningCode || !testResponse) return;
-    setIsRunningCode(true);
-    setTestOutput((p) => 'SYSTEM: executing code...\\n' + p);
-    const buf: string[] = [];
-    const origLog = console.log;
-    console.log = (...a: unknown[]) => {
-      buf.push(a.map(String).join(' '));
-      origLog.apply(console, a);
-    };
-    const listener = (e: LogEntry) =>
-      buf.push(`[${LogLevel[e.level].toUpperCase()}] ${e.message}`);
-    Logger.addListener(listener);
-    try {
-      await postProcess(agentId || 'test-agent', testResponse, agentCode);
-      setTestOutput(
-        (p) =>
-          buf.join('\\n') +
-          (buf.length ? '\\n' : '') +
-          'SYSTEM: code finished\\n' +
-          p
-      );
-    } catch (e) {
-      setTestOutput(
-        (p) =>
-          buf.join('\\n') +
-          (buf.length ? '\\n' : '') +
-          `ERROR: ${e instanceof Error ? e.message : e}\\n` +
-          p
-      );
-    } finally {
-      Logger.removeListener(listener);
-      console.log = origLog;
-      setIsRunningCode(false);
-    }
-  };
-
-  /* save agent */
-  const handleSave = () => {
-    if (createMode && !agentId) return alert('Agent ID required');
-    if (!name) return alert('Name required');
-    if (!currentModel) return alert('Model required');
-    const obj: CompleteAgent = {
-      id: agentId,
-      name,
-      description,
-      status: agent?.status ?? 'stopped',
-      model_name: currentModel,
-      system_prompt: systemPrompt,
-      loop_interval_seconds: loopInterval
-    };
-    onSave(obj, agentCode);
-    onClose();
-  };
-
-  /* export file */
-  const handleExport = async () => {
-    try {
-      if (agentId) await downloadAgent(agentId);
-    } catch (e) {
-      alert(`Export failed: ${e instanceof Error ? e.message : e}`);
-    }
-  };
 
   if (!isOpen) return null;
-  const langSnippets = isPythonMode ? pythonSnippets : jsSnippets;
+  // langSnippets is now provided by the hook
 
   /* ───────────────────────── JSX ───────────────────────── */
   return (
@@ -399,12 +180,15 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                   </label>
                   <input
                     value={agentId}
-                    onChange={(e) =>
-                      createMode &&
-                      setAgentId(
-                        e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
-                      )
-                    }
+                    onChange={(e) => {
+                      // Allow manual override of ID in create mode,
+                      // even though it's auto-filled from name.
+                      if (createMode) {
+                        setAgentId(
+                          e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
+                        );
+                      }
+                    }}
                     readOnly={!createMode}
                     className={`w-full p-2 bg-gray-100 border-gray-300 rounded-md ${
                       createMode
@@ -454,10 +238,10 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                           !modelsError &&
                           availableModels.length === 0 && (
                             <div className="px-3 py-2 text-sm text-gray-500">
-                              No models
+                              No models. Ensure Ollama is running and models are pulled.
                             </div>
                           )}
-                        {!loadingModels &&
+                        {!loadingModels && !modelsError &&
                           availableModels.map((m) => (
                             <button
                               key={m.name}
@@ -484,7 +268,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                                 }
                                 className="w-full p-1.5 bg-gray-100 border-gray-300 rounded-md text-xs"
                                 placeholder="Custom model name"
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
                               />
                             </div>
                           )}
@@ -615,8 +399,8 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
             <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
               <div className="flex justify-between items-center mb-2">
 
-                <h3 className="text-lg font-semibold text-indigo-700 flex items-baseline"> {/* Use items-baseline for nice alignment */}
-                    <code 
+                <h3 className="text-lg font-semibold text-indigo-700 flex items-baseline">
+                    <code
                         className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-mono text-lg mr-1.5 shadow-sm border border-blue-200">
                         response
                     </code>
@@ -740,7 +524,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                     </div>
                   }
                 >
-                  {editorIsLoaded && (
+                  {editorIsLoaded && ( // Check editorIsLoaded before rendering LazyCodeMirror
                     <LazyCodeMirror
                       value={agentCode}
                       height="100%"
@@ -762,14 +546,13 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
               </div>
 
 
-              {/* logs (restored line handling) */}
+              {/* logs */}
               <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
                 <Terminal size={14} className="mr-1.5" />
                 Logs
               </label>
               <pre className="w-full p-2 bg-gray-50 border border-gray-300 rounded-md font-mono text-xs h-32 overflow-y-auto">
                 {testOutput ? (
-                  /* convert literal “\\n” sequences to real breaks before splitting */
                   testOutput
                     .replace(/\\n/g, '\n')
                     .split('\n')
@@ -793,8 +576,6 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                   <span className="text-gray-400">Logs will appear here…</span>
                 )}
               </pre>
-
-
             </div>
           </div>
         </div>
@@ -828,7 +609,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
         isOpen={isJupyterModalOpen}
         onClose={() => {
           setIsJupyterModalOpen(false);
-          checkJupyter();
+          checkJupyter(); // Call the checkJupyter from the hook
         }}
       />
     </>
@@ -836,4 +617,3 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
 };
 
 export default EditAgentModal;
-
