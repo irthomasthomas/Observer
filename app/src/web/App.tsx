@@ -379,8 +379,6 @@ function AppContent() {
         {/* Main content, replace the TabNavigation and TabContent with this */}
         <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
           <AgentImportHandler 
-            onImportComplete={fetchAgents}
-            setError={setError}
             onAddAgent={handleAddAgentClick}
             agentCount={agents.length}
             activeAgentCount={agents.filter(a => a.status === 'running').length}

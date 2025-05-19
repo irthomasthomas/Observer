@@ -1,9 +1,7 @@
-import { useRef, useState } from 'react';
-import { FileUp, PlusCircle, RotateCw, Sparkles } from 'lucide-react';
-import { importAgentsFromFiles } from '@utils/agent_database';
-import { Logger } from '@utils/logging';
-import GenerateAgentModal from './GenerateAgentModal';
+import { useState } from 'react';
+import { PlusCircle, RotateCw, Sparkles } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database'; // Fixed import path
+import GenerateAgentModal from './GenerateAgentModal';
 
 interface ImportResult {
   filename: string;
@@ -13,8 +11,6 @@ interface ImportResult {
 }
 
 interface AgentImportHandlerProps {
-  onImportComplete: () => Promise<void>;
-  setError: (message: string | null) => void;
   onAddAgent: () => void;
   agentCount: number;
   activeAgentCount: number;
@@ -23,16 +19,13 @@ interface AgentImportHandlerProps {
 }
 
 const AgentImportHandler = ({
-  onImportComplete,
-  setError,
   onAddAgent,
   agentCount,
   activeAgentCount,
   isRefreshing,
   onRefresh
 }: AgentImportHandlerProps) => {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [importStatus, setImportStatus] = useState<{ inProgress: boolean; results: ImportResult[] }>({ 
+  const [importStatus] = useState<{ inProgress: boolean; results: ImportResult[] }>({ 
     inProgress: false, 
     results: [] 
   });
@@ -49,44 +42,8 @@ const AgentImportHandler = ({
   //  return () => clearInterval(interval); // Cleanup on unmount
   //}, [isRefreshing, onRefresh]); // Dependencies
 
-  const handleImportClick = () => {
-    setImportStatus({ inProgress: false, results: [] });
-    if (fileInputRef.current) fileInputRef.current.click();
-    Logger.info('APP', 'Opening file selector for agent import');
-  };
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    
-    Logger.info('APP', `Selected ${files.length} file(s) for import`);
-    setImportStatus({ inProgress: true, results: [] });
-    
-    try {
-      setError(null);
-      const results = await importAgentsFromFiles(Array.from(files));
-      setImportStatus({ inProgress: false, results });
-      
-      const successCount = results.filter(r => r.success).length;
-      if (successCount > 0) await onImportComplete();
-      
-      const failedImports = results.filter(r => !r.success);
-      if (failedImports.length > 0) {
-        setError(`Failed to import ${failedImports.length} agent(s): ${failedImports.map(r => `${r.filename}: ${r.error}`).join('; ')}`);
-      }
-    } catch (err) {
-      const error = err as Error;
-      setError(`Import failed: ${error.message || 'Unknown error'}`);
-      setImportStatus({ inProgress: false, results: [] });
-    }
-    
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   return (
     <>
-      <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".yaml" multiple className="hidden" />
-      
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <button onClick={onRefresh} className="p-2 rounded-md hover:bg-gray-100" disabled={isRefreshing} title="Refresh agents">
