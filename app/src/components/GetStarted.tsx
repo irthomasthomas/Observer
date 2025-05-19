@@ -3,38 +3,34 @@ import React, { useState } from 'react';
 import { Plus, Users, Sparkles, Terminal, Code } from 'lucide-react';
 import GenerateAgent from './GenerateAgent';
 
+// Fixed model for GetStarted page
+const FIXED_MODEL = 'gemini-2.0-flash';
+
 interface GetStartedProps {
   onExploreCommunity: () => void;
   onCreateNewAgent: () => void;
 }
 
-const GetStarted: React.FC<GetStartedProps> = ({ 
-  onExploreCommunity, 
+const GetStarted: React.FC<GetStartedProps> = ({
+  onExploreCommunity,
   onCreateNewAgent,
 }) => {
   const [showAiGenerator, setShowAiGenerator] = useState<boolean>(false);
   const [agentType, setAgentType] = useState<'browser' | 'python'>('browser');
-  
+
+
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 shadow-sm">
         <h2 className="text-2xl font-bold text-blue-800 mb-6 text-center">Welcome to Observer AI</h2>
-        
-        {/* REMOVED: Main description paragraph */}
-        {/* 
-        <p className="text-blue-700 mb-6 text-center max-w-3xl mx-auto">
-          Create agents that can observe, analyze, and respond to what's happening on your screen.
-        </p> 
-        */}
-        
-        {/* Agent Type Toggle */}
+
         <div className="flex justify-center mb-6">
           <div className="bg-white rounded-lg p-1 flex shadow-sm border border-blue-100">
             <button
               onClick={() => setAgentType('browser')}
               className={`px-4 py-2 rounded-md flex items-center transition-colors ${
-                agentType === 'browser' 
-                  ? 'bg-blue-600 text-white' 
+                agentType === 'browser'
+                  ? 'bg-blue-600 text-white'
                   : 'text-blue-800 hover:bg-blue-50'
               }`}
             >
@@ -44,8 +40,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
             <button
               onClick={() => setAgentType('python')}
               className={`px-4 py-2 rounded-md flex items-center transition-colors ${
-                agentType === 'python' 
-                  ? 'bg-blue-600 text-white' 
+                agentType === 'python'
+                  ? 'bg-blue-600 text-white'
                   : 'text-blue-800 hover:bg-blue-50'
               }`}
             >
@@ -54,24 +50,18 @@ const GetStarted: React.FC<GetStartedProps> = ({
             </button>
           </div>
         </div>
-        
-        {/* Agent Type Description - SIMPLIFIED */}
-        <div className="mb-6 text-center min-h-[20px]"> {/* Added min-h for layout consistency */}
+
+        <div className="mb-6 text-center min-h-[20px]">
           {agentType === 'browser' ? (
-            // <p className="text-sm text-blue-700">
-            //   Browser agents run in your browser and can monitor and log activities.
-            // </p>
-            null // No specific message for browser agent after removal
+            null
           ) : (
             <p className="text-sm text-blue-700">
-              {/* System agents run on your computer with Python and can perform actions on your system. */}
-              {/* <br /> */} {/* Removed <br /> if it's the only thing left after above line removal */}
               <span className="text-blue-600 font-medium">Requires Jupyter server setup.</span>
             </p>
           )}
         </div>
-        
-        {/* AI Agent Generator */}
+
+        {/* AI Agent Generator Section */}
         <div className="mb-10 max-w-3xl mx-auto">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-t-lg flex items-center">
             <Sparkles className="h-5 w-5 mr-2" />
@@ -79,24 +69,18 @@ const GetStarted: React.FC<GetStartedProps> = ({
               <h3 className="font-medium">
                 {agentType === 'browser' ? 'AI Browser Agent Generator' : 'AI System Agent Generator'}
               </h3>
-              {/* REMOVED: "Describe what you need in plain English" */}
-              {/* 
-              <p className="text-sm opacity-90">
-                Describe what you need in plain English
-              </p> 
-              */}
             </div>
           </div>
-          
+
           <div className="bg-white p-5 rounded-b-lg shadow-sm">
             {showAiGenerator ? (
-              <GenerateAgent agentType={agentType} />
+              <GenerateAgent agentType={agentType} modelName={FIXED_MODEL} />
             ) : (
               <div className="flex">
                 <input
                   type="text"
-                  placeholder={agentType === 'browser' 
-                    ? "Example: An agent that detects when I'm viewing sensitive documents..." 
+                  placeholder={agentType === 'browser'
+                    ? "Example: An agent that detects when I'm viewing sensitive documents..."
                     : "Example: An agent that saves screenshots when I open specific applications..."
                   }
                   className="flex-1 p-3 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
@@ -113,10 +97,10 @@ const GetStarted: React.FC<GetStartedProps> = ({
             )}
           </div>
         </div>
-        
-        {/* Browse Community and Create Custom options - SIMPLIFIED */}
+
+        {/* Browse Community and Create Custom options */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10 max-w-3xl mx-auto">
-          <div 
+          <div
             onClick={onExploreCommunity}
             className="bg-white border border-blue-100 rounded-lg p-5 text-center cursor-pointer hover:bg-blue-50 transition-colors flex flex-col items-center shadow-sm"
           >
@@ -124,15 +108,9 @@ const GetStarted: React.FC<GetStartedProps> = ({
               <Users className="h-7 w-7 text-blue-600" />
             </div>
             <h3 className="font-medium text-blue-800 text-lg">Browse Community Agents</h3>
-            {/* REMOVED: Description paragraph */}
-            {/* 
-            <p className="text-gray-600 mt-2">
-              Discover and import ready-made agents from the community library
-            </p> 
-            */}
           </div>
-          
-          <div 
+
+          <div
             onClick={onCreateNewAgent}
             className="bg-white border border-blue-100 rounded-lg p-5 text-center cursor-pointer hover:bg-blue-50 transition-colors flex flex-col items-center shadow-sm"
           >
@@ -140,12 +118,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
               <Plus className="h-7 w-7 text-blue-600" />
             </div>
             <h3 className="font-medium text-blue-800 text-lg">Create Custom Agent</h3>
-            {/* REMOVED: Description paragraph */}
-            {/* 
-            <p className="text-gray-600 mt-2">
-              Build an agent from scratch with full control over all settings
-            </p> 
-            */}
           </div>
         </div>
       </div>
