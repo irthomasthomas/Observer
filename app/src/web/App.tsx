@@ -486,7 +486,7 @@ function AppContent() {
               <span className="text-xs text-gray-500">Support the Project!</span>
               <div className="flex items-center space-x-2">
                 <a 
-                  href="https://discord.gg/k4ruE6WG"
+                  href="https://discord.gg/wnBb7ZQDUC"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-indigo-500 hover:text-indigo-600"
