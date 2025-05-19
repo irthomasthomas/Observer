@@ -2,10 +2,11 @@ import React, {
   lazy,
   Suspense,
   useState, // For editorIsLoaded state
-  useEffect // For editorIsLoaded effect
+  useEffect, // For editorIsLoaded effect
+  useRef
 } from 'react';
 import Modal from '@components/EditAgent/Modal';
-import { CompleteAgent } from '@utils/agent_database'; // Keep for Props
+import { CompleteAgent, importAgentsFromFiles } from '@utils/agent_database'; // Keep for Props
 import {
   Download,
   ChevronDown,
@@ -20,8 +21,10 @@ import {
   Edit3,
   Tag,
   Server,
-  Terminal
+  Terminal,
+  FileUp
 } from 'lucide-react';
+import { Logger } from '@utils/logging';
 import JupyterServerModal from '@components/JupyterServerModal';
 
 // Import the custom hook
@@ -40,6 +43,8 @@ interface EditAgentModalProps {
   agent?: CompleteAgent;
   code?: string;
   onSave: (agent: CompleteAgent, code: string) => void;
+  onImportComplete?: () => Promise<void>;
+  setError?: (message: string | null) => void;
 }
 
 /* ───────────────────────── component ───────────────────────── */
@@ -49,7 +54,9 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
   createMode,
   agent,
   code: existingCode,
-  onSave
+  onSave,
+  onImportComplete,
+  setError
 }) => {
   // Use the custom hook for all logic and state
   const {
@@ -94,6 +101,11 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
 
   // State and effect for CodeMirror loading remains here as it's UI-specific
   const [editorIsLoaded, setEditorIsLoaded] = useState(false);
+  const [importStatus, setImportStatus] = useState<{ inProgress: boolean; results: {filename: string; success: boolean; agent?: CompleteAgent; error?: string;}[] }>({ 
+    inProgress: false, 
+    results: [] 
+  });
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   /* lazy-load CodeMirror */
   useEffect(() => {
@@ -106,6 +118,41 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
     }
   }, [isOpen, editorIsLoaded]);
 
+  // Import functionality
+  const handleImportClick = () => {
+    setImportStatus({ inProgress: false, results: [] });
+    if (fileInputRef.current) fileInputRef.current.click();
+    Logger.info('APP', 'Opening file selector for agent import');
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    Logger.info('APP', `Selected ${files.length} file(s) for import`);
+    setImportStatus({ inProgress: true, results: [] });
+    
+    try {
+      if (setError) setError(null);
+      const results = await importAgentsFromFiles(Array.from(files));
+      setImportStatus({ inProgress: false, results });
+      
+      const successCount = results.filter(r => r.success).length;
+      if (successCount > 0 && onImportComplete) await onImportComplete();
+      
+      const failedImports = results.filter(r => !r.success);
+      if (failedImports.length > 0 && setError) {
+        setError(`Failed to import ${failedImports.length} agent(s): ${failedImports.map(r => `${r.filename}: ${r.error}`).join('; ')}`);
+      }
+    } catch (err) {
+      const error = err as Error;
+      if (setError) setError(`Import failed: ${error.message || 'Unknown error'}`);
+      setImportStatus({ inProgress: false, results: [] });
+    }
+    
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
 
   if (!isOpen) return null;
   // langSnippets is now provided by the hook
@@ -113,6 +160,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
   /* ───────────────────────── JSX ───────────────────────── */
   return (
     <>
+      <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".yaml" multiple className="hidden" />
       <Modal
         open={isOpen}
         onClose={onClose}
@@ -140,6 +188,16 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                 <span>Export</span>
               </button>
             )}
+            {createMode && (
+              <button
+                onClick={handleImportClick}
+                className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white rounded-md text-xs"
+                disabled={importStatus.inProgress}
+              >
+                <FileUp className="h-4 w-4" />
+                <span>{importStatus.inProgress ? 'Importing...' : 'Import Agents'}</span>
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-1.5 rounded-full hover:bg-blue-700 hover:bg-opacity-50 text-indigo-100 hover:text-white"
@@ -148,6 +206,20 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Import Results */}
+        {importStatus.results.length > 0 && (
+          <div className="p-4 bg-blue-50">
+            <h3 className="font-medium mb-2">Import Results:</h3>
+            <ul className="list-disc pl-5">
+              {importStatus.results.map((result, index) => (
+                <li key={index} className={result.success ? 'text-green-600' : 'text-red-600'}>
+                  {result.filename}: {result.success ? 'Success' : `Failed - ${result.error}`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* body */}
         <div className="flex flex-grow min-h-0 bg-gray-50">

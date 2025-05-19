@@ -114,14 +114,6 @@ const AgentImportHandler = ({
             <span>Create Agent</span>
           </button>
           
-          <button
-            onClick={handleImportClick}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-            disabled={importStatus.inProgress}
-          >
-            <FileUp className="h-5 w-5" />
-            <span>{importStatus.inProgress ? 'Importing...' : 'Import Agents'}</span>
-          </button>
         </div>
       </div>
       

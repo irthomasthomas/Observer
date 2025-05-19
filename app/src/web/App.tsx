@@ -434,6 +434,8 @@ function AppContent() {
           agent={selectedAgent ? agents.find(a => a.id === selectedAgent) : undefined}
           code={selectedAgent ? agentCodes[selectedAgent] : undefined}
           onSave={handleSaveAgent}
+          onImportComplete={fetchAgents}
+          setError={setError}
         />
       )}
       
