@@ -7,6 +7,11 @@ An open-source platform for running local AI agents that enhance your computing 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+Demo:
+
+https://github.com/user-attachments/assets/def0cba9-c8c3-41d3-bd03-a507744e6ade
+
+
 <table>
   <tr>
     <td width="60%" valign="top">
