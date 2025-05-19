@@ -212,10 +212,9 @@ const GenerateAgent: React.FC<GenerateAgentProps> = ({ agentType, modelName }) =
 
       const { agent, code } = parsed;
       
-      // Ensure the saved agent uses the model selected in the UI, not necessarily the one from the LLM response
+      // Use the model_name from the agent definition, not the generation model
       const agentToSave: CompleteAgent = {
-        ...agent,
-        model_name: modelName,
+        ...agent
       };
 
       setParsedAgent(agentToSave);
