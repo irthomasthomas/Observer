@@ -1,8 +1,11 @@
 # Observer AI 👁️
 
+[Observer App Link](https://app.observer-ai.com/)
+
 - [Support me and the project!](https://buymeacoffee.com/roy3838)
 
 An open-source platform for running local AI agents that enhance your computing experience while preserving privacy.
+
 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
