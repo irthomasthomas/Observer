@@ -13,7 +13,7 @@ interface GenerateAgentModalProps {
   initialAgentType?: 'browser' | 'python';
 }
 
-const DEFAULT_MODEL = 'gemini-2.0-flash'; // Default model
+const DEFAULT_MODEL = 'gemini-2.5-flash-preview-04-17';
 
 const GenerateAgentModal: React.FC<GenerateAgentModalProps> = ({
   isOpen,

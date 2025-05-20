@@ -4,7 +4,7 @@ import { Plus, Users, Sparkles, Terminal, Code } from 'lucide-react';
 import GenerateAgent from './GenerateAgent';
 
 // Fixed model for GetStarted page
-const FIXED_MODEL = 'gemini-2.0-flash';
+const FIXED_MODEL = 'gemini-2.5-flash-preview-04-17';
 
 interface GetStartedProps {
   onExploreCommunity: () => void;
