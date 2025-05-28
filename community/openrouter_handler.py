@@ -28,11 +28,11 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         # Dictionary mapping display names to actual model IDs and parameter sizes
         self.model_map = {
             # --- Add your desired mappings here ---
-            "gemma-3-27b-or": {
-                "model_id": "google/gemma-3-27b-it:free",
-                "parameters": "27B",
-                "multimodal": True
-            },
+            # "gemma-3-27b-or": {
+            #     "model_id": "google/gemma-3-27b-it:free",
+            #     "parameters": "27B",
+            #     "multimodal": True
+            # },
             "deepseek-r1": {
                 "model_id": "deepseek-r1-zero:free", # Example
                 "parameters": "671B",
