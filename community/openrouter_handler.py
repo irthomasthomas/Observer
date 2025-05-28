@@ -28,7 +28,7 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         # Dictionary mapping display names to actual model IDs and parameter sizes
         self.model_map = {
             # --- Add your desired mappings here ---
-            "gemma-3-27b": {
+            "gemma-3-27b-or": {
                 "model_id": "google/gemma-3-27b-it:free",
                 "parameters": "27B",
                 "multimodal": True
