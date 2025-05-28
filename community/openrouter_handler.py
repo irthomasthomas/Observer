@@ -34,12 +34,12 @@ class OpenRouterAPIHandler(BaseAPIHandler):
             #     "multimodal": True
             # },
             "deepseek-r1": {
-                "model_id": "deepseek-r1-zero:free", # Example
+                "model_id": "deepseek/deepseek-r1:free", # Example
                 "parameters": "671B",
                 "multimodal": False
             },
             "deepseek-v3": {
-                "model_id": "deepseek-v3-base:free", # Example
+                "model_id": "deepseek/deepseek-chat:free", # Example
                 "parameters": "671B",
                 "multimodal": False
             },
