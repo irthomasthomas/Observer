@@ -3,6 +3,12 @@
 import { Logger } from './logging';
 import { getAgentMemory } from './agent_database';
 import { captureFrameAndOCR, startScreenCapture, captureScreenImage } from './screenCapture';
+import {
+    ensureContinuousRecognitionActive,
+    C_harvestSpeechSinceLastLoop,
+    C_getHistoricalLoopSpeech,
+    C_getFullTranscript
+} from './speechInputManager';
 
 // Define the result structure
 export interface PreProcessorResult {
@@ -133,7 +139,54 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         return { replacementText: `[Error retrieving clipboard text: ${errorMessage}]` };
       }
     }
-  }
+  },
+
+    '$SPEECH_SINCE_LAST_LOOP': {
+    regex: /\$SPEECH_SINCE_LAST_LOOP/g,
+    handler: async (agentId: string) => {
+      try {
+        await ensureContinuousRecognitionActive(agentId);
+        const text = C_harvestSpeechSinceLastLoop(agentId);
+        return { replacementText: text };
+      } catch (error: any) {
+        Logger.error(agentId, `Error in $SPEECH_SINCE_LAST_LOOP: ${error.message}`);
+        return { replacementText: `[Error: ${error.message}]` };
+      }
+    }
+  },
+
+  '$MICROPHONE_LOOP_N': { // Placeholder for $MICROPHONE_LOOP_1, $MICROPHONE_LOOP_2 etc.
+    regex: /\$MICROPHONE_LOOP_(\d+)/g, // Captures the number N
+    handler: async (agentId: string, _prompt: string, match: RegExpExecArray) => {
+      try {
+        const loopNumber = parseInt(match[1], 10);
+        if (isNaN(loopNumber) || loopNumber <= 0) {
+          return { replacementText: "[Invalid loop number for $MICROPHONE_LOOP_N]" };
+        }
+        await ensureContinuousRecognitionActive(agentId);
+        const text = C_getHistoricalLoopSpeech(agentId, loopNumber);
+        return { replacementText: text };
+      } catch (error: any) {
+        Logger.error(agentId, `Error in $MICROPHONE_LOOP_N: ${error.message}`);
+        return { replacementText: `[Error: ${error.message}]` };
+      }
+    }
+  },
+
+  '$MICROPHONE_ALL': {
+    regex: /\$MICROPHONE_ALL/g,
+    handler: async (agentId: string) => {
+      try {
+        await ensureContinuousRecognitionActive(agentId);
+        const text = C_getFullTranscript(agentId);
+        return { replacementText: text };
+      } catch (error: any) {
+        Logger.error(agentId, `Error in $MICROPHONE_ALL: ${error.message}`);
+        return { replacementText: `[Error: ${error.message}]` };
+      }
+    }
+  },
+
 
 };
 

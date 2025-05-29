@@ -5,6 +5,7 @@ import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
 import { stopScreenCapture } from './screenCapture';
+import { C_stopContinuousMicrophoneInputIfNeeded } from './speechInputManager';
 
 const activeLoops: Record<string, {
   intervalId: number | null,
@@ -83,7 +84,8 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
         detail: { agentId, status: 'stopped' },
       })
     );
-    stopScreenCapture();
+    stopScreenCapture(); // For screen capture
+    C_stopContinuousMicrophoneInputIfNeeded(agentId); // For continuous microphone
     activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
   } else {
     Logger.warn(agentId, `Attempted to stop agent that wasn't running`);
