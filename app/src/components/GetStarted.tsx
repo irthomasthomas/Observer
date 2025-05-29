@@ -22,7 +22,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 shadow-lg border border-indigo-200">
-        <h2 className="text-3xl font-bold text-indigo-900 mb-8 text-center">Observer AI Command Center</h2>
+        <h2 className="text-3xl font-bold text-indigo-900 mb-8 text-center">Welcome to Observer AI</h2>
 
         <div className="flex justify-center mb-8">
           <div className="bg-white rounded-full p-1 flex shadow-md border border-indigo-200">
