@@ -105,6 +105,34 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         return { replacementText: '[Error with screen capture]' };
       }
     }
+  },
+
+  // NEW: Clipboard Text processor
+  'CLIPBOARD_TEXT': {
+    regex: /\$CLIPBOARD_TEXT/g,
+    handler: async (agentId: string) => {
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+          // Clipboard API requires user permission, which is usually granted
+          // if the page is focused or the call is triggered by a user gesture.
+          // It also requires a secure context (HTTPS).
+          const clipboardText = await navigator.clipboard.readText();
+          Logger.debug(agentId, `Retrieved clipboard text: "${clipboardText}"`);
+          return { replacementText: clipboardText };
+        } else {
+          Logger.warn(agentId, `navigator.clipboard.readText is not available for CLIPBOARD_TEXT.`);
+          return { replacementText: '[Error: Clipboard API not available or permission denied]' };
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error(agentId, `Error retrieving clipboard text: ${errorMessage}`);
+        // Specific check for NotAllowedError which often means permission denied or document not focused
+        if (errorMessage.includes('NotAllowedError') || errorMessage.includes('Must be handling a user gesture')) {
+            return { replacementText: '[Error: Clipboard access denied or requires user interaction]' };
+        }
+        return { replacementText: `[Error retrieving clipboard text: ${errorMessage}]` };
+      }
+    }
   }
 
 };
