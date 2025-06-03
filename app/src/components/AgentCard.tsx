@@ -287,7 +287,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
         
         {activityExpanded && (
           <div className="border-t border-gray-100 p-4">
-            <AgentLogViewer agentId={agent.id} expanded={true} />
+            <AgentLogViewer agentId={agent.id}/>
           </div>
         )}
       </div>
