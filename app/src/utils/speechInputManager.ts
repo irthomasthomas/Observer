@@ -3,233 +3,172 @@ import { Logger } from './logging';
 
 const BrowserSpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-let continuousRecognizer: SpeechRecognition | null = null;
-let isRecognizerActive = false; // Tracks if recognizer.start() was successful and not errored/ended
-let activeAgentRefCount = 0; // How many agents are currently needing continuous mic
+let recognizer: SpeechRecognition | null = null;
+let isRecognizerActive = false;
 
-// Buffers
-let currentLoopTranscriptParts: string[] = []; // Accumulates speech since last main harvest
-let historicalLoopTranscripts: string[] = []; // Stores full text of previous loops
-let fullTranscriptSinceStart: string = "";   // Concatenation of all speech since recognizer started
+// This will store the fully finalized transcript parts
+let finalizedTranscript = "";
+// This will store the current, potentially updating, interim part of an utterance
+let currentUtteranceInterim = "";
 
-const MAX_HISTORICAL_LOOPS = 10; // How many past loops of speech to store
+let explicitlyStopped = false;
 
-/**
- * Starts or ensures the continuous speech recognition is active.
- * Manages a single shared SpeechRecognition instance.
- */
-export async function ensureContinuousRecognitionActive(agentId: string): Promise<void> {
+export async function ensureRecognitionStarted(agentId: string): Promise<void> {
     if (!BrowserSpeechRecognition) {
-        const msg = "Speech Recognition API not supported in this browser.";
+        const msg = "Speech Recognition API not supported.";
         Logger.error(agentId, `SpeechInputManager: ${msg}`);
         throw new Error(`[${msg}]`);
     }
 
-    activeAgentRefCount++;
-    Logger.debug(agentId, `SpeechInputManager: Ref count increased to ${activeAgentRefCount}.`);
-
-    // If already active and an instance exists, nothing more to do.
-    if (continuousRecognizer && isRecognizerActive) {
-        Logger.debug(agentId, "SpeechInputManager: Continuous recognition already active and instance exists.");
+    if (isRecognizerActive && recognizer) {
+        Logger.debug(agentId, "SpeechInputManager: Recognition already active.");
         return;
     }
 
-    // Create a new instance if one doesn't exist or if it critically errored (was nulled)
-    if (!continuousRecognizer) {
-        Logger.info(agentId, "SpeechInputManager: Initializing new continuous recognition instance.");
-        currentLoopTranscriptParts = [];
-        // Resetting historical and full transcript only when truly starting from null.
-        // This means if an error just made isRecognizerActive=false but continuousRecognizer instance
-        // was kept, these buffers would persist through a restart attempt.
-        historicalLoopTranscripts = [];
-        fullTranscriptSinceStart = "";
+    explicitlyStopped = false;
+    // Do NOT reset finalizedTranscript here. Reset current interim part.
+    currentUtteranceInterim = "";
 
+    if (!recognizer) {
+        Logger.info(agentId, "SpeechInputManager: Initializing new recognizer instance.");
         try {
-            continuousRecognizer = new BrowserSpeechRecognition();
-        } catch (e: any) {
-            isRecognizerActive = false; // Should already be false
-            activeAgentRefCount--; // Decrement as instantiation failed
-            Logger.error(agentId, `SpeechInputManager: CRITICAL - Failed to instantiate BrowserSpeechRecognition: ${e.message}`, e);
-            throw new Error(`[SpeechInputManager: CRITICAL - Failed to instantiate BrowserSpeechRecognition: ${e.message}]`);
+            recognizer = new BrowserSpeechRecognition();
+        } catch (e: any) { // Keeping 'any' here for simplicity if specific error types from constructor are unknown/varied
+            recognizer = null;
+            isRecognizerActive = false;
+            Logger.error(agentId, `SpeechInputManager: CRITICAL - Failed to instantiate: ${e instanceof Error ? e.message : String(e)}`, e);
+            throw new Error(`[SpeechInputManager: CRITICAL - Failed to instantiate: ${e instanceof Error ? e.message : String(e)}]`);
         }
     }
 
-    // At this point, continuousRecognizer *must* be an instance if we didn't throw above.
-    // The following block handles starting it if it's not currently active.
-    if (!isRecognizerActive) {
-        // This assertion tells TypeScript we're sure continuousRecognizer is not null here,
-        // because if it was null, the block above would have created it or thrown an error.
-        // This is one way to handle TS18047 if control flow isn't obvious enough for TSC.
-        // However, ideally the flow is structured so TS infers it. Let's try without '!' first.
-
-        // If continuousRecognizer is somehow still null here, it's a logic flaw.
-        if (!continuousRecognizer) {
-            const msg = "SpeechInputManager: Critical logic error - recognizer is null when expected.";
-            Logger.error(agentId, msg);
-            activeAgentRefCount--; // Clean up ref count
-            throw new Error(`[${msg}]`);
-        }
-
-        // Use a local const for the instance we are configuring/starting.
-        // This can sometimes help TypeScript with flow analysis within this block.
-        const recognizerToStart = continuousRecognizer;
-
-        Logger.debug(agentId, "SpeechInputManager: Configuring and attempting to start recognizer instance.");
-
-        recognizerToStart.continuous = true;
-        recognizerToStart.interimResults = false;
-        recognizerToStart.lang = 'en-US'; // Consider making this configurable
-
-        recognizerToStart.onresult = (event: SpeechRecognitionEvent) => {
-            let newFinalTranscript = "";
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    newFinalTranscript += event.results[i][0].transcript.trim() + " ";
-                }
-            }
-
-            if (newFinalTranscript.trim()) {
-                const segment = newFinalTranscript.trim();
-                Logger.debug(agentId, `SpeechInputManager: Received segment: "${segment}"`);
-                currentLoopTranscriptParts.push(segment);
-                fullTranscriptSinceStart += segment + " ";
-            }
-        };
-
-        recognizerToStart.onerror = (event: SpeechRecognitionErrorEvent) => {
-            isRecognizerActive = false; // Mark as inactive
-            Logger.error(agentId, `SpeechInputManager: Error: ${event.error}`, event.message);
-            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                Logger.warn(agentId, "SpeechInputManager: Permission/service error. Nullifying recognizer to prevent retries.");
-                if (continuousRecognizer) { // Check it still exists before calling abort
-                    try { continuousRecognizer.abort(); } catch (e) { /* ignore */ }
-                }
-                continuousRecognizer = null; // Prevent further automatic restarts for this session
-            }
-            // Other errors (network, no-speech if continuous) might allow restart on next ensure call
-        };
-
-        recognizerToStart.onend = () => {
-            isRecognizerActive = false; // Mark as inactive
-            Logger.info(agentId, "SpeechInputManager: Recognition ended.");
-            // If activeAgentRefCount > 0, the next ensureContinuousRecognitionActive call
-            // will attempt to restart it if continuousRecognizer instance still exists and is not null.
-        };
-
-        try {
-            Logger.debug(agentId, "SpeechInputManager: Calling start() on recognizer instance.");
-            recognizerToStart.start();
-            isRecognizerActive = true; // Set active only after start() call succeeds
-            Logger.info(agentId, "SpeechInputManager: Continuous recognition started successfully.");
-        } catch (e: any) {
-            isRecognizerActive = false; // Ensure it's marked inactive if start fails
-            // Don't decrement activeAgentRefCount here, the request to have it active still stands
-            // The pre-processor will just get an error/empty for this cycle.
-            Logger.error(agentId, `SpeechInputManager: Failed to start recognizer - ${e.message}`, e);
-            // Re-throw so the calling function (e.g., pre-processor handler) knows it failed.
-            throw new Error(`[SpeechInputManager: Failed to start - ${e.message}]`);
-        }
+    if (!recognizer) {
+        const msg = "SpeechInputManager: Critical logic error - recognizer is null after instantiation attempt.";
+        Logger.error(agentId, msg);
+        throw new Error(`[${msg}]`);
     }
-}
 
-/**
- * Decrements the reference count and stops the recognizer if no agents need it.
- */
-export function C_stopContinuousMicrophoneInputIfNeeded(agentId: string): void {
-    if (activeAgentRefCount > 0) {
-        activeAgentRefCount--;
-    }
-    Logger.debug(agentId, `SpeechInputManager: Ref count decreased to ${activeAgentRefCount}.`);
+    Logger.debug(agentId, "SpeechInputManager: Configuring and starting/restarting instance.");
+    recognizer.continuous = true;
+    recognizer.interimResults = true; // <<< KEY CHANGE: Enable interim results
+    recognizer.lang = 'en-US';
 
-    if (activeAgentRefCount <= 0) {
-        if (continuousRecognizer) {
-            Logger.info(agentId, "SpeechInputManager: Stopping continuous recognition as no agents need it.");
-            try {
-                // isRecognizerActive will be set to false by the onend handler
-                if (isRecognizerActive) { // Only call stop if we believe it's active
-                   continuousRecognizer.stop();
+    recognizer.onresult = (event: SpeechRecognitionEvent) => {
+        let latestInterimForThisEvent = ""; // Holds the latest interim from *this specific event*
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcriptPart = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                const trimmedFinal = transcriptPart.trim();
+                if (trimmedFinal) {
+                    finalizedTranscript += (finalizedTranscript ? " " : "") + trimmedFinal; // Append with a space if not empty
+                    Logger.debug(agentId, `SpeechInputManager: Received final part: "${trimmedFinal}"`);
                 }
-            } catch(e: any) {
-                Logger.warn(agentId, `SpeechInputManager: Error stopping recognizer: ${e.message}`);
-                isRecognizerActive = false; // Ensure it's marked as inactive
+                currentUtteranceInterim = ""; // Current utterance is now final, clear interim
+            } else {
+                latestInterimForThisEvent += transcriptPart; // Accumulate all interim parts in this event
             }
         }
-        // Reset state fully when no one is using it
-        continuousRecognizer = null;
+
+        // Update currentUtteranceInterim only if there was new interim content in this event
+        if (latestInterimForThisEvent.trim()) {
+            currentUtteranceInterim = latestInterimForThisEvent.trim();
+            // Logger.debug(agentId, `SpeechInputManager: Updated interim: "${currentUtteranceInterim}"`); // Can be noisy
+        }
+    };
+
+    recognizer.onerror = (event: SpeechRecognitionErrorEvent) => {
         isRecognizerActive = false;
-        activeAgentRefCount = 0; // Ensure it's definitely 0
-        currentLoopTranscriptParts = [];
-        historicalLoopTranscripts = [];
-        fullTranscriptSinceStart = "";
-        Logger.info(agentId, "SpeechInputManager: Resources fully reset.");
-    }
-}
+        Logger.error(agentId, `SpeechInputManager: Error: ${event.error}`, event.message);
+        if (['not-allowed', 'service-not-allowed'].includes(event.error)) {
+            Logger.warn(agentId, "SpeechInputManager: Unrecoverable error. Nullifying recognizer.");
+            if (recognizer) { try { recognizer.abort(); } catch (e) { /* ignore */ } }
+            recognizer = null;
+            explicitlyStopped = true;
+        }
+        // Do not clear currentUtteranceInterim here; onend might attempt to finalize it.
+    };
 
-/**
- * Harvests speech accumulated since the last call to this function.
- * This also archives the harvested speech for historical access.
- */
-export function C_harvestSpeechSinceLastLoop(agentId: string): string {
-    // Attempt to ensure active if agents are supposed to be using it but it's not marked active
-    if (!isRecognizerActive && activeAgentRefCount > 0) {
-        Logger.warn(agentId, "SpeechInputManager: Recognizer inactive during harvest. Attempting to ensure it's active.");
-        // This call will attempt to start/restart it.
-        // We don't await it here because harvest should be quick.
-        // If it fails to restart, subsequent calls will also try or it will remain inactive.
-        ensureContinuousRecognitionActive(agentId).catch(err => {
-            Logger.error(agentId, `SpeechInputManager: Background attempt to ensure active failed: ${err.message}`);
-        });
-    }
+    recognizer.onend = () => {
+        const previouslyActive = isRecognizerActive;
+        isRecognizerActive = false;
+        Logger.info(agentId, `SpeechInputManager: Recognition ended. Was active: ${previouslyActive}. Explicitly: ${explicitlyStopped}.`);
 
-    if (currentLoopTranscriptParts.length === 0) {
-        return "";
-    }
+        // If recognition ended unexpectedly and there's a lingering interim part,
+        // consider it final. This handles cases like silent timeouts.
+        if (currentUtteranceInterim.trim() && !explicitlyStopped) {
+            Logger.debug(agentId, `SpeechInputManager: Finalizing lingering interim on unexpected end: "${currentUtteranceInterim}"`);
+            finalizedTranscript += (finalizedTranscript ? " " : "") + currentUtteranceInterim.trim();
+            currentUtteranceInterim = "";
+        }
 
-    const harvestedText = currentLoopTranscriptParts.join(" ").trim();
-    Logger.info(agentId, `SpeechInputManager: Harvested for current loop: "${harvestedText}"`);
+        if (previouslyActive && !explicitlyStopped && recognizer) {
+            Logger.info(agentId, "SpeechInputManager: Attempting to restart recognition.");
+            try {
+                recognizer.start();
+                isRecognizerActive = true;
+                Logger.info(agentId, "SpeechInputManager: Restarted successfully.");
+            } catch (e: any) { // Keeping 'any' for simplicity
+                Logger.error(agentId, `SpeechInputManager: Failed to restart after onend: ${e instanceof Error ? e.message : String(e)}`, e);
+            }
+        }
+    };
 
-    if (harvestedText) {
-        historicalLoopTranscripts.unshift(harvestedText);
-        if (historicalLoopTranscripts.length > MAX_HISTORICAL_LOOPS) {
-            historicalLoopTranscripts.pop();
+    try {
+        recognizer.start();
+        isRecognizerActive = true;
+        Logger.info(agentId, "SpeechInputManager: Started successfully.");
+    } catch (e: any) { // Keeping 'any' for simplicity
+        isRecognizerActive = false;
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        Logger.error(agentId, `SpeechInputManager: Failed to start: ${errorMessage}`, e);
+        if (e instanceof Error && e.name === 'InvalidStateError' && recognizer) {
+            Logger.warn(agentId, "SpeechInputManager: Start failed with InvalidStateError, assuming already active.");
+            isRecognizerActive = true;
+        } else {
+            if (recognizer) { try { recognizer.abort(); } catch (abortErr) { /* ignore */ } }
+            recognizer = null;
+            throw new Error(`[SpeechInputManager: Failed to start: ${errorMessage}]`);
         }
     }
+}
 
-    currentLoopTranscriptParts = [];
-    return harvestedText;
+export function stopRecognitionAndClear(agentId: string): void {
+    explicitlyStopped = true;
+    if (recognizer) {
+        Logger.info(agentId, "SpeechInputManager: Explicitly stopping recognition.");
+        // Before stopping, if there's a lingering interim transcript, finalize it.
+        if (currentUtteranceInterim.trim()) {
+            Logger.debug(agentId, `SpeechInputManager: Finalizing lingering interim on stop: "${currentUtteranceInterim}"`);
+            finalizedTranscript += (finalizedTranscript ? " " : "") + currentUtteranceInterim.trim();
+        }
+
+        recognizer.onend = null; // Prevent auto-restart
+        if (isRecognizerActive || (recognizer as any).readyState === 1) { // readyState 1 is 'listening'
+            try {
+                recognizer.stop();
+            } catch (e) { // FIXED: Type check for error
+                const stopErrorMessage = e instanceof Error ? e.message : String(e);
+                Logger.warn(agentId, `Error during recognizer.stop(): ${stopErrorMessage}`);
+            }
+        }
+        recognizer = null;
+    }
+    isRecognizerActive = false;
+    finalizedTranscript = "";       // CLEAR THE FINALIZED TRANSCRIPT
+    currentUtteranceInterim = "";   // CLEAR THE INTERIM TRANSCRIPT
+    Logger.info(agentId, "SpeechInputManager: Recognition stopped and transcript cleared.");
 }
 
 /**
- * Gets the speech from N loops ago.
- * N=1 means the most recent fully harvested loop's text.
+ * The "get function" for $MICROPHONE.
+ * Returns the combination of finalized speech and the current interim utterance.
  */
-export function C_getHistoricalLoopSpeech(agentId: string, loopsAgo: number): string {
-    if (!isRecognizerActive && activeAgentRefCount > 0) {
-        Logger.warn(agentId, "SpeechInputManager: Recognizer inactive during historical fetch. Attempting to ensure active.");
-        ensureContinuousRecognitionActive(agentId).catch(err => {
-            Logger.error(agentId, `SpeechInputManager: Background attempt to ensure active failed: ${err.message}`);
-        });
+export function getCurrentTranscript(agentId: string): string { // FIXED: agentId is now used
+    let combined = finalizedTranscript;
+    if (currentUtteranceInterim.trim()) {
+        combined += (combined ? " " : "") + currentUtteranceInterim.trim();
     }
-
-    if (loopsAgo <= 0 || loopsAgo > historicalLoopTranscripts.length) {
-        Logger.warn(agentId, `SpeechInputManager: Invalid historical loop index: ${loopsAgo}. Available: ${historicalLoopTranscripts.length}`);
-        return "";
-    }
-    const text = historicalLoopTranscripts[loopsAgo - 1]; // 1-indexed from user
-    Logger.info(agentId, `SpeechInputManager: Retrieved speech from ${loopsAgo} loop(s) ago: "${text || ''}"`);
-    return text || "";
-}
-
-/**
- * Gets all speech transcribed since the continuous recognizer was first started in this session.
- */
-export function C_getFullTranscript(agentId: string): string {
-    if (!isRecognizerActive && activeAgentRefCount > 0) {
-        Logger.warn(agentId, "SpeechInputManager: Recognizer inactive during full transcript fetch. Attempting to ensure active.");
-        ensureContinuousRecognitionActive(agentId).catch(err => {
-            Logger.error(agentId, `SpeechInputManager: Background attempt to ensure active failed: ${err.message}`);
-        });
-    }
-    Logger.info(agentId, `SpeechInputManager: Retrieved full transcript (approx): "${fullTranscriptSinceStart.trim()}"`);
-    return fullTranscriptSinceStart.trim();
+    // Using agentId for logging, uncomment if needed for detailed debugging
+    Logger.debug(agentId, `SpeechInputManager: Returning current transcript (length: ${combined.trim().length}): "${combined.trim().substring(0,100)}${combined.trim().length > 100 ? '...' : ''}"`);
+    return combined.trim();
 }
