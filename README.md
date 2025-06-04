@@ -65,10 +65,11 @@ Creating your own Observer AI agent is simple and accessible to both beginners a
 
 1. Navigate to the Agent Dashboard and click "Create New Agent"
 2. Fill in the "Configuration" tab with basic details (name, description, model, loop interval)
-3. Use the "Context" tab to visually build your agent's input sources by adding blocks:
-   * **Screen OCR** block: Captures screen content as text via OCR
-   * **Screenshot** block: Captures screen as an image for multimodal models
-   * **Agent Memory** block: Accesses other agents' stored information
+3. Use a system prompt with input variables! The current input variables that exist are:
+   * **Screen OCR** ($SCREEN_OCR) Captures screen content as text via OCR (english only for now)
+   * **Screenshot** ($SCREEN_64) Captures screen as an image for multimodal models
+   * **Agent Memory** ($MEMORY@agent_id) Accesses agents' stored information
+   * **Microphone** ($MICROPHONE) Captures the microphone and adds a transcription (english only for now)
 
 ## Code Tab
 
