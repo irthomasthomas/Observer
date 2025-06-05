@@ -30,7 +30,7 @@ export async function ensureRecognitionStarted(agentId: string): Promise<void> {
     currentUtteranceInterim = "";
 
     if (!recognizer) {
-        Logger.info(agentId, "SpeechInputManager: Initializing new recognizer instance.");
+        Logger.debug(agentId, "SpeechInputManager: Initializing new recognizer instance.");
         try {
             recognizer = new BrowserSpeechRecognition();
         } catch (e: any) { // Keeping 'any' here for simplicity if specific error types from constructor are unknown/varied
@@ -91,7 +91,7 @@ export async function ensureRecognitionStarted(agentId: string): Promise<void> {
     recognizer.onend = () => {
         const previouslyActive = isRecognizerActive;
         isRecognizerActive = false;
-        Logger.info(agentId, `SpeechInputManager: Recognition ended. Was active: ${previouslyActive}. Explicitly: ${explicitlyStopped}.`);
+        Logger.debug(agentId, `SpeechInputManager: Recognition ended. Was active: ${previouslyActive}. Explicitly: ${explicitlyStopped}.`);
 
         // If recognition ended unexpectedly and there's a lingering interim part,
         // consider it final. This handles cases like silent timeouts.
@@ -102,11 +102,11 @@ export async function ensureRecognitionStarted(agentId: string): Promise<void> {
         }
 
         if (previouslyActive && !explicitlyStopped && recognizer) {
-            Logger.info(agentId, "SpeechInputManager: Attempting to restart recognition.");
+            Logger.debug(agentId, "SpeechInputManager: Attempting to restart recognition.");
             try {
                 recognizer.start();
                 isRecognizerActive = true;
-                Logger.info(agentId, "SpeechInputManager: Restarted successfully.");
+                Logger.debug(agentId, "SpeechInputManager: Restarted successfully.");
             } catch (e: any) { // Keeping 'any' for simplicity
                 Logger.error(agentId, `SpeechInputManager: Failed to restart after onend: ${e instanceof Error ? e.message : String(e)}`, e);
             }
@@ -116,7 +116,7 @@ export async function ensureRecognitionStarted(agentId: string): Promise<void> {
     try {
         recognizer.start();
         isRecognizerActive = true;
-        Logger.info(agentId, "SpeechInputManager: Started successfully.");
+        Logger.debug(agentId, "SpeechInputManager: Started successfully.");
     } catch (e: any) { // Keeping 'any' for simplicity
         isRecognizerActive = false;
         const errorMessage = e instanceof Error ? e.message : String(e);
@@ -135,7 +135,7 @@ export async function ensureRecognitionStarted(agentId: string): Promise<void> {
 export function stopRecognitionAndClear(agentId: string): void {
     explicitlyStopped = true;
     if (recognizer) {
-        Logger.info(agentId, "SpeechInputManager: Explicitly stopping recognition.");
+        Logger.debug(agentId, "SpeechInputManager: Explicitly stopping recognition.");
         // Before stopping, if there's a lingering interim transcript, finalize it.
         if (currentUtteranceInterim.trim()) {
             Logger.debug(agentId, `SpeechInputManager: Finalizing lingering interim on stop: "${currentUtteranceInterim}"`);
@@ -156,7 +156,7 @@ export function stopRecognitionAndClear(agentId: string): void {
     isRecognizerActive = false;
     finalizedTranscript = "";       // CLEAR THE FINALIZED TRANSCRIPT
     currentUtteranceInterim = "";   // CLEAR THE INTERIM TRANSCRIPT
-    Logger.info(agentId, "SpeechInputManager: Recognition stopped and transcript cleared.");
+    Logger.debug(agentId, "SpeechInputManager: Recognition stopped and transcript cleared.");
 }
 
 /**
