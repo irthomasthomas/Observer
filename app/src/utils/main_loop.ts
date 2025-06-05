@@ -1,5 +1,5 @@
 // src/utils/main_loop.ts
-import { getAgent, getAgentCode, updateAgentStatus } from './agent_database';
+import { getAgent, getAgentCode } from './agent_database';
 import { sendPrompt } from './sendApi';
 import { Logger } from './logging';
 import { preProcess } from './pre-processor';
@@ -41,7 +41,6 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     if (!agent) throw new Error(`Agent ${agentId} not found`);
 
     activeLoops[agentId] = { intervalId: null, isRunning: true, serverHost, serverPort };
-    await updateAgentStatus(agentId, 'running');
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
         detail: { agentId, status: 'running' },
@@ -78,7 +77,6 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
   const loop = activeLoops[agentId];
   if (loop?.isRunning) {
     if (loop.intervalId !== null) window.clearInterval(loop.intervalId);
-    await updateAgentStatus(agentId, 'stopped');
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
         detail: { agentId, status: 'stopped' },

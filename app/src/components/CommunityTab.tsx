@@ -142,10 +142,9 @@ const CommunityTab: React.FC = () => {
       
       // Prepare agent for local database using CompleteAgent structure
       const localAgent: CompleteAgent = {
-        id: agent.id,  
+        id: agent.id,
         name: agent.name,
         description: agent.description,
-        status: 'stopped',
         model_name: agent.model_name,
         system_prompt: agent.system_prompt,
         loop_interval_seconds: agent.loop_interval_seconds
@@ -726,7 +725,6 @@ const CommunityTab: React.FC = () => {
             id: editingAgent.id,
             name: editingAgent.name,
             description: editingAgent.description,
-            status: 'stopped',
             model_name: editingAgent.model_name,
             system_prompt: editingAgent.system_prompt,
             loop_interval_seconds: editingAgent.loop_interval_seconds

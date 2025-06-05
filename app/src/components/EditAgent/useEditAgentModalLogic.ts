@@ -291,7 +291,6 @@ export const useEditAgentModalLogic = ({
       id: agentId,
       name,
       description,
-      status: agent?.status ?? 'stopped',
       model_name: currentModel,
       system_prompt: systemPrompt,
       loop_interval_seconds: loopInterval

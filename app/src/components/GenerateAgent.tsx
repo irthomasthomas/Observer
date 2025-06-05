@@ -113,7 +113,6 @@ function parseAgentResponse(responseText: string, agentType: 'browser' | 'python
       id: getId('id'),
       name: getId('name'),
       description: getId('description'),
-      status: 'stopped',
       model_name: getId('model_name'), // This will be overridden by the selected model later
       system_prompt: systemPromptMatch[1].trimEnd(),
       loop_interval_seconds: parseFloat(getId('loop_interval_seconds')),

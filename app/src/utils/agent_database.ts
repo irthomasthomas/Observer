@@ -8,7 +8,6 @@ export interface CompleteAgent {
   id: string;
   name: string;
   description: string;
-  status: 'running' | 'stopped';
   model_name: string;
   system_prompt: string;
   loop_interval_seconds: number;
@@ -16,7 +15,7 @@ export interface CompleteAgent {
 
 // Database setup
 const DB_NAME = 'observer-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const AGENT_STORE = 'agents';
 const CONFIG_STORE = 'configs';
 const CODE_STORE = 'code';
@@ -33,11 +32,16 @@ export async function openDB(): Promise<IDBDatabase> {
     // Create the object stores when database is first created
     request.onupgradeneeded = () => {
       const db = request.result;
-      
+
       // Store for agent metadata
+      let agentStore: IDBObjectStore;
       if (!db.objectStoreNames.contains(AGENT_STORE)) {
-        const agentStore = db.createObjectStore(AGENT_STORE, { keyPath: 'id' });
-        agentStore.createIndex('by_status', 'status', { unique: false });
+        agentStore = db.createObjectStore(AGENT_STORE, { keyPath: 'id' });
+      } else {
+        agentStore = request.transaction!.objectStore(AGENT_STORE);
+        if (agentStore.indexNames.contains('by_status')) {
+          agentStore.deleteIndex('by_status');
+        }
       }
       
       // Store for agent configurations
@@ -77,8 +81,7 @@ export async function saveAgent(
   const agentMetadata = {
     id: agent.id,
     name: agent.name,
-    description: agent.description,
-    status: agent.status
+    description: agent.description
   };
   
   const agentStore = tx.objectStore(AGENT_STORE);
@@ -273,24 +276,6 @@ export async function updateAgentMemory(agentId: string, memory: string): Promis
   dispatchMemoryUpdate(agentId);
 }
 
-// Update agent status
-export async function updateAgentStatus(agentId: string, status: 'running' | 'stopped'): Promise<CompleteAgent | null> {
-  const agent = await getAgent(agentId);
-  
-  if (!agent) {
-    return null;
-  }
-  
-  // Update the status
-  agent.status = status;
-  
-  // Save the updated agent (without changing the code)
-  const code = await getAgentCode(agentId) || '';
-  await saveAgent(agent, code);
-  
-  return agent;
-}
-
 // Delete an agent
 export async function deleteAgent(agentId: string): Promise<void> {
   const db = await openDB();
@@ -332,7 +317,6 @@ export interface AgentExport {
   id: string;
   name: string;
   description: string;
-  status: 'running' | 'stopped';
   model_name: string;
   system_prompt: string;
   loop_interval_seconds: number;
@@ -364,7 +348,6 @@ export async function importAgentFromFile(file: File): Promise<CompleteAgent> {
           id: agentData.id,
           name: agentData.name,
           description: agentData.description || '',
-          status: 'stopped',
           model_name: agentData.model_name,
           system_prompt: agentData.system_prompt,
           loop_interval_seconds: agentData.loop_interval_seconds
@@ -435,7 +418,6 @@ export async function exportAgentToFile(agentId: string): Promise<Blob> {
     id: agent.id,
     name: agent.name,
     description: agent.description,
-    status: agent.status,
     model_name: agent.model_name,
     system_prompt: agent.system_prompt,
     loop_interval_seconds: agent.loop_interval_seconds,
@@ -462,7 +444,6 @@ export async function downloadAgent(agentId: string): Promise<void> {
       `id: ${agent.id}`,
       `name: ${agent.name}`,
       `description: ${agent.description}`,
-      `status: ${agent.status}`,
       `model_name: ${agent.model_name}`,
       `loop_interval_seconds: ${agent.loop_interval_seconds}`,
       `system_prompt: |`,

@@ -141,7 +141,6 @@ The generated Python \`code\` block will run in a Jupyter kernel with the follow
     id: "[unique_lowercase_id_with_underscores]"
     name: "[Agent Name Title Case]"
     description: "[Brief, clear description of the agent's function and its trigger/action.]"
-    status: "stopped" # Always default to stopped
     model_name: "[gemini-1.5-flash or gemini-1.5-flash-8b]" # Based on Section 1
     loop_interval_seconds: [integer] # e.g., 15, 30, 60. Sensible default based on task.
     system_prompt: |
@@ -235,7 +234,6 @@ $$$
 id: meeting_audio_controller
 name: Meeting Audio Controller
 description: Mutes system audio when a video conference (Zoom/Meet) is detected, unmutes otherwise.
-status: stopped
 model_name: gemini-1.5-flash
 loop_interval_seconds: 15
 system_prompt: |
@@ -324,7 +322,6 @@ $$$
 id: contextual_code_screenshotter
 name: Contextual Code Screenshotter
 description: Takes screenshots of code editor windows, categorizing them by detected code language (Python/JavaScript).
-status: stopped
 model_name: gemini-1.5-flash-8b
 loop_interval_seconds: 60
 system_prompt: |

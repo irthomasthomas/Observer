@@ -99,7 +99,6 @@ $$$
 id: "[unique_lowercase_id_with_underscores]"      # e.g., website_tracker
 name: "[Agent Name Title Case]"                   # e.g., Website Tracker
 description: "[Brief, clear description of the agent's purpose.]"
-status: "stopped"                                 # Always default to stopped
 model_name: "[gemini-1.5-flash-8b or gemini-1.5-pro]"
 loop_interval_seconds: [integer]                  # e.g., 60 (default) or task-specific
 system_prompt: |
@@ -124,7 +123,6 @@ $$$
 id: command_tracking_agent
 name: Command Tracking Agent
 description: Identifies new terminal commands and logs them.
-status: stopped
 model_name: gemini-1.5-flash-8b
 loop_interval_seconds: 30
 system_prompt: |
@@ -158,7 +156,6 @@ $$$
 id: vocabulary_agent_german_def
 name: German Vocabulary Logger
 description: Logs previously unseen German nouns with their definitions.
-status: stopped
 model_name: gemini-1.5-pro      # needs definition generation
 loop_interval_seconds: 180
 system_prompt: |
@@ -194,7 +191,6 @@ $$$
 id: focus_assistant
 name: Focus Assistant
 description: Sends a gentle notification if distracting sites are visible.
-status: stopped
 model_name: gemini-1.5-flash-8b
 loop_interval_seconds: 90
 system_prompt: |

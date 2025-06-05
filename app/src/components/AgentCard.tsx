@@ -12,11 +12,12 @@ import { Logger } from '@utils/logging'; // For logging
 interface AgentCardProps {
   agent: CompleteAgent;
   code?: string;
+  isRunning: boolean;
   isStarting: boolean;
   isMemoryFlashing: boolean;
   onEdit: (agentId: string) => void;
   onDelete: (agentId: string) => Promise<void>;
-  onToggle: (agentId: string, status: string) => Promise<void>; // This is the prop to call after checks
+  onToggle: (agentId: string, isRunning: boolean) => Promise<void>; // This is the prop to call after checks
   onMemory: (agentId: string) => void;
   onShowJupyterModal: () => void;
 }
@@ -24,6 +25,7 @@ interface AgentCardProps {
 const AgentCard: React.FC<AgentCardProps> = ({
   agent,
   code,
+  isRunning,
   isStarting, // This prop is controlled by the parent (App.tsx)
   isMemoryFlashing,
   onEdit,
@@ -47,14 +49,13 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
   useEffect(() => {
     setStartWarning(null);
-  }, [agent.model_name, agent.status]);
+  }, [agent.model_name, isRunning]);
 
-  const isRunning = agent.status === 'running';
   const jupyterConnected = isJupyterConnected();
 
   const handleToggle = async () => {
     // If we are trying to start the agent
-    if (agent.status !== 'running') {
+    if (!isRunning) {
       setStartWarning(null); // Clear previous warning
       setIsCheckingModel(true); // Indicate model check is in progress
 
@@ -125,12 +126,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
       setIsCheckingModel(false); // Finished checks
       // If all checks passed, proceed with the toggle action passed from the parent
-      onToggle(agent.id, agent.status);
+      onToggle(agent.id, isRunning);
 
     } else {
       // If stopping the agent
       setStartWarning(null);
-      onToggle(agent.id, agent.status); // Call the parent's toggle function
+      onToggle(agent.id, isRunning); // Call the parent's toggle function
     }
   };
 

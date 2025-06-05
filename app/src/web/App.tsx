@@ -36,6 +36,7 @@ function AppContent() {
   const [error, setError] = useState<string | null>(null);
   const [serverStatus, setServerStatus] = useState<'unchecked' | 'online' | 'offline'>('unchecked');
   const [startingAgents, setStartingAgents] = useState<Set<string>>(new Set());
+  const [runningAgents, setRunningAgents] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -83,7 +84,15 @@ function AppContent() {
     const handleAgentStatusChange = (event: CustomEvent) => {
       const { agentId, status } = event.detail || {};
       Logger.info('APP', `agentStatusChanged:`, { agentId, status });
-      fetchAgents();
+      setRunningAgents(prev => {
+        const updated = new Set(prev);
+        if (status === 'running') {
+          updated.add(agentId);
+        } else {
+          updated.delete(agentId);
+        }
+        return updated;
+      });
     };
 
     window.addEventListener(
@@ -96,7 +105,7 @@ function AppContent() {
         handleAgentStatusChange as EventListener
       );
     };
-  }, [fetchAgents]);
+  }, []);
 
   const handleEditClick = async (agentId: string) => {
     setSelectedAgent(agentId);
@@ -133,7 +142,7 @@ function AppContent() {
         setError(null);
         Logger.info('APP', `Deleting agent "${agent.name}" (${agentId})`);
         
-        if (agent.status === 'running') {
+        if (runningAgents.has(agentId)) {
           Logger.info(agentId, `Stopping agent before deletion`);
           stopAgentLoop(agentId);
         }
@@ -153,7 +162,7 @@ function AppContent() {
     setShowStartupDialog(false);
   };
 
-  const toggleAgent = async (id: string, currentStatus: string): Promise<void> => {
+  const toggleAgent = async (id: string, isCurrentlyRunning: boolean): Promise<void> => {
     try {
       setError(null);
       const agent = agents.find(a => a.id === id);
@@ -162,8 +171,8 @@ function AppContent() {
         throw new Error(`Agent ${id} not found`);
       }
       const isStartingUp = startingAgents.has(id);
-      
-      if (isStartingUp || currentStatus === 'running') {
+
+      if (isStartingUp || isCurrentlyRunning) {
         Logger.info(id, `Stopping agent "${agent.name}"`);
         stopAgentLoop(id);
         if (isStartingUp) {
@@ -381,7 +390,7 @@ function AppContent() {
           <AgentImportHandler 
             onAddAgent={handleAddAgentClick}
             agentCount={agents.length}
-            activeAgentCount={agents.filter(a => a.status === 'running').length}
+            activeAgentCount={runningAgents.size}
             isRefreshing={isRefreshing}
             onRefresh={fetchAgents}
           />
@@ -392,9 +401,10 @@ function AppContent() {
             <div className="flex flex-wrap gap-6">
               {agents.length > 0 ? agents.map(agent => (
                 <div key={agent.id} className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0">
-                  <AgentCard 
+                  <AgentCard
                     agent={agent}
                     code={agentCodes[agent.id]}
+                    isRunning={runningAgents.has(agent.id)}
                     isStarting={startingAgents.has(agent.id)}
                     isMemoryFlashing={flashingMemories.has(agent.id)}
                     onEdit={handleEditClick}

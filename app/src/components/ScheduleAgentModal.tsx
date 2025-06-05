@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { Logger } from '../utils/logging';
 import { executeAgentIteration } from '../utils/main_loop';
-import { updateAgentStatus } from '../utils/agent_database';
 
 interface ScheduleAgentModalProps {
   agentId: string;
@@ -111,7 +110,6 @@ const ScheduleAgentModal: React.FC<ScheduleAgentModalProps> = ({
             // For continuous execution, start the agent loop
             const { startAgentLoop } = await import('../utils/main_loop');
             await startAgentLoop(agentId);
-            await updateAgentStatus(agentId, 'running');
             Logger.info('SCHEDULE', `Started continuous execution for agent ${agentId}`);
           }
           
