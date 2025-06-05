@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_service  # Optional, but good for clarity
+    volumes:
+      - ollama_data:/root/.ollama   # Persist Ollama models
+    ports:
+      - "11434:11434"             # Expose Ollama's port to the host (and other containers)
+    restart: unless-stopped
+    # If on Linux with NVIDIA GPU and nvidia-container-toolkit installed:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  observer_app:
+    build:
+      context: .  # Tells Docker Compose to look for Dockerfile in the current directory
+      dockerfile: Dockerfile # Specifies your existing Dockerfile
+    container_name: observer_app_and_proxy
+    ports:
+      - "8080:80"    # Nginx for web app (HTTP)
+      - "3838:3838"  # Your Python proxy (HTTPS, self-signed)
+    depends_on:
+      - ollama       # Tells Docker Compose to start ollama service before this one
+    restart: unless-stopped
+    # No environment variables needed yet for OLLAMA_API_BASE_URL,
+    # as your Python script defaults to localhost:11434
+
+volumes:
+  ollama_data: {} # Defines the named volume

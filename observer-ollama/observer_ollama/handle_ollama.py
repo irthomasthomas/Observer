@@ -10,9 +10,14 @@ import socket
 import threading
 import time
 import json
+import os
 
 # Setup logging
 logger = logging.getLogger('ollama-proxy.handler')
+
+OLLAMA_TARGET_HOST = os.environ.get("OLLAMA_SERVICE_HOST", "ollama")
+OLLAMA_TARGET_PORT = os.environ.get("OLLAMA_SERVICE_PORT", "11434")
+OLLAMA_BASE_URL = f"http://{OLLAMA_TARGET_HOST}:{OLLAMA_TARGET_PORT}"
 
 class OllamaProxy(http.server.BaseHTTPRequestHandler):
     # Quieter logs - only errors by default
@@ -157,7 +162,7 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
                 import traceback
                 logger.debug(f"Traceback: {traceback.format_exc()}")
         
-        target_url = f"http://localhost:11434{target_path}"
+        target_url = f"{OLLAMA_BASE_URL}{target_path}"
         logger.debug(f"Forwarding request to: {target_url}")
         
         req = urllib.request.Request(target_url, data=body, method=method)
@@ -300,16 +305,17 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
         logger.debug(f"Sent 204 No Content for /favicon.ico")
 
 def check_ollama_running():
-    """Check if Ollama is already running on port 11434"""
+    """Check if Ollama is already running"""
+    # OLLAMA_BASE_URL should be accessible here (it's a global in this module now)
     try:
-        logger.debug("Checking if Ollama server is running...")
-        with urllib.request.urlopen("http://localhost:11434/api/version", timeout=2) as response:
+        logger.debug(f"Checking if Ollama server is running at {OLLAMA_BASE_URL}/api/version ...")
+        with urllib.request.urlopen(f"{OLLAMA_BASE_URL}/api/version", timeout=2) as response:
             if response.status == 200:
                 version = response.read().decode('utf-8')
                 logger.info(f"Ollama server is running: {version}")
                 return True
     except Exception as e:
-        logger.debug(f"Ollama server is not running: {str(e)}")
+        logger.info(f"Ollama server is not running at {OLLAMA_BASE_URL}: {str(e)}") # Log which URL failed
         return False
 
 def start_ollama_server():
