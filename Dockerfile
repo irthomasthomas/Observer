@@ -25,6 +25,10 @@ WORKDIR /opt/observer-ollama
 RUN pip3 install --break-system-packages .
 EXPOSE 3838
 
+# --- Tell user webpage is available ---
+COPY ./print_info.sh /usr/local/bin/print_info.sh # Copy the script
+RUN chmod +x /usr/local/bin/print_info.sh         # Ensure it's executable
+
 # --- Supervisor Setup ---
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf 
 WORKDIR /
