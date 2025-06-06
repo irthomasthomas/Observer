@@ -182,8 +182,6 @@ function AppContent() {
             return updated;
           });
         }
-        //await updateAgentStatus(id, 'stopped'); // NOW HANDLED BY stopAgentLoop() internally 
-        //Logger.debug(id, `Agent status updated to "stopped" in database`);
       } else {
         Logger.info(id, `Starting agent "${agent.name}"`);
         setStartingAgents(prev => {
@@ -194,8 +192,6 @@ function AppContent() {
         
         try {
           await startAgentLoop(id);
-          //await updateAgentStatus(id, 'running'); // NOW HANDLED BY startAgentLoop() internally
-          //Logger.debug(id, `Agent status updated to "running" in database`);
         } finally {
           setStartingAgents(prev => {
             const updated = new Set(prev);
@@ -261,33 +257,6 @@ function AppContent() {
     };
   }, [memoryAgentId, isMemoryManagerOpen]);
 
-  //useEffect(() => {
-  //  // Handler function for the agent status changed event
-  //  const handleAgentStatusChange = (event: CustomEvent) => {
-  //    // We don't strictly need the details (agentId, status) from the event
-  //    // because we're just going to refetch everything.
-  //    // But logging them can be useful for debugging.
-  //    const { agentId, status } = event.detail || {};
-  //    Logger.info('APP', `Received ${AGENT_STATUS_CHANGED_EVENT} event`, { agentId, status });
-  //
-  //    // Call fetchAgents to refresh the entire agent list from the database
-  //    fetchAgents();
-  //  };
-  //
-  //  // Add the event listener
-  //  window.addEventListener(AGENT_STATUS_CHANGED_EVENT, handleAgentStatusChange as EventListener);
-  //  Logger.info('APP', `Added listener for ${AGENT_STATUS_CHANGED_EVENT}`);
-  //
-  //  // Clean up the event listener when the component unmounts
-  //  return () => {
-  //    window.removeEventListener(AGENT_STATUS_CHANGED_EVENT, handleAgentStatusChange as EventListener);
-  //    Logger.debug('APP', `Removed listener for ${AGENT_STATUS_CHANGED_EVENT}`);
-  //  };
-  //
-  //}, [fetchAgents]);
-
-
-  
   useEffect(() => {
     Logger.info('APP', 'Application starting');
     fetchAgents();
@@ -341,12 +310,12 @@ function AppContent() {
         `}
       </style>
 
+        {/* MODIFIED BLOCK IS HERE */}
         {showStartupDialog && (
           <StartupDialogs 
-            serverStatus={serverStatus}
             onDismiss={handleDismissStartupDialog}
-            setServerStatus={setServerStatus}
-            setUseObServer={setIsUsingObServer} // Add this prop
+            setUseObServer={setIsUsingObServer}
+            onLogin={loginWithRedirect}
             />
         )}
 
@@ -354,8 +323,8 @@ function AppContent() {
           serverStatus={serverStatus}
           setServerStatus={setServerStatus}
           setError={setError}
-          isUsingObServer={isUsingObServer} // Add this prop
-          setIsUsingObServer={setIsUsingObServer} // Add this prop
+          isUsingObServer={isUsingObServer}
+          setIsUsingObServer={setIsUsingObServer}
           authState={{
             isLoading,
             isAuthenticated,
@@ -367,8 +336,6 @@ function AppContent() {
           shouldHighlightMenu={agents.length === 0}
         />
 
-
-        {/* Sidebar Menu */}
         <SidebarMenu 
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
@@ -379,13 +346,11 @@ function AppContent() {
           }}
         />
 
-        {/* Jupyter Server config */}
         <JupyterServerModal
           isOpen={isJupyterModalOpen}
           onClose={() => setIsJupyterModalOpen(false)}
         />
 
-        {/* Main content, replace the TabNavigation and TabContent with this */}
         <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
           <AgentImportHandler 
             onAddAgent={handleAddAgentClick}
@@ -428,10 +393,6 @@ function AppContent() {
               <p className="text-gray-500">This feature is coming soon!</p>
             </div>
           )}
-
-
-
-
         </main>
 
       {isEditModalOpen && (

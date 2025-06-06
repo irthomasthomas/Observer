@@ -86,7 +86,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
                  target="_blank" 
                  rel="noopener noreferrer" 
                  className="ml-1 inline-flex items-center text-blue-600 hover:text-blue-700 hover:underline"
-                 onClick={(e) => {
+                 onClick={(_) => {
                      // Allow default action (opening link)
                      // Optionally, could set a flag to try connecting soon after
                  }}
