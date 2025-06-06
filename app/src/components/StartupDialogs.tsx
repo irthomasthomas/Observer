@@ -1,6 +1,6 @@
 // src/components/StartupDialog.tsx
 import React from 'react';
-import { Terminal, Cloud, Server, LogIn, ExternalLink } from 'lucide-react';
+import { Terminal, Cloud, Server, LogIn } from 'lucide-react';
 // Import the getter from your main_loop utility file
 import { getOllamaServerAddress } from '@utils/main_loop';
 
