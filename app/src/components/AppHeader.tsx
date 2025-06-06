@@ -230,8 +230,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const getServerUrl = () => {
     let url = serverAddress;
+    // Check if the URL does NOT start with http:// or https://
     if (!/^https?:\/\//i.test(url)) {
-      url = url.includes('observer-ai.com') ? `https://${url}` : `http://${url}`;
+      // If it doesn't, always prepend https:// by default.
+      url = `https://${url}`;
     }
     return url;
   };
