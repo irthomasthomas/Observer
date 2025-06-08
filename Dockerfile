@@ -12,7 +12,7 @@ FROM nginx:alpine
 
 # Install Python, pip, openssl (for cert generation), supervisor
 # NO curl, NO gcompat, NO Ollama installation here
-RUN apk add --no-cache python3 py3-pip openssl supervisor
+RUN apk add --no-cache python3 py3-pip openssl supervisor docker-cli
 
 # --- Nginx Setup ---
 COPY --from=builder /app/dist /usr/share/nginx/html

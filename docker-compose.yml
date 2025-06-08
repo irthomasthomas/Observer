@@ -1,36 +1,36 @@
-version: '3.8'
 
 services:
   ollama:
     image: ollama/ollama:latest
-    container_name: ollama_service  # Optional, but good for clarity
+    container_name: ollama_service # Good for user if they need to exec into it manually
     volumes:
-      - ollama_data:/root/.ollama   # Persist Ollama models
+      - ollama_data:/root/.ollama
     ports:
-      - "11434:11434"             # Expose Ollama's port to the host (and other containers)
+      - "11434:11434"
     restart: unless-stopped
-    # If on Linux with NVIDIA GPU and nvidia-container-toolkit installed:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
 
   observer_app:
     build:
-      context: .  # Tells Docker Compose to look for Dockerfile in the current directory
-      dockerfile: Dockerfile # Specifies your existing Dockerfile
+      context: .
+      dockerfile: Dockerfile
+
     container_name: observer_app_and_proxy
     ports:
-      - "8080:80"    # Nginx for web app (HTTP)
-      - "3838:3838"  # Your Python proxy (HTTPS, self-signed)
-    depends_on:
-      - ollama       # Tells Docker Compose to start ollama service before this one
+      - "8080:80"    # Web UI (Nginx)
+      - "3838:3838"  # Proxy API (Python HTTPS)
     restart: unless-stopped
-    # No environment variables needed yet for OLLAMA_API_BASE_URL,
-    # as your Python script defaults to localhost:11434
+    depends_on:
+      - ollama # Default: depends on the bundled ollama service
+    environment:
+      # These allow overriding the Ollama connection if the user wants to.
+      # Defaults in Python code are "ollama" and "11434", which work with the bundled service.
+      - OLLAMA_SERVICE_HOST=${OLLAMA_HOST_OVERRIDE:-ollama}
+      - OLLAMA_SERVICE_PORT=${OLLAMA_PORT_OVERRIDE:-11434}
+    # Mount Docker socket only if /exec feature is active and desired
+    # This makes the /exec feature tied to using the bundled Ollama.
+    # If OLLAMA_HOST_OVERRIDE is set to something else, /exec might not make sense or work.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
-  ollama_data: {} # Defines the named volume
+  ollama_data: {}

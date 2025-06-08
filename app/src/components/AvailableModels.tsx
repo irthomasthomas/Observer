@@ -3,6 +3,7 @@ import { listModels, Model } from '@utils/ollamaServer'; // Import updated Model
 import { Cpu, RefreshCw, Eye } from 'lucide-react'; // <-- Import Eye icon
 import { Logger } from '@utils/logging';
 import { getOllamaServerAddress } from '@utils/main_loop';
+import TerminalModal from '@components/TerminalModal';
 
 // No need to redefine Model interface here if imported correctly
 
@@ -11,6 +12,7 @@ const AvailableModels: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
 
   const fetchModels = async () => {
     setLoading(true);
@@ -64,18 +66,28 @@ const AvailableModels: React.FC = () => {
     <div className="container mx-auto px-4 py-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Available Models</h2>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className={`flex items-center space-x-2 px-3 py-2 rounded-md ${
-            refreshing
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-          }`}
-        >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-          <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {getOllamaServerAddress().host !== 'api.observer-ai.com' && (
+            <button
+              onClick={() => setShowTerminal(true)}
+              className="px-3 py-2 rounded-md bg-green-50 text-green-600 hover:bg-green-100"
+            >
+              Add Model
+            </button>
+          )}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-md ${
+              refreshing
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+            }`}
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -133,7 +145,8 @@ const AvailableModels: React.FC = () => {
            These models are available on your configured model server.
            You can use them in your agents by specifying their name.
          </p>
-       </div>
+      </div>
+      <TerminalModal isOpen={showTerminal} onClose={() => setShowTerminal(false)} />
     </div>
   );
 };

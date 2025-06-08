@@ -36,7 +36,9 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         logger.debug(f"GET request to {self.path} from {self.address_string()}")
-        if self.path == '/quota':
+        if self.path.startswith('/exec'):
+            self.handle_exec_request()
+        elif self.path == '/quota':
             self.handle_quota_request()
         elif self.path == '/favicon.ico':
             self.handle_favicon_request()
@@ -296,6 +298,125 @@ class OllamaProxy(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded_response_data)
         logger.debug(f"Sent /quota response: {response_data}")
+
+    def handle_exec_request(self):
+        """Execute a shell command inside the ollama_service container and stream output"""
+        logger.info(f"Handling /exec request from {self.address_string()}")
+        try:
+            from urllib.parse import urlparse, parse_qs
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            original_command = params.get('cmd', [''])[0]
+
+            if not original_command:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.end_headers()
+                self.wfile.write(b"data: ERROR: No command provided\n\n")
+                self.wfile.flush()
+                return
+
+            # Sanitize or validate original_command if necessary, though shell=True is risky
+            # For ollama commands, it's relatively safe, but be very careful with arbitrary commands.
+            # It's better to NOT use shell=True with docker exec if possible and pass command and args as a list.
+            # However, to match your `ollama run model` example which might have spaces,
+            # shell=True for the outer `docker exec` command string is easier for now.
+
+            # Name of the ollama service container as defined in docker-compose.yml
+            ollama_container_name = "ollama_service" # Or make this configurable
+
+            # Construct the docker exec command
+            # Using -i for interactive (needed for some commands to get output properly)
+            # Using -t for pseudo-TTY is often used with -i but might complicate streaming simple line output.
+            # Let's try without -t first for cleaner line-by-line streaming.
+            # If `original_command` can have tricky characters, proper shell escaping would be needed
+            # or pass command and args as a list to Popen if not using `shell=True` for `docker_exec_cmd_list`.
+            
+            # If original_command is simple like "ollama run modelname"
+            # docker_exec_cmd_str = f"docker exec {ollama_container_name} {original_command}"
+
+            # For commands with arguments, it's safer to pass them as a list to Popen
+            # to avoid shell injection issues with `original_command` if `shell=True` for Popen.
+            # But `docker exec` itself will parse `original_command`.
+            # Let's try with `shell=True` for Popen for simplicity of the `docker exec` string.
+            
+            # IMPORTANT: Ensure 'original_command' is somewhat trustworthy or validated,
+            # as it's being interpolated into a shell command.
+            # For example, ensure it starts with "ollama"
+            if not original_command.strip().startswith("ollama"):
+                self.send_response(400)
+                self.send_cors_headers()
+                self.end_headers()
+                self.wfile.write(b"data: ERROR: Only 'ollama' commands are allowed.\n\n") # Basic safety
+                self.wfile.flush()
+                return
+
+
+            docker_exec_cmd_str = f"docker exec {ollama_container_name} {original_command}"
+            logger.info(f"Executing in ollama container: {docker_exec_cmd_str}")
+
+
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+
+            # Using shell=True for the Popen call because docker_exec_cmd_str is a full string.
+            # This is generally okay if docker_exec_cmd_str is constructed carefully.
+            process = subprocess.Popen(
+                docker_exec_cmd_str,
+                shell=True, 
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, # Merge stderr to stdout
+                text=True,
+                bufsize=1, # Line buffered
+                # `universal_newlines=True` is an alias for `text=True` in newer Python
+            )
+
+            for line in iter(process.stdout.readline, ''): # Read line by line
+                data = line.rstrip() # Remove trailing newline
+                logger.debug(f"Exec output line: {data}")
+                try:
+                    self.wfile.write(f"data: {data}\n\n".encode('utf-8'))
+                    self.wfile.flush()
+                except BrokenPipeError:
+                    logger.warning("Client disconnected during exec stream.")
+                    process.terminate() # or process.kill()
+                    break
+                except Exception as write_e:
+                    logger.error(f"Error writing to client during exec stream: {write_e}")
+                    process.terminate()
+                    break
+            
+            process.stdout.close()
+            return_code = process.wait()
+            logger.info(f"Command '{original_command}' finished with exit code {return_code}")
+
+            try:
+                self.wfile.write(f"event: done\ndata: [COMMAND_FINISHED code={return_code}]\n\n".encode('utf-8'))
+                self.wfile.flush()
+            except Exception as final_write_e:
+                logger.warning(f"Could not send [DONE] event: {final_write_e}")
+
+        except Exception as e:
+            logger.error(f"Error in handle_exec_request: {e}")
+            # Try to send an error response if headers not already sent
+            if not self.headers_sent:
+                self.send_response(500)
+                self.send_cors_headers()
+                self.end_headers()
+            try:
+                # Ensure it's a valid SSE message even for errors
+                error_message_for_sse = str(e).replace('\n', ' ') # SSE data should be single line
+                self.wfile.write(f"data: ERROR: {error_message_for_sse}\n\n".encode('utf-8'))
+                self.wfile.flush()
+                # Send a done event after error too if you want the EventSource to close
+                self.wfile.write(b"event: done\ndata: [ERROR_OCCURRED]\n\n")
+                self.wfile.flush()
+            except Exception as final_error_write_e:
+                logger.error(f"Could not write error to client: {final_error_write_e}")
 
     def handle_favicon_request(self):
         logger.debug(f"Handling /favicon.ico request from {self.address_string()}")
