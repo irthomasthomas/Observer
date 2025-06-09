@@ -16,18 +16,29 @@ https://github.com/user-attachments/assets/def0cba9-c8c3-41d3-bd03-a507744e6ade
 
 # 🏗️ Building Your Own Agent
 
-Creating your own Observer AI agent is simple and accessible to both beginners and experienced developers.
+Creating your own Observer AI agent is simple, and consist of three things:
+1.- SENSORS - input that your model will have
+2.- MODELS - models run by ollama or by Ob-Server
+3.- TOOLS - functions for your model to use
 
 ## Quick Start
 
 1. Navigate to the Agent Dashboard and click "Create New Agent"
 2. Fill in the "Configuration" tab with basic details (name, description, model, loop interval)
-3. Use a system prompt with input variables! The current input variables that exist are:
+3. Give your model a system prompt and Sensors! The current Sensors that exist are:
    * **Screen OCR** ($SCREEN_OCR) Captures screen content as text via OCR (english only for now)
    * **Screenshot** ($SCREEN_64) Captures screen as an image for multimodal models
    * **Agent Memory** ($MEMORY@agent_id) Accesses agents' stored information
    * **Clipboard** ($CLIPBOARD) It pastes the clipboard contents 
    * **Microphone** ($MICROPHONE) Captures the microphone and adds a transcription (english only for now)
+4.- Decide what tools do with your models `response` in the Code Tab:
+  * `pushNotification(title, options)` – Send notifications  
+  * `getMemory(agentId)*` – Retrieve stored memory (defaults to current agent)  
+  * `setMemory(agentId, content)*` – Replace stored memory  
+  * `appendMemory(agentId, content)*` – Add to existing memory  
+  * `startAgent(agentId)*` – Starts an agent  
+  * `stopAgent(agentId)*` – Stops an agent
+  * `time()` - Gets current time
 
 ## Code Tab
 
@@ -177,8 +188,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📧 Contact
 
 - GitHub: [@Roy3838](https://github.com/Roy3838)
-- Project Link: [https://github.com/Roy3838/observer-ai](https://github.com/Roy3838/Observer)
+- Project Link: [https://observer-ai.com](https://observer-ai.com)
 
 ---
 
-Built with ❤️  by the Observer AI Community
+Built with ❤️  by Roy Medina for the Observer AI Community
+Special thanks to the Ollama team for being an awesome backbone to this project!
