@@ -122,7 +122,6 @@ To use Python agents:
 3. Test the connection using the "Test Connection" button
 4. Switch to the Python tab in the code editor to write Python-based agents
 
-
 # 🚀 Getting Started with Local Inference
 
 There are a couple of ways to get Observer up and running with local inference. We recommend using Docker for the simplest setup.
