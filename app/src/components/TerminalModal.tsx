@@ -8,7 +8,7 @@ interface TerminalModalProps {
 }
 
 const suggestions = [
-  'ollama run gemma:4b',
+  'ollama run gemma3:4b',
   'ollama run deepseek-r1:8b'
 ];
 
