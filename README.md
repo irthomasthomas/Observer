@@ -17,9 +17,10 @@ https://github.com/user-attachments/assets/def0cba9-c8c3-41d3-bd03-a507744e6ade
 # 🏗️ Building Your Own Agent
 
 Creating your own Observer AI agent is simple, and consist of three things:
-1.- SENSORS - input that your model will have
-2.- MODELS - models run by ollama or by Ob-Server
-3.- TOOLS - functions for your model to use
+
+* SENSORS - input that your model will have
+* MODELS - models run by ollama or by Ob-Server
+* TOOLS - functions for your model to use
 
 ## Quick Start
 
@@ -31,7 +32,7 @@ Creating your own Observer AI agent is simple, and consist of three things:
    * **Agent Memory** ($MEMORY@agent_id) Accesses agents' stored information
    * **Clipboard** ($CLIPBOARD) It pastes the clipboard contents 
    * **Microphone** ($MICROPHONE) Captures the microphone and adds a transcription (english only for now)
-4.- Decide what tools do with your models `response` in the Code Tab:
+4. Decide what tools do with your models `response` in the Code Tab:
   * `pushNotification(title, options)` – Send notifications  
   * `getMemory(agentId)*` – Retrieve stored memory (defaults to current agent)  
   * `setMemory(agentId, content)*` – Replace stored memory  
