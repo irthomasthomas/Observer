@@ -1,3 +1,5 @@
+// src/components/EditAgent/useEditAgentModalLogic.ts
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   CompleteAgent,
@@ -14,7 +16,6 @@ import {
 import { postProcess } from '@utils/post-processor';
 
 /* ───────────────────────── snippets ───────────────────────── */
-// (Moved here as they are part of the logic/data for the modal)
 export const jsSnippets = [
   {
     name: 'Write to Memory',
@@ -87,6 +88,7 @@ export const useEditAgentModalLogic = ({
 
   const [systemPrompt, setSystemPrompt] = useState('');
   const systemPromptRef = useRef<HTMLTextAreaElement>(null);
+  const [visionValidationError, setVisionValidationError] = useState<string | null>(null);
 
   const [availableAgentsForBlocks, setAvailableAgentsForBlocks] = useState<
     CompleteAgent[]
@@ -134,7 +136,7 @@ export const useEditAgentModalLogic = ({
   const checkJupyter = useCallback(async () => {
     setJupyterStatus('checking');
     try {
-        const config = getJupyterConfig(); // Assuming getJupyterConfig is always available
+        const config = getJupyterConfig();
         const res = await utilsTestJupyterConnection(config);
         setJupyterStatus(res.success ? 'connected' : 'error');
     } catch (error) {
@@ -158,10 +160,9 @@ export const useEditAgentModalLogic = ({
       setLoopInterval(agent.loop_interval_seconds);
       setSystemPrompt(agent.system_prompt);
     } else { // createMode
-      setName(''); // Name is cleared, agentId will be derived
-      setAgentId(''); // Start with empty ID, will be filled by name effect
+      setName('');
+      setAgentId('');
       setDescription('');
-      // currentModel will be set by fetchModels
       setLoopInterval(60);
       setSystemPrompt('');
     }
@@ -176,33 +177,51 @@ export const useEditAgentModalLogic = ({
     fetchModels();
     loadAgents();
     checkJupyter();
-  }, [isOpen, agent, existingCode, fetchModels, loadAgents, checkJupyter]); // Dependencies are crucial
+  }, [isOpen, agent, existingCode, fetchModels, loadAgents, checkJupyter]);
 
-  /* NEW — Auto-fill agentId from name in createMode */
+  /* Auto-fill agentId from name in createMode */
   useEffect(() => {
     if (createMode && name) {
       const generatedId = name
         .toLowerCase()
-        .replace(/\s+/g, '_') // Replace one or more spaces with a single underscore
-        .replace(/[^a-z0-9_]/g, ''); // Remove invalid characters
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_]/g, '');
       setAgentId(generatedId);
     } else if (createMode && !name) {
-      setAgentId(''); // Clear ID if name is cleared in create mode
+      setAgentId('');
     }
-    // Note: No 'else' for !createMode, as agentId is set from `agent` prop in that case.
   }, [name, createMode]);
+
+  /* Vision model validation */
+  useEffect(() => {
+    const hasVisionSensor = /\$SCREEN_64|\$CAMERA/.test(systemPrompt);
+
+    if (!hasVisionSensor) {
+      setVisionValidationError(null);
+      return;
+    }
+
+    const selectedModel = availableModels.find(m => m.name === currentModel);
+
+    if (selectedModel && !selectedModel.multimodal) {
+      setVisionValidationError(
+        "Warning: The selected model may not support images. Use a vision model (marked with an eye icon) for $SCREEN_64 or $CAMERA sensors."
+      );
+    } else {
+      setVisionValidationError(null);
+    }
+  }, [systemPrompt, currentModel, availableModels]);
 
 
   /* keep #python line in sync */
   useEffect(() => {
     if (!isOpen) return;
-    // Use functional updates for setAgentCode if depending on previous state
     if (isPythonMode && !agentCode.startsWith('#python')) {
       setAgentCode(prevCode => '#python <-- do not remove this!\\n' + prevCode);
     } else if (!isPythonMode && agentCode.startsWith('#python')) {
       setAgentCode(prevCode => prevCode.replace(/^#python.*?\n/, ''));
     }
-  }, [isPythonMode, isOpen, agentCode]); // agentCode is a dependency
+  }, [isPythonMode, isOpen, agentCode]);
 
   /* prompt helpers */
   const insertSystemPromptText = (txt: string) => {
@@ -312,7 +331,7 @@ export const useEditAgentModalLogic = ({
   const langSnippets = isPythonMode ? pythonSnippets : jsSnippets;
 
   return {
-    agentId, setAgentId, // Export setAgentId for manual ID input override
+    agentId, setAgentId,
     name, setName,
     description, setDescription,
     currentModel, setCurrentModel,
@@ -334,8 +353,7 @@ export const useEditAgentModalLogic = ({
     isRunningCode,
     testOutput,
     testResponseRef,
-    // No need to export fetchModels, loadAgents as they are called internally by useEffect
-    checkJupyter, // Export for Jupyter modal close
+    checkJupyter,
     insertSystemPromptText,
     insertCodeSnippet,
     handleRunModel,
@@ -343,5 +361,6 @@ export const useEditAgentModalLogic = ({
     handleSave,
     handleExport,
     langSnippets,
+    visionValidationError,
   };
 };
