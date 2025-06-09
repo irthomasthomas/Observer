@@ -26,9 +26,9 @@ services:
       # Defaults in Python code are "ollama" and "11434", which work with the bundled service.
       - OLLAMA_SERVICE_HOST=${OLLAMA_HOST_OVERRIDE:-ollama}
       - OLLAMA_SERVICE_PORT=${OLLAMA_PORT_OVERRIDE:-11434}
+    # If you want to use the system's ollama in windows/macos set OLLAMA_HOST_OVERRIDE=host.docker.internal
+
     # Mount Docker socket only if /exec feature is active and desired
-    # This makes the /exec feature tied to using the bundled Ollama.
-    # If OLLAMA_HOST_OVERRIDE is set to something else, /exec might not make sense or work.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
