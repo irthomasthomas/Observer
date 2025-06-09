@@ -35,26 +35,41 @@ https://github.com/user-attachments/assets/def0cba9-c8c3-41d3-bd03-a507744e6ade
 
 ## 🚀 Getting Started with Local Inference
 
-We need to wrap Ollama to use https instead of http so that the browser can connect to it. This is done with self-signed SSL certificates.
+There are a couple of ways to get Observer up and running with local inference. We recommend using Docker for the simplest setup.
 
+### Option 1: Docker Setup (Recommended & Easiest)
+
+This method uses Docker Compose to run Observer and a local Ollama instance together in containers.
+
+**Prerequisites:**
+*   [Docker](https://docs.docker.com/get-docker/) installed.
+*   [Docker Compose](https://docs.docker.com/compose/install/) installed (often included with Docker Desktop).
+
+**Instructions:**
+
+1.  **Clone this repository (or download the `docker-compose.yml` file):**
+    ```bash
+    git clone https://github.com/Roy3838/Observer.git
+    cd Observer
+    docker-compose up -d
+    ```
+    
+3.  **Access Observer:**
+    *   **Web UI:** Open your browser to `http://localhost:8080`
+    *   **Accept Local Certificates** Open up `https://localhost:3838` and your browser will show a warning about an "unsafe" or "untrusted" connection. This is because the proxy uses a self-signed SSL certificate for local HTTPS. You'll need to click "Advanced" and "Proceed to localhost (unsafe)" (or similar wording) to accept it. These certificates are signed by your computer! and this step is needed to make the browser happy and let it "see" the ollama server.
+
+4.  **Pull Ollama Models:**
+    Once the services are running, you can pull models into your Ollama instance using the terminal feature in the Observer UI, or by running:
+    ```bash
+    docker-compose exec ollama_service ollama pull llama3 # Or any other model
+    ```
+    OR by **Using the Web App:**
+    *   Go to the Web UI (`http://localhost:8080`).
+    *   In the Models tab, click on add model. This will give you the shell to your connected ollama instance, download models using ollama run. 
+
+**To Stop Observer (Docker Setup):**
 ```bash
-# Make sure to have [Ollama](https://ollama.com) installed 
-
-# For local inference run observer-ollama
-pip install observer-ollama
-
-# Click on the link provided so that your browser accepts self signed CERTS (signed by your computer)
-
-#  OLLAMA-PROXY  ready
-#  ➜  Local:   https://localhost:3838/
-#  ➜  Network: https://10.0.0.138:3838/
-
-# Click on proceed to localhost (unsafe), if "Ollama is running" shows up, you're done!
-
-# Go to webapp:
-app.observer-ai.com
-
-# Enter your inference IP (localhost:3838) on the app header.
+docker-compose down
 ```
 
 # 🏗️ Building Your Own Agent
@@ -69,6 +84,7 @@ Creating your own Observer AI agent is simple and accessible to both beginners a
    * **Screen OCR** ($SCREEN_OCR) Captures screen content as text via OCR (english only for now)
    * **Screenshot** ($SCREEN_64) Captures screen as an image for multimodal models
    * **Agent Memory** ($MEMORY@agent_id) Accesses agents' stored information
+   * **Clipboard** ($CLIPBOARD) It pastes the clipboard contents 
    * **Microphone** ($MICROPHONE) Captures the microphone and adds a transcription (english only for now)
 
 ## Code Tab
