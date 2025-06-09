@@ -6,6 +6,7 @@ import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
 import { stopScreenCapture } from './screenCapture';
 import { stopRecognitionAndClear } from './speechInputManager'
+import { stopCameraCapture } from './cameraCapture'
 
 const activeLoops: Record<string, {
   intervalId: number | null,
@@ -84,6 +85,7 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
     );
     stopScreenCapture(); // For screen capture
     stopRecognitionAndClear(agentId); //for microphone
+    stopCameraCapture(); // For camera capture
     activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
   } else {
     Logger.warn(agentId, `Attempted to stop agent that wasn't running`);

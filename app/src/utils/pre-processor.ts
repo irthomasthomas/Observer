@@ -1,8 +1,10 @@
 // src/utils/pre-processor.ts
 
-import { Logger } from './logging'; // CORRECTED PATH
-import { getAgentMemory } from './agent_database'; // CORRECTED PATH
-import { captureFrameAndOCR, startScreenCapture, captureScreenImage } from './screenCapture'; // CORRECTED PATH
+import { Logger } from './logging'; 
+import { getAgentMemory } from './agent_database'; 
+import { captureFrameAndOCR, startScreenCapture, captureScreenImage } from './screenCapture'; 
+import { captureCameraImage } from './cameraCapture'; 
+
 
 import {
     ensureRecognitionStarted,
@@ -122,6 +124,31 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
       } catch (error: any) {
         Logger.error(agentId, `Error in $MICROPHONE handler: ${error.message}`);
         return { replacementText: `[Error processing speech: ${error.message}]` };
+      }
+    }
+  },
+
+
+  'CAMERA': {
+    regex: /\$CAMERA/g,
+    handler: async (agentId: string) => {
+      try {
+        Logger.debug(agentId, `Capturing camera for image processing`);
+        const base64Image = await captureCameraImage();
+
+        if (base64Image) {
+          // You can add the same base64 validation as SCREEN_64 if you like
+          Logger.debug(agentId, `Base64 camera image captured (length: ${base64Image.length})`);
+          // Return an empty string to remove the placeholder, and provide the image data
+          return { replacementText: '', images: [base64Image] };
+        }
+        
+        Logger.error(agentId, `Camera capture for image failed`);
+        return { replacementText: '[Error capturing camera image]' };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        Logger.error(agentId, `Error capturing camera image: ${errorMessage}`);
+        return { replacementText: `[Error with camera capture: ${errorMessage}]` };
       }
     }
   },
