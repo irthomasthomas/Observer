@@ -40,6 +40,7 @@ Creating your own Observer AI agent is simple, and consist of three things:
   * `startAgent(agentId)*` – Starts an agent  
   * `stopAgent(agentId)*` – Stops an agent
   * `time()` - Gets current time
+  * `sendSms(content, phone_number)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367")
 
 ## Code Tab
 

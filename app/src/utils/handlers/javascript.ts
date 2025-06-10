@@ -47,7 +47,22 @@ export async function executeJavaScript(
       stopAgent: async (targetAgentId?: string) => { 
         const idToStop = targetAgentId === undefined ? agentId : targetAgentId; 
         await stopAgentLoop(idToStop); 
-      }
+      },
+
+      sendSms: async (message: string, number: string) => {
+        Logger.debug(agentId, `Agent is attempting to send an SMS to ${number}.`);
+        try {
+          // Call the core utility function
+          await utils.sendSms(message, number);
+          Logger.info(agentId, `Successfully sent SMS request for number: ${number}.`);
+        } catch (error: any) {
+          // Log the specific error for your own debugging
+          Logger.error(agentId, `Failed to send SMS: ${error.message}`);
+          // And critically, re-throw the error so the user's script can catch it
+          throw error;
+        }
+      },
+
     };
 
     // Create a wrapper function that sets up the context

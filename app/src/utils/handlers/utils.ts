@@ -100,3 +100,47 @@ export function notify(title: string, message: string): void {
   }
 }
 
+
+/**
+ * Sends an SMS message by calling the backend API.
+ * This is the core utility function.
+ */
+export async function sendSms(message: string, number: string): Promise<void> {
+
+  const API_HOST = "https://api.observer-ai.com";
+
+  const authCode = localStorage.getItem("observer_auth_code");
+
+  if (!authCode) {
+    throw new Error("Authentication error: Not signed in or auth code is missing.");
+  }
+
+  try {
+    const response = await fetch(`${API_HOST}/tools/send-sms`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Observer-Auth-Code': authCode,
+      },
+      // The backend expects 'to_number', so we map it here.
+      body: JSON.stringify({
+        to_number: number,
+        message: message,
+      }),
+    });
+
+    // If the response is not OK (e.g., 4xx or 5xx), throw an error.
+    if (!response.ok) {
+      const errorData = await response.json();
+      // Use the 'detail' message from the FastAPI error response.
+      const errorMessage = errorData.detail || 'Failed to send SMS due to a server error.';
+      throw new Error(errorMessage);
+    }
+
+    // If successful, the function just completes.
+  } catch (error) {
+    // Re-throw the error to be caught by the calling context.
+    // This allows the user's try/catch in their agent code to work.
+    throw error;
+  }
+}
