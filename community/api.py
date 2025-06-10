@@ -38,7 +38,7 @@ app.include_router(marketplace_router)
 # Mount compute router last since it has a catch-all route
 app.include_router(compute_router)
 # Mount twilio router
-app.include_router(compute_router)
+app.include_router(tools_router)
 
 # Root path to check if service is running
 @app.get("/")
