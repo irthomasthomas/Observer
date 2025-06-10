@@ -9,16 +9,14 @@ const TOOL_CODE_SNIPPETS: Record<SimpleTool, string> = {
   // --- NOTIFICATION TOOL ---
   // If the response is not empty, send a notification.
   if (response) {
-    pushNotification("Observer AI Agent", response);
+    notify("Observer AI Agent", response);
   }`,
   memory: `
   // --- MEMORY TOOL ---
   // If the response is not empty, append it to this agent's memory.
   if (response) {
-    const prevMemory = await getMemory(agentId);
     const timestamp = time();
-    const newMemory = \`\${prevMemory}\\n[\${timestamp}] \${response}\`;
-    setMemory(agentId, newMemory);
+    appendMemory(agentId, \`\\n[\${timestamp}] \${response}\`);
   }`
 };
 
