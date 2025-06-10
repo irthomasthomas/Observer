@@ -2,7 +2,11 @@
 
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory';
+export type SimpleTool = 'notification' | 'memory' | 'sms';
+
+export interface ToolData {
+  smsPhoneNumber?: string;
+}
 
 const TOOL_CODE_SNIPPETS: Record<SimpleTool, string> = {
   notification: `
@@ -13,12 +17,21 @@ notify("Observer AI Agent", response);
 // --- MEMORY TOOL ---
 const timestamp = time();
 appendMemory(agentId, \`\\n[\${timestamp}] \${response}\`);
-`
+`,
+  sms: (data: ToolData) => {
+    // We use JSON.stringify to ensure the phone number is correctly escaped in the code.
+    const phoneNumber = data.smsPhoneNumber ? JSON.stringify(data.smsPhoneNumber) : '""';
+    return `
+// --- SMS TOOL ---
+// Sends the model's response as an SMS to the specified number.
+sendSms(response, ${phoneNumber});
+`;
+  }
 };
 
 interface SimpleConfig {
   agentData: Partial<CompleteAgent>;
-  selectedTools: SimpleTool[];
+  selectedTools: Map<SimpleTool, ToolData>;
   condition: {
     enabled: boolean;
     keyword: string;
@@ -42,26 +55,20 @@ export function generateAgentFromSimpleConfig(
   ].join('\n');
 
   // Combine the code snippets for all selected tools, separated by a blank line.
-  let toolCode = config.selectedTools
-    .map(tool => TOOL_CODE_SNIPPETS[tool].trim()) // Use .trim() to handle varying snippet whitespace
+  let toolCode = Array.from(config.selectedTools.entries())
+    .map(([tool, data]) => TOOL_CODE_SNIPPETS[tool](data).trim())
     .join('\n\n');
 
   if (config.condition.enabled && config.condition.keyword) {
-    // Use JSON.stringify for robustly escaping the user's keyword.
-    // We slice off the outer quotes that stringify adds.
     const safeKeyword = JSON.stringify(config.condition.keyword.toLowerCase()).slice(1, -1);
-    
-    // Indent the entire block of tool code by replacing every newline
-    // with a newline followed by two spaces.
     const indentedToolCode = `  ${toolCode.replace(/\n/g, '\n  ')}`;
-
     toolCode = `if (response.toLowerCase().includes('${safeKeyword}')) {\n${indentedToolCode}\n}`;
   }
 
   const finalCode = `${comments}\n\n${toolCode}`;
 
   const agent: CompleteAgent = {
-    id: config.agentData.id || `agent_${Date.now()}`, // Added a more unique default ID
+    id: config.agentData.id || `agent_${Date.now()}`,
     name: config.agentData.name || 'My New Agent',
     description: config.agentData.description || 'An agent created with the Simple Creator.',
     model_name: config.agentData.model_name || '',
