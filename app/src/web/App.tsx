@@ -27,6 +27,8 @@ import AvailableModels from '@components/AvailableModels';
 import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
 import JupyterServerModal from '@components/JupyterServerModal';
+import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
+import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
 
 function AppContent() {
   const { isAuthenticated, user, loginWithRedirect, logout, isLoading } = useAuth0();
@@ -52,6 +54,8 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState('myAgents');
   const [isUsingObServer, setIsUsingObServer] = useState(false);
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
+  const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
+  const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -116,10 +120,22 @@ function AppContent() {
 
   const handleAddAgentClick = () => {
     setSelectedAgent(null);
-    setIsCreateMode(true);
-    setIsEditModalOpen(true);
-    Logger.info('APP', 'Creating new agent');
+    setIsCreateMode(true); // Keep this true to signal intent
+    setStagedAgentConfig(null); // Clear any old staged config
+    setIsSimpleCreatorOpen(true);
+    Logger.info('APP', 'Opening Simple Creator to create new agent');
   };
+
+  const handleSimpleCreatorNext = (config: Parameters<typeof generateAgentFromSimpleConfig>[0]) => {
+    Logger.info('APP', `Generating agent from Simple Creator`, config);
+    const { agent, code } = generateAgentFromSimpleConfig(config);
+    
+    setStagedAgentConfig({ agent, code });
+    setIsSimpleCreatorOpen(false);
+    setIsEditModalOpen(true);
+  };
+  
+    
 
   const handleMemoryClick = (agentId: string) => {
     if (flashingMemories.has(agentId)) {
@@ -216,23 +232,20 @@ function AppContent() {
   };
 
   const handleSaveAgent = async (agent: CompleteAgent, code: string) => {
-    try {
-      setError(null);
-      const isNew = !agents.some(a => a.id === agent.id);
-      
-      Logger.info('APP', isNew 
-        ? `Creating new agent "${agent.name}"` 
-        : `Updating agent "${agent.name}" (${agent.id})`
-      );
-      
-      await saveAgent(agent, code);
-      Logger.info('APP', `Agent "${agent.name}" saved successfully`);
-      await fetchAgents();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMessage);
-      Logger.error('APP', `Failed to save agent: ${errorMessage}`, err);
-    }
+  try {
+    setError(null);
+    const isNew = !agents.some(a => a.id === agent.id);
+    
+    Logger.info('APP', isNew ? `Creating new agent "${agent.name}"` : `Updating agent "${agent.name}" (${agent.id})`);
+    
+    await saveAgent(agent, code);
+    Logger.info('APP', `Agent "${agent.name}" saved successfully`);
+    await fetchAgents();
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    setError(errorMessage);
+    Logger.error('APP', `Failed to save agent: ${errorMessage}`, err);
+  }
   };
 
   useEffect(() => {
@@ -395,13 +408,23 @@ function AppContent() {
           )}
         </main>
 
+        <SimpleCreatorModal 
+          isOpen={isSimpleCreatorOpen}
+          onClose={() => setIsSimpleCreatorOpen(false)}
+          onNext={handleSimpleCreatorNext}
+        />
+
       {isEditModalOpen && (
         <EditAgentModal 
           isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setStagedAgentConfig(null);
+          }}
           createMode={isCreateMode}
-          agent={selectedAgent ? agents.find(a => a.id === selectedAgent) : undefined}
-          code={selectedAgent ? agentCodes[selectedAgent] : undefined}
+          // --- ✨ PASS STAGED DATA IF IT EXISTS ---
+          agent={stagedAgentConfig ? stagedAgentConfig.agent : (selectedAgent ? agents.find(a => a.id === selectedAgent) : undefined)}
+          code={stagedAgentConfig ? stagedAgentConfig.code : (selectedAgent ? agentCodes[selectedAgent] : undefined)}
           onSave={handleSaveAgent}
           onImportComplete={fetchAgents}
           setError={setError}
