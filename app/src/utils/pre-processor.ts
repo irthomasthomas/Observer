@@ -91,8 +91,8 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     }
   },
 
-  'CLIPBOARD_TEXT': {
-    regex: /\$CLIPBOARD_TEXT/g,
+  'CLIPBOARD': {
+    regex: /\$CLIPBOARD/g,
     handler: async (agentId: string) => {
       try {
         if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
