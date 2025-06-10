@@ -66,9 +66,9 @@ const LandingPage = () => {
         <ObserverLanding />
         
         <div className="container mx-auto px-6 py-24 max-w-4xl">
-          <h1 className="text-5xl font-bold mb-6">Your Personal AI Assistant, Running Locally</h1>
+          <h1 className="text-5xl font-bold mb-6">Micro Agents watching your screen, Running Locally</h1>
           <p className="text-xl text-gray-300 mb-8">
-            Open-source micro-agents that observe and assist with your computing tasks, 
+            Open-source micro-agents that observe, log and react, 
             all while keeping your data private and secure.
           </p>
           <div className="flex space-x-4">
@@ -103,7 +103,7 @@ const LandingPage = () => {
               </div>
               <h3 className="text-xl font-semibold mb-4">Resource Efficient</h3>
               <p className="text-gray-600">
-                Runs efficiently on consumer-grade machines with the deepseek-r1:8b model.
+                Runs efficiently on consumer-grade machines with small models.
               </p>
             </div>
             <div className="text-center">
