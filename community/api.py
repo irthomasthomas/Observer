@@ -11,6 +11,7 @@ from pathlib import Path
 # Import routers from our modules
 from marketplace import marketplace_router
 from compute import compute_router
+from tools_router import tools_router
 
 # Setup logging
 logging.basicConfig(
@@ -35,6 +36,8 @@ app.add_middleware(
 # Include routers - without prefixes to maintain original URL structure
 app.include_router(marketplace_router)
 # Mount compute router last since it has a catch-all route
+app.include_router(compute_router)
+# Mount twilio router
 app.include_router(compute_router)
 
 # Root path to check if service is running
