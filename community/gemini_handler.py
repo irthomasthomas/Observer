@@ -21,6 +21,8 @@ class GeminiAPIHandler(BaseAPIHandler):
     def __init__(self):
         super().__init__("gemini")
         self.models = [
+            {"name": "gemma-3-4b-it", "parameters": "4B", "multimodal": True},
+            {"name": "gemma-3-12b-it", "parameters": "12B", "multimodal": True},
             {"name": "gemma-3-27b-it", "parameters": "27B", "multimodal": True},
             {"name": "gemma-3n-e4b-it", "parameters": "4B", "multimodal": False},
             {"name": "gemini-1.5-flash-8b", "parameters": "8B", "multimodal": True},
