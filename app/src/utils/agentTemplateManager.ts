@@ -1,5 +1,3 @@
-// src/utils/agentTemplateManager.ts
-
 import { CompleteAgent } from './agent_database';
 
 export type SimpleTool = 'notification' | 'memory' | 'sms';
@@ -8,18 +6,20 @@ export interface ToolData {
   smsPhoneNumber?: string;
 }
 
-const TOOL_CODE_SNIPPETS: Record<SimpleTool, string> = {
-  notification: `
+const TOOL_CODE_SNIPPETS: Record<SimpleTool, (data: ToolData) => string> = {
+  notification: () => `
 // --- NOTIFICATION TOOL ---
+// Sends the model's entire response as a desktop notification.
 notify("Observer AI Agent", response);
 `,
-  memory: `
+  memory: () => `
 // --- MEMORY TOOL ---
+// Appends the model's response to this agent's memory, with a timestamp.
 const timestamp = time();
 appendMemory(agentId, \`\\n[\${timestamp}] \${response}\`);
 `,
+  // 3. The `sms` tool function remains the same, and now matches the type.
   sms: (data: ToolData) => {
-    // We use JSON.stringify to ensure the phone number is correctly escaped in the code.
     const phoneNumber = data.smsPhoneNumber ? JSON.stringify(data.smsPhoneNumber) : '""';
     return `
 // --- SMS TOOL ---
@@ -38,13 +38,6 @@ interface SimpleConfig {
   };
 }
 
-/**
- * Generates a complete agent configuration object and code string
- * from the simple creator's configuration.
- * @param config The configuration object from the SimpleCreatorModal.
- * @returns An object with the complete agent data and the generated code.
- */
-
 export function generateAgentFromSimpleConfig(
   config: SimpleConfig
 ): { agent: CompleteAgent; code: string } {
@@ -54,7 +47,7 @@ export function generateAgentFromSimpleConfig(
     '// You can edit it to add more complex logic.',
   ].join('\n');
 
-  // Combine the code snippets for all selected tools, separated by a blank line.
+  // This .map() call now works perfectly because TOOL_CODE_SNIPPETS[tool] is always a function.
   let toolCode = Array.from(config.selectedTools.entries())
     .map(([tool, data]) => TOOL_CODE_SNIPPETS[tool](data).trim())
     .join('\n\n');
