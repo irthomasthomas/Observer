@@ -33,7 +33,7 @@ Creating your own Observer AI agent is simple, and consist of three things:
    * **Clipboard** ($CLIPBOARD) It pastes the clipboard contents 
    * **Microphone** ($MICROPHONE) Captures the microphone and adds a transcription (english only for now)
 4. Decide what tools do with your models `response` in the Code Tab:
-  * `pushNotification(title, options)` – Send notifications  
+  * `notify(title, options)` – Send notifications  
   * `getMemory(agentId)*` – Retrieve stored memory (defaults to current agent)  
   * `setMemory(agentId, content)*` – Replace stored memory  
   * `appendMemory(agentId, content)*` – Add to existing memory  
@@ -70,7 +70,7 @@ appendMemory(`[${time}] ${cleanedResponse}`);
 Available utilities include:
 
 * `time()` – Get the current timestamp  
-* `pushNotification(title, options)` – Send notifications  
+* `notify(title, options)` – Send notifications  
 * `getMemory(agentId)*` – Retrieve stored memory (defaults to current agent)  
 * `setMemory(agentId, content)*` – Replace stored memory  
 * `appendMemory(agentId, content)*` – Add to existing memory  
