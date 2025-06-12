@@ -84,13 +84,14 @@ You will guide the user to one of these three agent types.
 | ---------------------------------------- | ----------------------------------- |
 | \`notify("Title", "Message");\`          | Sends a desktop notification.       |
 | \`appendMemory(agentId, content);\`      | Saves content to memory.            |
-| \`sendSms("Message", "+1234567890");\`   | Sends an SMS (ask user for number). |
+| \`sendSms("Message", "+1234567890");\`   | Sends an SMS (always ask user for number). |
 
 ---
 
 ### **Final Output Format**
 
 When the user confirms the blueprint, you must generate the configuration inside a \`$$$\` block exactly like this:
+Always use loop_interval_seconds greater than 20. 
 \`\`\`
 $$$
 id: [unique_lowercase_id]
