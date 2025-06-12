@@ -321,6 +321,7 @@ async def list_models_endpoint():
 async def list_tags_endpoint():
     if not HANDLERS_AVAILABLE:
          raise HTTPException(status_code=503, detail="Backend handlers are not available.")
+    EXCLUDED = {"gemini-2.5-flash-preview-04-17"}
 
     ollama_models = []
     if api_handlers and api_handlers.API_HANDLERS:
@@ -328,6 +329,9 @@ async def list_tags_endpoint():
             try:
                 for model_info in handler.get_models():
                      # Basic mapping, add more fields if your get_models provides them
+                     name = model_info.get("name", "")
+                     if name in EXCLUDED:
+                         continue
                      is_multimodal = model_info.get("multimodal", False)
 
                      model_entry = {
