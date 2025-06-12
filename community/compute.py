@@ -61,6 +61,7 @@ def init_db():
             cursor.execute('CREATE TABLE IF NOT EXISTS request_count (ip TEXT PRIMARY KEY, count INTEGER NOT NULL)')
             cursor.execute('CREATE TABLE IF NOT EXISTS auth_codes (auth_code TEXT PRIMARY KEY)')
             cursor.execute('CREATE TABLE IF NOT EXISTS user_auth_mapping (user_id TEXT PRIMARY KEY, auth_code TEXT NOT NULL)')
+            cursor.execute('CREATE TABLE IF NOT EXISTS request_log (ts TEXT, ip TEXT, auth_code TEXT)')
             conn.commit()
             logger.info("Database initialized/verified.")
     except sqlite3.Error as e:
@@ -233,6 +234,14 @@ async def handle_chat_completions_endpoint(request: Request):
         if not check_and_increment_quota(ip):
              # check_and_increment_quota already logged the reason
              raise HTTPException(status_code=429, detail="Free quota exceeded. Please authenticate.") # 429 Too Many Requests
+
+    # LOG IP AND AUTH CODE
+    with get_db() as conn:
+    conn.execute(
+        "INSERT INTO request_log (ts, ip, auth_code) VALUES (CURRENT_TIMESTAMP, ?, ?)",
+        (ip, auth_code or None)
+    )
+    conn.commit()
 
     # 2. Parse Request Data
     try:
