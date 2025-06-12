@@ -1,4 +1,5 @@
 # Observer AI 👁️
+## It's not spying if it's for you 👀
 
 [Observer App Link](https://app.observer-ai.com/)
 
