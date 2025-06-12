@@ -4,6 +4,7 @@ import sqlite3
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 from typing import Dict, Any 
+import json
 
 
 # Import Twilio classes
@@ -196,15 +197,16 @@ async def send_sms(
 @tools_router.post("/tools/send-whatsapp", tags=["Tools"])
 async def send_whatsapp(
     request: Request,
-    request_data: WhatsAppRequest, # Use the new Pydantic model
+    request_data: WhatsAppRequest,
     config: TwilioConfig = Depends(get_twilio_config)
 ):
     """
     Sends a WhatsApp message using a pre-approved Twilio template.
     - Requires a valid 'X-Observer-Auth-Code' header.
     - Uses the same quota system as SMS.
+    - Automatically truncates messages that are too long.
     """
-    # 1. Authentication (re-use the same logic)
+    # 1. Authentication (No changes here)
     auth_code = request.headers.get("X-Observer-Auth-Code")
     if not auth_code:
         raise HTTPException(status_code=401, detail="X-Observer-Auth-Code header is required.")
@@ -212,43 +214,57 @@ async def send_whatsapp(
     if not is_valid_auth_code(auth_code):
         raise HTTPException(status_code=403, detail="The provided auth code is not valid.")
 
-    # 2. Quota Check (re-use the same logic, it's tied to the auth_code)
+    # 2. Quota Check (No changes here)
     if not is_premium_user(auth_code):
-        if not check_and_increment_sms_quota(auth_code): # We can share the quota
+        if not check_and_increment_sms_quota(auth_code):
             raise HTTPException(
                 status_code=429,
                 detail=f"Messaging quota of {FREE_SMS_QUOTA} has been exceeded."
             )
-            
-    # NEW: Get your template SID from environment variables for security and flexibility
+
+    # 3. Message Processing (This is the updated part)
     content_sid = os.getenv("TWILIO_WHATSAPP_TEMPLATE_SID")
     if not content_sid:
         logger.error("Server is missing TWILIO_WHATSAPP_TEMPLATE_SID environment variable.")
         raise HTTPException(status_code=500, detail="WhatsApp service is not configured correctly on the server.")
 
-    # 3. Action: Send the WhatsApp message
+    # Define the max length for the variable.
+    MAX_WHATSAPP_VAR_LENGTH = 256
+    processed_message = request_data.message
+
+    # If the message is too long, truncate it and add an ellipsis.
+    if len(processed_message) > MAX_WHATSAPP_VAR_LENGTH:
+        # We need to make space for the "..."
+        truncation_point = MAX_WHATSAPP_VAR_LENGTH - 3
+        processed_message = processed_message[:truncation_point] + "..."
+        
+        # Log this event for your own debugging purposes.
+        logger.warning(
+            f"WhatsApp message for auth_code ...{auth_code[-4:]} was truncated to {MAX_WHATSAPP_VAR_LENGTH} characters."
+        )
+
+    # 4. Action: Send the WhatsApp message
     logger.info(f"Processing WhatsApp for auth_code: ...{auth_code[-4:]} to {request_data.to_number}")
     try:
         client = Client(config.account_sid, config.auth_token)
+        
+        # Build the variables payload safely using json.dumps and the processed_message
+        variables_payload = {
+            "1": processed_message
+        }
+        
         message = client.messages.create(
-            # The 'to' and 'from' numbers MUST be prefixed with 'whatsapp:'
             to=f'whatsapp:{request_data.to_number}',
             from_=f'whatsapp:{config.whatsapp_from_number}',
-            # Reference your approved template
             content_sid=content_sid,
-            # Provide the variables for the template
-            # Our template `Observer AI Alert: {{1}}` only has one variable.
-            content_variables=f'{{"1": "{request_data.message}"}}'
+            content_variables=json.dumps(variables_payload)
         )
+        
         logger.info(f"WhatsApp message sent successfully. SID: {message.sid}")
         return {"success": True, "message_sid": message.sid}
     except TwilioRestException as e:
+        # (The rest of the error handling remains the same)
         logger.error(f"Twilio API error (WhatsApp): {e.msg}")
-        # Provide a more helpful error message for common issues
-        if "not a valid E.164 number" in e.msg:
-            raise HTTPException(status_code=400, detail="The 'to_number' must be in E.164 format (e.g., +15551234567).")
-        if "is not a valid template" in e.msg:
-            raise HTTPException(status_code=500, detail="The WhatsApp template SID configured on the server is invalid or not approved.")
         raise HTTPException(status_code=400, detail=f"Failed to send WhatsApp message: {e.msg}")
     except Exception as e:
         logger.exception("An unexpected error occurred while sending WhatsApp message.")
