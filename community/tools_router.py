@@ -3,6 +3,8 @@ import logging
 import sqlite3
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
+from typing import Dict, Any 
+
 
 # Import Twilio classes
 from twilio.rest import Client
@@ -23,10 +25,16 @@ class SmsRequest(BaseModel):
     to_number: str = Field(..., description="The destination phone number in E.164 format.", examples=["+15551234567"])
     message: str = Field(..., min_length=1, max_length=1600, description="The text message content.")
 
+class WhatsAppRequest(BaseModel):
+    to_number: str = Field(..., description="The destination phone number in E.164 format.", examples=["+15551234567"])
+    # This is the message content that will be placed inside your template's variable
+    message: str = Field(..., description="The message content to inject into the WhatsApp template.")
+
 class TwilioConfig(BaseModel):
     account_sid: str
     auth_token: str
     from_number: str
+    whatsapp_from_number: str
 
 # --- Database Helper Functions (Mirrored from compute.py) ---
 def get_db():
@@ -117,18 +125,24 @@ def check_and_increment_sms_quota(auth_code: str) -> bool:
 # --- Twilio Dependency (Unchanged) ---
 def get_twilio_config():
     """Dependency to load and validate Twilio credentials."""
-    # ... (code is identical to the previous version)
     account_sid = os.getenv("TWILIO_ACCOUNT_SID")
     auth_token = os.getenv("TWILIO_AUTH_TOKEN")
     from_number = os.getenv("TWILIO_PHONE_NUMBER")
+    # NEW: Get the WhatsApp specific number and the template SID from environment variables
+    whatsapp_from_number = os.getenv("TWILIO_WHATSAPP_NUMBER")
 
-    if not all([account_sid, auth_token, from_number]):
-        logger.error("Server is missing required TWILIO environment variables.")
+    if not all([account_sid, auth_token, from_number, whatsapp_from_number]):
+        logger.error("Server is missing required TWILIO environment variables (including WHATSAPP_NUMBER).")
         raise HTTPException(
             status_code=500,
-            detail="SMS service is not configured on the server."
+            detail="Messaging service is not configured on the server."
         )
-    return TwilioConfig(account_sid=account_sid, auth_token=auth_token, from_number=from_number)
+    return TwilioConfig(
+        account_sid=account_sid,
+        auth_token=auth_token,
+        from_number=from_number,
+        whatsapp_from_number=whatsapp_from_number
+    )
 
 
 # --- Final API Endpoint ---
@@ -176,4 +190,66 @@ async def send_sms(
         raise HTTPException(status_code=400, detail=f"Failed to send SMS: {e.msg}")
     except Exception as e:
         logger.exception("An unexpected error occurred while sending SMS.")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+
+@tools_router.post("/tools/send-whatsapp", tags=["Tools"])
+async def send_whatsapp(
+    request: Request,
+    request_data: WhatsAppRequest, # Use the new Pydantic model
+    config: TwilioConfig = Depends(get_twilio_config)
+):
+    """
+    Sends a WhatsApp message using a pre-approved Twilio template.
+    - Requires a valid 'X-Observer-Auth-Code' header.
+    - Uses the same quota system as SMS.
+    """
+    # 1. Authentication (re-use the same logic)
+    auth_code = request.headers.get("X-Observer-Auth-Code")
+    if not auth_code:
+        raise HTTPException(status_code=401, detail="X-Observer-Auth-Code header is required.")
+    
+    if not is_valid_auth_code(auth_code):
+        raise HTTPException(status_code=403, detail="The provided auth code is not valid.")
+
+    # 2. Quota Check (re-use the same logic, it's tied to the auth_code)
+    if not is_premium_user(auth_code):
+        if not check_and_increment_sms_quota(auth_code): # We can share the quota
+            raise HTTPException(
+                status_code=429,
+                detail=f"Messaging quota of {FREE_SMS_QUOTA} has been exceeded."
+            )
+            
+    # NEW: Get your template SID from environment variables for security and flexibility
+    content_sid = os.getenv("TWILIO_WHATSAPP_TEMPLATE_SID")
+    if not content_sid:
+        logger.error("Server is missing TWILIO_WHATSAPP_TEMPLATE_SID environment variable.")
+        raise HTTPException(status_code=500, detail="WhatsApp service is not configured correctly on the server.")
+
+    # 3. Action: Send the WhatsApp message
+    logger.info(f"Processing WhatsApp for auth_code: ...{auth_code[-4:]} to {request_data.to_number}")
+    try:
+        client = Client(config.account_sid, config.auth_token)
+        message = client.messages.create(
+            # The 'to' and 'from' numbers MUST be prefixed with 'whatsapp:'
+            to=f'whatsapp:{request_data.to_number}',
+            from_=f'whatsapp:{config.whatsapp_from_number}',
+            # Reference your approved template
+            content_sid=content_sid,
+            # Provide the variables for the template
+            # Our template `Observer AI Alert: {{1}}` only has one variable.
+            content_variables=f'{{"1": "{request_data.message}"}}'
+        )
+        logger.info(f"WhatsApp message sent successfully. SID: {message.sid}")
+        return {"success": True, "message_sid": message.sid}
+    except TwilioRestException as e:
+        logger.error(f"Twilio API error (WhatsApp): {e.msg}")
+        # Provide a more helpful error message for common issues
+        if "not a valid E.164 number" in e.msg:
+            raise HTTPException(status_code=400, detail="The 'to_number' must be in E.164 format (e.g., +15551234567).")
+        if "is not a valid template" in e.msg:
+            raise HTTPException(status_code=500, detail="The WhatsApp template SID configured on the server is invalid or not approved.")
+        raise HTTPException(status_code=400, detail=f"Failed to send WhatsApp message: {e.msg}")
+    except Exception as e:
+        logger.exception("An unexpected error occurred while sending WhatsApp message.")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
