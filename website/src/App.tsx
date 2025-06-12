@@ -66,7 +66,7 @@ const LandingPage = () => {
         <ObserverLanding />
         
         <div className="container mx-auto px-6 py-24 max-w-4xl">
-          <h1 className="text-5xl font-bold mb-6">Observe, Log, React</h1>
+          <h1 className="text-5xl font-bold mb-6">Agents that Observer, Log and React</h1>
           <p className="text-xl text-gray-300 mb-8">
             Open-source micro-agents that observe, log and react, 
             all while keeping your data private and secure.
