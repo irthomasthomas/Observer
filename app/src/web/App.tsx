@@ -29,6 +29,7 @@ import GetStarted from '@components/GetStarted';
 import JupyterServerModal from '@components/JupyterServerModal';
 import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
 import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
+import ConversationalGeneratorModal from '@components/ConversationalGeneratorModal';
 
 function AppContent() {
   const { isAuthenticated, user, loginWithRedirect, logout, isLoading } = useAuth0();
@@ -56,6 +57,8 @@ function AppContent() {
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
+  const [isConversationalModalOpen, setIsConversationalModalOpen] = useState(false);
+
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -134,6 +137,15 @@ function AppContent() {
     setIsSimpleCreatorOpen(false);
     setIsEditModalOpen(true);
   };
+
+  const handleAgentGenerated = (agent: CompleteAgent, code: string) => {
+      Logger.info('APP', `Staging agent generated from conversation: "${agent.name}"`);
+      setStagedAgentConfig({ agent, code });
+      setIsCreateMode(true); // Signal that this is a new agent
+      setIsEditModalOpen(true);
+    };
+    
+
   
     
 
@@ -288,7 +300,7 @@ function AppContent() {
         error: event.error
       });
     };
-    
+
     window.addEventListener('error', handleWindowError);
     
     return () => {
@@ -371,6 +383,8 @@ function AppContent() {
             activeAgentCount={runningAgents.size}
             isRefreshing={isRefreshing}
             onRefresh={fetchAgents}
+            onGenerateAgent={() => setIsConversationalModalOpen(true)}
+
           />
 
           {error && <ErrorDisplay message={error} />}
@@ -392,10 +406,13 @@ function AppContent() {
                     onShowJupyterModal={() => setIsJupyterModalOpen(true)}
                   />
                 </div>
-              )) : <GetStarted 
-                   onExploreCommunity={() => setActiveTab('community')}
-                   onCreateNewAgent={handleAddAgentClick}
-                 />}
+              )) : 
+                <GetStarted 
+                onExploreCommunity={() => setActiveTab('community')}
+                onCreateNewAgent={handleAddAgentClick}
+                onAgentGenerated={handleAgentGenerated}
+              />
+              }
             </div>
           ) : activeTab === 'community' ? (
             <CommunityTab />
@@ -413,6 +430,11 @@ function AppContent() {
           onClose={() => setIsSimpleCreatorOpen(false)}
           onNext={handleSimpleCreatorNext}
         />
+        <ConversationalGeneratorModal
+        isOpen={isConversationalModalOpen}
+        onClose={() => setIsConversationalModalOpen(false)}
+        onAgentGenerated={handleAgentGenerated}
+      />
 
       {isEditModalOpen && (
         <EditAgentModal 
