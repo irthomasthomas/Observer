@@ -237,11 +237,11 @@ async def handle_chat_completions_endpoint(request: Request):
 
     # LOG IP AND AUTH CODE
     with get_db() as conn:
-    conn.execute(
-        "INSERT INTO request_log (ts, ip, auth_code) VALUES (CURRENT_TIMESTAMP, ?, ?)",
-        (ip, auth_code or None)
-    )
-    conn.commit()
+        conn.execute(
+            "INSERT INTO request_log (ts, ip, auth_code) VALUES (CURRENT_TIMESTAMP, ?, ?)",
+            (ip, auth_code or None)
+        )
+        conn.commit()
 
     # 2. Parse Request Data
     try:
