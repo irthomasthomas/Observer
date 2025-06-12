@@ -1,5 +1,7 @@
 # Observer AI 👁️
-## It's not spying if it's for you 👀
+## It's not spying... if it's for you 👀
+Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
+
 
 [Observer App Link](https://app.observer-ai.com/)
 
