@@ -1,12 +1,10 @@
-// src/utils/main_loop.ts
 import { getAgent, getAgentCode } from './agent_database';
 import { sendPrompt } from './sendApi';
 import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
-import { stopScreenCapture } from './screenCapture';
-import { stopRecognitionAndClear } from './speechInputManager'
-import { stopCameraCapture } from './cameraCapture'
+import { stopRecognitionAndClear } from './speechInputManager';
+import { StreamManager } from './streamManager'; // Import the new manager
 
 const activeLoops: Record<string, {
   intervalId: number | null,
@@ -41,6 +39,17 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     const agent = await getAgent(agentId);
     if (!agent) throw new Error(`Agent ${agentId} not found`);
 
+    // --- STREAM MANAGEMENT ---
+    // Tell the StreamManager which streams this agent requires based on its prompt
+    if (agent.system_prompt.includes('$SCREEN_64')) {
+        await StreamManager.requestStream('screen', agentId);
+    }
+    // Assuming a future variable like $CAMERA_64 will be used for camera
+    if (agent.system_prompt.includes('$CAMERA')) {
+        await StreamManager.requestStream('camera', agentId);
+    }
+    // -------------------------
+
     activeLoops[agentId] = { intervalId: null, isRunning: true, serverHost, serverPort };
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
@@ -63,7 +72,11 @@ export async function startAgentLoop(agentId: string): Promise<void> {
       }
     }, intervalMs);
   } catch (error) {
-    // on failure, dispatch “stopped” so UI can recover
+    Logger.error(agentId, `Failed to start agent loop: ${error instanceof Error ? error.message : String(error)}`);
+    // On startup failure, ensure we release any streams that might have been requested
+    StreamManager.releaseStream('screen', agentId);
+    StreamManager.releaseStream('camera', agentId);
+    // Dispatch "stopped" so UI can recover
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
         detail: { agentId, status: 'stopped' },
@@ -78,15 +91,23 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
   const loop = activeLoops[agentId];
   if (loop?.isRunning) {
     if (loop.intervalId !== null) window.clearInterval(loop.intervalId);
+
+    // --- STREAM MANAGEMENT ---
+    // Tell the StreamManager this agent no longer needs these streams.
+    // The manager will handle stopping the hardware if it's the last user.
+    StreamManager.releaseStream('screen', agentId);
+    StreamManager.releaseStream('camera', agentId);
+    // -------------------------
+
+    // We no longer call stopScreenCapture() or stopCameraCapture() directly from here.
+    stopRecognitionAndClear(agentId); // for microphone
+
+    activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
         detail: { agentId, status: 'stopped' },
       })
     );
-    stopScreenCapture(); // For screen capture
-    stopRecognitionAndClear(agentId); //for microphone
-    stopCameraCapture(); // For camera capture
-    activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
   } else {
     Logger.warn(agentId, `Attempted to stop agent that wasn't running`);
   }
@@ -101,18 +122,18 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     Logger.debug(agentId, `Skipping execution for stopped agent`);
     return;
   }
-  
+
   try {
     Logger.debug(agentId, `Starting agent iteration`);
-    
+
     // Get the latest agent data
     const agent = await getAgent(agentId);
     const agentCode = await getAgentCode(agentId) || '';
-    
+
     if (!agent) {
       throw new Error(`Agent ${agentId} not found`);
     }
-    
+
     // 1. Pre-process: Prepare the prompt
     const systemPrompt = await preProcess(agentId, agent.system_prompt);
 
@@ -139,14 +160,14 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
 
     Logger.debug(agentId, `Response Received: ${response}`);
     Logger.debug(agentId, `About to call postProcess on ${agentId} with agentCode length: ${agentCode.length}`);
-    
+
     try {
       await postProcess(agentId, response, agentCode);
       Logger.debug(agentId, `postProcess completed successfully`);
     } catch (postProcessError) {
       Logger.error(agentId, `Error in postProcess: ${postProcessError}`, postProcessError);
     }
-    
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     Logger.error(agentId, `Error in agent iteration: ${errorMessage}`, error);
@@ -179,10 +200,10 @@ export async function executeTestIteration(
 ): Promise<string> {
   try {
     Logger.debug(agentId, `Starting test iteration with model ${modelName}`);
-    
+
     // Pre-process the prompt (even for tests)
     const processedPrompt = await preProcess(agentId, systemPrompt);
-    
+
     // Send the prompt to Ollama and get response
     Logger.info(agentId, `Sending prompt to Ollama (model: ${modelName})`);
     const response = await sendPrompt(
@@ -191,8 +212,11 @@ export async function executeTestIteration(
       modelName,
       processedPrompt
     );
-    stopScreenCapture();
-    
+    // Since this is a one-off test, we don't use the StreamManager and just stop the capture.
+    // This assumes the pre-processor for tests might call startScreenCapture directly.
+    // If test logic changes, this might need updating.
+    // stopScreenCapture(); // Note: This might need re-evaluation based on test flow.
+
     return response;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

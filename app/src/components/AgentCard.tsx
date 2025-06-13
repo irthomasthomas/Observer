@@ -1,13 +1,31 @@
-// src/components/AgentCard.tsx
-import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
 import { isAgentScheduled, getScheduledTime } from './ScheduleAgentModal';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
-import { listModels } from '@utils/ollamaServer'; // Import listModels directly
-import { getOllamaServerAddress } from '@utils/main_loop'; // To get current server details
-import { Logger } from '@utils/logging'; // For logging
+import { listModels } from '@utils/ollamaServer';
+import { getOllamaServerAddress } from '@utils/main_loop';
+import { Logger, LogEntry } from '@utils/logging';
+import { StreamManager, StreamState } from '@utils/streamManager';
+
+type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'IDLE';
+
+const VideoStream: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0">
+      <video ref={videoRef} muted autoPlay playsInline className="w-full h-full object-contain"></video>
+    </div>
+  );
+};
 
 interface AgentCardProps {
   agent: CompleteAgent;
@@ -17,7 +35,7 @@ interface AgentCardProps {
   isMemoryFlashing: boolean;
   onEdit: (agentId: string) => void;
   onDelete: (agentId: string) => Promise<void>;
-  onToggle: (agentId: string, isRunning: boolean) => Promise<void>; // This is the prop to call after checks
+  onToggle: (agentId: string, isRunning: boolean) => Promise<void>;
   onMemory: (agentId: string) => void;
   onShowJupyterModal: () => void;
 }
@@ -26,7 +44,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   agent,
   code,
   isRunning,
-  isStarting, // This prop is controlled by the parent (App.tsx)
+  isStarting,
   isMemoryFlashing,
   onEdit,
   onDelete,
@@ -37,7 +55,13 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [activityExpanded, setActivityExpanded] = useState(false);
   const [isPythonAgent, setIsPythonAgent] = useState(false);
   const [startWarning, setStartWarning] = useState<string | null>(null);
-  const [isCheckingModel, setIsCheckingModel] = useState(false); // Local state for model check loading
+  const [isCheckingModel, setIsCheckingModel] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<AgentLiveStatus>('IDLE');
+  const [lastResponse, setLastResponse] = useState<string>('...');
+  const [loopProgress, setLoopProgress] = useState(0);
+  const [responseKey, setResponseKey] = useState(0);
+  const [streams, setStreams] = useState<StreamState>({ screenStream: null, cameraStream: null });
+  const showStartingState = isStarting || isCheckingModel;
 
   useEffect(() => {
     if (code && code.trim().startsWith('#python')) {
@@ -46,254 +70,260 @@ const AgentCard: React.FC<AgentCardProps> = ({
       setIsPythonAgent(false);
     }
   }, [code]);
+  
+  useEffect(() => {
+    const handleStreamUpdate = (newState: StreamState) => {
+      setStreams(newState);
+    };
+    StreamManager.addListener(handleStreamUpdate);
+    return () => {
+      StreamManager.removeListener(handleStreamUpdate);
+    };
+  }, []);
 
   useEffect(() => {
-    setStartWarning(null);
-  }, [agent.model_name, isRunning]);
+    if (showStartingState && !isRunning) {
+        setLiveStatus('STARTING');
+        setLastResponse('Agent is preparing to start...');
+        return;
+    }
+    
+    if (isRunning) {
+      if (liveStatus === 'STARTING' || liveStatus === 'IDLE') {
+          setLiveStatus('CAPTURING');
+      }
+      const handleNewLog = (log: LogEntry) => {
+        if (log.source !== agent.id) return;
+        if (log.details?.logType === 'model-prompt') {
+          setLiveStatus('THINKING');
+          setLoopProgress(0);
+        } else if (log.details?.logType === 'model-response') {
+          setLiveStatus('WAITING');
+          setLastResponse(log.details.content as string);
+          setResponseKey(key => key + 1);
+        }
+      };
+      Logger.addListener(handleNewLog);
+      return () => Logger.removeListener(handleNewLog);
+    } else {
+      setLiveStatus('IDLE');
+    }
+  }, [isRunning, showStartingState, agent.id, liveStatus]);
 
-  const jupyterConnected = isJupyterConnected();
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isRunning && liveStatus === 'WAITING') {
+      const interval = 100;
+      const totalDuration = agent.loop_interval_seconds * 1000;
+      const increment = (interval / totalDuration) * 100;
+      timer = setInterval(() => {
+        setLoopProgress(prev => {
+          const newProgress = prev + increment;
+          if (newProgress >= 100) {
+            clearInterval(timer!);
+            setLiveStatus('CAPTURING');
+            return 0;
+          }
+          return newProgress;
+        });
+      }, interval);
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [isRunning, liveStatus, agent.loop_interval_seconds]);
 
   const handleToggle = async () => {
-    // If we are trying to start the agent
     if (!isRunning) {
-      setStartWarning(null); // Clear previous warning
-      setIsCheckingModel(true); // Indicate model check is in progress
-
-      // 1. Check if a model is configured for the agent
-      const agentModelName = agent.model_name;
-      if (!agentModelName || agentModelName.trim() === "") {
-        setStartWarning(`This agent needs a model configured. Please edit the agent to select a model.`);
-        setIsCheckingModel(false);
-        return;
-      }
-
-      // 2. Fetch the current list of available models from the server
-      let isModelAvailable = false;
-      try {
-        // Get current server details. Ensure getOllamaServerAddress handles local/ObServer.
-        // The isUsingObServer flag would typically come from a context or parent state,
-        // but for a direct call, we might assume it's reflecting the currently configured server.
-        // For simplicity, if your getOllamaServerAddress doesn't need a flag and just reads current config, that's fine.
-        const serverDetails = getOllamaServerAddress(); // Adapt if it needs a flag like isUsingObServer
-
-        if (!serverDetails.host || !serverDetails.port) {
-            throw new Error("Ollama server details (host/port) not configured.");
-        }
-
-        Logger.info(agent.id, `Checking model availability for "${agentModelName}" on ${serverDetails.host}:${serverDetails.port}`);
-        const modelsResponse = await listModels(serverDetails.host, serverDetails.port);
-
-        if (modelsResponse.error) {
-          Logger.warn(agent.id, `Error fetching models for check: ${modelsResponse.error}`);
-          // Fallback: if we can't fetch models, we can't confirm availability.
-          // You might decide to proceed or block. Blocking is safer.
-          setStartWarning(
-            `Could not verify model availability. Error: ${modelsResponse.error}. Please check server connection.`
-          );
+        setStartWarning(null);
+        setIsCheckingModel(true);
+        const agentModelName = agent.model_name;
+        if (!agentModelName || agentModelName.trim() === "") {
+          setStartWarning(`This agent needs a model configured. Please edit the agent to select a model.`);
           setIsCheckingModel(false);
           return;
         }
-
-        isModelAvailable = modelsResponse.models.some(model => model.name === agentModelName);
-
-      } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : String(e);
-        Logger.error(agent.id, `Exception while checking model availability: ${errorMsg}`);
-        setStartWarning(
-          `Could not verify model availability due to an error: ${errorMsg}.`
-        );
-        setIsCheckingModel(false);
-        return;
-      }
-
-      if (!isModelAvailable) {
-        setStartWarning(
-          `Model "${agentModelName}" is not available on the current inference server. ` +
-          `Please check server settings or edit the agent to select an available model.`
-        );
-        setIsCheckingModel(false);
-        return;
-      }
-
-      // 3. Jupyter connection check for Python agents
-      if (isPythonAgent) {
-        if (!isJupyterConnected()) {
+        
+        let isModelAvailable = false;
+        try {
+          const serverDetails = getOllamaServerAddress();
+          if (!serverDetails.host || !serverDetails.port) {
+              throw new Error("Ollama server details not configured.");
+          }
+          const modelsResponse = await listModels(serverDetails.host, serverDetails.port);
+          if (modelsResponse.error) {
+            setStartWarning(`Could not verify model availability. Error: ${modelsResponse.error}`);
+            setIsCheckingModel(false);
+            return;
+          }
+          isModelAvailable = modelsResponse.models.some(model => model.name === agentModelName);
+        } catch (e) {
+          const errorMsg = e instanceof Error ? e.message : String(e);
+          setStartWarning(`Could not verify model availability. Error: ${errorMsg}.`);
+          setIsCheckingModel(false);
+          return;
+        }
+  
+        if (!isModelAvailable) {
+          setStartWarning(`Model "${agentModelName}" is not available. Check server settings or edit the agent.`);
+          setIsCheckingModel(false);
+          return;
+        }
+  
+        if (isPythonAgent && !isJupyterConnected()) {
           onShowJupyterModal();
           setIsCheckingModel(false);
           return;
         }
+  
+        setIsCheckingModel(false);
+        onToggle(agent.id, isRunning);
+      } else {
+        setStartWarning(null);
+        onToggle(agent.id, isRunning);
       }
-
-      setIsCheckingModel(false); // Finished checks
-      // If all checks passed, proceed with the toggle action passed from the parent
-      onToggle(agent.id, isRunning);
-
-    } else {
-      // If stopping the agent
-      setStartWarning(null);
-      onToggle(agent.id, isRunning); // Call the parent's toggle function
-    }
   };
 
-  // Combine parent's isStarting with local isCheckingModel for button state
-  const showStartingState = isStarting || isCheckingModel;
-
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300">
       <style>{`
-      /* ... (your existing styles) ... */
+        @keyframes pulse-grow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
+        .animate-pulse-grow { animation: pulse-grow 2s infinite ease-in-out; }
+        @keyframes subtle-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .animate-subtle-pulse { animation: subtle-pulse 1.5s infinite ease-in-out; }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
       `}</style>
       
       <div className="p-5 pb-0 flex justify-between items-start">
-        {/* ... (language badge) ... */}
-        <div className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${
-          isPythonAgent 
-            ? 'bg-blue-50 text-blue-700' 
-            : 'bg-amber-50 text-amber-700'
-        }`}>
-          {isPythonAgent ? (
-            <><Terminal className="w-4 h-4 mr-2" /> Python</>
-          ) : (
-            <><Code className="w-4 h-4 mr-2" /> JavaScript</>
-          )}
+        <div className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${ isPythonAgent ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+          {isPythonAgent ? <><Terminal className="w-4 h-4 mr-2" /> Python</> : <><Code className="w-4 h-4 mr-2" /> JavaScript</>}
         </div>
-        
-        <button
-          onClick={handleToggle}
-          className={`px-6 py-2.5 rounded-lg font-medium flex items-center transition-colors ${
-            showStartingState // Use combined state
-              ? 'bg-yellow-100 text-yellow-700 cursor-wait'
-              : isRunning
-                ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                : 'bg-green-100 text-green-700 hover:bg-green-200'
-          }`}
-          disabled={showStartingState} // Use combined state
-        >
-          {showStartingState ? ( // Use combined state
-            <>
-              <div className="w-5 h-5 border-2 border-yellow-700 border-t-transparent rounded-full animate-spin mr-2" />
-              {isCheckingModel ? 'Checking...' : 'Starting...'} {/* Differentiate checking vs actual starting */}
-            </>
-          ) : isRunning ? (
-            'Stop'
-          ) : (
-            <><Play className="w-5 h-5 mr-1" />Start</>
-          )}
+        <button onClick={handleToggle} className={`px-6 py-2.5 rounded-lg font-medium flex items-center transition-colors ${ showStartingState ? 'bg-yellow-100 text-yellow-700 cursor-wait' : isRunning ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`} disabled={showStartingState}>
+          {showStartingState ? (
+            <>{isCheckingModel ? 'Checking...' : 'Starting...'}</>
+          ) : isRunning ? 'Stop' : <><Play className="w-5 h-5 mr-1" />Start</>}
         </button>
       </div>
       
       <div className="p-5">
-        {/* ... (rest of the card content: avatar, name, status, description) ... */}
         <div className="flex gap-4">
-          <div className={`w-20 h-20 ${isPythonAgent ? 'bg-blue-100' : 'bg-amber-100'} rounded-full flex items-center justify-center`}>
-            <div className={`w-12 h-12 ${isPythonAgent ? 'bg-blue-500' : 'bg-amber-500'} rounded-full flex items-center justify-center ${
-              isRunning && !showStartingState ? 'animate-pulse-grow' : '' // Only pulse if truly running
-            }`}>
-              <User className="w-7 h-7 text-white" />
+          <div className="w-20 flex-shrink-0 flex flex-col items-center gap-3">
+            <div className={`w-20 h-20 ${isPythonAgent ? 'bg-blue-100' : 'bg-amber-100'} rounded-full flex items-center justify-center`}>
+              <div className={`w-12 h-12 ${isPythonAgent ? 'bg-blue-500' : 'bg-amber-500'} rounded-full flex items-center justify-center ${isRunning && !showStartingState ? 'animate-pulse-grow' : ''}`}>
+                <User className="w-7 h-7 text-white" />
+              </div>
             </div>
+            <AgentPersistentControls isPythonAgent={isPythonAgent} jupyterConnected={isJupyterConnected()} isMemoryFlashing={isMemoryFlashing} onMemory={() => onMemory(agent.id)}/>
           </div>
-          
-          <div className="flex-1">
-            <h3 className="text-2xl font-semibold text-gray-800">{agent.name}</h3>
-            <div className="flex items-center mt-1">
-              <div className={`w-3 h-3 rounded-full mr-2 ${isRunning && !showStartingState ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-              <span className="text-sm text-gray-600">{isRunning && !showStartingState ? 'Active' : 'Inactive'}</span>
-            </div>
-            
-            {isPythonAgent ? (
-              <div className={`mt-1 flex items-center ${
-                jupyterConnected 
-                  ? 'text-green-600 hover:text-green-800' 
-                  : 'text-red-600 hover:text-red-800'
-              }`}>
-                <Terminal className="h-5 w-5 mr-1" />
-                <span className="text-sm">Jupyter {jupyterConnected ? 'Connected' : 'Disconnected'}</span>
-              </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-2xl font-semibold text-gray-800 truncate">{agent.name}</h3>
+            {isRunning || showStartingState ? (
+              <LiveAgentView status={liveStatus} lastResponse={lastResponse} responseKey={responseKey} loopProgress={loopProgress} loopInterval={agent.loop_interval_seconds} streams={streams}/>
             ) : (
-              <button 
-                onClick={() => onMemory(agent.id)}
-                className="mt-1 text-purple-600 hover:text-purple-800 flex items-center"
-              >
-                <Brain className={`h-5 w-5 mr-1 ${isMemoryFlashing ? 'animate-pulse' : ''}`} />
-                <span className="text-sm">Memory</span>
-              </button>
+              <StaticAgentInfo agent={agent} startWarning={startWarning} onEdit={onEdit} onDelete={onDelete}/>
             )}
-            
-            <p className="mt-2 text-gray-600">{agent.description}</p>
-
-            {startWarning && (
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-md text-sm shadow-sm">
-                <div className="flex items-center">
-                  <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
-                  <span>{startWarning}</span>
-                </div>
-              </div>
-            )}
-            
-            <div className="mt-4 flex flex-wrap gap-2">
-              {/* ... (tags) ... */}
-              <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">
-                {agent.model_name || "No model set"}
-              </div>
-              <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">
-                {agent.loop_interval_seconds}s
-              </div>
-              {isAgentScheduled(agent.id) && (
-                <div className="px-3 py-1 bg-yellow-50 rounded-lg text-sm text-yellow-700">
-                  Scheduled: {getScheduledTime(agent.id)?.toLocaleString()}
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-5 flex gap-3">
-              {/* ... (action buttons: Edit, Delete) ... */}
-              <button
-                onClick={() => onEdit(agent.id)}
-                className={`px-5 py-2 rounded-lg flex items-center ${
-                  isRunning || showStartingState ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-                disabled={isRunning || showStartingState}
-              >
-                <Edit className="w-4 h-4 mr-2" /> Edit
-              </button>
-              <button
-                onClick={() => onDelete(agent.id)}
-                className={`px-5 py-2 rounded-lg flex items-center ${
-                  isRunning || showStartingState ? 'bg-red-50 text-red-300 cursor-not-allowed' : 'bg-red-50 hover:bg-red-100 text-red-600'
-                }`}
-                disabled={isRunning || showStartingState}
-              >
-                <Trash2 className="w-4 h-4 mr-2" /> Delete
-              </button>
-            </div>
           </div>
         </div>
       </div>
       
       <div>
-        {/* ... (activity section) ... */}
-         <button
-          onClick={() => setActivityExpanded(!activityExpanded)}
-          className="w-full px-5 py-4 flex items-center border-t border-gray-100 hover:bg-gray-50 transition-colors"
-        >
+         <button onClick={() => setActivityExpanded(!activityExpanded)} className="w-full px-5 py-4 flex items-center border-t border-gray-100 hover:bg-gray-50 transition-colors">
           <MessageCircle className="w-6 h-6 text-blue-500 mr-2" />
-          <span className="text-xl font-medium">Activity</span>
+          <span className="text-xl font-medium">Activity Log</span>
           <div className="ml-auto">
-            {activityExpanded ? 
-              <ChevronUp className="w-5 h-5 text-gray-400" /> :
-              <ChevronDown className="w-5 h-5 text-gray-400" />
-            }
+            {activityExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
           </div>
         </button>
-        
-        {activityExpanded && (
-          <div className="border-t border-gray-100 p-4">
-            <AgentLogViewer agentId={agent.id}/>
-          </div>
-        )}
+        {activityExpanded && (<div className="border-t border-gray-100 p-4 bg-gray-50/50"><AgentLogViewer agentId={agent.id}/></div>)}
       </div>
     </div>
   );
 };
+
+const AgentPersistentControls: React.FC<{isPythonAgent: boolean, jupyterConnected: boolean, isMemoryFlashing: boolean, onMemory: () => void,}> = ({ isPythonAgent, jupyterConnected, isMemoryFlashing, onMemory }) => {
+  if (isPythonAgent) {
+    return (
+      <div className={`mt-1 flex items-center text-xs ${jupyterConnected ? 'text-green-600' : 'text-red-600'}`}>
+        <Terminal className="h-8 w-8 mr-1" />
+      </div>
+    );
+  }
+  return (
+    <button onClick={onMemory} className="mt-1 text-purple-600 hover:text-purple-800 flex items-center text-xs">
+      <Brain className={`h-8 w-8 mr-1 ${isMemoryFlashing ? 'animate-pulse' : ''}`} />
+    </button>
+  );
+};
+
+const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
+  const statusInfo = useMemo(() => {
+    switch (status) {
+      case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
+      case 'CAPTURING': return { icon: <Eye className="w-5 h-5 animate-subtle-pulse" />, text: 'Capturing Inputs...', color: 'text-cyan-600' };
+      case 'THINKING': return { icon: <Activity className="w-5 h-5" />, text: 'Model is thinking...', color: 'text-purple-600' };
+      case 'WAITING': return { icon: <Clock className="w-5 h-5" />, text: 'Waiting for next cycle...', color: 'text-gray-500' };
+      default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };
+    }
+  }, [status]);
+  return (
+    <div className={`flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 ${statusInfo.color}`}>
+      <div className="flex-shrink-0">{statusInfo.icon}</div>
+      <span className="font-medium text-sm">{statusInfo.text}</span>
+      {(status === 'THINKING' || status === 'STARTING') && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin ml-auto" />}
+    </div>
+  );
+};
+
+const LoopProgressBar: React.FC<{ progress: number, interval: number }> = ({ progress, interval }) => (
+  <div>
+    <div className="flex justify-between items-center mb-1 text-xs text-gray-500">
+      <span>Next cycle in {interval}s</span>
+      <span>{Math.round(progress)}%</span>
+    </div>
+    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+      <div className="bg-green-500 h-2 rounded-full transition-all duration-100 ease-linear" style={{ width: `${progress}%` }}/>
+    </div>
+  </div>
+);
+
+const LastResponse: React.FC<{ response: string, responseKey: number }> = ({ response, responseKey }) => (
+  <div key={responseKey} className="bg-white border border-gray-200 rounded-lg shadow-sm animate-fade-in min-h-0">
+    <h4 className="text-xs font-semibold text-gray-500 mb-1 px-3 pt-2">Last Response</h4>
+    <p className="text-sm text-gray-700 whitespace-pre-wrap max-h-24 overflow-y-auto scrollbar-thin px-3 pb-2">{response}</p>
+  </div>
+);
+
+const LiveAgentView: React.FC<{status: AgentLiveStatus, lastResponse: string, responseKey: number, loopProgress: number, loopInterval: number, streams: StreamState}> = ({ status, lastResponse, responseKey, loopProgress, loopInterval, streams }) => (
+  <div className="mt-2 space-y-3">
+    <StateTicker status={status} />
+    {status === 'WAITING' && (<div className="animate-fade-in"><LoopProgressBar progress={loopProgress} interval={loopInterval} /></div>)}
+    {(streams.screenStream || streams.cameraStream) && (
+      <div className="flex gap-2 animate-fade-in">
+        {streams.screenStream && <VideoStream stream={streams.screenStream} />}
+        {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
+      </div>
+    )}
+    <LastResponse response={lastResponse} responseKey={responseKey} />
+  </div>
+);
+
+const StaticAgentInfo: React.FC<{agent: CompleteAgent, startWarning: string | null, onEdit: (id: string) => void, onDelete: (id: string) => Promise<void>}> = (props) => (
+  <>
+    <div className="flex items-center mt-1">
+      <div className="w-3 h-3 rounded-full mr-2 bg-gray-400"></div>
+      <span className="text-sm text-gray-600">Inactive</span>
+    </div>
+    <p className="mt-2 text-gray-600">{props.agent.description}</p>
+    {props.startWarning && (<div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" /><span>{props.startWarning}</span></div></div>)}
+    <div className="mt-4 flex flex-wrap gap-2">
+      <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.model_name || "No model set"}</div>
+      <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.loop_interval_seconds}s</div>
+      {isAgentScheduled(props.agent.id) && <div className="px-3 py-1 bg-yellow-50 rounded-lg text-sm text-yellow-700">Scheduled: {getScheduledTime(props.agent.id)?.toLocaleString()}</div>}
+    </div>
+    <div className="mt-5 flex gap-3">
+      <button onClick={() => props.onEdit(props.agent.id)} className="px-5 py-2 rounded-lg flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700"><Edit className="w-4 h-4 mr-2" /> Edit</button>
+      <button onClick={() => props.onDelete(props.agent.id)} className="px-5 py-2 rounded-lg flex items-center bg-red-50 hover:bg-red-100 text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</button>
+    </div>
+  </>
+);
 
 export default AgentCard;
