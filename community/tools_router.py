@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 from typing import Dict, Any 
 import json
-
+import httpx
 
 # Import Twilio classes
 from twilio.rest import Client
@@ -20,6 +20,8 @@ tools_router = APIRouter()
 # Load from environment variables, matching compute.py
 DB_PATH = os.environ.get("QUOTA_DB_PATH", "quota.db")
 FREE_SMS_QUOTA = int(os.environ.get("FREE_SMS_QUOTA", 10))
+FREE_EMAIL_QUOTA = int(os.environ.get("FREE_EMAIL_QUOTA", 20)) 
+
 
 # --- Pydantic Models ---
 class SmsRequest(BaseModel):
@@ -37,6 +39,10 @@ class TwilioConfig(BaseModel):
     from_number: str
     whatsapp_from_number: str
 
+class EmailRequest(BaseModel):
+    to_email: str = Field(..., description="The destination email address.", examples=["user@example.com"])
+    message: str = Field(..., min_length=1, description="The email body content.")
+
 # --- Database Helper Functions (Mirrored from compute.py) ---
 def get_db():
     """Returns a new database connection."""
@@ -45,7 +51,7 @@ def get_db():
     return conn
 
 def init_db():
-    """Initializes the database and creates the sms_request_count table if it doesn't exist."""
+    """Initializes the database and creates required tables if they don't exist."""
     try:
         with get_db() as conn:
             cursor = conn.cursor()
@@ -56,8 +62,15 @@ def init_db():
                     count INTEGER NOT NULL
                 )
             ''')
+            # NEW: Add the table for email quota tracking
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS email_request_count (
+                    auth_code TEXT PRIMARY KEY,
+                    count INTEGER NOT NULL
+                )
+            ''')
             conn.commit()
-            logger.info("SMS quota table (sms_request_count) initialized/verified.")
+            logger.info("SMS and Email quota tables initialized/verified.")
     except sqlite3.Error as e:
         logger.error(f"Database initialization error for tools_router: {e}", exc_info=True)
         raise RuntimeError(f"Failed to initialize database at {DB_PATH}")
@@ -121,6 +134,31 @@ def check_and_increment_sms_quota(auth_code: str) -> bool:
                   return True # Quota available
     except sqlite3.Error as e:
          logger.error(f"Database error checking/incrementing SMS quota: {e}")
+         return False # Fail safe
+
+def check_and_increment_email_quota(auth_code: str) -> bool:
+    """
+    Checks and increments the EMAIL quota for a given auth_code.
+    Returns True if quota is available, False otherwise.
+    """
+    try:
+        with get_db() as conn:
+             cursor = conn.cursor()
+             cursor.execute('SELECT count FROM email_request_count WHERE auth_code = ?', (auth_code,))
+             result = cursor.fetchone()
+             count = result['count'] if result else 0
+
+             if count >= FREE_EMAIL_QUOTA:
+                  logger.warning(f"EMAIL Quota exceeded for auth_code: {auth_code}")
+                  return False # Quota exceeded
+             else:
+                  # Increment count
+                  cursor.execute('INSERT OR IGNORE INTO email_request_count (auth_code, count) VALUES (?, 0)', (auth_code,))
+                  cursor.execute('UPDATE email_request_count SET count = count + 1 WHERE auth_code = ?', (auth_code,))
+                  conn.commit()
+                  return True # Quota available
+    except sqlite3.Error as e:
+         logger.error(f"Database error checking/incrementing EMAIL quota: {e}")
          return False # Fail safe
 
 # --- Twilio Dependency (Unchanged) ---
@@ -268,4 +306,64 @@ async def send_whatsapp(
         raise HTTPException(status_code=400, detail=f"Failed to send WhatsApp message: {e.msg}")
     except Exception as e:
         logger.exception("An unexpected error occurred while sending WhatsApp message.")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+
+@tools_router.post("/tools/send-email", tags=["Tools"])
+async def send_email(
+    request: Request,
+    request_data: EmailRequest
+):
+    """
+    Sends an email by securely calling the Cloudflare email worker.
+    - Requires a valid 'X-Observer-Auth-Code' header.
+    - "Signed-in" users have unlimited emails.
+    - Other valid auth_codes are subject to a free quota.
+    """
+    # 1. Authentication 
+    auth_code = request.headers.get("X-Observer-Auth-Code")
+    if not auth_code or not is_valid_auth_code(auth_code):
+        raise HTTPException(status_code=403, detail="The provided auth code is not valid.")
+
+    # 2. Quota Check 
+    if not is_premium_user(auth_code):
+        if not check_and_increment_email_quota(auth_code):
+            raise HTTPException(status_code=429, detail=f"Email quota of {FREE_EMAIL_QUOTA} has been exceeded.")
+
+    # 3. Action: Securely call the Email Worker
+    
+    # Load worker config from environment variables
+    worker_url = os.getenv("EMAIL_WORKER_URL")
+    worker_secret = os.getenv("EMAIL_WORKER_SECRET")
+
+    if not all([worker_url, worker_secret]):
+        logger.error("Server is missing EMAIL_WORKER_URL or EMAIL_WORKER_SECRET.")
+        raise HTTPException(status_code=500, detail="Email service is not configured correctly on the server.")
+
+    # This is the data we'll send to the worker
+    worker_payload = {
+        "email": request_data.to_email,
+        "content": request_data.message,
+    }
+
+    # This is our secret header
+    headers = {
+        "X-Internal-API-Key": worker_secret
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # We are no longer calling MailChannels directly. We call OUR worker.
+            response = await client.post(worker_url, json=worker_payload, headers=headers)
+            response.raise_for_status()
+
+        logger.info(f"Email worker call successful for auth_code: {auth_code} to {request_data.to_email}")
+        return {"success": True, "detail": "Email sent successfully."}
+
+    except httpx.HTTPStatusError as e:
+        error_details = e.response.text
+        logger.error(f"Email worker failed for auth_code {auth_code}: {e.response.status_code} - {error_details}")
+        raise HTTPException(status_code=502, detail=f"Email service provider failed: {error_details}")
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred while calling email worker for auth_code: {auth_code}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
