@@ -11,6 +11,9 @@ import httpx
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
 # --- Setup ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('tools_router')
@@ -315,55 +318,47 @@ async def send_email(
     request_data: EmailRequest
 ):
     """
-    Sends an email by securely calling the Cloudflare email worker.
+    Sends an email using the SendGrid service.
     - Requires a valid 'X-Observer-Auth-Code' header.
     - "Signed-in" users have unlimited emails.
     - Other valid auth_codes are subject to a free quota.
     """
-    # 1. Authentication 
+    # 1. Authentication & Quota Checks (This logic is unchanged and still works!)
     auth_code = request.headers.get("X-Observer-Auth-Code")
     if not auth_code or not is_valid_auth_code(auth_code):
         raise HTTPException(status_code=403, detail="The provided auth code is not valid.")
 
-    # 2. Quota Check 
     if not is_premium_user(auth_code):
         if not check_and_increment_email_quota(auth_code):
-            raise HTTPException(status_code=429, detail=f"Email quota of {FREE_EMAIL_QUOTA} has been exceeded.")
+            raise HTTPException(status_code=429, detail=f"Email quota has been exceeded.")
 
-    # 3. Action: Securely call the Email Worker
-    
-    # Load worker config from environment variables
-    worker_url = os.getenv("EMAIL_WORKER_URL")
-    worker_secret = os.getenv("EMAIL_WORKER_SECRET")
+    # 2. Action: Send the Email via SendGrid
+    sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
+    from_email = os.getenv("SENDGRID_FROM_EMAIL")
 
-    if not all([worker_url, worker_secret]):
-        logger.error("Server is missing EMAIL_WORKER_URL or EMAIL_WORKER_SECRET.")
-        raise HTTPException(status_code=500, detail="Email service is not configured correctly on the server.")
+    if not all([sendgrid_api_key, from_email]):
+        logger.error("Server is missing SENDGRID_API_KEY or SENDGRID_FROM_EMAIL.")
+        raise HTTPException(status_code=500, detail="Email service is not configured on the server.")
 
-    # This is the data we'll send to the worker
-    worker_payload = {
-        "email": request_data.to_email,
-        "content": request_data.message,
-    }
-
-    # This is our secret header
-    headers = {
-        "X-Internal-API-Key": worker_secret
-    }
+    # Construct the email object
+    message = Mail(
+        from_email=from_email,
+        to_emails=request_data.to_email, # The arbitrary email from the user
+        subject='An Alert from your Observer AI Agent',
+        plain_text_content=request_data.message
+    )
 
     try:
-        async with httpx.AsyncClient() as client:
-            # We are no longer calling MailChannels directly. We call OUR worker.
-            response = await client.post(worker_url, json=worker_payload, headers=headers)
-            response.raise_for_status()
+        # Send the email
+        sendgrid_client = SendGridAPIClient(sendgrid_api_key)
+        response = sendgrid_client.send(message)
 
-        logger.info(f"Email worker call successful for auth_code: {auth_code} to {request_data.to_email}")
+        # Log the success (SendGrid returns a 202 Accepted status code)
+        logger.info(f"Email successfully sent to SendGrid for auth_code: {auth_code} to {request_data.to_email}. Status: {response.status_code}")
+
         return {"success": True, "detail": "Email sent successfully."}
 
-    except httpx.HTTPStatusError as e:
-        error_details = e.response.text
-        logger.error(f"Email worker failed for auth_code {auth_code}: {e.response.status_code} - {error_details}")
-        raise HTTPException(status_code=502, detail=f"Email service provider failed: {error_details}")
     except Exception as e:
-        logger.exception(f"An unexpected error occurred while calling email worker for auth_code: {auth_code}")
-        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+        logger.exception(f"An unexpected error occurred while sending email via SendGrid for auth_code: {auth_code}")
+        # You can inspect 'e.body' for more detailed error messages from SendGrid if needed
+        raise HTTPException(status_code=500, detail=f"An internal server error occurred: {str(e)}")
