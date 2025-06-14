@@ -43,7 +43,9 @@ Creating your own Observer AI agent is simple, and consist of three things:
   * `startAgent(agentId)*` – Starts an agent  
   * `stopAgent(agentId)*` – Stops an agent
   * `time()` - Gets current time
+  * `sendEmail(content, email)` - Sends an email
   * `sendSms(content, phone_number)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367")
+  * `sendWhatsapp(content, phone_number)` - Sends a whatsapp message, IMPORTANT: temporarily to counter anti spam, Observer is sending only static messages disregarding "content" variable.
 
 ## Code Tab
 
