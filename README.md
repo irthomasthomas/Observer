@@ -144,7 +144,7 @@ This method uses Docker Compose to run Observer and a local Ollama instance toge
     ```bash
     git clone https://github.com/Roy3838/Observer.git
     cd Observer
-    docker-compose up -d
+    docker-compose up --build
     ```
     
 3.  **Access Observer:**
