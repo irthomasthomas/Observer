@@ -32,8 +32,27 @@ import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
 import ConversationalGeneratorModal from '@components/ConversationalGeneratorModal';
 
 function AppContent() {
-  const { isAuthenticated, user, loginWithRedirect, logout, isLoading } = useAuth0();
-  
+  // Check our environment variable to see if Auth0 should be disabled
+  const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+
+  // If Auth0 is disabled, create a mock auth object for local development.
+  // Otherwise, use the real useAuth0 hook.
+  const { 
+    isAuthenticated, 
+    user, 
+    loginWithRedirect, 
+    logout, 
+    isLoading 
+  } = isAuthDisabled 
+    ? {
+        isAuthenticated: true,
+        user: { name: 'Local Dev User', email: 'dev@local.host' },
+        loginWithRedirect: () => Promise.resolve(),
+        logout: () => {},
+        isLoading: false,
+      } 
+    : useAuth0(); 
+
   const [agents, setAgents] = useState<CompleteAgent[]>([]);
   const [agentCodes, setAgentCodes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -486,6 +505,7 @@ function AppContent() {
                 onClick={() => setShowGlobalLogs(!showGlobalLogs)}
               >
                 <Terminal className="h-5 w-5" />
+                <span>{showGlobalLogs ? 'Hide System Logs' : 'Show System Logs'}</span>
               </button>
               
               <button 
@@ -563,6 +583,16 @@ function AppContent() {
 }
 
 export function App() {
+  // Check our environment variable again
+  const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+
+  // If auth is disabled, just render the main content without the Auth0 wrapper
+  if (isAuthDisabled) {
+    console.log("Auth0 is disabled for local development.");
+    return <AppContent />;
+  }
+  
+  // Otherwise, return the app with the full Auth0 provider for production/staging
   return (
     <Auth0Provider
       domain="dev-mzdd3k678tj1ja86.us.auth0.com"
