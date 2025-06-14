@@ -234,18 +234,94 @@ async def send_sms(
         logger.exception("An unexpected error occurred while sending SMS.")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
+# FOR WHEN I FIGURE OUT HOW TO GET AROUND ANTI SPAM 
+
+# @tools_router.post("/tools/send-whatsapp", tags=["Tools"])
+# async def send_whatsapp(
+#     request: Request,
+#     request_data: WhatsAppRequest,
+#     config: TwilioConfig = Depends(get_twilio_config)
+# ):
+#     """
+#     Sends a WhatsApp message using a pre-approved Twilio template.
+#     - Requires a valid 'X-Observer-Auth-Code' header.
+#     - Uses the same quota system as SMS.
+#     - Automatically truncates messages that are too long.
+#     """
+#     # 1. Authentication (No changes here)
+#     auth_code = request.headers.get("X-Observer-Auth-Code")
+#     if not auth_code:
+#         raise HTTPException(status_code=401, detail="X-Observer-Auth-Code header is required.")
+#
+#     if not is_valid_auth_code(auth_code):
+#         raise HTTPException(status_code=403, detail="The provided auth code is not valid.")
+#
+#     # 2. Quota Check (No changes here)
+#     if not is_premium_user(auth_code):
+#         if not check_and_increment_sms_quota(auth_code):
+#             raise HTTPException(
+#                 status_code=429,
+#                 detail=f"Messaging quota of {FREE_SMS_QUOTA} has been exceeded."
+#             )
+#
+#     # 3. Message Processing (This is the updated part)
+#     content_sid = os.getenv("TWILIO_WHATSAPP_TEMPLATE_SID")
+#     if not content_sid:
+#         logger.error("Server is missing TWILIO_WHATSAPP_TEMPLATE_SID environment variable.")
+#         raise HTTPException(status_code=500, detail="WhatsApp service is not configured correctly on the server.")
+#
+#     # Define the max length for the variable.
+#     MAX_WHATSAPP_VAR_LENGTH = 256
+#     processed_message = request_data.message
+#
+#     # If the message is too long, truncate it and add an ellipsis.
+#     if len(processed_message) > MAX_WHATSAPP_VAR_LENGTH:
+#         # We need to make space for the "..."
+#         truncation_point = MAX_WHATSAPP_VAR_LENGTH - 3
+#         processed_message = processed_message[:truncation_point] + "..."
+#
+#         # Log this event for your own debugging purposes.
+#         logger.warning(
+#             f"WhatsApp message for auth_code ...{auth_code[-4:]} was truncated to {MAX_WHATSAPP_VAR_LENGTH} characters."
+#         )
+#
+#     # 4. Action: Send the WhatsApp message
+#     logger.info(f"Processing WhatsApp for auth_code: ...{auth_code[-4:]} to {request_data.to_number}")
+#     try:
+#         client = Client(config.account_sid, config.auth_token)
+#
+#         # Build the variables payload safely using json.dumps and the processed_message
+#         variables_payload = {
+#             "1": processed_message
+#         }
+#
+#         message = client.messages.create(
+#             to=f'whatsapp:{request_data.to_number}',
+#             from_=f'whatsapp:{config.whatsapp_from_number}',
+#             content_sid=content_sid,
+#             content_variables=json.dumps(variables_payload)
+#         )
+#
+#         logger.info(f"WhatsApp message sent successfully. SID: {message.sid}")
+#         return {"success": True, "message_sid": message.sid}
+#     except TwilioRestException as e:
+#         # (The rest of the error handling remains the same)
+#         logger.error(f"Twilio API error (WhatsApp): {e.msg}")
+#         raise HTTPException(status_code=400, detail=f"Failed to send WhatsApp message: {e.msg}")
+#     except Exception as e:
+#         logger.exception("An unexpected error occurred while sending WhatsApp message.")
+#         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 @tools_router.post("/tools/send-whatsapp", tags=["Tools"])
 async def send_whatsapp(
     request: Request,
-    request_data: WhatsAppRequest,
+    request_data: WhatsAppRequest, #<-- No change here, we accept but ignore the message
     config: TwilioConfig = Depends(get_twilio_config)
 ):
     """
-    Sends a WhatsApp message using a pre-approved Twilio template.
+    Sends a static, pre-approved WhatsApp notification template.
     - Requires a valid 'X-Observer-Auth-Code' header.
     - Uses the same quota system as SMS.
-    - Automatically truncates messages that are too long.
     """
     # 1. Authentication (No changes here)
     auth_code = request.headers.get("X-Observer-Auth-Code")
@@ -269,48 +345,34 @@ async def send_whatsapp(
         logger.error("Server is missing TWILIO_WHATSAPP_TEMPLATE_SID environment variable.")
         raise HTTPException(status_code=500, detail="WhatsApp service is not configured correctly on the server.")
 
-    # Define the max length for the variable.
-    MAX_WHATSAPP_VAR_LENGTH = 256
-    processed_message = request_data.message
-
-    # If the message is too long, truncate it and add an ellipsis.
-    if len(processed_message) > MAX_WHATSAPP_VAR_LENGTH:
-        # We need to make space for the "..."
-        truncation_point = MAX_WHATSAPP_VAR_LENGTH - 3
-        processed_message = processed_message[:truncation_point] + "..."
-        
-        # Log this event for your own debugging purposes.
-        logger.warning(
-            f"WhatsApp message for auth_code ...{auth_code[-4:]} was truncated to {MAX_WHATSAPP_VAR_LENGTH} characters."
-        )
-
+    # --- REMOVED ---
+    # The logic for processing, truncating, and creating a variables payload
+    # is no longer needed as we are sending a static template.
+    
     # 4. Action: Send the WhatsApp message
-    logger.info(f"Processing WhatsApp for auth_code: ...{auth_code[-4:]} to {request_data.to_number}")
+    logger.info(
+        f"Sending static 'Alert Triggered' notification to {request_data.to_number} for auth_code: ...{auth_code[-4:]}. "
+        f"(Original trigger message: '{request_data.message}')"
+    )
     try:
         client = Client(config.account_sid, config.auth_token)
-        
-        # Build the variables payload safely using json.dumps and the processed_message
-        variables_payload = {
-            "1": processed_message
-        }
         
         message = client.messages.create(
             to=f'whatsapp:{request_data.to_number}',
             from_=f'whatsapp:{config.whatsapp_from_number}',
-            content_sid=content_sid,
-            content_variables=json.dumps(variables_payload)
+            content_sid=content_sid
+            # --- REMOVED ---
+            # The 'content_variables' parameter is removed.
         )
         
         logger.info(f"WhatsApp message sent successfully. SID: {message.sid}")
         return {"success": True, "message_sid": message.sid}
     except TwilioRestException as e:
-        # (The rest of the error handling remains the same)
         logger.error(f"Twilio API error (WhatsApp): {e.msg}")
         raise HTTPException(status_code=400, detail=f"Failed to send WhatsApp message: {e.msg}")
     except Exception as e:
         logger.exception("An unexpected error occurred while sending WhatsApp message.")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
-
 
 @tools_router.post("/tools/send-email", tags=["Tools"])
 async def send_email(
