@@ -144,3 +144,83 @@ export async function sendSms(message: string, number: string): Promise<void> {
     throw error;
   }
 }
+
+
+/**
+ * Sends a WhatsApp notification using a pre-approved template.
+ * @param message The content to be injected into the template's variable.
+ * @param number The destination phone number in E.164 format (e.g., "+181429367").
+ */
+export async function sendWhatsapp(message: string, number:string): Promise<void> {
+  const API_HOST = "https://api.observer-ai.com";
+  const authCode = localStorage.getItem("observer_auth_code");
+
+  if (!authCode) {
+    throw new Error("Authentication error: Not signed in or auth code is missing.");
+  }
+
+  try {
+    // Call the new backend endpoint
+    const response = await fetch(`${API_HOST}/tools/send-whatsapp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Observer-Auth-Code': authCode,
+      },
+      // The body now matches our new WhatsAppRequest Pydantic model
+      body: JSON.stringify({
+        to_number: number,
+        message: message, // This will become variable {{1}} in the template
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData.detail || 'Failed to send WhatsApp message due to a server error.';
+      throw new Error(errorMessage);
+    }
+
+  } catch (error) {
+    // Re-throw for the agent's try/catch block
+    throw error;
+  }
+}
+/**
+ * Sends an email by calling the backend API.
+ * This is the core utility function.
+ * @param message The plain text content of the email.
+ * @param emailAddress The recipient's email address.
+ */
+export async function sendEmail(message: string, emailAddress: string): Promise<void> { // <-- ARGUMENTS SWAPPED HERE
+
+  const API_HOST = "https://api.observer-ai.com";
+  const authCode = localStorage.getItem("observer_auth_code");
+
+  if (!authCode) {
+    throw new Error("Authentication error: Not signed in or auth code is missing.");
+  }
+
+  try {
+    const response = await fetch(`${API_HOST}/tools/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Observer-Auth-Code': authCode,
+      },
+      // The body now correctly maps to the backend's Pydantic model.
+      body: JSON.stringify({
+        to_email: emailAddress, // <-- CORRECT
+        message: message,       // <-- CORRECT
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData.detail || 'Failed to send email due to a server error.';
+      throw new Error(errorMessage);
+    }
+
+  } catch (error) {
+    throw error;
+  }
+}

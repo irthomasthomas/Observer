@@ -63,6 +63,29 @@ export async function executeJavaScript(
         }
       },
 
+      sendWhatsapp: async(message: string, number: string) => {
+        Logger.info(agentId, `Agent is attempting to send a Whatsapp to ${number}.`);
+        try{
+          await utils.sendWhatsapp(message, number);
+          Logger.info(agentId, `Successfully send Whatsapp request for number: ${number}.`);
+        } catch (error: any){
+          Logger.error(agentId, `Failed to send Whatsapp: ${error.message}`);
+          throw error;
+        }
+      },
+
+      sendEmail: async (message: string, emailAddress: string) => {
+        Logger.info(agentId, `Agent is attempting to send an email to ${emailAddress}.`);
+        try {
+          // Now calls the corrected utility function with the right argument order
+          await utils.sendEmail(message, emailAddress);
+          Logger.info(agentId, `Successfully sent email request for address: ${emailAddress}.`);
+        } catch (error: any) {
+          Logger.error(agentId, `Failed to send email: ${error.message}`);
+          throw error;
+        }
+      },
+
     };
 
     // Create a wrapper function that sets up the context
