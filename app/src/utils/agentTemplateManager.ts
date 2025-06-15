@@ -1,9 +1,13 @@
+// src/utils/agentTemplateManager.ts
+
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory' | 'sms';
+export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp';
 
 export interface ToolData {
   smsPhoneNumber?: string;
+  emailAddress?: string;
+  whatsappPhoneNumber?: string;
 }
 
 const TOOL_CODE_SNIPPETS: Record<SimpleTool, (data: ToolData) => string> = {
@@ -18,13 +22,28 @@ notify("Observer AI Agent", response);
 const timestamp = time();
 appendMemory(agentId, \`\\n[\${timestamp}] \${response}\`);
 `,
-  // 3. The `sms` tool function remains the same, and now matches the type.
   sms: (data: ToolData) => {
     const phoneNumber = data.smsPhoneNumber ? JSON.stringify(data.smsPhoneNumber) : '""';
     return `
 // --- SMS TOOL ---
 // Sends the model's response as an SMS to the specified number.
 sendSms(response, ${phoneNumber});
+`;
+  },
+  whatsapp: (data: ToolData) => {
+    const phoneNumber = data.whatsappPhoneNumber ? JSON.stringify(data.whatsappPhoneNumber) : '""';
+    return `
+// --- WHATSAPP TOOL ---
+// Sends the model's response as a WhatsApp message to the specified number.
+sendWhatsapp(response, ${phoneNumber});
+`;
+  },
+  email: (data: ToolData) => {
+    const emailAddr = data.emailAddress ? JSON.stringify(data.emailAddress) : '""';
+    return `
+// --- EMAIL TOOL ---
+// Sends the model's response as an email to the specified address.
+sendEmail(response, ${emailAddr});
 `;
   }
 };
@@ -47,7 +66,6 @@ export function generateAgentFromSimpleConfig(
     '// You can edit it to add more complex logic.',
   ].join('\n');
 
-  // This .map() call now works perfectly because TOOL_CODE_SNIPPETS[tool] is always a function.
   let toolCode = Array.from(config.selectedTools.entries())
     .map(([tool, data]) => TOOL_CODE_SNIPPETS[tool](data).trim())
     .join('\n\n');

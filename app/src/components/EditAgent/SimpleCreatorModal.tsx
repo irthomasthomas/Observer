@@ -1,14 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Modal from '@components/EditAgent/Modal';
-// --- MODIFIED ---
 import { SimpleTool, ToolData } from '@utils/agentTemplateManager';
 import { Model, listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
   Bell, Save, Monitor, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2,
-  // --- NEW ---
-  MessageSquare, Smartphone
+  MessageSquare, Smartphone, Mail
 } from 'lucide-react';
 
 // --- Reusable Model Selector (for Step 2) ---
@@ -82,6 +80,8 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   
   const [selectedTools, setSelectedTools] = useState<Map<SimpleTool, ToolData>>(new Map());
   const [smsPhoneNumber, setSmsPhoneNumber] = useState('');
+  const [whatsappPhoneNumber, setWhatsappPhoneNumber] = useState('');
+  const [emailAddress, setEmailAddress] = useState('');
 
   const [conditionEnabled, setConditionEnabled] = useState(false);
   const [conditionKeyword, setConditionKeyword] = useState('');
@@ -91,22 +91,21 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const [loadingModels, setLoadingModels] = useState(false);
   const [visionValidationError, setVisionValidationError] = useState<string | null>(null);
 
-  // --- NEW --- State to check if the user is signed in.
   const [isSignedIn, setIsSignedIn] = useState(false);
   
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
   const resetState = useCallback(() => {
     setStep(1); setName(''); setAgentId(''); setModel(''); setSystemPrompt('');
-    // --- MODIFIED ---
     setSelectedTools(new Map());
     setSmsPhoneNumber('');
+    setWhatsappPhoneNumber('');
+    setEmailAddress('');
     setConditionEnabled(false); setConditionKeyword('');
   }, []);
 
   const fetchInitialData = useCallback(async () => {
     if (!isOpen) return;
-    // --- NEW --- Check auth status when the modal opens.
     setIsSignedIn(!!localStorage.getItem("observer_auth_code"));
 
     setLoadingModels(true);
@@ -161,15 +160,17 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
     }, 0);
   };
 
-  // --- NEW --- A helper function to manage tool selection.
   const toggleTool = (tool: SimpleTool) => {
     setSelectedTools(prev => {
       const newMap = new Map(prev);
       if (newMap.has(tool)) {
         newMap.delete(tool);
       } else {
-        // Add tool with its specific initial data if needed
-        const initialData: ToolData = tool === 'sms' ? { smsPhoneNumber } : {};
+        const initialData: ToolData = 
+            tool === 'sms' ? { smsPhoneNumber } :
+            tool === 'whatsapp' ? { whatsappPhoneNumber } :
+            tool === 'email' ? { emailAddress } :
+            {};
         newMap.set(tool, initialData);
       }
       return newMap;
@@ -180,7 +181,6 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
     if (step === 3) {
       const config = {
         agentData: { name, id: agentId, model_name: model, system_prompt: systemPrompt },
-        // --- MODIFIED --- Pass the entire map
         selectedTools: selectedTools,
         condition: { enabled: conditionEnabled, keyword: conditionKeyword }
       };
@@ -260,6 +260,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               <ModelSelector availableModels={availableModels} selectedModel={model} onSelectModel={setModel} loading={loadingModels} />
             </div>
           </div>
+
           {/* --- Step 3: Tools (MODIFIED) --- */}
             <div className="w-full flex-shrink-0 p-8 space-y-6 overflow-y-auto">
               <div>
@@ -288,7 +289,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               </div>
             )}
 
-              {/* --- FIX 1: Responsive Horizontal Layout --- */}
+              {/* --- MODIFIED --- Layout now supports more tools */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Notification Tool */}
                 <button type="button" onClick={() => toggleTool('notification')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('notification') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}><Bell className={`h-8 w-8 transition-colors ${selectedTools.has('notification') ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send a Notification</h3><p className="text-sm text-gray-500">Sends the model's response as a desktop alert.</p></div></button>
@@ -296,8 +297,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                 {/* Memory Tool */}
                 <button type="button" onClick={() => toggleTool('memory')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('memory') ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'}`}><Save className={`h-8 w-8 transition-colors ${selectedTools.has('memory') ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Save to Memory</h3><p className="text-sm text-gray-500">Appends the model's response to this agent's memory.</p></div></button>
                 
-                {/* --- FIX 2: Bug Fix and Tooltip Simplification --- */}
-                {/* The wrapping div is removed and its properties are moved to the button */}
+                {/* SMS Tool */}
                 <button 
                   type="button"
                   title={!isSignedIn ? 'Please sign in to use the SMS tool.' : ''}
@@ -319,14 +319,9 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                       type="tel"
                       value={smsPhoneNumber}
                       onClick={(e) => e.stopPropagation()}
-                      // --- THE FIX IS HERE ---
                       onChange={(e) => {
                         const newNumber = e.target.value;
-                        // First, update the simple phone number state
                         setSmsPhoneNumber(newNumber);
-                        
-                        // Second, directly update the map with the new number.
-                        // This replaces the need for the useEffect.
                         setSelectedTools(prev => {
                           const newMap = new Map(prev);
                           newMap.set('sms', { smsPhoneNumber: newNumber });
@@ -338,8 +333,82 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                     />
                   </div>
                 )}
-
                 </button>
+
+                {/* --- WhatsApp Tool */}
+                <button 
+                  type="button"
+                  title={!isSignedIn ? 'Please sign in to use the WhatsApp tool.' : ''}
+                  onClick={() => toggleTool('whatsapp')}
+                  disabled={!isSignedIn}
+                  className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('whatsapp') ? 'border-teal-500 bg-teal-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}>
+                  <div className="flex items-center space-x-4">
+                    <Smartphone className={`h-8 w-8 transition-colors ${selectedTools.has('whatsapp') ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Send a WhatsApp</h3>
+                      <p className="text-sm text-gray-500">Sends a pre-approved WhatsApp notification.</p>
+                    </div>
+                  </div>
+                  {selectedTools.has('whatsapp') && (
+                  <div className="relative pl-12 pt-2">
+                    <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={whatsappPhoneNumber}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        const newNumber = e.target.value;
+                        setWhatsappPhoneNumber(newNumber);
+                        setSelectedTools(prev => {
+                          const newMap = new Map(prev);
+                          newMap.set('whatsapp', { whatsappPhoneNumber: newNumber });
+                          return newMap;
+                        });
+                      }}
+                      className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                      placeholder="+1 555 123-4567"
+                    />
+                  </div>
+                )}
+                </button>
+
+                {/* --- Email Tool */}
+                <button 
+                  type="button"
+                  title={!isSignedIn ? 'Please sign in to use the Email tool.' : ''}
+                  onClick={() => toggleTool('email')}
+                  disabled={!isSignedIn}
+                  className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('email') ? 'border-cyan-500 bg-cyan-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}>
+                  <div className="flex items-center space-x-4">
+                    <Mail className={`h-8 w-8 transition-colors ${selectedTools.has('email') ? 'text-cyan-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Send an Email</h3>
+                      <p className="text-sm text-gray-500">Sends the model's response as an email.</p>
+                    </div>
+                  </div>
+                  {selectedTools.has('email') && (
+                  <div className="relative pl-12 pt-2">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="email"
+                      value={emailAddress}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        const newAddress = e.target.value;
+                        setEmailAddress(newAddress);
+                        setSelectedTools(prev => {
+                          const newMap = new Map(prev);
+                          newMap.set('email', { emailAddress: newAddress });
+                          return newMap;
+                        });
+                      }}
+                      className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                      placeholder="recipient@example.com"
+                    />
+                  </div>
+                )}
+                </button>
+
               </div>
             </div>
 
