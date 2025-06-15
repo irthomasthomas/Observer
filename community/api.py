@@ -13,43 +13,16 @@ from marketplace import marketplace_router
 from compute import compute_router
 from tools_router import tools_router
 
-from logging_config import setup_logging  # Import your new function
-
-setup_logging()
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger('api-server')
 
 # Setup FastAPI app
 app = FastAPI()
-
-@app.middleware("http")
-async def log_requests_middleware(request: Request, call_next):
-    start_time = time.time()
-    
-    # Extract common identifiers
-    client_ip = request.client.host
-    auth_header = request.headers.get("Authorization")
-    observer_auth_code = request.headers.get("X-Observer-Auth-Code", "")
-    
-    response = await call_next(request)
-    
-    process_time = (time.time() - start_time) * 1000  # in milliseconds
-    
-    # The 'extra' dictionary adds fields to the JSON log
-    log_extra = {
-        "endpoint": request.url.path,
-        "method": request.method,
-        "status_code": response.status_code,
-        "duration_ms": round(process_time, 2),
-        "client_ip": client_ip,
-        "user_agent": request.headers.get("user-agent", "N/A"),
-        # Log the last 4 chars of the code for traceability without exposing the whole thing
-        "auth_code_suffix": f"...{observer_auth_code[-4:]}" if observer_auth_code else None,
-        # We will add user_id here later in the banning section
-        "user_id": getattr(request.state, "user_id", None) 
-    }
-
-    logger.info(f"{request.method} {request.url.path} - {response.status_code}", extra=log_extra)
-    
-    return response
 
 # Enable CORS
 app.add_middleware(
