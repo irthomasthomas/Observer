@@ -505,7 +505,6 @@ function AppContent() {
                 onClick={() => setShowGlobalLogs(!showGlobalLogs)}
               >
                 <Terminal className="h-5 w-5" />
-                <span>{showGlobalLogs ? 'Hide System Logs' : 'Show System Logs'}</span>
               </button>
               
               <button 
