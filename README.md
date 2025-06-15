@@ -130,6 +130,9 @@ To use Python agents:
 
 # 🚀 Getting Started with Local Inference
 
+https://github.com/user-attachments/assets/1d19c572-359a-4eff-b6b6-f1e3efab9d86
+
+
 There are a couple of ways to get Observer up and running with local inference. We recommend using Docker for the simplest setup.
 
 ### Option 1: Docker Setup (Recommended & Easiest)
