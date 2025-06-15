@@ -85,6 +85,9 @@ You will guide the user to one of these three agent types.
 | \`notify("Title", "Message");\`          | Sends a desktop notification.       |
 | \`appendMemory(agentId, content);\`      | Saves content to memory.            |
 | \`sendSms("Message", "+1234567890");\`   | Sends an SMS (always ask user for number). |
+| \`sendEmail("Message", "user@email.com")\`| Sends an email (always ask user for email address). |
+| \`sendWhatsapp("Dummy", "+5281394782123")\`| Sends default alert (always ask for number). |
+* If user prefers whatsapp, explain that temporarily due to Meta's anti spam features the message will be a default "Observer AI Alert Triggered" and if they want the message to relay information, use SMS.
 
 ---
 
