@@ -46,8 +46,7 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAge
     const fullPrompt = `${getConversationalSystemPrompt()}\n${conversationHistory}\nai:`;
 
     try {
-      const { host, port } = getOllamaServerAddress();
-      const responseText = await sendPrompt(host, port, 'gemini-2.5-flash-preview-04-17', { modifiedPrompt: fullPrompt, images: [] });
+      const responseText = await sendPrompt('api.observer-ai.com', '443', 'gemini-2.5-flash-preview-04-17', { modifiedPrompt: fullPrompt, images: [] });
 
       const agentConfig = extractAgentConfig(responseText);
       
