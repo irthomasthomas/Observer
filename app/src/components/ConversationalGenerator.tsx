@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Loader2, Save } from 'lucide-react';
 import { sendPrompt } from '@utils/sendApi';
-import { getOllamaServerAddress } from '@utils/main_loop';
 import { CompleteAgent } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse } from '@utils/agentParser';
 import getConversationalSystemPrompt from '@utils/conversational_system_prompt'; // Assuming you create this
