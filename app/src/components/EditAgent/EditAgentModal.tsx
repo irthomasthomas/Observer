@@ -13,6 +13,7 @@ import {
   Download,
   ChevronDown,
   Eye,
+  ScanText,
   Play,
   X,
   Zap,
@@ -269,9 +270,9 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                   <p className="text-xs text-gray-500">Define instructions for the agent</p>
                 </div>
                 <div className="flex items-center gap-x-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200">
-                  <button onClick={() => insertSystemPromptText('$SCREEN_OCR')} title="Screen OCR (Text)" className="p-1.5 hover:bg-gray-200 rounded-md text-blue-600"><Monitor size={16} /></button>
+                  <button onClick={() => insertSystemPromptText('$SCREEN_OCR')} title="Screen OCR (Text)" className="p-1.5 hover:bg-gray-200 rounded-md text-blue-600"><ScanText size={16} /></button>
                   <div className="flex items-center space-x-1 bg-purple-100 border border-purple-200 rounded-md px-1">
-                    <button onClick={() => insertSystemPromptText('$SCREEN_64')} title="Screen Image (Vision)" className="p-1.5 hover:bg-purple-200 rounded-md text-purple-600"><Eye size={16} /></button>
+                    <button onClick={() => insertSystemPromptText('$SCREEN_64')} title="Screen Image (Vision)" className="p-1.5 hover:bg-purple-200 rounded-md text-purple-600"><Monitor size={16} /></button>
                     <button onClick={() => insertSystemPromptText('$CAMERA')} title="Camera Image (Vision)" className="p-1.5 hover:bg-purple-200 rounded-md text-purple-600"><Camera size={16} /></button>
                   </div>
                   <div className="w-px h-5 bg-gray-300"></div>
