@@ -4,6 +4,7 @@ import { Logger } from './logging';
 import { getAgentMemory } from './agent_database'; 
 import { captureFrameAndOCR, startScreenCapture, captureScreenImage } from './screenCapture'; 
 import { captureCameraImage } from './cameraCapture'; 
+import { ContinuousTranscriptionService } from './continuousTranscriptionService';
 
 
 import {
@@ -149,6 +150,22 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         Logger.error(agentId, `Error capturing camera image: ${errorMessage}`);
         return { replacementText: `[Error with camera capture: ${errorMessage}]` };
+      }
+    }
+  },
+
+  'SYSTEM_AUDIO': {
+    regex: /\$SYSTEM_AUDIO/g,
+    handler: async (agentId: string) => {
+      try {
+        // Simply get the latest full transcript from our service.
+        const fullTranscript = ContinuousTranscriptionService.getTranscript();
+        Logger.debug(agentId, `Retrieved system audio transcript of length ${fullTranscript.length}`);
+        return { replacementText: fullTranscript };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error(agentId, `Error retrieving system audio transcript: ${errorMessage}`);
+        return { replacementText: `[Error Retrieving Transcript: ${errorMessage}]` };
       }
     }
   },

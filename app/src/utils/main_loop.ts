@@ -1,3 +1,5 @@
+// src/utils/main_loop.ts
+
 import { getAgent, getAgentCode } from './agent_database';
 import { sendPrompt } from './sendApi';
 import { Logger } from './logging';
@@ -48,6 +50,9 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     if (agent.system_prompt.includes('$CAMERA')) {
         await StreamManager.requestStream('camera', agentId);
     }
+    if (agent.system_prompt.includes('$SYSTEM_AUDIO')) {
+      await StreamManager.requestStream('audio', agentId);
+    }
     // -------------------------
 
     activeLoops[agentId] = { intervalId: null, isRunning: true, serverHost, serverPort };
@@ -97,6 +102,8 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
     // The manager will handle stopping the hardware if it's the last user.
     StreamManager.releaseStream('screen', agentId);
     StreamManager.releaseStream('camera', agentId);
+    StreamManager.releaseStream('audio', agentId);
+
     // -------------------------
 
     // We no longer call stopScreenCapture() or stopCameraCapture() directly from here.

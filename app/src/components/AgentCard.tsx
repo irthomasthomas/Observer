@@ -60,7 +60,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [lastResponse, setLastResponse] = useState<string>('...');
   const [loopProgress, setLoopProgress] = useState(0);
   const [responseKey, setResponseKey] = useState(0);
-  const [streams, setStreams] = useState<StreamState>({ screenStream: null, cameraStream: null });
+  const [streams, setStreams] = useState<StreamState>({ screenStream: null, cameraStream: null, audioStream: null});
   const showStartingState = isStarting || isCheckingModel;
 
   useEffect(() => {

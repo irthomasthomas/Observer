@@ -1,124 +1,138 @@
 // src/utils/streamManager.ts
 import { startCameraCapture, stopCameraCapture } from './cameraCapture';
 import { startScreenCapture, stopScreenCapture } from './screenCapture';
+import { startSystemAudioCapture, stopSystemAudioCapture } from './systemAudioCapture';
+import { ContinuousTranscriptionService } from './continuousTranscriptionService';
 
-type StreamType = 'screen' | 'camera';
+
+// Add 'audio' to the list of stream types
+type StreamType = 'screen' | 'camera' | 'audio';
+
 export interface StreamState {
   screenStream: MediaStream | null;
   cameraStream: MediaStream | null;
+  // Add the new audio stream state
+  audioStream: MediaStream | null;
 }
 
 // The callback function signature for our listeners
 type StreamListener = (state: StreamState) => void;
 
-/**
- * A centralized manager for handling MediaStreams (screen, camera).
- * It uses reference counting to ensure streams are only active when needed by at least one agent.
- * It uses a listener pattern to notify the UI about stream state changes.
- */
 class Manager {
   private screenStream: MediaStream | null = null;
   private cameraStream: MediaStream | null = null;
+  // Add a property for the audio stream
+  private audioStream: MediaStream | null = null;
 
   private screenStreamUsers = new Set<string>();
   private cameraStreamUsers = new Set<string>();
+  // Add a set for audio stream users
+  private audioStreamUsers = new Set<string>();
 
   private listeners = new Set<StreamListener>();
 
   // --- Public API ---
 
-  /**
-   * Adds a listener to be notified of stream state changes.
-   * Immediately calls the listener with the current state.
-   */
   public addListener(listener: StreamListener): void {
     this.listeners.add(listener);
-    listener(this.getCurrentState()); // Immediately provide current state
+    listener(this.getCurrentState());
   }
 
-  /**
-   * Removes a listener.
-   */
   public removeListener(listener: StreamListener): void {
     this.listeners.delete(listener);
   }
 
-  /**
-   * An agent requests a stream. Starts the physical stream if it's the first user.
-   */
   public async requestStream(type: StreamType, agentId: string): Promise<void> {
     const userSet = this.getUserSet(type);
     userSet.add(agentId);
 
-    // If this is the first user, start the hardware stream
     if (userSet.size === 1) {
       try {
-        const stream = type === 'screen' ? await startScreenCapture() : await startCameraCapture();
+        // Updated to handle the 'audio' type
+        let stream: MediaStream | null;
+        if (type === 'screen') {
+          stream = await startScreenCapture();
+        } else if (type === 'camera') {
+          stream = await startCameraCapture();
+        } else { // 'audio'
+          stream = await startSystemAudioCapture();
+        }
+
+        if (type === 'audio' && stream) {
+            ContinuousTranscriptionService.start(stream);
+        }
+
         this.setStream(type, stream);
         
-        // When the user stops it via browser UI, clean up
-        stream?.getVideoTracks()[0].addEventListener('ended', () => {
+        // This logic works for all stream types
+        stream?.getTracks()[0].addEventListener('ended', () => {
             this.releaseStream(type, agentId, true);
         });
 
       } catch (error) {
         console.error(`StreamManager: Failed to start ${type} stream`, error);
-        // If starting failed, remove the user who just requested it
         userSet.delete(agentId);
-        throw error; // Re-throw for the caller to handle
+        throw error;
       }
     }
   }
 
-  /**
-   * An agent releases a stream. Stops the physical stream if it's the last user.
-   */
   public releaseStream(type: StreamType, agentId: string, streamEndedManually = false): void {
     const userSet = this.getUserSet(type);
 
     if (streamEndedManually) {
-        // If the stream was stopped from the browser, clear all users
         userSet.clear();
     } else {
         userSet.delete(agentId);
     }
 
-    // If this was the last user, stop the hardware stream
     if (userSet.size === 0 && this.getStream(type)) {
+      // Updated to handle 'audio'
       if (type === 'screen') stopScreenCapture();
-      else stopCameraCapture();
+      else if (type === 'camera') stopCameraCapture();
+      else stopSystemAudioCapture(); // 'audio'
       this.setStream(type, null);
+    }
+
+    if (type === 'audio') {
+          ContinuousTranscriptionService.stop();
     }
   }
 
-  // --- Private Helpers ---
+  // --- Public Helpers ---
+
+  // Helper to get the current stream state for listeners
+  public getCurrentState(): StreamState {
+    return {
+      screenStream: this.screenStream,
+      cameraStream: this.cameraStream,
+      audioStream: this.audioStream, // Add audio stream to the state
+    };
+  }
 
   private notifyListeners(): void {
     const state = this.getCurrentState();
     this.listeners.forEach(listener => listener(state));
   }
-
-  private getCurrentState(): StreamState {
-    return {
-      screenStream: this.screenStream,
-      cameraStream: this.cameraStream,
-    };
-  }
-
+  
   private setStream(type: StreamType, stream: MediaStream | null): void {
     if (type === 'screen') this.screenStream = stream;
-    else this.cameraStream = stream;
+    else if (type === 'camera') this.cameraStream = stream;
+    else this.audioStream = stream; // 'audio'
     this.notifyListeners();
   }
   
-  private getStream(type: StreamType): MediaStream | null {
-    return type === 'screen' ? this.screenStream : this.cameraStream;
+  public getStream(type: StreamType): MediaStream | null {
+    if (type === 'screen') return this.screenStream;
+    if (type === 'camera') return this.cameraStream;
+    return this.audioStream; // 'audio'
   }
 
   private getUserSet(type: StreamType): Set<string> {
-    return type === 'screen' ? this.screenStreamUsers : this.cameraStreamUsers;
+    if (type === 'screen') return this.screenStreamUsers;
+    if (type === 'camera') return this.cameraStreamUsers;
+    return this.audioStreamUsers; // 'audio'
   }
 }
 
-// Export a singleton instance of the manager
 export const StreamManager = new Manager();
