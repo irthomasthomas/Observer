@@ -86,6 +86,9 @@ export async function executeJavaScript(
         }
       },
 
+      startClip: utils.startClip,
+      stopClip: utils.stopClip,
+
     };
 
     // Create a wrapper function that sets up the context

@@ -1,6 +1,6 @@
 // src/components/SidebarMenu.tsx
 import React from 'react';
-import { X, Home, Users, Database, Settings } from 'lucide-react';
+import { X, Home, Users, Database, Settings, Video } from 'lucide-react';
 import { Logger } from '@utils/logging';
 
 interface SidebarMenuProps {
@@ -62,6 +62,21 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
                 <span>My Agents</span>
               </button>
             </li>
+            {/* --- NEW RECORDINGS TAB --- */}
+            <li>
+              <button
+                onClick={() => handleTabClick('recordings')}
+                className={`w-full flex items-center space-x-3 px-4 py-2 rounded-md ${
+                  activeTab === 'recordings' 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <Video className="h-5 w-5" />
+                <span>Recordings</span>
+              </button>
+            </li>
+            {/* ------------------------- */}
             <li>
               <button
                 onClick={() => handleTabClick('community')}
@@ -75,7 +90,6 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
                 <span>Community</span>
               </button>
             </li>
-            {/* Updated Models menu item - now enabled */}
             <li>
               <button
                 onClick={() => handleTabClick('models')}

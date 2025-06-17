@@ -1,6 +1,9 @@
 // src/utils/handlers/utils.ts
 import { Logger } from '../logging';
 import { getAgentMemory as fetchAgentMemory, updateAgentMemory as saveAgentMemory } from '../agent_database';
+import { recordingManager } from '../recordingManager'; 
+
+
 
 /**
  * Utility functions for handlers
@@ -224,3 +227,35 @@ export async function sendEmail(message: string, emailAddress: string): Promise<
     throw error;
   }
 }
+
+/**
+ * Starts a new global clip session.
+ * This transitions from creating disposable, loop-by-loop buffer recordings
+ * to a single, continuous recording that spans multiple loops. It automatically
+ * includes the most recent buffer as the beginning of the clip.
+ * 
+ * @returns {boolean} Returns `true` if the clip session successfully started, `false` if it was already in a clipping state.
+ */
+export async function startClip(): Promise<void> {
+  try {
+    // This function is now synchronous and simply delegates to the state machine.
+    await recordingManager.startRecording();
+  } catch (error) {
+    Logger.error('recordingManager', `Error starting clip session: ${error}`);
+  }
+}
+
+/**
+ * Stops the currently active global clip session, saves the complete recording
+ * to the database, and returns to the default "buffering" mode.
+ * Does nothing if no clip session is active.
+ */
+export async function stopClip(): Promise<void> {
+  try {
+    // This delegates to the async stopClip method on the manager, which handles saving.
+    await recordingManager.stopRecording();
+  } catch (error) {
+    Logger.error('recordingManager', `Error stopping clip session: ${error}`);
+  }
+}
+
