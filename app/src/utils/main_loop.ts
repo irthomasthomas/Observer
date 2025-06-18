@@ -7,6 +7,7 @@ import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
 import { stopRecognitionAndClear } from './speechInputManager';
 import { StreamManager } from './streamManager'; // Import the new manager
+import { recordingManager } from './recordingManager'
 
 const activeLoops: Record<string, {
   intervalId: number | null,
@@ -36,6 +37,9 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     Logger.warn(agentId, `Agent is already running`);
     return;
   }
+  
+  const isFirstAgent = getRunningAgentIds().length === 0;
+
 
   try {
     const agent = await getAgent(agentId);
@@ -54,6 +58,10 @@ export async function startAgentLoop(agentId: string): Promise<void> {
       await StreamManager.requestStream('audio', agentId);
     }
     // -------------------------
+    
+    if (isFirstAgent) {
+      recordingManager.initialize();
+    }
 
     activeLoops[agentId] = { intervalId: null, isRunning: true, serverHost, serverPort };
     window.dispatchEvent(
@@ -110,6 +118,12 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
     stopRecognitionAndClear(agentId); // for microphone
 
     activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
+    
+    if (getRunningAgentIds().length === 0) {
+      // This was the last running agent, so shut down the recorder.
+      recordingManager.forceStop();
+    }
+
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
         detail: { agentId, status: 'stopped' },
@@ -173,6 +187,10 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       Logger.debug(agentId, `postProcess completed successfully`);
     } catch (postProcessError) {
       Logger.error(agentId, `Error in postProcess: ${postProcessError}`, postProcessError);
+    } finally{
+      if (isAgentLoopRunning(agentId)) { // Only cycle if the agent wasn't just stopped
+        recordingManager.handleEndOfLoop();
+      }
     }
 
   } catch (error) {

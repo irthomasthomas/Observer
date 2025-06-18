@@ -239,7 +239,7 @@ export async function sendEmail(message: string, emailAddress: string): Promise<
 export async function startClip(): Promise<void> {
   try {
     // This function is now synchronous and simply delegates to the state machine.
-    await recordingManager.startRecording();
+    await recordingManager.startClip();
   } catch (error) {
     Logger.error('recordingManager', `Error starting clip session: ${error}`);
   }
@@ -253,7 +253,7 @@ export async function startClip(): Promise<void> {
 export async function stopClip(): Promise<void> {
   try {
     // This delegates to the async stopClip method on the manager, which handles saving.
-    await recordingManager.stopRecording();
+    await recordingManager.stopClip();
   } catch (error) {
     Logger.error('recordingManager', `Error stopping clip session: ${error}`);
   }
