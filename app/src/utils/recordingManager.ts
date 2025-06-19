@@ -95,7 +95,7 @@ class Manager {
           }
   
           const blob = new Blob(chunks, { type: recorder.mimeType });
-          const filename = `${type}-clip-${Date.now()}.webm`;
+          const filename = `${type}-clip-${Date.now()}`;
           Logger.info("recordingManager",
             `'${type}' stopped. Saving ${chunks.length} chunks (${blob.size} bytes) as '${filename}'.`);
   
