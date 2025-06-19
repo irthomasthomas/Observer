@@ -19,6 +19,8 @@ const SPEECH_REC_LANGUAGES = [
   { value: 'fr-FR', label: 'French (France)' },
   { value: 'de-DE', label: 'German (Germany)' },
   { value: 'it-IT', label: 'Italian (Italy)' },
+  { value: 'zh-CN', label: 'Chinese (Simplified)'},
+  { value: 'zh-TW', label: 'Chinese (Traditional)'},
 ];
 
 
