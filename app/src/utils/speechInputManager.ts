@@ -1,5 +1,6 @@
 // src/utils/SpeechInputManager.ts
 import { Logger } from './logging';
+import { SensorSettings } from './settings';
 
 const BrowserSpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -50,7 +51,9 @@ export async function ensureRecognitionStarted(agentId: string): Promise<void> {
     Logger.debug(agentId, "SpeechInputManager: Configuring and starting/restarting instance.");
     recognizer.continuous = true;
     recognizer.interimResults = true; // <<< KEY CHANGE: Enable interim results
-    recognizer.lang = 'en-US';
+    recognizer.lang = SensorSettings.getSpeechRecognitionLanguage();
+    // PREVIOUS DEFAULT
+    //recognizer.lang = 'en-US';
 
     recognizer.onresult = (event: SpeechRecognitionEvent) => {
         let latestInterimForThisEvent = ""; // Holds the latest interim from *this specific event*

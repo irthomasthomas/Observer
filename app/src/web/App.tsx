@@ -31,6 +31,7 @@ import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
 import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
 import ConversationalGeneratorModal from '@components/ConversationalGeneratorModal';
 import RecordingsViewer from '@components/RecordingsViewer';
+import SettingsTab from '@components/SettingsTab';
 
 function AppContent() {
   // Check our environment variable to see if Auth0 should be disabled
@@ -438,8 +439,10 @@ function AppContent() {
             <CommunityTab />
           ) : activeTab === 'models' ? (
             <AvailableModels />
-          ) : activeTab === 'recordings' ? ( // NEW
-            <RecordingsViewer />            // NEW
+          ) : activeTab === 'recordings' ? ( 
+            <RecordingsViewer />            
+          ) : activeTab === 'settings' ? ( 
+            <SettingsTab />
           ) : (
             <div className="text-center p-8">
               <p className="text-gray-500">This feature is coming soon!</p>

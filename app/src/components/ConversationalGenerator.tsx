@@ -1,5 +1,5 @@
 // src/components/ConversationalGenerator.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Send, Loader2, Save } from 'lucide-react';
 import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent } from '@utils/agent_database';

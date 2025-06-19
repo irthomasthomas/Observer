@@ -103,16 +103,21 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
                 <span>Models</span>
               </button>
             </li>
+
             <li>
               <button
-                disabled
-                className="w-full flex items-center space-x-3 px-4 py-2 rounded-md text-gray-400 cursor-not-allowed"
+                onClick={() => handleTabClick('settings')}
+                className={`w-full flex items-center space-x-3 px-4 py-2 rounded-md ${
+                  activeTab === 'settings' 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'hover:bg-gray-100'
+                }`}
               >
                 <Settings className="h-5 w-5" />
                 <span>Settings</span>
-                <span className="ml-auto text-xs px-1.5 py-0.5 bg-gray-200 rounded">Soon</span>
               </button>
             </li>
+
           </ul>
         </nav>
         

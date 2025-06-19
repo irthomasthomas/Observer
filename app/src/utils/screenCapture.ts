@@ -1,4 +1,5 @@
 import { createWorker, Worker } from 'tesseract.js';
+import { SensorSettings } from './settings';
 
 interface OCRResult {
   success?: boolean;
@@ -141,25 +142,39 @@ async function performOCR(imageData: string): Promise<OCRResult> {
   
   try {
     // Initialize worker
-    const worker: Worker = await createWorker('eng', 1, {
-      workerPath: 'https://unpkg.com/tesseract.js@6.0.0/dist/worker.min.js',
-      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-      corePath: 'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
+    const worker: Worker = await createWorker(SensorSettings.getOcrLanguage(), 1, {
+      workerPath: SensorSettings.getOcrWorkerPath(),
+      langPath: SensorSettings.getOcrLangPath(),
+      corePath: SensorSettings.getOcrCorePath(),
       logger: m => console.log('[Tesseract]', m)
     });
-    
+
+    // DEFAULTS:
+    //const worker: Worker = await createWorker('eng', 1, {
+    //  workerPath: 'https://unpkg.com/tesseract.js@6.0.0/dist/worker.min.js',
+    //  langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+    //  corePath: 'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
+    //  logger: m => console.log('[Tesseract]', m)
+    //});
+
+      
     // Recognize text
     const result = await worker.recognize(`data:image/png;base64,${imageData}`);
     
     // Terminate worker
     await worker.terminate();
     
-    console.log('OCR processing complete');
+    const confidenceThreshold = SensorSettings.getOcrConfidenceThreshold();
+    const isConfident = result.data.confidence >= confidenceThreshold;
+
+    console.log(`OCR processing complete. Confidence: ${result.data.confidence}`);
     return { 
-      success: true,
-      text: result.data.text,
+      success: isConfident,
+      text: isConfident ? result.data.text : '', // Return empty text if below threshold
       confidence: result.data.confidence
     };
+
+
   } catch (error) {
     console.error('OCR processing error:', error);
     return { 
