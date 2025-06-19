@@ -25,11 +25,6 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAge
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to the latest message
-  useEffect(() => {
-  if (messages.length > 1) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim() || isLoading) return;
