@@ -144,7 +144,7 @@ class Manager {
       }
       const combinedStream = new MediaStream(tracks);
       
-      const mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+      const mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4' });
       const chunksForType: Blob[] = [];
       this.chunks.set(type, chunksForType);
   
