@@ -88,6 +88,7 @@ export async function executeJavaScript(
 
       startClip: utils.startClip,
       stopClip: utils.stopClip,
+      markClip: utils.markClip,
 
     };
 

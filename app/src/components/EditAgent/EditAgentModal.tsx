@@ -254,7 +254,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                 </div>
                 <div>
                   <label className="block text-gray-600 mb-1 flex items-center"><Activity size={14} className="mr-1.5 text-gray-500" />Loop (s)</label>
-                  <input type="number" min="30" step="1" value={loopInterval} onChange={(e) => setLoopInterval(Math.max(30, parseFloat(e.target.value) || 30))} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" />
+                  <input type="number" min="15" step="1" value={loopInterval} onChange={(e) => setLoopInterval(Math.max(15, parseFloat(e.target.value) || 30))} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" />
                 </div>
                 <div className="col-span-1 sm:col-span-2">
                   <label className="block text-gray-600 mb-1 flex items-center"><Edit3 size={14} className="mr-1.5 text-gray-500" />Description</label>

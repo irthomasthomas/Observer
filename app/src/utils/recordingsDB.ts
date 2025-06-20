@@ -1,15 +1,21 @@
 import { openDB, DBSchema } from 'idb';
 
+export interface ClipMarker {
+  label: string;
+  timestamp: number; // Use number to store epoch time (Date.now()) for easy sorting/calculation
+}
+
 // Define the structure of our database
 interface ObserverDB extends DBSchema {
   recordings: {
-    key: string; // We'll use a timestamp-based key
+    key: string; 
     value: {
       id: string;
       blob: Blob;
       createdAt: Date;
-      // You can add more metadata here later, like labels from mark_clip()
-      metadata?: { label: string, time: number }[];
+      // The metadata property will hold an array of markers.
+      // It's no longer optional, can just be an empty array.
+      metadata: ClipMarker[]; 
     };
   };
 }
@@ -29,17 +35,18 @@ const dbPromise = openDB<ObserverDB>('ObserverDB', 1, {
  * @param recordingBlob The video blob to save.
  * @returns The ID of the saved recording.
  */
-export async function saveRecordingToDb(recordingBlob: Blob): Promise<string> {
+export async function saveRecordingToDb(recordingBlob: Blob, markers: ClipMarker[]): Promise<string> {
   const db = await dbPromise;
   const id = `recording_${Date.now()}`;
   const recordingData = {
     id: id,
     blob: recordingBlob,
     createdAt: new Date(),
+    metadata: markers, // Save the markers array
   };
 
   await db.put('recordings', recordingData);
-  console.log(`Recording saved to IndexedDB with ID: ${id}`);
+  console.log(`Recording saved to IndexedDB with ID: ${id} and ${markers.length} markers.`);
   return id;
 }
 

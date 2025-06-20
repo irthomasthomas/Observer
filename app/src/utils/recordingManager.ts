@@ -1,14 +1,19 @@
 import { StreamManager } from './streamManager';
-import { saveRecordingToDb } from './recordingsDB';
+// FIX: Imported 'ClipMarker' type (PascalCase) instead of 'clipMarker' value.
+import { saveRecordingToDb, ClipMarker } from './recordingsDB';
 import { Logger } from './logging';
 
 type RecordableStreamType = 'screen' | 'camera';
 type RecordingState = 'IDLE' | 'BUFFERING' | 'RECORDING';
 
-class Manager {
+// FIX: Renamed class from 'Manager' to 'RecordingManager' as requested.
+class RecordingManager {
   private state: RecordingState = 'IDLE';
   private recorders = new Map<RecordableStreamType, MediaRecorder>();
   private chunks = new Map<RecordableStreamType, Blob[]>();
+  // FIX: This now correctly references the imported 'ClipMarker' type.
+  private pendingMarkers: ClipMarker[] = [];
+
 
   // --- Public API for Agent Lifecycle ---
 
@@ -37,6 +42,19 @@ class Manager {
       this.discardAndShutdown();
     }
     this.state = 'IDLE';
+  }
+
+  public addMarker(label: string): void {
+    if (this.state === 'IDLE') {
+      Logger.warn("RecordingManager", `markClip called while IDLE. Marker will be stored and attached to the next recording session.`);
+    }
+    // FIX: This now correctly references the imported 'ClipMarker' type.
+    const marker: ClipMarker = {
+      label,
+      timestamp: Date.now(),
+    };
+    this.pendingMarkers.push(marker);
+    Logger.info("RecordingManager", `Marker added: "${label}" at ${new Date(marker.timestamp).toLocaleTimeString()}`);
   }
 
   // --- Public API for Agent Tools ---
@@ -100,11 +118,12 @@ class Manager {
             `'${type}' stopped. Saving ${chunks.length} chunks (${blob.size} bytes) as '${filename}'.`);
   
           try {
-            await saveRecordingToDb(blob);
-            Logger.info("recordingManager", `Saved clip for '${type}' successfully.`);
+            await saveRecordingToDb(blob, this.pendingMarkers); 
+            Logger.info("recordingManager", `Saved clip for '${type}' with ${this.pendingMarkers.length} markers successfully.`);
           } catch (err) {
             Logger.error("recordingManager", `Failed to save clip for '${type}'.`, err);
           }
+
           resolve();
         };
   
@@ -117,6 +136,11 @@ class Manager {
     });
   
     await Promise.all(saveJobs);
+
+    if (this.pendingMarkers.length > 0) {
+        Logger.info("RecordingManager", `All clips for this session saved. Clearing ${this.pendingMarkers.length} markers.`);
+        this.pendingMarkers = [];
+    }
   
     this.recorders.clear();
     this.chunks.clear();
@@ -182,4 +206,5 @@ class Manager {
   }
 }
 
-export const recordingManager = new Manager();
+// FIX: Instantiating the renamed 'RecordingManager' class.
+export const recordingManager = new RecordingManager();

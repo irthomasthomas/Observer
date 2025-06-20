@@ -259,3 +259,23 @@ export async function stopClip(): Promise<void> {
   }
 }
 
+
+/**
+ * Marks a specific point in time with a label.
+ * If a recording is in progress (or buffering), this marker will be attached to the final video clip.
+ * The marker is created with an absolute timestamp, making it useful even if no recording is active.
+ *
+ * @param {string} label - A descriptive label for the event you are marking. e.g., "User opened settings".
+ */
+export function markClip(label: string): void {
+  try {
+    if (!label || typeof label !== 'string') {
+      Logger.warn('markClip', 'A valid string label must be provided.');
+      return;
+    }
+    // Delegate directly to the recording manager's new method.
+    recordingManager.addMarker(label);
+  } catch (error) {
+    Logger.error('markClip', `Error creating marker: ${error}`);
+  }
+}
