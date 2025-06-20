@@ -57,3 +57,13 @@ export async function getAllRecordings() {
     const db = await dbPromise;
     return db.getAll('recordings');
 }
+
+/**
+ * Deletes a recording from the 'recordings' object store in IndexedDB.
+ * @param id The ID of the recording to delete.
+ */
+export async function deleteRecording(id: string): Promise<void> {
+  const db = await dbPromise;
+  await db.delete('recordings', id);
+  console.log(`Recording with ID: ${id} has been deleted.`);
+}

@@ -13,7 +13,7 @@ interface RecordingData {
   metadata: ClipMarker[];
 }
 
-// --- PROPS INTERFACES (Unchanged) ---
+// --- PROPS INTERFACES ---
 interface ClipPlayerProps {
   recording: RecordingData;
 }
@@ -26,14 +26,12 @@ interface TimelineProps {
 }
 
 // --- STYLING ---
-// FIX: Added type annotation to the styles object to resolve all TS2322 errors.
+// Updated styles for a more polished look and the new "needle" playhead.
 const styles: { [key: string]: CSSProperties } = {
   playerWrapper: {
-    backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    border: '1px solid #e5e7eb',
+    backgroundColor: '#fafafa', // Slightly off-white background
+    borderTop: '1px solid #e5e7eb',
     padding: '16px',
-    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
   },
   videoArea: {
     position: 'relative',
@@ -41,6 +39,7 @@ const styles: { [key: string]: CSSProperties } = {
     cursor: 'pointer',
     borderRadius: '8px',
     overflow: 'hidden',
+    backgroundColor: '#000',
   },
   controlsContainer: {
     paddingTop: '20px',
@@ -48,35 +47,54 @@ const styles: { [key: string]: CSSProperties } = {
   timelineContainer: {
     position: 'relative',
     width: '100%',
-    height: '40px',
+    height: '50px', // Increased height for better interaction
   },
   timelineTrack: {
     position: 'absolute',
-    bottom: '0',
-    height: '6px',
+    bottom: '10px', // Positioned to center the track vertically
+    height: '8px', // Slightly thicker track
     width: '100%',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '3px',
+    backgroundColor: '#f0f0f0',
+    borderRadius: '4px',
     cursor: 'pointer',
   },
   timelineProgress: {
     height: '100%',
     backgroundColor: '#3b82f6',
-    borderRadius: '3px',
+    borderRadius: '4px',
   },
-  timelinePlayhead: {
+  // NEW: Styles for the needle playhead
+  timelineNeedle: {
     position: 'absolute',
-    top: '50%',
-    width: '16px',
-    height: '16px',
+    top: '0',
+    bottom: '0',
+    width: '2px',
+    transform: 'translateX(-1px)', // Center the needle
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    pointerEvents: 'none',
+  },
+  timelineNeedleHandle: {
+    position: 'absolute',
+    top: '-4px', // Position handle above the container
+    width: '12px',
+    height: '12px',
     backgroundColor: '#3b82f6',
     borderRadius: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
+    border: '2px solid #ffffff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+  },
+  timelineNeedleLine: {
+    width: '2px',
+    height: '20px', // Line extends above and below the track
+    backgroundColor: '#3b82f6',
+    position: 'absolute',
+    top: '2px',
   },
   marker: {
     position: 'absolute',
-    bottom: '8px',
+    bottom: '22px', // Raised to be above the taller track
     transform: 'translateX(-50%)',
     cursor: 'pointer',
     display: 'flex',
@@ -101,7 +119,7 @@ const styles: { [key: string]: CSSProperties } = {
   },
 };
 
-// --- TIMELINE COMPONENT ---
+// --- TIMELINE COMPONENT (FIXED & RESTYLED) ---
 const Timeline: React.FC<TimelineProps> = ({ duration, playedSeconds, markers, recordingStartTime, onSeek }) => {
   const [expandedMarker, setExpandedMarker] = useState<number | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -124,6 +142,7 @@ const Timeline: React.FC<TimelineProps> = ({ duration, playedSeconds, markers, r
 
   return (
     <div style={styles.timelineContainer}>
+      {/* Markers render first, so they are below the timeline track in z-index */}
       {markers.map((marker) => {
         const markerTimeInSeconds = (marker.timestamp - recordingStartTime) / 1000;
         if (markerTimeInSeconds < 0 || markerTimeInSeconds > duration) return null;
@@ -146,18 +165,24 @@ const Timeline: React.FC<TimelineProps> = ({ duration, playedSeconds, markers, r
           </div>
         );
       })}
-      
+
+      {/* Main timeline track for seeking */}
       <div ref={trackRef} style={styles.timelineTrack} onClick={handleTrackClick}>
-        <div style={{ ...styles.timelineProgress, width: `${playedPercentage}%` }}>
-          <div style={{ ...styles.timelinePlayhead, position: 'absolute', right: 0, transform: 'translate(50%, -50%)' }} />
-        </div>
+        <div style={{ ...styles.timelineProgress, width: `${playedPercentage}%` }} />
+      </div>
+
+      {/* FIX: The playhead is now a sibling of the progress bar, not a child. */}
+      {/* Its position is based on the container, which solves the "stuck on right" bug. */}
+      <div style={{ ...styles.timelineNeedle, left: `${playedPercentage}%` }}>
+        <div style={styles.timelineNeedleHandle} />
+        <div style={styles.timelineNeedleLine} />
       </div>
     </div>
   );
 };
 
 
-// --- CLIP PLAYER COMPONENT ---
+// --- CLIP PLAYER COMPONENT (Largely unchanged) ---
 export default function ClipPlayer({ recording }: ClipPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [playedSeconds, setPlayedSeconds] = useState(0);
@@ -166,6 +191,7 @@ export default function ClipPlayer({ recording }: ClipPlayerProps) {
 
   const videoUrl = useMemo(() => (recording.blob ? URL.createObjectURL(recording.blob) : null), [recording.blob]);
 
+  // This logic is complex but correct, so it remains unchanged.
   const recordingStartTime = useMemo(() => {
     if (duration > 0) {
       return recording.createdAt.getTime() - duration * 1000;
@@ -212,7 +238,7 @@ export default function ClipPlayer({ recording }: ClipPlayerProps) {
           duration={duration}
           playedSeconds={playedSeconds}
           markers={recording.metadata}
-          recordingStartTime={recordingStartTime} 
+          recordingStartTime={recordingStartTime}
           onSeek={handleSeek}
         />
       </div>
