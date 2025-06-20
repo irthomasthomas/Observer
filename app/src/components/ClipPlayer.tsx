@@ -17,19 +17,22 @@ interface RecordingData {
 interface ClipPlayerProps {
   recording: RecordingData;
 }
+
 interface TimelineProps {
   duration: number;
   playedSeconds: number;
   markers: ClipMarker[];
   recordingStartTime: number;
   onSeek: (seconds: number) => void;
+  // New props to control playback from the timeline
+  playing: boolean;
+  onTogglePlay: () => void;
 }
 
-// --- STYLING ---
-// Updated styles for a more polished look and the new "needle" playhead.
+// --- STYLING (Updated for bigger bar) ---
 const styles: { [key: string]: CSSProperties } = {
   playerWrapper: {
-    backgroundColor: '#fafafa', // Slightly off-white background
+    backgroundColor: '#fafafa',
     borderTop: '1px solid #e5e7eb',
     padding: '16px',
   },
@@ -47,29 +50,29 @@ const styles: { [key: string]: CSSProperties } = {
   timelineContainer: {
     position: 'relative',
     width: '100%',
-    height: '50px', // Increased height for better interaction
+    height: '60px', // Increased height
   },
   timelineTrack: {
     position: 'absolute',
-    bottom: '10px', // Positioned to center the track vertically
-    height: '8px', // Slightly thicker track
+    bottom: '15px', // Adjusted for new height
+    height: '12px',  // Much thicker track
     width: '100%',
     backgroundColor: '#f0f0f0',
-    borderRadius: '4px',
-    cursor: 'pointer',
+    borderRadius: '6px',
+    cursor: 'grab', // Default cursor indicates it's draggable
   },
   timelineProgress: {
     height: '100%',
     backgroundColor: '#3b82f6',
-    borderRadius: '4px',
+    borderRadius: '6px',
+    pointerEvents: 'none', // Prevent progress bar from stealing mouse events
   },
-  // NEW: Styles for the needle playhead
   timelineNeedle: {
     position: 'absolute',
     top: '0',
     bottom: '0',
     width: '2px',
-    transform: 'translateX(-1px)', // Center the needle
+    transform: 'translateX(-1px)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -77,24 +80,24 @@ const styles: { [key: string]: CSSProperties } = {
   },
   timelineNeedleHandle: {
     position: 'absolute',
-    top: '-4px', // Position handle above the container
-    width: '12px',
-    height: '12px',
+    top: '3px', // Adjusted for new height
+    width: '16px',
+    height: '16px',
     backgroundColor: '#3b82f6',
     borderRadius: '50%',
-    border: '2px solid #ffffff',
+    border: '3px solid #ffffff',
     boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
   },
   timelineNeedleLine: {
     width: '2px',
-    height: '20px', // Line extends above and below the track
+    height: '30px', // Taller line
     backgroundColor: '#3b82f6',
     position: 'absolute',
-    top: '2px',
+    top: '11px', // Adjusted
   },
   marker: {
     position: 'absolute',
-    bottom: '22px', // Raised to be above the taller track
+    bottom: '32px', // Raised to be above the taller track
     transform: 'translateX(-50%)',
     cursor: 'pointer',
     display: 'flex',
@@ -119,18 +122,63 @@ const styles: { [key: string]: CSSProperties } = {
   },
 };
 
-// --- TIMELINE COMPONENT (FIXED & RESTYLED) ---
-const Timeline: React.FC<TimelineProps> = ({ duration, playedSeconds, markers, recordingStartTime, onSeek }) => {
+// --- TIMELINE COMPONENT (With Drag-to-Seek Logic) ---
+const Timeline: React.FC<TimelineProps> = ({
+  duration,
+  playedSeconds,
+  markers,
+  recordingStartTime,
+  onSeek,
+  playing,
+  onTogglePlay,
+}) => {
   const [expandedMarker, setExpandedMarker] = useState<number | null>(null);
+  const [isScrubbing, setIsScrubbing] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
+  const wasPlayingRef = useRef(false);
 
-  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!trackRef.current) return;
+  const handleSeekLogic = (e: MouseEvent | React.MouseEvent<HTMLDivElement>) => {
+    if (!trackRef.current || duration === 0) return;
     const rect = trackRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const seekRatio = clickX / rect.width;
+    const seekRatio = Math.max(0, Math.min(1, clickX / rect.width)); // Clamp between 0 and 1
     onSeek(seekRatio * duration);
   };
+  
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsScrubbing(true);
+    wasPlayingRef.current = playing;
+    if (playing) {
+      onTogglePlay(); // Pause the video
+    }
+    handleSeekLogic(e);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      handleSeekLogic(e);
+    };
+
+    const handleMouseUp = () => {
+      setIsScrubbing(false);
+      if (wasPlayingRef.current) {
+        onTogglePlay(); // Resume playing if it was playing before
+      }
+    };
+
+    if (isScrubbing) {
+      document.body.style.cursor = 'grabbing';
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.body.style.cursor = 'default';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isScrubbing, duration, onSeek, onTogglePlay]); // Add dependencies
 
   const handleMarkerClick = (markerTimestamp: number) => {
     setExpandedMarker(prev => (prev === markerTimestamp ? null : markerTimestamp));
@@ -142,7 +190,6 @@ const Timeline: React.FC<TimelineProps> = ({ duration, playedSeconds, markers, r
 
   return (
     <div style={styles.timelineContainer}>
-      {/* Markers render first, so they are below the timeline track in z-index */}
       {markers.map((marker) => {
         const markerTimeInSeconds = (marker.timestamp - recordingStartTime) / 1000;
         if (markerTimeInSeconds < 0 || markerTimeInSeconds > duration) return null;
@@ -155,10 +202,7 @@ const Timeline: React.FC<TimelineProps> = ({ duration, playedSeconds, markers, r
           <div
             key={marker.timestamp}
             style={{ ...styles.marker, left: `${markerPosition}%` }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleMarkerClick(marker.timestamp);
-            }}
+            onClick={(e) => { e.stopPropagation(); handleMarkerClick(marker.timestamp); }}
           >
             <div style={styles.markerTag}>{label}</div>
             <div style={styles.markerTick} />
@@ -166,13 +210,11 @@ const Timeline: React.FC<TimelineProps> = ({ duration, playedSeconds, markers, r
         );
       })}
 
-      {/* Main timeline track for seeking */}
-      <div ref={trackRef} style={styles.timelineTrack} onClick={handleTrackClick}>
+      {/* Main timeline track now uses onMouseDown to initiate seeking */}
+      <div ref={trackRef} style={styles.timelineTrack} onMouseDown={handleMouseDown}>
         <div style={{ ...styles.timelineProgress, width: `${playedPercentage}%` }} />
       </div>
 
-      {/* FIX: The playhead is now a sibling of the progress bar, not a child. */}
-      {/* Its position is based on the container, which solves the "stuck on right" bug. */}
       <div style={{ ...styles.timelineNeedle, left: `${playedPercentage}%` }}>
         <div style={styles.timelineNeedleHandle} />
         <div style={styles.timelineNeedleLine} />
@@ -181,8 +223,7 @@ const Timeline: React.FC<TimelineProps> = ({ duration, playedSeconds, markers, r
   );
 };
 
-
-// --- CLIP PLAYER COMPONENT (Largely unchanged) ---
+// --- CLIP PLAYER COMPONENT (Now passes playing state to Timeline) ---
 export default function ClipPlayer({ recording }: ClipPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [playedSeconds, setPlayedSeconds] = useState(0);
@@ -191,7 +232,6 @@ export default function ClipPlayer({ recording }: ClipPlayerProps) {
 
   const videoUrl = useMemo(() => (recording.blob ? URL.createObjectURL(recording.blob) : null), [recording.blob]);
 
-  // This logic is complex but correct, so it remains unchanged.
   const recordingStartTime = useMemo(() => {
     if (duration > 0) {
       return recording.createdAt.getTime() - duration * 1000;
@@ -240,6 +280,8 @@ export default function ClipPlayer({ recording }: ClipPlayerProps) {
           markers={recording.metadata}
           recordingStartTime={recordingStartTime}
           onSeek={handleSeek}
+          playing={playing}
+          onTogglePlay={togglePlay}
         />
       </div>
     </div>
