@@ -1,7 +1,6 @@
 // src/components/EditAgent/EditAgentModal.tsx
 
 import React, {
-  lazy,
   Suspense,
   useState,
   useEffect,
@@ -35,7 +34,7 @@ import { Logger } from '@utils/logging';
 import JupyterServerModal from '@components/JupyterServerModal';
 import { useEditAgentModalLogic } from './useEditAgentModalLogic';
 
-const LazyCodeMirror = lazy(() => import('@uiw/react-codemirror'));
+import LazyCodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { python } from '@codemirror/lang-python';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
