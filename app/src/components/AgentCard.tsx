@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2} from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
 import { isAgentScheduled, getScheduledTime } from './ScheduleAgentModal';
@@ -10,6 +10,68 @@ import { Logger, LogEntry } from '@utils/logging';
 import { StreamManager, StreamState } from '@utils/streamManager';
 
 type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'IDLE';
+
+const AudioWaveform: React.FC<{ stream: MediaStream, title: string, icon: React.ReactNode }> = ({ stream, title, icon }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameId = useRef<number>();
+
+  useEffect(() => {
+    if (!stream || !canvasRef.current || stream.getAudioTracks().length === 0) {
+      return;
+    }
+
+    const audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+
+    const canvas = canvasRef.current;
+    const canvasCtx = canvas.getContext('2d')!;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      animationFrameId.current = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+
+      canvasCtx.fillStyle = '#1f2937'; // bg-gray-800
+      canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = (canvas.width / bufferLength) * 2;
+      let barHeight;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        barHeight = (dataArray[i] / 255) * canvas.height;
+        canvasCtx.fillStyle = `rgba(52, 211, 153, ${barHeight / canvas.height})`; // a nice green
+        canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+        x += barWidth + 1;
+      }
+    };
+
+    draw();
+
+    return () => {
+      // Cleanup on unmount
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+      source.disconnect();
+      analyser.disconnect();
+      audioContext.close();
+    };
+  }, [stream]);
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-3 flex-1 min-w-0 text-white flex flex-col gap-2">
+       <div className="flex items-center gap-2 text-xs font-medium text-gray-300">
+         {icon} {title}
+       </div>
+       <canvas ref={canvasRef} className="w-full h-12 rounded"></canvas>
+    </div>
+  );
+};
 
 const VideoStream: React.FC<{ stream: MediaStream }> = ({ stream }) => {
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -60,8 +122,15 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [lastResponse, setLastResponse] = useState<string>('...');
   const [loopProgress, setLoopProgress] = useState(0);
   const [responseKey, setResponseKey] = useState(0);
-  const [streams, setStreams] = useState<StreamState>({ screenStream: null, cameraStream: null, audioStream: null});
   const showStartingState = isStarting || isCheckingModel;
+
+  const [streams, setStreams] = useState<StreamState>({ 
+    cameraStream: null,
+    screenVideoStream: null,
+    screenAudioStream: null,
+    microphoneStream: null,
+    allAudioStream: null
+  });
 
   useEffect(() => {
     if (code && code.trim().startsWith('#python')) {
@@ -296,12 +365,24 @@ const LiveAgentView: React.FC<{status: AgentLiveStatus, lastResponse: string, re
   <div className="mt-2 space-y-3">
     <StateTicker status={status} />
     {status === 'WAITING' && (<div className="animate-fade-in"><LoopProgressBar progress={loopProgress} interval={loopInterval} /></div>)}
-    {(streams.screenStream || streams.cameraStream) && (
+    
+    {(streams.screenVideoStream || streams.cameraStream) && (
       <div className="flex gap-2 animate-fade-in">
-        {streams.screenStream && <VideoStream stream={streams.screenStream} />}
+        {/* Use the new, specific 'screenVideoStream' property */}
+        {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} />}
         {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
       </div>
     )}
+
+    {/* NEW: Audio Streams Section */}
+    {(streams.screenAudioStream || streams.microphoneStream || streams.allAudioStream) && (
+      <div className="flex gap-2 animate-fade-in">
+        {streams.screenAudioStream && <AudioWaveform stream={streams.screenAudioStream} title="System Audio" icon={<Volume2 className="w-4 h-4" />} />}
+        {streams.microphoneStream && <AudioWaveform stream={streams.microphoneStream} title="Microphone" icon={<Mic className="w-4 h-4" />} />}
+        {streams.allAudioStream && <AudioWaveform stream={streams.allAudioStream} title="All Audio (Mixed)" icon={<><Volume2 className="w-3 h-3" /><Mic className="w-3 h-3 -ml-1" /></>} />}
+      </div>
+    )}
+
     <LastResponse response={lastResponse} responseKey={responseKey} />
   </div>
 );

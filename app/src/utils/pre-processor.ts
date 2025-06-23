@@ -2,15 +2,10 @@
 
 import { Logger } from './logging'; 
 import { getAgentMemory } from './agent_database'; 
-import { captureFrameAndOCR, startScreenCapture, captureScreenImage } from './screenCapture'; 
+import { captureFrameAndOCR, captureScreenImage } from './screenCapture'; 
 import { captureCameraImage } from './cameraCapture'; 
-import { ContinuousTranscriptionService } from './continuousTranscriptionService';
+import { StreamManager } from './streamManager';
 
-
-import {
-    ensureRecognitionStarted,
-    getCurrentTranscript,
-} from './speechInputManager'; // CORRECTED PATH
 
 // Define the result structure
 export interface PreProcessorResult {
@@ -31,10 +26,12 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$SCREEN_OCR/g,
     handler: async (agentId: string) => {
       try {
-        Logger.debug(agentId, `Initializing screen capture for OCR`);
-        const stream = await startScreenCapture();
-        if (!stream) throw new Error('Failed to start screen capture');
-        const ocrResult = await captureFrameAndOCR();
+
+        const { screenVideoStream } = StreamManager.getCurrentState();
+        if (!screenVideoStream) throw new Error('Screen stream not available for OCR.');
+
+        const ocrResult = await captureFrameAndOCR(screenVideoStream); 
+
         if (ocrResult.success && ocrResult.text) {
           Logger.debug(agentId, `OCR successful, text injected into prompt`);
           return { replacementText: ocrResult.text };
@@ -67,10 +64,13 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$SCREEN_64/g,
     handler: async (agentId: string) => {
       try {
-        Logger.debug(agentId, `Capturing screen for image processing`);
-        const stream = await startScreenCapture();
-        if (!stream) throw new Error('Failed to start screen capture');
-        const base64Image = await captureScreenImage();
+
+        const { screenVideoStream } = StreamManager.getCurrentState();
+        if (!screenVideoStream) throw new Error('Screen stream not available for image capture.');
+        
+        // Pass the existing stream to the utility
+        const base64Image = await captureScreenImage(screenVideoStream);
+
         if (base64Image) {
           // Basic check for data URI prefix, then the base64 part
           const parts = base64Image.split(',');
@@ -116,15 +116,14 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
   '$MICROPHONE': {
     regex: /\$MICROPHONE/g,
-    handler: async (agentId: string) => { // handler is async, but getCurrentTranscript is sync
+    handler: async (agentId: string) => {
       try {
-        // ensureRecognitionStarted would have been called in preProcess before this handler
-        const speechText = getCurrentTranscript(agentId); // Simple synchronous call
-        Logger.debug(agentId, `Retrieved current transcript for $MICROPHONE: "${speechText}"`);
-        return { replacementText: speechText };
+        const transcript = StreamManager.getTranscript('microphone');
+        Logger.debug(agentId, `Retrieved microphone transcript via StreamManager: "${transcript}"`);
+        return { replacementText: transcript };
       } catch (error: any) {
-        Logger.error(agentId, `Error in $MICROPHONE handler: ${error.message}`);
-        return { replacementText: `[Error processing speech: ${error.message}]` };
+        Logger.error(agentId, `Error retrieving microphone transcript: ${error.message}`);
+        return { replacementText: `[Error processing microphone input: ${error.message}]` };
       }
     }
   },
@@ -134,8 +133,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$CAMERA/g,
     handler: async (agentId: string) => {
       try {
-        Logger.debug(agentId, `Capturing camera for image processing`);
-        const base64Image = await captureCameraImage();
+        const { cameraStream } = StreamManager.getCurrentState();
+        if (!cameraStream) throw new Error('Camera stream not available for image capture.');
+        
+        // Pass the existing stream to the utility
+        const base64Image = await captureCameraImage(cameraStream);
 
         if (base64Image) {
           // You can add the same base64 validation as SCREEN_64 if you like
@@ -158,14 +160,27 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$SYSTEM_AUDIO/g,
     handler: async (agentId: string) => {
       try {
-        // Simply get the latest full transcript from our service.
-        const fullTranscript = ContinuousTranscriptionService.getTranscript();
-        Logger.debug(agentId, `Retrieved system audio transcript of length ${fullTranscript.length}`);
-        return { replacementText: fullTranscript };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        Logger.error(agentId, `Error retrieving system audio transcript: ${errorMessage}`);
-        return { replacementText: `[Error Retrieving Transcript: ${errorMessage}]` };
+        const transcript = StreamManager.getTranscript('screenAudio');
+        Logger.debug(agentId, `Retrieved system audio transcript via StreamManager: "${transcript}"`);
+        return { replacementText: transcript };
+      } catch (error: any) {
+        Logger.error(agentId, `Error retrieving system audio transcript: ${error.message}`);
+        return { replacementText: `[Error processing system audio: ${error.message}]` };
+      }
+    }
+  },
+
+  // NEW: Handler for the combined audio stream
+  'ALL_AUDIO': {
+    regex: /\$ALL_AUDIO/g,
+    handler: async (agentId: string) => {
+      try {
+        const transcript = StreamManager.getTranscript('allAudio');
+        Logger.debug(agentId, `Retrieved combined audio transcript via StreamManager: "${transcript}"`);
+        return { replacementText: transcript };
+      } catch (error: any) {
+        Logger.error(agentId, `Error retrieving combined audio transcript: ${error.message}`);
+        return { replacementText: `[Error processing combined audio: ${error.message}]` };
       }
     }
   },
@@ -182,20 +197,20 @@ export async function preProcess(agentId: string, systemPrompt: string): Promise
   try {
     Logger.debug(agentId, 'Starting prompt pre-processing');
 
-    if (/\$MICROPHONE/.test(systemPrompt)) {
-        Logger.debug(agentId, '$MICROPHONE placeholder detected, ensuring recognition is started.');
-        try {
-            await ensureRecognitionStarted(agentId);
-        } catch (speechError: any) {
-            Logger.error(agentId, `Failed to ensure speech recognition active in preProcess: ${speechError.message}`);
-            modifiedPrompt = modifiedPrompt.replace(/\$MICROPHONE/g, `[Speech input unavailable: ${speechError.message}]`);
-        }
-    }
+    //if (/\$MICROPHONE/.test(systemPrompt)) {
+    //    Logger.debug(agentId, '$MICROPHONE placeholder detected, ensuring recognition is started.');
+    //    try {
+    //        await ensureRecognitionStarted(agentId);
+    //    } catch (speechError: any) {
+    //        Logger.error(agentId, `Failed to ensure speech recognition active in preProcess: ${speechError.message}`);
+    //        modifiedPrompt = modifiedPrompt.replace(/\$MICROPHONE/g, `[Speech input unavailable: ${speechError.message}]`);
+    //    }
+    //}
 
     for (const [key, processor] of Object.entries(processors)) {
-      if (key === '$MICROPHONE' && modifiedPrompt.includes('[Speech input unavailable:')) {
-          continue;
-      }
+      //if (key === '$MICROPHONE' && modifiedPrompt.includes('[Speech input unavailable:')) {
+      //    continue;
+      //}
 
       processor.regex.lastIndex = 0; 
       let match;

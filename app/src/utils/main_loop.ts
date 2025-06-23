@@ -6,7 +6,7 @@ import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
 import { stopRecognitionAndClear } from './speechInputManager';
-import { StreamManager } from './streamManager'; // Import the new manager
+import { StreamManager, PseudoStreamType } from './streamManager'; // Import the new manager
 import { recordingManager } from './recordingManager'
 
 const activeLoops: Record<string, {
@@ -45,19 +45,19 @@ export async function startAgentLoop(agentId: string): Promise<void> {
     const agent = await getAgent(agentId);
     if (!agent) throw new Error(`Agent ${agentId} not found`);
 
-    // --- STREAM MANAGEMENT ---
-    // Tell the StreamManager which streams this agent requires based on its prompt
-    if (agent.system_prompt.includes('$SCREEN_64')) {
-        await StreamManager.requestStream('screen', agentId);
+    const streamRequirementsMap = {
+      '$SCREEN_64': 'screenVideo', '$CAMERA': 'camera', '$SYSTEM_AUDIO': 'screenAudio',
+      '$MICROPHONE': 'microphone', '$ALL_AUDIO': 'allAudio'
+    };
+    
+    const requiredStreams = Object.entries(streamRequirementsMap)
+      .filter(([placeholder, _]) => agent.system_prompt.includes(placeholder))
+      .map(([_, streamType]) => streamType as PseudoStreamType);
+    
+    if (requiredStreams.length > 0) {
+      // A single, transactional call to the StreamManager.
+      await StreamManager.requestStreamsForAgent(agentId, requiredStreams);
     }
-    // Assuming a future variable like $CAMERA_64 will be used for camera
-    if (agent.system_prompt.includes('$CAMERA')) {
-        await StreamManager.requestStream('camera', agentId);
-    }
-    if (agent.system_prompt.includes('$SYSTEM_AUDIO')) {
-      await StreamManager.requestStream('audio', agentId);
-    }
-    // -------------------------
     
     if (isFirstAgent) {
       recordingManager.initialize();
@@ -87,8 +87,7 @@ export async function startAgentLoop(agentId: string): Promise<void> {
   } catch (error) {
     Logger.error(agentId, `Failed to start agent loop: ${error instanceof Error ? error.message : String(error)}`);
     // On startup failure, ensure we release any streams that might have been requested
-    StreamManager.releaseStream('screen', agentId);
-    StreamManager.releaseStream('camera', agentId);
+    StreamManager.releaseStreamsForAgent(agentId);
     // Dispatch "stopped" so UI can recover
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
@@ -108,9 +107,10 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
     // --- STREAM MANAGEMENT ---
     // Tell the StreamManager this agent no longer needs these streams.
     // The manager will handle stopping the hardware if it's the last user.
-    StreamManager.releaseStream('screen', agentId);
-    StreamManager.releaseStream('camera', agentId);
-    StreamManager.releaseStream('audio', agentId);
+    Logger.debug(agentId, "Releasing all potential streams for stopping agent.");
+
+    StreamManager.releaseStreamsForAgent(agentId);
+
 
     // -------------------------
 

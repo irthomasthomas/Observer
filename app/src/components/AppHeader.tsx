@@ -4,7 +4,8 @@ import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import TextBubble from './TextBubble';
 import { Logger } from '@utils/logging';
-import { startScreenCapture } from '@utils/screenCapture';
+import SharingPermissionsModal from './SharingPermissionsModal'; // Import the new modal
+
 
 interface AuthState {
   isLoading: boolean;
@@ -39,6 +40,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [quotaInfo, setQuotaInfo] = useState<{ used: number; remaining: number } | null>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   
   const isUsingObServer = externalIsUsingObServer !== undefined 
     ? externalIsUsingObServer 
@@ -126,16 +128,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       setQuotaInfo(null);
     } finally {
       setIsLoadingQuota(false);
-    }
-  };
-
-  const handleScreenCaptureClick = async () => {
-    try {
-      await startScreenCapture();
-      Logger.info('SCREEN', 'Screen capture initialized');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      Logger.error('SCREEN', `Screen capture error: ${errorMessage}`);
     }
   };
 
@@ -290,7 +282,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 src="/eye-logo-black.svg" 
                 alt="Observer Logo" 
                 className="h-8 w-8 cursor-pointer hover:opacity-80"
-                onClick={handleScreenCaptureClick}
+                onClick={() => setIsPermissionsModalOpen(true)}
                 title="Initialize screen capture"
               />
               <h1 className="text-xl font-semibold hidden md:block">Observer</h1>
@@ -466,6 +458,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           </div>
         </div>
       )}
+      <SharingPermissionsModal
+        isOpen={isPermissionsModalOpen}
+        onClose={() => setIsPermissionsModalOpen(false)}
+      />
     </>
   );
 };

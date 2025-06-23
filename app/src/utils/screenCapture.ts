@@ -8,118 +8,34 @@ interface OCRResult {
   error?: string;
 }
 
-// Keep track of active streams
-let activeStream: MediaStream | null = null;
 
-export function isMobileDevice(): boolean {
-
-    if (typeof window === 'undefined') return false; 
-
-    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-
-    // Simple regex check - sufficient for this purpose
-    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
-}
-
-// Function to start screen capture and return the stream
-export async function startScreenCapture(): Promise<MediaStream | null> {
-
-  if (isMobileDevice()){
-      throw new Error("Screen capture is unavailable on mobile. This is a security limitation of mobile operating systems, not this application. Please use a desktop computer for this feature.");
-  }
-
-
-  // If we already have an active stream, return it
-  if (activeStream) {
-    return activeStream;
-  }
-  
+export async function captureFrameAndOCR(stream: MediaStream): Promise<OCRResult> {
   try {
-    console.log('Starting screen capture...');
-
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        cursor: "always"
-      } as any
-    });
-    
-    // Store the stream for later use
-    activeStream = stream;
-    
-    // Set up a listener for when the stream ends
-    stream.getVideoTracks()[0].onended = () => {
-      console.log('Screen sharing stopped by user');
-      activeStream = null;
-    };
-    
-    return stream;
-  } catch (error) {
-    console.error('Screen capture error:', error);
-    
-    // Check for Safari's specific error message
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes('getDisplayMedia must be called from a user gesture handler')) {
-      // Create a custom error with a more helpful message
-      const enhancedError = new Error(
-        'Safari Users: Browser permission needed, please click the Observer icon in the top left corner to enable screen capture'
-      );
-      throw enhancedError;
-    }
-    
-    // For other errors, just pass them through
-    throw error;
-  }
-}
-
-// Function to stop the active screen capture
-export function stopScreenCapture(): void {
-  if (activeStream) {
-    activeStream.getTracks().forEach(track => track.stop());
-    activeStream = null;
-    console.log('Screen capture stopped');
-  }
-}
-
-// Function to capture a frame from the active stream and perform OCR
-export async function captureFrameAndOCR(): Promise<OCRResult> {
-  // If no active stream, try to start one
-  if (!activeStream) {
-    const stream = await startScreenCapture();
-    if (!stream) {
-      return { error: 'Failed to start screen capture' };
-    }
-  }
-  
-  try {
-    // Create video element to receive the stream
     const video = document.createElement('video');
-    video.srcObject = activeStream;
+    video.srcObject = stream;
     
-    // Return a promise that resolves when video frame is processed
     return new Promise<OCRResult>((resolve) => {
       video.onloadedmetadata = async () => {
         video.play();
-        
-        // Create canvas to capture video frame
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
-        // Draw video frame to canvas
         const ctx = canvas.getContext('2d');
+
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           
-          // Get image data as base64
+          // THE FIX: Get the raw Base64 data, just as before.
           const imageData = canvas.toDataURL('image/png').split(',')[1];
           
-          // Perform OCR on the captured image
+          // This will be passed to performOCR, which adds the prefix back on for Tesseract.
           const ocrResult = await performOCR(imageData);
           resolve(ocrResult);
         } else {
           resolve({ error: 'Failed to get canvas context' });
         }
       };
+      video.onerror = () => resolve({ error: 'Video element failed to load stream.' });
     });
   } catch (error) {
     console.error('Frame capture error:', error);
@@ -127,13 +43,38 @@ export async function captureFrameAndOCR(): Promise<OCRResult> {
   }
 }
 
-// Legacy function for backward compatibility
-export async function captureScreenAndOCR(): Promise<OCRResult> {
-  const stream = await startScreenCapture();
-  if (!stream) {
-    return { error: 'Failed to start screen capture' };
+// REFACTORED: This function also accepts a stream and returns the raw Base64 data.
+export async function captureScreenImage(stream: MediaStream): Promise<string | null> {
+  try {
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    
+    return new Promise<string | null>((resolve) => {
+      video.onloadedmetadata = async () => {
+        video.play();
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // THE FIX: Return only the raw Base64 string, stripping the prefix.
+          // This is what the LLM API expects.
+          const base64Image = canvas.toDataURL('image/png').split(',')[1];
+          resolve(base64Image);
+        } else {
+          console.error('Failed to get canvas context');
+          resolve(null);
+        }
+      };
+      video.onerror = () => resolve(null);
+    });
+  } catch (error) {
+    console.error('Frame capture error:', error);
+    return null;
   }
-  return captureFrameAndOCR();
 }
 
 // Function to perform OCR on image data
@@ -180,52 +121,6 @@ async function performOCR(imageData: string): Promise<OCRResult> {
     return { 
       error: `OCR processing failed: ${error instanceof Error ? error.message : String(error)}` 
     };
-  }
-}
-
-// Function to capture a frame from the active stream and return base64 image
-export async function captureScreenImage(): Promise<string | null> {
-  // If no active stream, try to start one
-  if (!activeStream) {
-    const stream = await startScreenCapture();
-    if (!stream) {
-      console.error('Failed to start screen capture');
-      return null;
-    }
-  }
-  
-  try {
-    // Create video element to receive the stream
-    const video = document.createElement('video');
-    video.srcObject = activeStream;
-    
-    // Return a promise that resolves when video frame is processed
-    return new Promise<string | null>((resolve) => {
-      video.onloadedmetadata = async () => {
-        video.play();
-        
-        // Create canvas to capture video frame
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Draw video frame to canvas
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          // Get image data as base64 (without the data:image/png;base64, prefix)
-          const base64Image = canvas.toDataURL('image/png').split(',')[1];
-          resolve(base64Image);
-        } else {
-          console.error('Failed to get canvas context');
-          resolve(null);
-        }
-      };
-    });
-  } catch (error) {
-    console.error('Frame capture error:', error);
-    return null;
   }
 }
 

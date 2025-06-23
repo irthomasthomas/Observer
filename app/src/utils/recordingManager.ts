@@ -151,21 +151,35 @@ class RecordingManager {
     if (this.recorders.size > 0) {
       this.discardAndShutdown();
     }
-  
-    const { screenStream, cameraStream, audioStream } = StreamManager.getCurrentState();
+
+
+    const { 
+      screenVideoStream, 
+      cameraStream, 
+      screenAudioStream, 
+      microphoneStream 
+    } = StreamManager.getCurrentState();
+
     const streamsToRecord = [
-      { type: 'screen' as RecordableStreamType, stream: screenStream },
-      { type: 'camera' as RecordableStreamType, stream: cameraStream }
+      { type: 'screen' as RecordableStreamType, video: screenVideoStream, audio: screenAudioStream },
+      { type: 'camera' as RecordableStreamType, video: cameraStream, audio: microphoneStream }
     ];
     
     let bufferStarted = false;
-    for (const { type, stream } of streamsToRecord) {
-      if (!stream) continue;
+
+    for (const { type, video, audio } of streamsToRecord) {
+      // If there's no video stream, there's nothing to record for this type.
+      if (!video) continue;
   
-      const tracks = [...stream.getVideoTracks()];
-      if (audioStream) {
-        tracks.push(...audioStream.getAudioTracks());
+      // 3. Start with the video tracks.
+      const tracks = [...video.getVideoTracks()];
+
+      // 4. If a corresponding audio stream exists, add its tracks.
+      if (audio) {
+        tracks.push(...audio.getAudioTracks());
       }
+
+      // 5. Create the combined stream and the recorder. The rest is the same.
       const combinedStream = new MediaStream(tracks);
       
       const mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4' });
@@ -188,7 +202,9 @@ class RecordingManager {
       this.state = 'IDLE';
       Logger.warn("RecordingManager", "startNewBuffer called, but no active streams found to record.");
     }
+
   }
+
 
   private discardCurrentBuffer(): void {
     this.chunks.clear();
