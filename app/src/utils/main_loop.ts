@@ -85,7 +85,15 @@ export async function startAgentLoop(agentId: string): Promise<void> {
       }
     }, intervalMs);
   } catch (error) {
-    Logger.error(agentId, `Failed to start agent loop: ${error instanceof Error ? error.message : String(error)}`);
+
+    let displayError = error;
+    // Check for the specific Safari screen sharing error
+    if (error instanceof Error && error.message.includes('getDisplayMedia must be called from a user gesture handler')) {
+        const safariErrorMessage = "Safari is bad at screen sharing and can't start automatically, click on the Observer App Icon on the top left to enter the Sensor Permissions Menu and ask for screen sharing manually. Also note: Safari won't capture System Audio, use chrome, firefox or edge for the best experience.";
+        displayError = new Error(safariErrorMessage);
+    }
+
+    Logger.error(agentId, `Failed to start agent loop: ${displayError instanceof Error ? displayError.message : String(displayError)}`, error);
     // On startup failure, ensure we release any streams that might have been requested
     StreamManager.releaseStreamsForAgent(agentId);
     // Dispatch "stopped" so UI can recover
@@ -95,7 +103,7 @@ export async function startAgentLoop(agentId: string): Promise<void> {
       })
     );
     // clean up and re-throw…
-    throw error;
+    throw displayError;
   }
 }
 
