@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2} from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
@@ -7,7 +7,57 @@ import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 import { listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
 import { Logger, LogEntry } from '@utils/logging';
-import { StreamManager, StreamState } from '@utils/streamManager';
+import { StreamManager, StreamState, AudioStreamType } from '@utils/streamManager';
+
+
+/**
+ * Defines the shape of the data needed by the UI to render an audio stream.
+ */
+interface UiAudioStream {
+  type: AudioStreamType;
+  stream: MediaStream;
+  title: string;
+  icon: ReactNode;
+}
+
+/**
+ * A "selector" function that takes the raw StreamState and returns only the audio
+ * streams that should be displayed in the UI, respecting the 'allAudio' override.
+ * This centralizes the display logic, keeping the render components clean.
+ */
+const getActiveAudioStreamsForDisplay = (state: StreamState): UiAudioStream[] => {
+  // If the mixed stream exists, it is the ONLY one we should display.
+  if (state.allAudioStream) {
+    return [{
+      type: 'allAudio',
+      stream: state.allAudioStream,
+      title: 'All Audio (Mixed)',
+      icon: <><Volume2 className="w-3 h-3" /><Mic className="w-3 h-3 -ml-1" /></>
+    }];
+  }
+
+  // Otherwise, collect any individual audio streams that are active.
+  const activeStreams: UiAudioStream[] = [];
+  if (state.microphoneStream) {
+    activeStreams.push({
+      type: 'microphone',
+      stream: state.microphoneStream,
+      title: 'Microphone',
+      icon: <Mic className="w-4 h-4" />
+    });
+  }
+  if (state.screenAudioStream) {
+    activeStreams.push({
+      type: 'screenAudio',
+      stream: state.screenAudioStream,
+      title: 'System Audio',
+      icon: <Volume2 className="w-4 h-4" />
+    });
+  }
+
+  return activeStreams;
+};
+
 
 type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'IDLE';
 
@@ -361,31 +411,41 @@ const LastResponse: React.FC<{ response: string, responseKey: number }> = ({ res
   </div>
 );
 
-const LiveAgentView: React.FC<{status: AgentLiveStatus, lastResponse: string, responseKey: number, loopProgress: number, loopInterval: number, streams: StreamState}> = ({ status, lastResponse, responseKey, loopProgress, loopInterval, streams }) => (
-  <div className="mt-2 space-y-3">
-    <StateTicker status={status} />
-    {status === 'WAITING' && (<div className="animate-fade-in"><LoopProgressBar progress={loopProgress} interval={loopInterval} /></div>)}
-    
-    {(streams.screenVideoStream || streams.cameraStream) && (
-      <div className="flex gap-2 animate-fade-in">
-        {/* Use the new, specific 'screenVideoStream' property */}
-        {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} />}
-        {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
-      </div>
-    )}
+const LiveAgentView: React.FC<{status: AgentLiveStatus, lastResponse: string, responseKey: number, loopProgress: number, loopInterval: number, streams: StreamState}> = ({ status, lastResponse, responseKey, loopProgress, loopInterval, streams }) => {
+  
+  const displayableAudioStreams = useMemo(() => getActiveAudioStreamsForDisplay(streams), [streams]);
 
-    {/* NEW: Audio Streams Section */}
-    {(streams.screenAudioStream || streams.microphoneStream || streams.allAudioStream) && (
-      <div className="flex gap-2 animate-fade-in">
-        {streams.screenAudioStream && <AudioWaveform stream={streams.screenAudioStream} title="System Audio" icon={<Volume2 className="w-4 h-4" />} />}
-        {streams.microphoneStream && <AudioWaveform stream={streams.microphoneStream} title="Microphone" icon={<Mic className="w-4 h-4" />} />}
-        {streams.allAudioStream && <AudioWaveform stream={streams.allAudioStream} title="All Audio (Mixed)" icon={<><Volume2 className="w-3 h-3" /><Mic className="w-3 h-3 -ml-1" /></>} />}
-      </div>
-    )}
+  return (
+    <div className="mt-2 space-y-3">
+      <StateTicker status={status} />
+      {status === 'WAITING' && (<div className="animate-fade-in"><LoopProgressBar progress={loopProgress} interval={loopInterval} /></div>)}
+      
+      {(streams.screenVideoStream || streams.cameraStream) && (
+        <div className="flex gap-2 animate-fade-in">
+          {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} />}
+          {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
+        </div>
+      )}
 
-    <LastResponse response={lastResponse} responseKey={responseKey} />
-  </div>
-);
+      {/* It renders only if the selector returns streams, and then simply maps over them. */}
+      {displayableAudioStreams.length > 0 && (
+        <div className="flex gap-2 animate-fade-in">
+          {displayableAudioStreams.map(({ type, stream, title, icon }) => (
+            <AudioWaveform
+              key={type}
+              stream={stream}
+              title={title}
+              icon={icon}
+            />
+          ))}
+        </div>
+      )}
+
+      <LastResponse response={lastResponse} responseKey={responseKey} />
+    </div>
+  );
+};
+
 
 const StaticAgentInfo: React.FC<{agent: CompleteAgent, startWarning: string | null, onEdit: (id: string) => void, onDelete: (id: string) => Promise<void>}> = (props) => (
   <>

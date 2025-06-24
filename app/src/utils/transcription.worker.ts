@@ -1,11 +1,11 @@
 // src/utils/transcription.worker.ts
 
-import { pipeline, env, PipelineType } from '@xenova/transformers';
+import { pipeline, env, PipelineType } from '@huggingface/transformers';
 
 env.allowLocalModels = false;
 
 const TASK: PipelineType = 'automatic-speech-recognition';
-const MODEL = 'Xenova/whisper-tiny.en';
+const MODEL = 'Xenova/whisper-tiny';
 
 class PipelineSingleton {
     private static instance: any = null;
@@ -17,7 +17,7 @@ class PipelineSingleton {
             this.instance = await pipeline(TASK, MODEL, { 
                 progress_callback: (data: any) => {
                     self.postMessage(data);
-                }
+                }, dtype: 'q8', device: 'wasm'
             });
         }
         return this.instance;

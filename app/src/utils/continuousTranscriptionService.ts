@@ -26,6 +26,7 @@ export class ContinuousTranscriptionService {
 
     this.worker.onmessage = (event) => {
       const { status, text } = event.data;
+      console.log('[Whisper]', event.data);
       if (status === 'transcription-complete' && text) {
         this.transcript = this.transcript ? `${this.transcript} ${text}` : text;
         Logger.debug('TRANSCRIPTION', `[Chunk] ${text}`);

@@ -70,7 +70,19 @@ class Manager {
         }
       }
 
-      if (requiredStreams.includes('allAudio')) this.initializeAudioMixer();
+      // --- ADDED: Centralized Transcription & Mixer Logic ---
+      // This block ensures services are only started for the streams the agent explicitly requested.
+      if (requiredStreams.includes('allAudio')) {
+        this.initializeAudioMixer();
+      }
+      if (requiredStreams.includes('microphone') && this.microphoneStream) {
+        this.startTranscriptionForStream('microphone', this.microphoneStream);
+      }
+      if (requiredStreams.includes('screenAudio') && this.screenAudioStream) {
+        this.startTranscriptionForStream('screenAudio', this.screenAudioStream);
+      }
+      // --- END ADDED ---
+
       requiredStreams.forEach(type => this.userSets.get(type)?.add(agentId));
 
     } catch (error) {
@@ -134,7 +146,7 @@ class Manager {
           if (displayStream.getAudioTracks().length > 0) {
               const audioStream = new MediaStream(displayStream.getAudioTracks());
               this.screenAudioStream = audioStream;
-              this.startTranscriptionForStream('screenAudio', audioStream);
+              // --- MODIFIED: Removed transcription start from here ---
           }
           displayStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('display'));
           break;
@@ -150,7 +162,7 @@ class Manager {
           const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
           this.masterMicrophoneStream = micStream;
           this.microphoneStream = micStream;
-          this.startTranscriptionForStream('microphone', micStream);
+          // --- MODIFIED: Removed transcription start from here ---
           break;
       }
       Logger.info("StreamManager", `Master '${type}' stream acquired.`);
@@ -184,12 +196,14 @@ class Manager {
     micSource.connect(destination);
     this.sourceNodes.set('microphone', micSource);
     this.allAudioStream = destination.stream;
+    // This now correctly starts transcription only when the mixer is initialized
     this.startTranscriptionForStream('allAudio', this.allAudioStream);
     this.notifyListeners();
   }
   
   private checkForTeardown(): void {
     const isUsed = (type: PseudoStreamType) => (this.userSets.get(type)?.size || 0) > 0;
+    // This logic is now robust because it correctly reflects the lifecycle based on user sets.
     if (!isUsed('screenVideo') && !isUsed('screenAudio') && !isUsed('allAudio')) this.teardownDisplayStream();
     if (!isUsed('microphone') && !isUsed('allAudio')) this.teardownMicrophoneStream();
     if (!isUsed('camera')) this.teardownCameraStream();
@@ -212,7 +226,7 @@ class Manager {
     if (!this.masterDisplayStream) return;
     Logger.info("StreamManager", "Tearing down master display stream.");
     this.masterDisplayStream.getTracks().forEach(track => track.stop());
-    this.stopTranscriptionForStream('screenAudio');
+    this.stopTranscriptionForStream('screenAudio'); // This correctly stops the screen audio transcription
     this.masterDisplayStream = null;
     this.screenVideoStream = null;
     this.screenAudioStream = null;
@@ -232,7 +246,7 @@ class Manager {
     if (!this.masterMicrophoneStream) return;
     Logger.info("StreamManager", "Tearing down master microphone stream.");
     this.masterMicrophoneStream.getTracks().forEach(track => track.stop());
-    this.stopTranscriptionForStream('microphone');
+    this.stopTranscriptionForStream('microphone'); // This correctly stops the microphone transcription
     this.masterMicrophoneStream = null;
     this.microphoneStream = null;
     this.notifyListeners();
@@ -243,7 +257,7 @@ class Manager {
     Logger.info("StreamManager", "Tearing down audio mixer.");
     this.sourceNodes.forEach(node => node.disconnect());
     this.sourceNodes.clear();
-    this.stopTranscriptionForStream('allAudio');
+    this.stopTranscriptionForStream('allAudio'); // This correctly stops the mixed audio transcription
     this.audioContext.close();
     this.audioContext = null;
     this.allAudioStream = null;
