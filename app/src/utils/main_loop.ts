@@ -5,7 +5,6 @@ import { sendPrompt } from './sendApi';
 import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
-import { stopRecognitionAndClear } from './speechInputManager';
 import { StreamManager, PseudoStreamType } from './streamManager'; // Import the new manager
 import { recordingManager } from './recordingManager'
 
@@ -121,9 +120,6 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
 
 
     // -------------------------
-
-    // We no longer call stopScreenCapture() or stopCameraCapture() directly from here.
-    stopRecognitionAndClear(agentId); // for microphone
 
     activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
     
