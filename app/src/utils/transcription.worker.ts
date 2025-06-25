@@ -5,7 +5,7 @@ import { pipeline, env, PipelineType } from '@huggingface/transformers';
 env.allowLocalModels = false;
 
 const TASK: PipelineType = 'automatic-speech-recognition';
-const MODEL = 'Xenova/whisper-tiny';
+const MODEL = 'Xenova/whisper-small';
 
 class PipelineSingleton {
     private static instance: any = null;

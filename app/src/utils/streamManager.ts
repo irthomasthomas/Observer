@@ -1,5 +1,5 @@
 import { Logger } from './logging';
-import { ContinuousTranscriptionService } from './continuousTranscriptionService';
+import { TranscriptionService } from './transcriptionService';
 
 // --- Core Type Definitions ---
 export type AudioStreamType = 'screenAudio' | 'microphone' | 'allAudio';
@@ -35,7 +35,7 @@ class Manager {
   private userSets = new Map<PseudoStreamType, Set<string>>();
   private listeners = new Set<StreamListener>();
   private pendingMasterStreams = new Map<MasterStreamType, Promise<void>>();
-  private transcriptionServices = new Map<AudioStreamType, ContinuousTranscriptionService>();
+  private transcriptionServices = new Map<AudioStreamType, TranscriptionService>();
   
   private audioContext: AudioContext | null = null;
   private sourceNodes = new Map<string, MediaStreamAudioSourceNode>();
@@ -267,7 +267,7 @@ class Manager {
   private startTranscriptionForStream(type: AudioStreamType, stream: MediaStream): void {
     if (this.transcriptionServices.has(type)) return;
     Logger.info("StreamManager", `Starting transcription service for '${type}'.`);
-    const newService = new ContinuousTranscriptionService();
+    const newService = new TranscriptionService();
     newService.start(stream);
     this.transcriptionServices.set(type, newService);
   }
