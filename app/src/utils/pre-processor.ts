@@ -156,8 +156,8 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     }
   },
 
-  'SYSTEM_AUDIO': {
-    regex: /\$SYSTEM_AUDIO/g,
+  'SCREEN_AUDIO': {
+    regex: /\$SCREEN_AUDIO/g,
     handler: async (agentId: string) => {
       try {
         const transcript = StreamManager.getTranscript('screenAudio');
