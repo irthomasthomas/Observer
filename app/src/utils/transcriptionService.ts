@@ -61,7 +61,7 @@ export class TranscriptionService {
   private async transcribeLoop(): Promise<void> {
     while (this.isRunning) {
       try {
-        const audioBlob = await this.recordChunk(30000); 
+        const audioBlob = await this.recordChunk(15000); 
         if (!this.isRunning || !this.audioContext) break; 
 
         const arrayBuffer = await audioBlob.arrayBuffer();

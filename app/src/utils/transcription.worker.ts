@@ -5,7 +5,9 @@ import { pipeline, env, PipelineType } from '@huggingface/transformers';
 env.allowLocalModels = false;
 
 const TASK: PipelineType = 'automatic-speech-recognition';
-const MODEL = 'Xenova/whisper-small';
+const MODEL = 'Xenova/whisper-tiny';
+//const LANGUAGE = 'es';
+//const SUBTASK = 'transcribe';
 
 class PipelineSingleton {
     private static instance: any = null;
@@ -33,7 +35,7 @@ self.onmessage = async (event) => {
         const transcriber = await PipelineSingleton.getInstance();
 
         // No more decoding needed! Just run the pipeline.
-        const output = await transcriber(rawAudio);
+        const output = await transcriber(rawAudio)
         const newText = (output.text as string).trim();
 
         if (newText) {
