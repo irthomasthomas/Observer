@@ -82,7 +82,7 @@ class RecordingManager {
 
   private async saveAndFinishClip(): Promise<void> {
     if (this.recorders.size === 0) {
-      Logger.warn("recordingManager", "saveAndFinishClip called but no active recorders.");
+      Logger.warn("RecordingManager", "saveAndFinishClip called but no active recorders.");
       return;
     }
   
@@ -90,14 +90,14 @@ class RecordingManager {
   
     this.recorders.forEach((recorder, type) => {
       const chunks = this.chunks.get(type) ?? [];
-      Logger.debug("recordingManager",
+      Logger.debug("RecordingManager",
         `Preparing to stop '${type}' recorder. Current chunks: ${chunks.length}, state: ${recorder.state}`);
   
       const job = new Promise<void>((resolve) => {
         const handleData = (e: BlobEvent) => {
           if (e.data.size) {
             chunks.push(e.data);
-            Logger.debug("recordingManager",
+            Logger.debug("RecordingManager",
               `'${type}' got data chunk (${e.data.size} bytes). Total chunks: ${chunks.length}`);
           }
         };
@@ -107,21 +107,21 @@ class RecordingManager {
           recorder.removeEventListener('stop', handleStop);
   
           if (chunks.length === 0) {
-            Logger.warn("recordingManager", `'${type}' stopped – no data, nothing saved.`);
+            Logger.warn("RecordingManager", `'${type}' stopped – no data, nothing saved.`);
             resolve();
             return;
           }
   
           const blob = new Blob(chunks, { type: recorder.mimeType });
           const filename = `${type}-clip-${Date.now()}`;
-          Logger.info("recordingManager",
+          Logger.info("RecordingManager",
             `'${type}' stopped. Saving ${chunks.length} chunks (${blob.size} bytes) as '${filename}'.`);
   
           try {
             await saveRecordingToDb(blob, this.pendingMarkers); 
-            Logger.info("recordingManager", `Saved clip for '${type}' with ${this.pendingMarkers.length} markers successfully.`);
+            Logger.info("RecordingManager", `Saved clip for '${type}' with ${this.pendingMarkers.length} markers successfully.`);
           } catch (err) {
-            Logger.error("recordingManager", `Failed to save clip for '${type}'.`, err);
+            Logger.error("RecordingManager", `Failed to save clip for '${type}'.`, err);
           }
 
           resolve();
@@ -144,7 +144,7 @@ class RecordingManager {
   
     this.recorders.clear();
     this.chunks.clear();
-    Logger.debug("recordingManager", "All recorders saved & cleared.");
+    Logger.debug("RecordingManager", "All recorders saved & cleared.");
   }
   
   private startNewBuffer(): void {
