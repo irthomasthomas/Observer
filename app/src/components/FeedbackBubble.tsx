@@ -109,7 +109,13 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId }) => {
                 <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a comment... (optional)" className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" rows={3}/>
 
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-xs text-gray-600 mb-2 font-medium">Help us improve by sending diagnostic data:</p>
+                  <p className="text-xs text-gray-600 mb-2 font-medium">
+                    Help us improve by sending diagnostic data.
+                    <br />
+                    <span className="text-gray-500">
+                      Please use the "Preview Data" button to ensure you're not sharing sensitive information, especially from OCR.
+                    </span>
+                  </p>
                     <label className="flex items-center text-sm text-gray-700 cursor-pointer mb-2"><input type="checkbox" checked={includeConfig} onChange={e => setIncludeConfig(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /><span className="ml-2">Agent Configuration</span></label>
                     <label className="flex items-center text-sm text-gray-700 cursor-pointer"><input type="checkbox" checked={includeLogs} onChange={e => setIncludeLogs(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /><span className="ml-2">Prompt/Response Logs</span></label>
                 </div>
