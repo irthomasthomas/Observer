@@ -30,11 +30,16 @@ Creating your own Observer AI agent is simple, and consist of three things:
 1. Navigate to the Agent Dashboard and click "Create New Agent"
 2. Fill in the "Configuration" tab with basic details (name, description, model, loop interval)
 3. Give your model a system prompt and Sensors! The current Sensors that exist are:
-   * **Screen OCR** ($SCREEN_OCR) Captures screen content as text via OCR (english only for now)
+   * **Screen OCR** ($SCREEN_OCR) Captures screen content as text via OCR
    * **Screenshot** ($SCREEN_64) Captures screen as an image for multimodal models
    * **Agent Memory** ($MEMORY@agent_id) Accesses agents' stored information
    * **Clipboard** ($CLIPBOARD) It pastes the clipboard contents 
-   * **Microphone** ($MICROPHONE) Captures the microphone and adds a transcription (english only for now)
+   * **Microphone**\* ($MICROPHONE) Captures the microphone and adds a transcription
+   * **Screen Audio**\* ($SCREEN_AUDIO) Captures the audio transcription of screen sharing a tab.
+   * **All audio**\* ($ALL_AUDIO) Mixes the microphone and screen audio and provides a complete transcription of both (used for meetings).
+
+\* Uses a whisper model with transformers.js (only supports whisper-tiny english for now)
+
 4. Decide what tools do with your models `response` in the Code Tab:
   * `notify(title, options)` – Send notifications  
   * `getMemory(agentId)*` – Retrieve stored memory (defaults to current agent)  
@@ -46,6 +51,9 @@ Creating your own Observer AI agent is simple, and consist of three things:
   * `sendEmail(content, email)` - Sends an email
   * `sendSms(content, phone_number)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367")
   * `sendWhatsapp(content, phone_number)` - Sends a whatsapp message, IMPORTANT: temporarily to counter anti spam, Observer is sending only static messages disregarding "content" variable.
+  * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
+  * `stopClip()` - Stops an active recording
+  * `markClip(label)` - Adds a label to any active recording that will be displayed in the recording Tab.
 
 ## Code Tab
 
