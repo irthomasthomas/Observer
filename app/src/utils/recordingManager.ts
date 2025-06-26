@@ -89,30 +89,25 @@ class RecordingManager {
   
     const saveJobs: Promise<void>[] = [];
   
+    // The original ondataavailable listener is already populating the chunks.
+    // We just need to stop the recorders and wait for them to finish.
     this.recorders.forEach((recorder, type) => {
       const chunks = this.chunks.get(type) ?? [];
       Logger.debug("RecordingManager",
         `Preparing to stop '${type}' recorder. Current chunks: ${chunks.length}, state: ${recorder.state}`);
   
       const job = new Promise<void>((resolve) => {
-        const handleData = (e: BlobEvent) => {
-          if (e.data.size) {
-            chunks.push(e.data);
-            Logger.debug("RecordingManager",
-              `'${type}' got data chunk (${e.data.size} bytes). Total chunks: ${chunks.length}`);
-          }
-        };
-  
-        const handleStop = async () => {
-          recorder.removeEventListener('dataavailable', handleData);
-          recorder.removeEventListener('stop', handleStop);
-  
-          if (chunks.length === 0) {
-            Logger.warn("RecordingManager", `'${type}' stopped – no data, nothing saved.`);
+        // This is the function that will perform the save operation.
+        const finalizeAndSave = async () => {
+          // It's possible the recorder was already stopped and had no data.
+          if (recorder.state === 'inactive' && chunks.length === 0) {
+            Logger.warn("RecordingManager", `'${type}' recorder was already inactive with no data. Nothing to save.`);
             resolve();
             return;
           }
-  
+
+          // The 'stop' event fires *after* the final 'dataavailable' event.
+          // By this point, our original listener has already pushed the last chunk.
           const blob = new Blob(chunks, { type: recorder.mimeType });
           const filename = `${type}-clip-${Date.now()}`;
           Logger.info("RecordingManager",
@@ -124,18 +119,25 @@ class RecordingManager {
           } catch (err) {
             Logger.error("RecordingManager", `Failed to save clip for '${type}'.`, err);
           }
-
           resolve();
         };
-  
-        recorder.addEventListener('dataavailable', handleData);
-        recorder.addEventListener('stop', handleStop);
-        recorder.stop();
+
+        // If the recorder is already inactive, just save what we have.
+        // This fixes the bug where nothing happens.
+        if (recorder.state === 'inactive') {
+          finalizeAndSave();
+        } else {
+          // If it's still recording, set up a listener for the 'stop' event,
+          // then trigger it.
+          recorder.addEventListener('stop', finalizeAndSave, { once: true });
+          recorder.stop();
+        }
       });
   
       saveJobs.push(job);
     });
   
+    // Wait for all save jobs to complete
     await Promise.all(saveJobs);
 
     if (this.pendingMarkers.length > 0) {
@@ -143,6 +145,7 @@ class RecordingManager {
         this.pendingMarkers = [];
     }
   
+    // Clean up
     this.recorders.clear();
     this.chunks.clear();
     Logger.debug("RecordingManager", "All recorders saved & cleared.");

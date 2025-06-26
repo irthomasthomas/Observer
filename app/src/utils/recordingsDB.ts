@@ -46,7 +46,7 @@ export async function saveRecordingToDb(recordingBlob: Blob, markers: ClipMarker
     metadata: markers, // Save the markers array
   };
 
-  Logger.info('RecordingsDatabase', `Saving Recording with ID: ${id} and ${markers.lenght} markers.`);
+  Logger.info('RecordingsDatabase', `Saving Recording with ID: ${id} and ${markers.length} markers.`);
 
   await db.put('recordings', recordingData);
 
