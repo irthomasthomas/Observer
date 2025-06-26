@@ -1,4 +1,5 @@
 import { openDB, DBSchema } from 'idb';
+import { Logger } from './logging'
 
 export interface ClipMarker {
   label: string;
@@ -45,8 +46,11 @@ export async function saveRecordingToDb(recordingBlob: Blob, markers: ClipMarker
     metadata: markers, // Save the markers array
   };
 
+  Logger.info('RecordingsDatabase', `Saving Recording with ID: ${id} and ${markers.lenght} markers.`);
+
   await db.put('recordings', recordingData);
-  console.log(`Recording saved to IndexedDB with ID: ${id} and ${markers.length} markers.`);
+
+  Logger.info('RecordingsDatabase',`Recording saved to IndexedDB with ID: ${id} and ${markers.length} markers.`);
   return id;
 }
 
@@ -65,5 +69,5 @@ export async function getAllRecordings() {
 export async function deleteRecording(id: string): Promise<void> {
   const db = await dbPromise;
   await db.delete('recordings', id);
-  console.log(`Recording with ID: ${id} has been deleted.`);
+  Logger.info('RecordingsDatabase',`Recording with ID: ${id} has been deleted.`);
 }
