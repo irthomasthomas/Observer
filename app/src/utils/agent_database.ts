@@ -1,4 +1,4 @@
-// utils/agent_database.ts
+// src/utils/agent_database.ts
 // Database utilities for agent management with unified CompleteAgent type
 //
 import { dispatchMemoryUpdate } from '@components/MemoryManager';

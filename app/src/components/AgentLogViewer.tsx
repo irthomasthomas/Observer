@@ -1,7 +1,8 @@
 // src/components/AgentLogViewer.tsx
 import React, { useState, useEffect } from 'react';
 import { LogEntry, LogLevel, Logger } from '../utils/logging';
-import { MessageCircle, ChevronDown, ChevronUp, Settings, Image as ImageIcon, Brain } from 'lucide-react';
+import { MessageCircle, ChevronDown, ChevronUp, Settings, Image as ImageIcon, Brain, HelpCircle } from 'lucide-react';
+import FeedbackBubble from './FeedbackBubble'; // <-- IMPORT THE NEW COMPONENT
 
 interface AgentLogViewerProps {
   agentId: string;
@@ -16,22 +17,34 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
+  const [runCycleCount, setRunCycleCount] = useState(0); // <-- STATE FOR COUNTING CYCLES
 
-  // Effect to load initial logs and subscribe to new ones
+  // Effect to load initial logs, subscribe to new ones, and count cycles
   useEffect(() => {
-    // Fetch initial logs for the agent
+    // Reset cycle count when agentId changes
+    setRunCycleCount(0); 
+
     const initialLogs = Logger.getFilteredLogs({
       source: agentId,
-      level: LogLevel.INFO, // Or your desired minimum level
+      level: LogLevel.INFO,
     });
-
+    
     // Set the most recent 'maxEntries' logs, ordered newest first
     setLogs(initialLogs.slice(-maxEntries).reverse());
+    
+    // Count initial cycles from the loaded logs
+    const initialCycles = initialLogs.filter(log => log.details?.logType === 'model-response').length;
+    setRunCycleCount(initialCycles);
 
     // Handler for new log entries
     const handleNewLog = (log: LogEntry) => {
       // Filter logs for the current agent and minimum level
       if (log.source !== agentId || log.level < LogLevel.INFO) return;
+
+      // Increment cycle count on each model response
+      if (log.details?.logType === 'model-response') {
+        setRunCycleCount(prev => prev + 1);
+      }
 
       setLogs(prevLogs => {
         // Prepend the new log to maintain newest-first order
@@ -138,97 +151,104 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 
   if (logs.length === 0) {
     return (
-      <div className="py-10 text-center text-gray-500 italic">
-        No activity yet.
+      <div className="p-4 text-center text-gray-500">
+        <HelpCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+        <p className="font-medium">No activity yet.</p>
+        <p className="text-sm">Start the agent to see its activity log here.</p>
       </div>
     );
   }
 
   return (
-    <div
-      className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
-      style={{ maxHeight }}
-    >
-      <div className="pt-2"> {/* Padding for the first log item */}
-        {logs.map((log) => { // Logs are already ordered newest first
-          const logType = log.details?.logType || 'system';
-          let bgColor = "bg-gray-50";
-          let iconBgColor = "bg-gray-100";
-          let textColor = "text-gray-700";
-          let icon = <Settings className="h-5 w-5 text-gray-600" />;
+    <div>
+      {/* --- FEEDBACK BUBBLE INTEGRATION --- */}
+      {runCycleCount >= 3 && (
+        <div className="p-2 mb-4">
+          <FeedbackBubble agentId={agentId} />
+        </div>
+      )}
 
-          if (logType === 'model-prompt') {
-            bgColor = "bg-blue-50";
-            iconBgColor = "bg-blue-100";
-            textColor = "text-blue-700";
-            const hasImages = !!(log.details?.content?.images?.length > 0);
-            icon = hasImages ?
-              <ImageIcon className="h-5 w-5 text-blue-600" /> :
-              <MessageCircle className="h-5 w-5 text-blue-600" />;
-          } else if (logType === 'model-response') {
-            bgColor = "bg-green-50";
-            iconBgColor = "bg-green-100";
-            textColor = "text-green-700";
-            icon = <MessageCircle className="h-5 w-5 text-green-600" />;
-          } else if (logType === 'memory-update') {
-            bgColor = "bg-purple-50";
-            iconBgColor = "bg-purple-100";
-            textColor = "text-purple-700";
-            icon = <Brain className="h-5 w-5 text-purple-600" />;
-          }
+      <div
+        className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        style={{ maxHeight }}
+      >
+        <div className="pt-2"> {/* Padding for the first log item */}
+          {logs.map((log) => { // Logs are already ordered newest first
+            const logType = log.details?.logType || 'system';
+            let bgColor = "bg-gray-50";
+            let iconBgColor = "bg-gray-100";
+            let textColor = "text-gray-700";
+            let icon = <Settings className="h-5 w-5 text-gray-600" />;
 
-          const isExpandable = logType === 'model-prompt' || logType === 'model-response' || logType === 'memory-update';
-          const isLogItemExpanded = expandedLogs[log.id] || false;
+            if (logType === 'model-prompt') {
+              bgColor = "bg-blue-50";
+              iconBgColor = "bg-blue-100";
+              textColor = "text-blue-700";
+              const hasImages = !!(log.details?.content?.images?.length > 0);
+              icon = hasImages ?
+                <ImageIcon className="h-5 w-5 text-blue-600" /> :
+                <MessageCircle className="h-5 w-5 text-blue-600" />;
+            } else if (logType === 'model-response') {
+              bgColor = "bg-green-50";
+              iconBgColor = "bg-green-100";
+              textColor = "text-green-700";
+              icon = <MessageCircle className="h-5 w-5 text-green-600" />;
+            } else if (logType === 'memory-update') {
+              bgColor = "bg-purple-50";
+              iconBgColor = "bg-purple-100";
+              textColor = "text-purple-700";
+              icon = <Brain className="h-5 w-5 text-purple-600" />;
+            }
 
-          return (
-            // Using log.id as key if available, falling back to index (though index is not ideal if list order changes dynamically in ways other than prepend/slice)
-            // However, since we are always prepending and slicing, log.id should be preferred and usually stable.
-            <div key={log.id || `${log.timestamp}-${log.message.slice(0,10)}`} className="mb-6 px-1"> {/* Added more robust fallback key */}
-              <div className="flex">
-                <div className={`w-10 h-10 rounded-full ${iconBgColor} flex items-center justify-center mr-4 flex-shrink-0`}>
-                  {icon}
-                </div>
-                <div className={`${bgColor} px-4 py-3 rounded-lg max-w-full w-full shadow-sm`}>
-                  <div className={`text-base ${textColor} flex justify-between items-center`}>
-                    <div className="font-medium">{log.message}</div>
-                    {isExpandable && (
-                      <button
-                        onClick={() => toggleExpanded(log.id)}
-                        className="ml-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                        aria-label={isLogItemExpanded ? "Collapse log details" : "Expand log details"}
-                      >
-                        {isLogItemExpanded ?
-                          <ChevronUp className="h-5 w-5" /> :
-                          <ChevronDown className="h-5 w-5" />
-                        }
-                      </button>
+            const isExpandable = logType === 'model-prompt' || logType === 'model-response' || logType === 'memory-update';
+            const isLogItemExpanded = expandedLogs[log.id] || false;
+
+            return (
+              <div key={log.id || `${log.timestamp}-${log.message.slice(0,10)}`} className="mb-6 px-1">
+                <div className="flex">
+                  <div className={`w-10 h-10 rounded-full ${iconBgColor} flex items-center justify-center mr-4 flex-shrink-0`}>
+                    {icon}
+                  </div>
+                  <div className={`${bgColor} px-4 py-3 rounded-lg max-w-full w-full shadow-sm`}>
+                    <div className={`text-base ${textColor} flex justify-between items-center`}>
+                      <div className="font-medium">{log.message}</div>
+                      {isExpandable && (
+                        <button
+                          onClick={() => toggleExpanded(log.id)}
+                          className="ml-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                          aria-label={isLogItemExpanded ? "Collapse log details" : "Expand log details"}
+                        >
+                          {isLogItemExpanded ?
+                            <ChevronUp className="h-5 w-5" /> :
+                            <ChevronDown className="h-5 w-5" />
+                          }
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </div>
+
+                    {/* Expandable content section */}
+                    {isExpandable && isLogItemExpanded && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        {log.details?.content ?
+                          (logType === 'model-prompt'
+                            ? renderPromptContent(log.details.content)
+                            : logType === 'memory-update'
+                              ? renderMemoryContent(log.details.content, log.details)
+                              : renderResponseContent(log.details.content)
+                          )
+                          : <span className="text-gray-500 italic">No content details.</span>}
+                      </div>
                     )}
                   </div>
-                  {/* Timestamp with lighter gray color */}
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    {new Date(log.timestamp).toLocaleString()}
-                  </div>
-
-                  {/* Expandable content section */}
-                  {isExpandable && isLogItemExpanded && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      {log.details?.content ?
-                        (logType === 'model-prompt'
-                          ? renderPromptContent(log.details.content)
-                          : logType === 'memory-update'
-                            ? renderMemoryContent(log.details.content, log.details)
-                            : renderResponseContent(log.details.content)
-                        )
-                        : <span className="text-gray-500 italic">No content details.</span>}
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-      {/* Removed logsEndRef div as it's no longer used for auto-scrolling */}
     </div>
   );
 };
