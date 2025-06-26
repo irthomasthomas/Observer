@@ -36,10 +36,11 @@ class RecordingManager {
 
   public async forceStop(): Promise<void> {
     Logger.info("RecordingManager", `forceStop called. Current state: ${this.state}`);
-    if (this.state === 'RECORDING') {
-      await this.saveAndFinishClip();
-    } else if (this.state === 'BUFFERING') {
+    if (this.state === 'BUFFERING') {
       this.discardAndShutdown();
+    } else {
+      Logger.info("RecordingManager", `calling stopClip from forceStop`);
+      this.stopClip();
     }
     this.state = 'IDLE';
   }
