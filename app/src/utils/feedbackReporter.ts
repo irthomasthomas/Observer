@@ -1,7 +1,7 @@
 // src/utils/feedbackReporter.ts
 
 import { getAgent, getAgentCode } from './agent_database';
-import { Logger, LogLevel, LogEntry } from './logging';
+import { Logger, LogLevel } from './logging';
 import yaml from 'js-yaml';
 
 interface FeedbackDetails {
