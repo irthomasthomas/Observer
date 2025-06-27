@@ -80,17 +80,6 @@ appendMemory(`[${time}] ${cleanedResponse}`);
 > **Note:** any function marked with `*` takes an `agentId` argument.  
 > If you omit `agentId`, it defaults to the agent that’s running the code.
 
-Available utilities include:
-
-* `time()` – Get the current timestamp  
-* `notify(title, options)` – Send notifications  
-* `getMemory(agentId)*` – Retrieve stored memory (defaults to current agent)  
-* `setMemory(agentId, content)*` – Replace stored memory  
-* `appendMemory(agentId, content)*` – Add to existing memory  
-* `startAgent(agentId)*` – Starts an agent  
-* `stopAgent(agentId)*` – Stops an agent
-
-
 ### Python (Jupyter Server)
 
 Python agents run on a Jupyter server with system-level access, enabling them to interact directly with your computer:
@@ -110,20 +99,6 @@ The Python environment receives:
 * `response` - The model's output
 * `agentId` - The current agent's ID
 
-## Example: Command Tracking Agent
-
-A simple agent that responds to specific commands in the model's output:
-
-```javascript
-//Clean response
-const cleanedResponse = response.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-
-//Command Format
-if (cleanedResponse.includes("COMMAND")) {
-  const withoutcommand = cleanedResponse.replace(/COMMAND:/g, '');
-  setMemory(`${await getMemory()} \n[${time()}] ${withoutcommand}`);
-}
-```
 ## Jupyter Server Configuration
 
 To use Python agents:
