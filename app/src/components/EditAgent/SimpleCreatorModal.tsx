@@ -5,8 +5,7 @@ import { Model, listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
-  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2,
-  MessageSquare, Smartphone, Mail
+  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag      
 } from 'lucide-react';
 
 // --- Reusable Model Selector (for Step 2) ---
@@ -38,13 +37,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ availableModels, selected
   );
 };
 
-// --- Sensor Highlighting Logic ---
 const SENSOR_COLORS: Record<string, string> = {
   SCREEN_OCR: 'text-blue-500 bg-blue-50',
   SCREEN_64: 'text-purple-500 bg-purple-50',
   CAMERA: 'text-purple-500 bg-purple-50',
   CLIPBOARD_TEXT: 'text-slate-500 bg-slate-50',
-  MICROPHONE: 'text-red-500 bg-red-50',
+  MICROPHONE: 'text-slate-500 bg-slate-50', 
+  SCREEN_AUDIO: 'text-slate-500 bg-slate-50', 
+  ALL_AUDIO: 'text-slate-500 bg-slate-50', 
 };
 const highlightPrompt = (text: string) => {
   const parts = text.split(/(\$[A-Z0-9_@]+)/g);
@@ -90,6 +90,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const [existingAgents, setExistingAgents] = useState<CompleteAgent[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [visionValidationError, setVisionValidationError] = useState<string | null>(null);
+  const [showWhisperWarning, setShowWhisperWarning] = useState(false); 
 
   const [isSignedIn, setIsSignedIn] = useState(false);
   
@@ -138,13 +139,17 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   }, [name, existingAgents]);
 
   useEffect(() => {
+    // Vision validation
     const hasVisionSensor = /\$SCREEN_64|\$CAMERA/.test(systemPrompt);
-    const selectedModel = availableModels.find(m => m.name === model);
-    if (hasVisionSensor && selectedModel && !selectedModel.multimodal) {
+    const selectedModelInfo = availableModels.find(m => m.name === model);
+    if (hasVisionSensor && selectedModelInfo && !selectedModelInfo.multimodal) {
       setVisionValidationError("This model may not support images. Please select a 'Vision' model.");
     } else {
       setVisionValidationError(null);
     }
+    // Whisper warning
+    const hasAudioSensor = /\$MICROPHONE|\$SCREEN_AUDIO|\$ALL_AUDIO/.test(systemPrompt);
+    setShowWhisperWarning(hasAudioSensor);
   }, [systemPrompt, model, availableModels]);
 
   const insertSensor = (tag: string) => {
@@ -165,6 +170,10 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
       const newMap = new Map(prev);
       if (newMap.has(tool)) {
         newMap.delete(tool);
+        // If "Start Recording" is turned off, also turn off "Label Recording"
+        if (tool === 'start_clip') {
+          newMap.delete('mark_clip');
+        }
       } else {
         const initialData: ToolData = 
             tool === 'sms' ? { smsPhoneNumber } :
@@ -245,23 +254,28 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               <div className="absolute inset-0 p-4 font-mono text-sm whitespace-pre-wrap pointer-events-none leading-relaxed" aria-hidden="true">{highlightPrompt(systemPrompt)}</div>
               <textarea ref={promptRef} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} className="w-full h-full p-4 bg-transparent text-transparent caret-blue-500 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500 leading-relaxed" placeholder="e.g., Look at the screen for 'ERROR'..." />
             </div>
+            {/* --- MODIFIED: Sensor buttons --- */}
             <div className="flex flex-wrap gap-2 mt-4">
               <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSensor('$SCREEN_OCR')} />
               <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSensor('$SCREEN_64')} colorClass="text-purple-600" />
               <SensorButton icon={Camera} label="Camera" onClick={() => insertSensor('$CAMERA')} colorClass="text-purple-600" />
               <SensorButton icon={Clipboard} label="Clipboard" onClick={() => insertSensor('$CLIPBOARD_TEXT')} />
-              <SensorButton icon={Mic} label="Microphone" onClick={() => insertSensor('$MICROPHONE')} />
+              <SensorButton icon={Mic} label="Microphone" onClick={() => insertSensor('$MICROPHONE')} colorClass="text-slate-600" />
+              <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSensor('$SCREEN_AUDIO')} colorClass="text-slate-600" />
+              <SensorButton icon={Blend} label="All Audio" onClick={() => insertSensor('$ALL_AUDIO')} colorClass="text-slate-600" />
               <SensorButton icon={Brain} label="Memory" onClick={() => insertSensor('$MEMORY@agent_id')} />
             </div>
             {visionValidationError && <div className="mt-2 p-2 bg-yellow-50 rounded-md flex items-center text-xs text-yellow-800"><AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />{visionValidationError}</div>}
             {systemPrompt.includes('$SCREEN_OCR') && <div className="mt-2 p-2 bg-blue-50 rounded-md flex items-center text-xs text-blue-800"><Info className="h-4 w-4 mr-2 flex-shrink-0" />OCR adds ~15s to each agent loop.</div>}
+            {/* --- NEW: Whisper warning --- */}
+            {showWhisperWarning && <div className="mt-2 p-2 bg-slate-100 rounded-md flex items-center text-xs text-slate-800"><AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />Uses whisper model, may increase CPU/memory usage.</div>}
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Change Model</label>
               <ModelSelector availableModels={availableModels} selectedModel={model} onSelectModel={setModel} loading={loadingModels} />
             </div>
           </div>
 
-          {/* --- Step 3: Tools (MODIFIED) --- */}
+          {/* --- Step 3: Tools --- */}
             <div className="w-full flex-shrink-0 p-8 space-y-6 overflow-y-auto">
               <div>
                 <h3 className="text-xl font-semibold text-gray-800">Choose Your Tools</h3>
@@ -275,139 +289,52 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                 <label className="block text-sm font-medium text-gray-700 mb-1">Trigger Condition</label>
                 <div className="flex items-center bg-white border border-gray-300 rounded-lg p-3 transition-all focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
                   <span className="font-semibold text-gray-800 pr-3">If</span>
-                  <input 
-                    value={conditionKeyword} 
-                    onChange={(e) => setConditionKeyword(e.target.value)} 
-                    className="flex-grow bg-gray-50 border border-gray-300 rounded-md p-2 text-center text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="your keyword"
-                  />
+                  <input value={conditionKeyword} onChange={(e) => setConditionKeyword(e.target.value)} className="flex-grow bg-gray-50 border border-gray-300 rounded-md p-2 text-center text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500" placeholder="your keyword"/>
                   <span className="text-gray-500 px-3">in</span>
-                  <code className="bg-gray-100 text-blue-600 font-mono text-sm px-3 py-2 rounded-md">
-                    response
-                  </code>
+                  <code className="bg-gray-100 text-blue-600 font-mono text-sm px-3 py-2 rounded-md">response</code>
                 </div>
               </div>
             )}
 
-              {/* --- MODIFIED --- Layout now supports more tools */}
+              {/* --- MODIFIED: Layout now supports more tools, including new clipping tools --- */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Notification Tool */}
                 <button type="button" onClick={() => toggleTool('notification')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('notification') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}><Bell className={`h-8 w-8 transition-colors ${selectedTools.has('notification') ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send a Notification</h3><p className="text-sm text-gray-500">Sends the model's response as a desktop alert.</p></div></button>
                 
                 {/* Memory Tool */}
-                <button type="button" onClick={() => toggleTool('memory')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('memory') ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'}`}><Save className={`h-8 w-8 transition-colors ${selectedTools.has('memory') ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Save to Memory</h3><p className="text-sm text-gray-500">Appends the model's response to this agent's memory.</p></div></button>
+                <button type="button" onClick={() => toggleTool('memory')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('memory') ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'}`}><Save className={`h-8 w-8 transition-colors ${selectedTools.has('memory') ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Save to Memory</h3><p className="text-sm text-gray-500">Appends response to agent's memory.</p></div></button>
+                
+                {/* --- NEW: Start Recording Tool --- */}
+                <button type="button" onClick={() => toggleTool('start_clip')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('start_clip') ? 'border-red-500 bg-red-50' : 'border-gray-300 hover:border-gray-400'}`}>
+                  <Clapperboard className={`h-8 w-8 transition-colors ${selectedTools.has('start_clip') ? 'text-red-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Start Recording</h3>
+                    <p className="text-sm text-gray-500">Starts a video recording.</p>
+                  </div>
+                </button>
+
+                {/* --- NEW: Label Recording Tool (dependent) --- */}
+                <button 
+                  type="button" 
+                  onClick={() => toggleTool('mark_clip')} 
+                  disabled={!selectedTools.has('start_clip')}
+                  className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('mark_clip') ? 'border-orange-500 bg-orange-50' : 'border-gray-300'} disabled:opacity-50 disabled:cursor-not-allowed enabled:hover:border-gray-400 disabled:hover:border-gray-300`}
+                >
+                  <Tag className={`h-8 w-8 transition-colors ${selectedTools.has('mark_clip') ? 'text-orange-500' : 'text-gray-400'} group-enabled:group-hover:text-gray-600`} />
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Label Recording</h3>
+                    <p className="text-sm text-gray-500">Adds a label to an active recording.</p>
+                  </div>
+                </button>
                 
                 {/* SMS Tool */}
-                <button 
-                  type="button"
-                  title={!isSignedIn ? 'Please sign in to use the SMS tool.' : ''}
-                  onClick={() => toggleTool('sms')}
-                  disabled={!isSignedIn}
-                  className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('sms') ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}>
-                  <div className="flex items-center space-x-4">
-                    <MessageSquare className={`h-8 w-8 transition-colors ${selectedTools.has('sms') ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Send an SMS</h3>
-                      <p className="text-sm text-gray-500">Sends the model's response as a text message.</p>
-                    </div>
-                  </div>
-
-                  {selectedTools.has('sms') && (
-                  <div className="relative pl-12 pt-2">
-                    <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="tel"
-                      value={smsPhoneNumber}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        const newNumber = e.target.value;
-                        setSmsPhoneNumber(newNumber);
-                        setSelectedTools(prev => {
-                          const newMap = new Map(prev);
-                          newMap.set('sms', { smsPhoneNumber: newNumber });
-                          return newMap;
-                        });
-                      }}
-                      className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
-                      placeholder="+1 555 123-4567"
-                    />
-                  </div>
-                )}
-                </button>
+                <button type="button" title={!isSignedIn ? 'Please sign in to use the SMS tool.' : ''} onClick={() => toggleTool('sms')} disabled={!isSignedIn} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('sms') ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}><div className="flex items-center space-x-4"><MessageSquare className={`h-8 w-8 transition-colors ${selectedTools.has('sms') ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send an SMS</h3><p className="text-sm text-gray-500">Sends response as a text message.</p></div></div>{selectedTools.has('sms') && (<div className="relative pl-12 pt-2"><Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="tel" value={smsPhoneNumber} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newNumber = e.target.value; setSmsPhoneNumber(newNumber); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('sms', { smsPhoneNumber: newNumber }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500" placeholder="+1 555 123-4567"/></div>)}</button>
 
                 {/* --- WhatsApp Tool */}
-                <button 
-                  type="button"
-                  title={!isSignedIn ? 'Please sign in to use the WhatsApp tool.' : ''}
-                  onClick={() => toggleTool('whatsapp')}
-                  disabled={!isSignedIn}
-                  className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('whatsapp') ? 'border-teal-500 bg-teal-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}>
-                  <div className="flex items-center space-x-4">
-                    <Smartphone className={`h-8 w-8 transition-colors ${selectedTools.has('whatsapp') ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Send a WhatsApp</h3>
-                      <p className="text-sm text-gray-500">Sends a pre-approved WhatsApp notification.</p>
-                    </div>
-                  </div>
-                  {selectedTools.has('whatsapp') && (
-                  <div className="relative pl-12 pt-2">
-                    <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="tel"
-                      value={whatsappPhoneNumber}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        const newNumber = e.target.value;
-                        setWhatsappPhoneNumber(newNumber);
-                        setSelectedTools(prev => {
-                          const newMap = new Map(prev);
-                          newMap.set('whatsapp', { whatsappPhoneNumber: newNumber });
-                          return newMap;
-                        });
-                      }}
-                      className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
-                      placeholder="+1 555 123-4567"
-                    />
-                  </div>
-                )}
-                </button>
+                <button type="button" title={!isSignedIn ? 'Please sign in to use the WhatsApp tool.' : ''} onClick={() => toggleTool('whatsapp')} disabled={!isSignedIn} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('whatsapp') ? 'border-teal-500 bg-teal-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}><div className="flex items-center space-x-4"><Smartphone className={`h-8 w-8 transition-colors ${selectedTools.has('whatsapp') ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send a WhatsApp</h3><p className="text-sm text-gray-500">Sends a WhatsApp notification.</p></div></div>{selectedTools.has('whatsapp') && (<div className="relative pl-12 pt-2"><Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="tel" value={whatsappPhoneNumber} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newNumber = e.target.value; setWhatsappPhoneNumber(newNumber); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('whatsapp', { whatsappPhoneNumber: newNumber }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500" placeholder="+1 555 123-4567"/></div>)}</button>
 
                 {/* --- Email Tool */}
-                <button 
-                  type="button"
-                  title={!isSignedIn ? 'Please sign in to use the Email tool.' : ''}
-                  onClick={() => toggleTool('email')}
-                  disabled={!isSignedIn}
-                  className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('email') ? 'border-cyan-500 bg-cyan-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}>
-                  <div className="flex items-center space-x-4">
-                    <Mail className={`h-8 w-8 transition-colors ${selectedTools.has('email') ? 'text-cyan-500' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Send an Email</h3>
-                      <p className="text-sm text-gray-500">Sends the model's response as an email.</p>
-                    </div>
-                  </div>
-                  {selectedTools.has('email') && (
-                  <div className="relative pl-12 pt-2">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="email"
-                      value={emailAddress}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        const newAddress = e.target.value;
-                        setEmailAddress(newAddress);
-                        setSelectedTools(prev => {
-                          const newMap = new Map(prev);
-                          newMap.set('email', { emailAddress: newAddress });
-                          return newMap;
-                        });
-                      }}
-                      className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
-                      placeholder="recipient@example.com"
-                    />
-                  </div>
-                )}
-                </button>
+                <button type="button" title={!isSignedIn ? 'Please sign in to use the Email tool.' : ''} onClick={() => toggleTool('email')} disabled={!isSignedIn} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('email') ? 'border-cyan-500 bg-cyan-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}><div className="flex items-center space-x-4"><Mail className={`h-8 w-8 transition-colors ${selectedTools.has('email') ? 'text-cyan-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send an Email</h3><p className="text-sm text-gray-500">Sends response as an email.</p></div></div>{selectedTools.has('email') && (<div className="relative pl-12 pt-2"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="email" value={emailAddress} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newAddress = e.target.value; setEmailAddress(newAddress); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('email', { emailAddress: newAddress }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500" placeholder="recipient@example.com"/></div>)}</button>
 
               </div>
             </div>

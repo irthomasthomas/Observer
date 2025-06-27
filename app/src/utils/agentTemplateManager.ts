@@ -2,7 +2,7 @@
 
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp';
+export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip';
 
 export interface ToolData {
   smsPhoneNumber?: string;
@@ -34,7 +34,8 @@ sendSms(response, ${phoneNumber});
     const phoneNumber = data.whatsappPhoneNumber ? JSON.stringify(data.whatsappPhoneNumber) : '""';
     return `
 // --- WHATSAPP TOOL ---
-// Sends the model's response as a WhatsApp message to the specified number.
+// Sends a pre-approved WhatsApp notification. The content is static for now.
+// IMPORTANT: The 'response' variable is currently ignored for anti-spam reasons.
 sendWhatsapp(response, ${phoneNumber});
 `;
   },
@@ -45,7 +46,19 @@ sendWhatsapp(response, ${phoneNumber});
 // Sends the model's response as an email to the specified address.
 sendEmail(response, ${emailAddr});
 `;
-  }
+  },
+  start_clip: () => `
+// --- START RECORDING TOOL ---
+// Starts a video recording. The recording will stop when the agent is stopped
+// or if you manually add a stopClip() call to the code.
+startClip();
+`,
+  mark_clip: () => `
+// --- LABEL RECORDING TOOL ---
+// Adds the model's response as a label to an active recording.
+// Prompt your model to output just the desired label text.
+markClip(response);
+`,
 };
 
 interface SimpleConfig {
