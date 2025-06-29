@@ -20,6 +20,9 @@ export class TranscriptionService {
   private onChunkProcessed: ((chunk: TranscriptionChunk) => void) | null = null;
   private chunkCounter = 0;
 
+  private recentChunkTexts: string[] = [];
+  private readonly MAX_CHUNKS_TO_KEEP = 20;
+
   // NEW: Store the original stream to create new MediaRecorder instances
   private currentStream: MediaStream | null = null; 
 
@@ -50,7 +53,10 @@ export class TranscriptionService {
       console.log('[Whisper]', event.data); // Keep for debugging
 
       if (status === 'transcription-complete' && text) {
-        this.transcript = this.transcript ? `${this.transcript} ${text}` : text;
+
+        this.recentChunkTexts.push(text);
+        this.recentChunkTexts = this.recentChunkTexts.slice(-this.MAX_CHUNKS_TO_KEEP);
+
         Logger.debug('TranscriptionService', `[Chunk] ${text} for ID: ${chunkId}`);
 
         // MODIFIED: Retrieve the blob using the chunkId sent back by the worker
@@ -98,7 +104,7 @@ export class TranscriptionService {
   }
 
   public getTranscript(): string {
-    return this.transcript;
+    return this.recentChunkTexts.join(' ');
   }
 
   private async transcribeLoop(): Promise<void> {
