@@ -15,7 +15,6 @@ export class TranscriptionService {
   private isRunning = false;
   // REMOVED: private mediaRecorder: MediaRecorder | null = null; // We will create a new instance per chunk
   private worker: Worker | null = null;
-  private transcript: string = '';
   private audioContext: AudioContext | null = null;
   private onChunkProcessed: ((chunk: TranscriptionChunk) => void) | null = null;
   private chunkCounter = 0;
