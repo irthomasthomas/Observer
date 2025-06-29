@@ -39,8 +39,8 @@ class RecordingManager {
     if (this.state === 'BUFFERING') {
       this.discardAndShutdown();
     } else {
-      Logger.info("RecordingManager", `calling stopClip from forceStop`);
-      this.stopClip();
+      Logger.info("RecordingManager", `Saving from forceStop`);
+      await this.saveAndFinishClip();
     }
     this.state = 'IDLE';
   }
@@ -86,6 +86,8 @@ class RecordingManager {
       Logger.warn("RecordingManager", "saveAndFinishClip called but no active recorders.");
       return;
     }
+
+    Logger.info("RecordingManager", `saveAndFinishClip called. Preparing to save ${this.recorders.size} recorders.`);
   
     const saveJobs: Promise<void>[] = [];
   
