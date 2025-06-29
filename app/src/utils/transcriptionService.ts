@@ -96,7 +96,7 @@ export class TranscriptionService {
     this.worker?.terminate();
     this.worker = null;
     this.audioContext?.close();
-    this.transcript = '';
+    this.recentChunkTexts = [];
     this.onChunkProcessed = null;
     this.currentStream = null; // Clear the stream reference
     this.pendingChunks.clear(); // Clear any remaining pending chunks
