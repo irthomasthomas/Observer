@@ -1,6 +1,6 @@
 # compute.py (Rewritten for Async Handlers)
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import Response, JSONResponse
 # No httpx needed here anymore
 import os
