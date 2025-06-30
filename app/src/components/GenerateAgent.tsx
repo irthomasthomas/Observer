@@ -7,6 +7,7 @@ import EditAgentModal from './EditAgent/EditAgentModal';
 import getSystemPrompt from '@utils/system_prompt';
 import getPythonSystemPrompt from '@utils/python_system_prompt';
 import { getOllamaServerAddress } from '@utils/main_loop';
+import type { TokenProvider } from '@utils/main_loop';
 
 const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }> = ({
   responseText,
@@ -128,9 +129,10 @@ function parseAgentResponse(responseText: string, agentType: 'browser' | 'python
 interface GenerateAgentProps {
   agentType: 'browser' | 'python';
   modelName: string; // Added modelName prop
+  getToken: TokenProvider;
 }
 
-const GenerateAgent: React.FC<GenerateAgentProps> = ({ agentType, modelName }) => {
+const GenerateAgent: React.FC<GenerateAgentProps> = ({ agentType, modelName, getToken }) => {
   const [userInput, setUserInput] = useState<string>('');
   const [visibleResponse, setVisibleResponse] = useState<string>('');
   const [fullResponse, setFullResponse] = useState<string>('');
@@ -334,6 +336,7 @@ const GenerateAgent: React.FC<GenerateAgentProps> = ({ agentType, modelName }) =
           agent={parsedAgent}
           code={parsedCode}
           onSave={handleSaveModalChanges}
+          getToken={getToken}
         />
       )}
     </div>

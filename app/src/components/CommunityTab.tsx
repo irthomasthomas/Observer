@@ -1,10 +1,11 @@
 // src/components/CommunityTab.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
 import { useAuth0 } from '@auth0/auth0-react';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
+
 
 // Type for marketplace agents matching CompleteAgent structure
 interface MarketplaceAgent {
@@ -37,7 +38,7 @@ interface AgentUpload {
 }
 
 const CommunityTab: React.FC = () => {
-  const { isAuthenticated: auth0IsAuthenticated, loginWithRedirect, user: auth0User, isLoading } = useAuth0();
+  const { isAuthenticated: auth0IsAuthenticated, loginWithRedirect, user: auth0User, isLoading, getAccessTokenSilently } = useAuth0();
   const [agents, setAgents] = useState<MarketplaceAgent[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +88,24 @@ const CommunityTab: React.FC = () => {
       }
     }
   }, [auth0IsAuthenticated, auth0User, isLoading]);
+
+  const getToken = useCallback(async () => {
+    if (isLoading || !auth0IsAuthenticated) {
+      Logger.warn('AUTH', 'CommunityTab: getToken called but user not authenticated or auth is loading.');
+      return undefined;
+    }
+    try {
+      const token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: 'https://api.observer-ai.com',
+        },
+      });
+      return token;
+    } catch (error) {
+      Logger.error('AUTH', 'CommunityTab: Failed to retrieve access token.', error);
+      throw error;
+    }
+  }, [auth0IsAuthenticated, isLoading, getAccessTokenSilently]);
   
   const fetchAgents = async () => {
     try {
@@ -731,6 +750,7 @@ const CommunityTab: React.FC = () => {
           }}
           code={editingAgent.code}
           onSave={handleSaveEdit}
+          getToken={getToken}
         />
       )}
     </div>

@@ -3,17 +3,20 @@ import React from 'react';
 import { Plus, Users, Sparkles } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';
 import { CompleteAgent } from '@utils/agent_database';
+import type { TokenProvider } from '@utils/main_loop';
 
 interface GetStartedProps {
   onExploreCommunity: () => void;
   onCreateNewAgent: () => void;
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
+  getToken: TokenProvider;
 }
 
 const GetStarted: React.FC<GetStartedProps> = ({
   onExploreCommunity,
   onCreateNewAgent,
   onAgentGenerated,
+  getToken,
 }) => {
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
@@ -29,7 +32,11 @@ const GetStarted: React.FC<GetStartedProps> = ({
             </div>
           </div>
           
-          <ConversationalGenerator onAgentGenerated={onAgentGenerated} />
+          <ConversationalGenerator 
+          onAgentGenerated={onAgentGenerated} 
+          getToken={getToken}
+          />
+
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-3xl mx-auto">

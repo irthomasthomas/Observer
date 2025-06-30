@@ -33,7 +33,7 @@ export function getOllamaServerAddress(): { host: string; port: string } {
   return { host: serverHost, port: serverPort };
 }
 
-export async function startAgentLoop(agentId: string, getToken: TokenProvider): Promise<void> {
+export async function startAgentLoop(agentId: string, getToken?: TokenProvider): Promise<void> {
   if (activeLoops[agentId]?.isRunning) {
     Logger.warn(agentId, `Agent is already running`);
     return;
@@ -241,7 +241,8 @@ export function getRunningAgentIds(): string[] {
 export async function executeTestIteration(
   agentId: string,
   systemPrompt: string,
-  modelName: string
+  modelName: string,
+  getToken?: TokenProvider
 ): Promise<string> {
   try {
     Logger.debug(agentId, `Starting test iteration with model ${modelName}`);
@@ -250,9 +251,10 @@ export async function executeTestIteration(
     const processedPrompt = await preProcess(agentId, systemPrompt);
 
     let token: string | undefined;
-    if (loopData.getToken) {
-        Logger.debug(agentId, 'Requesting fresh API token...');
-        token = await loopData.getToken();
+    // Check if the getToken function was provided before trying to call it.
+    if (getToken) {
+        Logger.debug(agentId, 'Requesting fresh API token for test run...');
+        token = await getToken();
     }
 
     // Send the prompt to Ollama and get response

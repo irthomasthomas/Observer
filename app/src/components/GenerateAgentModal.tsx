@@ -6,11 +6,13 @@ import { listModels, Model } from '@utils/ollamaServer'; // For model fetching
 import { getOllamaServerAddress } from '@utils/main_loop'; // For model fetching
 import getSystemPrompt from '@utils/system_prompt'; // For copying browser prompt
 import getPythonSystemPrompt from '@utils/python_system_prompt'; // For copying python prompt
+import type { TokenProvider } from '@utils/main_loop';
 
 interface GenerateAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialAgentType?: 'browser' | 'python';
+  getToken: TokenProvider;
 }
 
 const DEFAULT_MODEL = 'gemini-2.5-flash-preview-04-17';
@@ -19,6 +21,7 @@ const GenerateAgentModal: React.FC<GenerateAgentModalProps> = ({
   isOpen,
   onClose,
   initialAgentType = 'browser',
+  getToken,
 }) => {
   const [agentType, setAgentType] = useState<'browser' | 'python'>(initialAgentType);
 
@@ -260,7 +263,7 @@ const GenerateAgentModal: React.FC<GenerateAgentModalProps> = ({
 
         {/* Modal Content */}
         <div className="p-5 flex-1 overflow-y-auto bg-gray-50">
-          <GenerateAgent agentType={agentType} modelName={selectedModel} />
+          <GenerateAgent agentType={agentType} modelName={selectedModel} getToken={getToken}/>
         </div>
       </div>
     </div>

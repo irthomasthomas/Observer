@@ -5,6 +5,8 @@ import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse } from '@utils/agentParser';
 import getConversationalSystemPrompt from '@utils/conversational_system_prompt'; // Assuming you create this
+import type { TokenProvider } from '@utils/main_loop';
+
 
 // Define the shape of a message
 interface Message {
@@ -15,9 +17,10 @@ interface Message {
 
 interface ConversationalGeneratorProps {
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
+  getToken: TokenProvider;
 }
 
-const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAgentGenerated }) => {
+const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAgentGenerated, getToken }) => {
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, sender: 'ai', text: "Hi there! I'm Observer's agent builder. What would you like to create today?" }
   ]);
@@ -40,7 +43,15 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAge
     const fullPrompt = `${getConversationalSystemPrompt()}\n${conversationHistory}\nai:`;
 
     try {
-      const responseText = await sendPrompt('api.observer-ai.com', '443', 'gemini-2.5-flash-preview-04-17', { modifiedPrompt: fullPrompt, images: [] });
+      const token = await getToken();
+
+      const responseText = await sendPrompt(
+          'api.observer-ai.com', 
+          '443', 
+          'gemini-2.5-flash-preview-04-17', 
+          { modifiedPrompt: fullPrompt, images: [] },
+          token // Pass the token here
+      );
 
       const agentConfig = extractAgentConfig(responseText);
       

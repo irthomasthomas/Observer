@@ -39,6 +39,8 @@ import { javascript } from '@codemirror/lang-javascript';
 import { python } from '@codemirror/lang-python';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 
+import type { TokenProvider } from '@utils/main_loop'
+
 /* ───────────────────────── props ───────────────────────── */
 interface EditAgentModalProps {
   isOpen: boolean;
@@ -49,6 +51,7 @@ interface EditAgentModalProps {
   onSave: (agent: CompleteAgent, code: string) => void;
   onImportComplete?: () => Promise<void>;
   setError?: (message: string | null) => void;
+  getToken: TokenProvider;
 }
 
 /* ───────────────────────── component ───────────────────────── */
@@ -60,7 +63,8 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
   code: existingCode,
   onSave,
   onImportComplete,
-  setError
+  setError,
+  getToken,
 }) => {
   const {
     agentId, setAgentId,
@@ -95,7 +99,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
     langSnippets,
     visionValidationError,
   } = useEditAgentModalLogic({
-    isOpen, onClose, createMode, agent, code: existingCode, onSave
+    isOpen, onClose, createMode, agent, code: existingCode, onSave, getToken
   });
 
   const [editorIsLoaded, setEditorIsLoaded] = useState(false);

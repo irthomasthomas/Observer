@@ -464,6 +464,7 @@ function AppContent() {
                   onExploreCommunity={() => setActiveTab('community')}
                   onCreateNewAgent={handleAddAgentClick}
                   onAgentGenerated={handleAgentGenerated}
+                  getToken={getToken}
                 />
               }
             </div>
@@ -508,6 +509,7 @@ function AppContent() {
           onSave={handleSaveAgent}
           onImportComplete={fetchAgents}
           setError={setError}
+          getToken={getToken}
         />
       )}
       

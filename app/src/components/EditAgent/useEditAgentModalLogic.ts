@@ -14,6 +14,7 @@ import {
   testJupyterConnection as utilsTestJupyterConnection
 } from '@utils/handlers/JupyterConfig';
 import { postProcess } from '@utils/post-processor';
+import type { TokenProvider } from '@utils/main_loop';
 
 /* ───────────────────────── snippets ───────────────────────── */
 export const jsSnippets = [
@@ -64,6 +65,7 @@ interface UseEditAgentModalLogicProps {
   agent?: CompleteAgent;
   code?: string;
   onSave: (agent: CompleteAgent, code: string) => void;
+  getToken: TokenProvider;
 }
 
 /* ───────────────────────── hook ───────────────────────── */
@@ -73,7 +75,8 @@ export const useEditAgentModalLogic = ({
   createMode,
   agent,
   code: existingCode,
-  onSave
+  onSave,
+  getToken
 }: UseEditAgentModalLogicProps) => {
   /* state */
   const [agentId, setAgentId] = useState('');
@@ -249,7 +252,8 @@ export const useEditAgentModalLogic = ({
       const r = await executeTestIteration(
         agentId || 'test-agent',
         systemPrompt,
-        currentModel
+        currentModel,
+        getToken
       );
       setTestResponse(r);
       setTestOutput((p) => `SYSTEM: model returned (${r.length} chars)\\n` + p);
