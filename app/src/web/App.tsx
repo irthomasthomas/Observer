@@ -111,7 +111,6 @@ function AppContent() {
   }, []);
 
   const getToken = useCallback(async () => {
-  // --- ✨ MODIFY THIS BLOCK ---
 
     // If Auth0 is still loading its state, we can't get a token yet.
     if (isLoading) {
@@ -124,18 +123,18 @@ function AppContent() {
       Logger.warn('AUTH', 'getToken called, but user is not authenticated.');
       try{ 
         const token = await getAccessTokenSilently({
-        authorizationParams: {
-          audience: 'https://api.observer-ai.com',
-        },
-      });
-      Logger.warn('AUTH', `trying getToken anyway and got token ${token}`);
+          authorizationParams: {
+            audience: 'https://api.observer-ai.com',
+          },
+        });
+        Logger.error('AUTH', `trying getToken anyway and got token ${token}`);
+        return token;
       }
       catch (error){
-        Logger.warn('AUTH', `errored out`);
+        Logger.warn('AUTH', `errored out in second try`);
       }
       return undefined;
     }
-    // --- END MODIFICATION ---
 
     try {
       const token = await getAccessTokenSilently({
