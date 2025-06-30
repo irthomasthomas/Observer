@@ -422,6 +422,7 @@ function AppContent() {
           }}
           onMenuClick={() => setIsSidebarOpen(true)}
           shouldHighlightMenu={agents.length === 0}
+          getToken={getToken}
         />
 
         <SidebarMenu 

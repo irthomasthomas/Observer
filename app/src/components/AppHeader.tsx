@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Menu, LogOut, ExternalLink, RefreshCw } from 'lucide-react'; 
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
-import TextBubble from './TextBubble';
 import { Logger } from '@utils/logging';
-import SharingPermissionsModal from './SharingPermissionsModal'; // Import the new modal
-
+import SharingPermissionsModal from './SharingPermissionsModal';
+import type { TokenProvider } from '@utils/main_loop'
 
 interface AuthState {
   isLoading: boolean;
@@ -24,6 +23,7 @@ interface AppHeaderProps {
   shouldHighlightMenu?: boolean;
   isUsingObServer?: boolean;
   setIsUsingObServer?: (value: boolean) => void;
+  getToken: TokenProvider;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
@@ -33,98 +33,56 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   authState,
   onMenuClick,
   isUsingObServer: externalIsUsingObServer,
-  setIsUsingObServer: externalSetIsUsingObServer
+  setIsUsingObServer: externalSetIsUsingObServer,
+  getToken,
 }) => {
   const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [pulseMenu, setPulseMenu] = useState(false);
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
-  const [quotaInfo, setQuotaInfo] = useState<{ used: number; remaining: number } | null>(null);
+  const [quotaInfo, setQuotaInfo] = useState<{ used: number; remaining: number, limit: number } | null>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
-  
+
   const isUsingObServer = externalIsUsingObServer !== undefined 
     ? externalIsUsingObServer 
     : internalIsUsingObServer;
-  
-  useEffect(() => {
-    setPulseMenu(true);
-    const timer = setTimeout(() => {
-      setPulseMenu(false);
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, []);
 
-  const [showLoginHint, setShowLoginHint] = useState(true);
-    
-  useEffect(() => {
-    if (authState?.isAuthenticated) {
-      localStorage.setItem('auth_user', JSON.stringify(authState.user || {}));
-      localStorage.setItem('auth_authenticated', 'true');
-      setShowLoginHint(false);
-      
-      if (isUsingObServer && authState.user?.sub) {
-        registerWithObserver(authState.user.sub);
-      }
-    }
-  }, [authState?.isAuthenticated, authState?.user, isUsingObServer]);
-    
-  const isAuthenticated = authState?.isAuthenticated || localStorage.getItem('auth_authenticated') === 'true';
-  const userData = isAuthenticated && !authState?.user ? 
-    JSON.parse(localStorage.getItem('auth_user') || '{}') : 
-    authState?.user;
+  // Simplified Auth State: We now ONLY trust the authState prop from the Auth0 SDK.
+  const isAuthenticated = authState?.isAuthenticated ?? false;
+  const user = authState?.user;
       
   const handleLogout = () => {
-    localStorage.removeItem('auth_authenticated');
-    localStorage.removeItem('auth_user');
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
   };
-
-  const registerWithObserver = async (userId: string) => {
-    try {
-      Logger.info('AUTH', `Registering with Observer backend for user: ${userId}`);
-      const response = await fetch('https://api.observer-ai.com/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId })
-      });
-      
-      if (!response.ok) throw new Error(`Failed to register with Observer: ${response.status}`);
-      
-      const data = await response.json();
-      if (data.auth_code) {
-        localStorage.setItem('observer_auth_code', data.auth_code);
-        Logger.info('AUTH', `Successfully saved auth code: ${data.auth_code}`);
-      } else {
-        throw new Error('No auth code received from server');
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      Logger.error('AUTH', `Error registering with Observer backend: ${errorMessage}`, err);
-    }
-  };
-
+  
   const fetchQuotaInfo = async () => {
-    if (serverStatus !== 'online') return;
+    // We only try to fetch quota if using the cloud server and authenticated.
+    if (!isUsingObServer || !isAuthenticated) {
+        setQuotaInfo(null);
+        return;
+    }
     
     try {
       setIsLoadingQuota(true);
-      const baseUrl = isUsingObServer ? 'https://api.observer-ai.com' : `https://${serverAddress}`;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      const authCode = localStorage.getItem('observer_auth_code');
-      
-      if (authCode && isUsingObServer) {
-        headers['X-Observer-Auth-Code'] = authCode;
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Token is unavailable.");
       }
+
+      const headers = { 'Authorization': `Bearer ${token}` };
       
-      const response = await fetch(`${baseUrl}/quota`, { method: 'GET', headers });
+      const response = await fetch('https://api.observer-ai.com/quota', { headers });
       
       if (response.ok) {
         const data = await response.json();
-        setQuotaInfo({ used: data.used, remaining: data.remaining });
+        setQuotaInfo(data);
       } else {
+        Logger.error('QUOTA', `Failed to fetch quota, status: ${response.status}`);
         setQuotaInfo(null);
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      Logger.error('QUOTA', `Error fetching quota info: ${errorMessage}`, err);
       setQuotaInfo(null);
     } finally {
       setIsLoadingQuota(false);
@@ -160,14 +118,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       Logger.info('SERVER', 'Checking connection to Ob-Server (api.observer-ai.com)');
       setOllamaServerAddress('api.observer-ai.com', '443');
       
-      if (isAuthenticated && userData?.sub) {
-        await registerWithObserver(userData.sub);
-      }
-      
       setServerStatus('online');
       setError(null);
       Logger.info('SERVER', 'Connected successfully to Ob-Server at api.observer-ai.com');
-      fetchQuotaInfo();
     } catch (err) {
       setServerStatus('offline');
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -194,7 +147,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         setServerStatus('online');
         setError(null);
         Logger.info('SERVER', `Connected successfully to Ollama server at ${host}:${port}`);
-        fetchQuotaInfo();
       } else {
         setServerStatus('offline');
         setError(result.error || 'Failed to connect to Ollama server');
@@ -210,10 +162,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleServerAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isUsingObServer) return;
-    
     const newAddress = e.target.value;
     setServerAddress(newAddress);
-    
     if (newAddress.includes(':')) {
       const [host, port] = newAddress.split(':');
       setOllamaServerAddress(host, port);
@@ -222,19 +172,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const getServerUrl = () => {
     let url = serverAddress;
-    // Check if the URL does NOT start with http:// or https://
     if (!/^https?:\/\//i.test(url)) {
-      // If it doesn't, always prepend https:// by default.
       url = `https://${url}`;
     }
     return url;
   };
 
   useEffect(() => {
-    if (serverStatus === 'online') {
+    if (isUsingObServer && isAuthenticated && serverStatus === 'online') {
       fetchQuotaInfo();
     }
-  }, [serverStatus, isUsingObServer]);
+  }, [isUsingObServer, isAuthenticated, serverStatus]);
 
   useEffect(() => {
     if (isUsingObServer) {
@@ -244,6 +192,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       setServerAddress('localhost:3838');
     }
   }, [isUsingObServer]);
+
+  useEffect(() => {
+    setPulseMenu(true);
+    const timer = setTimeout(() => {
+      setPulseMenu(false);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <>
@@ -309,19 +265,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                       />
                     </button>
                   </div>
-                  {isUsingObServer && serverStatus === 'online' && (
+                  {isUsingObServer && isAuthenticated && serverStatus === 'online' && (
                     <div className="text-xs text-center mt-1">
                       {isLoadingQuota ? (
                         <span className="text-gray-500">Loading...</span>
                       ) : quotaInfo ? (
                         <span className={`font-medium ${
-                          !isAuthenticated && quotaInfo.remaining <= 10 ? 
-                          quotaInfo.remaining === 0 ? 'text-red-500' : 'text-orange-500' 
+                          quotaInfo.remaining === 0 ? 'text-red-500' 
+                          : quotaInfo.remaining <= 10 ? 'text-orange-500' 
                           : 'text-green-600'
                         }`}>
-                          {isAuthenticated ? 
-                            'Unlimited access' : 
-                            `${quotaInfo.remaining}/${10} left`}
+                          {`${quotaInfo.remaining} / ${quotaInfo.limit} credits left`}
                         </span>
                       ) : (
                         <span className="text-gray-500">Quota N/A</span>
@@ -341,7 +295,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   disabled={isUsingObServer}
                 />
 
-                {/* MODIFIED: Status Button with new logic */}
+                {/* Status Button */}
                 <button
                   onClick={checkServerStatus}
                   className={`py-2 rounded-md flex items-center justify-center text-sm transition-colors duration-200 lg:min-w-32
@@ -349,7 +303,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                                 ? 'bg-green-500 text-white'
                                 : serverStatus === 'offline'
                                 ? 'bg-red-500 text-white hover:bg-red-600'
-                                : 'bg-orange-500 text-white hover:bg-orange-600' // 'unchecked' is orange
+                                : 'bg-orange-500 text-white hover:bg-orange-600'
                               }
                               px-2 sm:px-3 md:px-4`}
                 >
@@ -358,7 +312,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                       <span aria-hidden="true">✓</span>
                       <span className="hidden lg:inline ml-1.5">Connected</span>
                     </>
-                  ) : ( // Covers both 'offline' and 'unchecked' states
+                  ) : (
                     <>
                       <RefreshCw className="h-4 w-4" />
                       <span className="hidden lg:inline ml-1.5">Retry</span>
@@ -366,7 +320,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   )}
                 </button>
                 
-                {/* MODIFIED: Helper link visibility */}
+                {/* Helper link for local server */}
                 {(serverStatus === 'offline' || serverStatus === 'unchecked') && !isUsingObServer && (
                   <a
                     href={getServerUrl()}
@@ -389,7 +343,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   ) : isAuthenticated ? (
                     <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
                       <span className="text-sm text-gray-700 hidden md:inline">
-                        {userData?.name || userData?.email || 'User'}
+                        {user?.name || user?.email || 'User'}
                       </span>
                       <button
                         onClick={handleLogout}
@@ -421,43 +375,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       </header>
       
-      {/* Pop-up Bubbles remain the same */}
-      {isUsingObServer && (
-        <div className="fixed z-60" style={{ top: '70px', right: '35%' }}>
-          <TextBubble 
-            message={isAuthenticated ? 
-              "✅ Ob-Server: Unlimited Access" :
-              "✅ Ob-Server: Sign in for unlimited access."
-            } 
-            duration={5000} 
-          />
-        </div>
-      )}
-      {!isAuthenticated && isUsingObServer && quotaInfo && quotaInfo.remaining <= 3 && quotaInfo.remaining > 0 && showLoginHint && (
-        <div className="fixed z-60" style={{ top: '110px', right: '20px' }}>
-          <div className="bg-white rounded-lg shadow-lg p-3 max-w-xs relative">
-            <button 
-              onClick={() => setShowLoginHint(false)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-              aria-label="Close"
-            >
-              <span className="text-lg">×</span>
-            </button>
-            <div className="flex items-start mb-2">
-              <span className="mr-2 text-blue-500">💡</span>
-              <p className="text-sm text-gray-700">
-                You have {quotaInfo.remaining} executions left. Sign in to get unlimited access!
-              </p>
-            </div>
-            <button 
-              onClick={() => authState?.loginWithRedirect()}
-              className="w-full mt-2 px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
-            >
-              Sign In
-            </button>
-          </div>
-        </div>
-      )}
       <SharingPermissionsModal
         isOpen={isPermissionsModalOpen}
         onClose={() => setIsPermissionsModalOpen(false)}
