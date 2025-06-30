@@ -237,12 +237,12 @@ async def handle_chat_completions_endpoint(request: Request):
              raise HTTPException(status_code=429, detail="Free quota exceeded. Please authenticate.") # 429 Too Many Requests
 
     # LOG IP AND AUTH CODE
-    with get_db() as conn:
-        conn.execute(
-            "INSERT INTO request_log (ts, ip, auth_code) VALUES (CURRENT_TIMESTAMP, ?, ?)",
-            (ip, auth_code or None)
-        )
-        conn.commit()
+    # with get_db() as conn:
+    #     conn.execute(
+    #         "INSERT INTO request_log (ts, ip, auth_code) VALUES (CURRENT_TIMESTAMP, ?, ?)",
+    #         (ip, auth_code or None)
+    #     )
+    #     conn.commit()
 
     # 2. Parse Request Data
     try:
