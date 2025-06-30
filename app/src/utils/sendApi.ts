@@ -24,10 +24,6 @@ export async function sendPrompt(
     };
 
     if (host === 'api.observer-ai.com') {
-      const authCode = localStorage.getItem('observer_auth_code');
-      if (authCode) {
-        headers['X-Observer-Auth-Code'] = authCode;
-      }
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
