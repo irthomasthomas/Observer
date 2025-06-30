@@ -9,6 +9,7 @@ import logging
 import secrets
 import json
 import datetime
+from auth import verify_token
 
 
 # Setup logging
@@ -218,7 +219,7 @@ async def check_quota_endpoint(request: Request):
         return JSONResponse(quota_info)
 
 
-@compute_router.post("/v1/chat/completions", summary="Process chat completion requests")
+@compute_router.post("/v1/chat/completions", summary="Process chat completion requests", dependencies=[Depends(verify_token)])
 async def handle_chat_completions_endpoint(request: Request):
     if not HANDLERS_AVAILABLE:
          raise HTTPException(status_code=503, detail="Backend LLM handlers are not configured or available.")
