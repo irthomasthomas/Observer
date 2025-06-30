@@ -122,6 +122,17 @@ function AppContent() {
     // If loading is finished AND the user is not authenticated, abort.
     if (!isAuthenticated) {
       Logger.warn('AUTH', 'getToken called, but user is not authenticated.');
+      try{ 
+        const token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: 'https://api.observer-ai.com',
+        },
+      });
+      Logger.warn('AUTH', `trying getToken anyway and got token ${token}`);
+      }
+      catch (error){
+        Logger.warn('AUTH', `errored out`);
+      }
       return undefined;
     }
     // --- END MODIFICATION ---
