@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Menu, LogOut, ExternalLink, RefreshCw } from 'lucide-react'; 
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
@@ -42,7 +42,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [quotaInfo, setQuotaInfo] = useState<{ used: number; remaining: number, limit: number } | null>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const [showLoginMessage, setShowLoginMessage] = useState(false);
 
+  
   const isUsingObServer = externalIsUsingObServer !== undefined 
     ? externalIsUsingObServer 
     : internalIsUsingObServer;
@@ -50,29 +52,41 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   // Simplified Auth State: We now ONLY trust the authState prop from the Auth0 SDK.
   const isAuthenticated = authState?.isAuthenticated ?? false;
   const user = authState?.user;
+
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  console.log(
+    `%c--- AppContent RENDER #${renderCount.current} ---`,
+    'color: blue; font-weight: bold;',
+    { isAuthenticated, user }
+  );
+
       
   const handleLogout = () => {
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
   };
   
   const fetchQuotaInfo = async () => {
-    // We only try to fetch quota if using the cloud server and authenticated.
-    if (!isUsingObServer || !isAuthenticated) {
+    // These checks remain the same.
+    if (!isUsingObServer || !isAuthenticated || serverStatus !== 'online') {
         setQuotaInfo(null);
         return;
     }
-    
+
     try {
       setIsLoadingQuota(true);
-      const token = await getToken();
+      // This is the key part. It uses the `getToken` function passed down in props,
+      // which is connected to the reliable useAuth0 hook in AppContent.
+      const token = await getToken(); 
+      
       if (!token) {
-        throw new Error("Token is unavailable.");
+        // If there's no token, we can't proceed.
+        throw new Error("Authentication token not available.");
       }
 
       const headers = { 'Authorization': `Bearer ${token}` };
-      
       const response = await fetch('https://api.observer-ai.com/quota', { headers });
-      
+
       if (response.ok) {
         const data = await response.json();
         setQuotaInfo(data);
@@ -92,6 +106,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const handleToggleObServer = () => {
     const newValue = !isUsingObServer;
     
+    // If user tries to enable Ob-Server without being logged in, show a message and stop.
+    if (newValue && !isAuthenticated) {
+      Logger.warn('AUTH', 'User attempted to enable Ob-Server while not authenticated.');
+      setShowLoginMessage(true);
+      setTimeout(() => setShowLoginMessage(false), 3000); // Hide message after 3 seconds
+      return; // Prevent the toggle from actually changing state
+    }
+
     if (externalSetIsUsingObServer) {
       externalSetIsUsingObServer(newValue);
     } else {
@@ -265,7 +287,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                       />
                     </button>
                   </div>
-                  {isUsingObServer && isAuthenticated && serverStatus === 'online' && (
+                  {showLoginMessage ? (
+                     <span className="text-xs text-red-500 font-semibold mt-1">
+                      Login Required
+                    </span>
+                  ) : isUsingObServer && isAuthenticated && serverStatus === 'online' && (
                     <div className="text-xs text-center mt-1">
                       {isLoadingQuota ? (
                         <span className="text-gray-500">Loading...</span>

@@ -254,6 +254,13 @@ function AppContent() {
   };
 
   const toggleAgent = async (id: string, isCurrentlyRunning: boolean): Promise<void> => {
+    // If using Ob-Server and not logged in, trigger login instead of starting agent.
+    if (isUsingObServer && !isAuthenticated) {
+      Logger.info('AUTH', 'User attempted to use a protected feature while logged out. Redirecting to login.');
+      loginWithRedirect();
+      return; // Stop the function here.
+    }
+
     try {
       setError(null);
       const agent = agents.find(a => a.id === id);
@@ -398,7 +405,6 @@ function AppContent() {
         `}
       </style>
 
-        {/* MODIFIED BLOCK IS HERE */}
         {showStartupDialog && (
           <StartupDialogs 
             onDismiss={handleDismissStartupDialog}
@@ -514,7 +520,6 @@ function AppContent() {
             setStagedAgentConfig(null);
           }}
           createMode={isCreateMode}
-          // --- ✨ PASS STAGED DATA IF IT EXISTS ---
           agent={stagedAgentConfig ? stagedAgentConfig.agent : (selectedAgent ? agents.find(a => a.id === selectedAgent) : undefined)}
           code={stagedAgentConfig ? stagedAgentConfig.code : (selectedAgent ? agentCodes[selectedAgent] : undefined)}
           onSave={handleSaveAgent}
