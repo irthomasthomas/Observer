@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, LogOut, ExternalLink, RefreshCw } from 'lucide-react'; 
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
@@ -52,15 +52,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   // Simplified Auth State: We now ONLY trust the authState prop from the Auth0 SDK.
   const isAuthenticated = authState?.isAuthenticated ?? false;
   const user = authState?.user;
-
-  const renderCount = useRef(0);
-  renderCount.current += 1;
-  console.log(
-    `%c--- AppContent RENDER #${renderCount.current} ---`,
-    'color: blue; font-weight: bold;',
-    { isAuthenticated, user }
-  );
-
       
   const handleLogout = () => {
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });

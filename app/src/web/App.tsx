@@ -410,6 +410,7 @@ function AppContent() {
             onDismiss={handleDismissStartupDialog}
             setUseObServer={setIsUsingObServer}
             onLogin={loginWithRedirect}
+            isAuthenticated={isAuthenticated}
             />
         )}
 

@@ -1,6 +1,5 @@
-// src/components/StartupDialog.tsx
 import React from 'react';
-import { Terminal, Cloud, Server, LogIn } from 'lucide-react';
+import { Terminal, Cloud, Server } from 'lucide-react';
 // Import the getter from your main_loop utility file
 import { getOllamaServerAddress } from '@utils/main_loop';
 
@@ -8,16 +7,28 @@ interface StartupDialogProps {
   onDismiss: () => void;
   onLogin?: () => void;
   setUseObServer?: (value: boolean) => void;
+  isAuthenticated: boolean;
 }
 
 const StartupDialog: React.FC<StartupDialogProps> = ({
   onDismiss,
   onLogin,
   setUseObServer,
+  isAuthenticated
 }) => {
   const handleObServerStart = () => {
-    if (setUseObServer) setUseObServer(true);
-    onDismiss();
+    if (!isAuthenticated) {
+      // If user isn't logged in, the only action is to trigger the login flow.
+      if (onLogin) {
+        onLogin();
+      }
+    } else {
+      // If user is logged in, proceed to set the server and dismiss.
+      if (setUseObServer) {
+        setUseObServer(true);
+      }
+      onDismiss();
+    }
   };
 
   const handleSetupLocal = () => {
@@ -63,31 +74,31 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
               </button>
               {onLogin && (
                 <div className="text-center mt-3">
-                    <button onClick={onLogin} className="inline-flex items-center justify-center gap-1 text-blue-600 text-xs sm:text-sm hover:text-blue-800 transition-colors">
-                      Log in for unlimited access <LogIn className="h-3.5 w-3.5 ml-1" />
+                    <button onClick={onLogin} className="text-blue-600 text-xs sm:text-sm hover:text-blue-800 transition-colors">
+                      Log in to try it out
                     </button>
                 </div>
               )}
             </div>
           </div>
           
-          {/* Local Server Card */}
-          <div className="border rounded-lg p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full">
+          {/* Local Server Card - Redesigned for equal appeal */}
+          <div className="border rounded-lg p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow bg-gray-50 border-gray-200 flex flex-col justify-between h-full">
              {/* Top Content */}
             <div>
                 <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg sm:text-xl font-medium text-gray-800">Local Server</h3>
-                <Server className="h-6 w-6 text-gray-500" />
+                <h3 className="text-lg sm:text-xl font-medium text-slate-800">Local Server</h3>
+                <Server className="h-6 w-6 text-slate-500" />
                 </div>
                 <ul className="space-y-2 text-sm sm:text-base">
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-gray-500"></div><span className="text-gray-700">Full Control</span></li>
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-gray-500"></div><span className="text-gray-700">Use your own hardware</span></li>
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-gray-500"></div><span className="text-gray-700">Complete privacy</span></li>
+                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500"></div><span className="text-gray-700">Full Control</span></li>
+                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500"></div><span className="text-gray-700">Use your own hardware</span></li>
+                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500"></div><span className="text-gray-700">Complete privacy</span></li>
                 </ul>
             </div>
             {/* Bottom Action Area */}
             <div className="mt-6">
-                <button onClick={handleSetupLocal} className="w-full px-4 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base">
+                <button onClick={handleSetupLocal} className="w-full px-4 py-2.5 sm:py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm sm:text-base">
                     Use Local Server
                 </button>
                 <p className="text-center text-xs text-gray-600 mt-3 leading-relaxed">
