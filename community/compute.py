@@ -94,3 +94,42 @@ async def handle_chat_completions_endpoint(request: Request, user_id: AuthUser):
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 # (The model listing endpoints /api/models and /api/tags can remain as they are)
+
+@compute_router.get("/api/tags", summary="List available models (Ollama compatible format)")
+async def list_tags_endpoint():
+    if not HANDLERS_AVAILABLE:
+         raise HTTPException(status_code=503, detail="Backend handlers are not available.")
+    EXCLUDED = {"gemini-2.5-flash-preview-04-17"}
+
+    ollama_models = []
+    if api_handlers and api_handlers.API_HANDLERS:
+        for handler in api_handlers.API_HANDLERS.values():
+            try:
+                for model_info in handler.get_models():
+                     # Basic mapping, add more fields if your get_models provides them
+                     name = model_info.get("name", "")
+                     if name in EXCLUDED:
+                         continue
+                     is_multimodal = model_info.get("multimodal", False)
+
+                     model_entry = {
+                          "name": model_info.get("name", "unknown"),
+                          "model": model_info.get("name", "unknown"),
+                          "modified_at": model_info.get("modified_at", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")),
+                          "size": model_info.get("size_bytes", 0), # Placeholder size
+                          "digest": model_info.get("digest", ""), # Placeholder digest
+                          "details": {
+                               "parameter_size": model_info.get("parameters", "N/A"),
+                               "quantization_level": model_info.get("quantization", "N/A"),
+                               "family": model_info.get("family", handler.name), # Use handler name as family default
+                               "format": model_info.get("format", "N/A"),
+                               "multimodal": is_multimodal
+                          }
+                     }
+                     ollama_models.append(model_entry)
+            except Exception as e:
+                 logger.error(f"Failed to get tags from handler {handler.name}: {e}")
+    else:
+         logger.warning("/api/tags called but no handlers are loaded.")
+
+    return JSONResponse(content={"models": ollama_models})
