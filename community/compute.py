@@ -4,7 +4,6 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 import logging
 import json
-from datetime import datetime
 
 # --- Local Imports ---
 from auth import AuthUser
@@ -115,7 +114,6 @@ async def list_tags_endpoint():
                      model_entry = {
                           "name": model_info.get("name", "unknown"),
                           "model": model_info.get("name", "unknown"),
-                          "modified_at": model_info.get("modified_at", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")),
                           "size": model_info.get("size_bytes", 0), # Placeholder size
                           "digest": model_info.get("digest", ""), # Placeholder digest
                           "details": {
