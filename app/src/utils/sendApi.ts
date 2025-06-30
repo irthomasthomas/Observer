@@ -13,7 +13,8 @@ export async function sendPrompt(
   host: string,
   port: string,
   modelName: string,
-  preprocessResult: PreProcessorResult
+  preprocessResult: PreProcessorResult,
+  token?: string
 ): Promise<string> {
   try {
     const url = `https://${host}:${port}/v1/chat/completions`;
@@ -26,6 +27,9 @@ export async function sendPrompt(
       const authCode = localStorage.getItem('observer_auth_code');
       if (authCode) {
         headers['X-Observer-Auth-Code'] = authCode;
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
     }
 

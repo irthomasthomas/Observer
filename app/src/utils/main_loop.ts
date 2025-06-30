@@ -8,13 +8,15 @@ import { postProcess } from './post-processor';
 import { StreamManager, PseudoStreamType } from './streamManager'; // Import the new manager
 import { recordingManager } from './recordingManager'
 
+export type TokenProvider = () => Promise<string | undefined>;
+
 const activeLoops: Record<string, {
   intervalId: number | null,
   isRunning: boolean,
   serverHost: string,
-  serverPort: string
+  serverPort: string,
+  getToken?: TokenProvider;
 }> = {};
-
 
 export const AGENT_STATUS_CHANGED_EVENT = 'agentStatusChanged';
 
@@ -31,7 +33,7 @@ export function getOllamaServerAddress(): { host: string; port: string } {
   return { host: serverHost, port: serverPort };
 }
 
-export async function startAgentLoop(agentId: string): Promise<void> {
+export async function startAgentLoop(agentId: string, getToken: TokenProvider): Promise<void> {
   if (activeLoops[agentId]?.isRunning) {
     Logger.warn(agentId, `Agent is already running`);
     return;
@@ -62,7 +64,13 @@ export async function startAgentLoop(agentId: string): Promise<void> {
       recordingManager.initialize();
     }
 
-    activeLoops[agentId] = { intervalId: null, isRunning: true, serverHost, serverPort };
+    activeLoops[agentId] = { 
+        intervalId: null, 
+        isRunning: true, 
+        serverHost, 
+        serverPort,
+        getToken 
+    };
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
         detail: { agentId, status: 'running' },
@@ -142,8 +150,8 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
  * Execute a single iteration of the agent's loop
  */
 export async function executeAgentIteration(agentId: string): Promise<void> {
-  // Check if the loop is still active
-  if (!activeLoops[agentId]?.isRunning) {
+  const loopData = activeLoops[agentId];
+  if (!loopData?.isRunning) {
     Logger.debug(agentId, `Skipping execution for stopped agent`);
     return;
   }
@@ -168,6 +176,13 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     });
     console.log(systemPrompt);
 
+    // GET JWT TOKEN
+    let token: string | undefined;
+    if (loopData.getToken) {
+        Logger.debug(agentId, 'Requesting fresh API token...');
+        token = await loopData.getToken();
+    }
+
     // 2. Send prompt to API
     Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
 
@@ -175,7 +190,8 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       serverHost,
       serverPort,
       agent.model_name,
-      systemPrompt
+      systemPrompt,
+      token
     );
 
     Logger.info(agentId, `Response`, {
@@ -233,13 +249,20 @@ export async function executeTestIteration(
     // Pre-process the prompt (even for tests)
     const processedPrompt = await preProcess(agentId, systemPrompt);
 
+    let token: string | undefined;
+    if (loopData.getToken) {
+        Logger.debug(agentId, 'Requesting fresh API token...');
+        token = await loopData.getToken();
+    }
+
     // Send the prompt to Ollama and get response
     Logger.info(agentId, `Sending prompt to Ollama (model: ${modelName})`);
     const response = await sendPrompt(
       serverHost,
       serverPort,
       modelName,
-      processedPrompt
+      processedPrompt,
+      token
     );
     // Since this is a one-off test, we don't use the StreamManager and just stop the capture.
     // This assumes the pre-processor for tests might call startScreenCapture directly.

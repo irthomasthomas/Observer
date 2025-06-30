@@ -44,7 +44,8 @@ function AppContent() {
     user, 
     loginWithRedirect, 
     logout, 
-    isLoading 
+    isLoading,
+    getAccessTokenSilently
   } = isAuthDisabled 
     ? {
         isAuthenticated: true,
@@ -52,6 +53,7 @@ function AppContent() {
         loginWithRedirect: () => Promise.resolve(),
         logout: () => {},
         isLoading: false,
+        getAccessTokenSilently: async () => 'mock_token'
       } 
     : useAuth0(); 
 
@@ -107,6 +109,36 @@ function AppContent() {
       setIsRefreshing(false);
     }
   }, []);
+
+  const getToken = useCallback(async () => {
+  // --- ✨ MODIFY THIS BLOCK ---
+
+    // If Auth0 is still loading its state, we can't get a token yet.
+    if (isLoading) {
+      Logger.warn('AUTH', 'getToken called while auth state is loading. Aborting.');
+      return undefined;
+    }
+
+    // If loading is finished AND the user is not authenticated, abort.
+    if (!isAuthenticated) {
+      Logger.warn('AUTH', 'getToken called, but user is not authenticated.');
+      return undefined;
+    }
+    // --- END MODIFICATION ---
+
+    try {
+      const token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: 'https://api.observer-ai.com',
+        },
+      });
+      return token;
+    } catch (error) {
+      Logger.error('AUTH', 'Failed to retrieve access token silently.', error);
+      throw error;
+    }
+    // ✨ Add isLoading to the dependency array
+  }, [isAuthenticated, isLoading, getAccessTokenSilently]);
 
   useEffect(() => {
     const handleAgentStatusChange = (event: CustomEvent) => {
@@ -240,7 +272,7 @@ function AppContent() {
         });
         
         try {
-          await startAgentLoop(id);
+          await startAgentLoop(id, getToken);
         } finally {
           setStartingAgents(prev => {
             const updated = new Set(prev);
@@ -459,6 +491,7 @@ function AppContent() {
         isOpen={isConversationalModalOpen}
         onClose={() => setIsConversationalModalOpen(false)}
         onAgentGenerated={handleAgentGenerated}
+        getToken={getToken}
       />
 
       {isEditModalOpen && (
@@ -602,7 +635,11 @@ export function App() {
     <Auth0Provider
       domain="dev-mzdd3k678tj1ja86.us.auth0.com"
       clientId="R5iv3RVkWjGZrexFSJ6HqlhSaaGLyFpm"
-      authorizationParams={{ redirect_uri: window.location.origin }}
+      authorizationParams={{ 
+        redirect_uri: window.location.origin, 
+        audience: 'https://api.observer-ai.com',
+        scope: 'openid profile email offline_access'
+      }}
       cacheLocation="localstorage"
       useRefreshTokens={true}
       onRedirectCallback={(appState) => {
