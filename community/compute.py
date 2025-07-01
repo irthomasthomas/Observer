@@ -1,20 +1,20 @@
 # compute.py
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, status
 from fastapi.responses import JSONResponse
 import logging
 import json
 
 # --- Local Imports ---
 from auth import AuthUser
-from quota_manager import increment_usage, get_usage, DAILY_CREDIT_LIMIT 
+# Import the new, specific functions and the QUOTA_LIMITS dictionary
+from quota_manager import increment_usage, get_usage_for_service, QUOTA_LIMITS
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger('compute_router')
 
 # --- Observer AI Handler Integration ---
-# (This section remains unchanged, it's good as is)
 try:
     import api_handlers
     from api_handlers import HandlerError, ConfigError, BackendAPIError
@@ -32,38 +32,43 @@ compute_router = APIRouter()
 @compute_router.get("/quota", summary="Check remaining API credits for the authenticated user")
 async def check_quota_endpoint(user_id: AuthUser):
     """
-    Returns the daily credit usage for the authenticated user.
+    Returns the daily CHAT credit usage for the authenticated user.
     Requires a valid JWT.
     """
-    quota_info = get_usage(user_id)
-    return JSONResponse(quota_info)
+    # Use the new specific function for the 'chat' service
+    used = get_usage_for_service(user_id, "chat")
+    limit = QUOTA_LIMITS["chat"]
+    remaining = max(0, limit - used)
+    
+    return JSONResponse(content={"used": used, "remaining": remaining, "limit": limit})
 
 
 @compute_router.post("/v1/chat/completions", summary="Process chat completion requests")
 async def handle_chat_completions_endpoint(request: Request, user_id: AuthUser):
     """
     Processes a chat completion request. Requires a valid JWT.
-    Each call will consume one daily credit.
+    Each call will consume one daily CHAT credit.
     """
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend LLM handlers are not available.")
 
-    current_usage = get_usage(user_id)
+    # 1. Get current usage for the 'chat' service
+    chat_limit = QUOTA_LIMITS["chat"]
+    current_usage = get_usage_for_service(user_id, "chat")
     
     # 2. Enforce the limit.
-    if current_usage["used"] >= DAILY_CREDIT_LIMIT:
-        logger.warning(f"Credit limit exceeded for user: {user_id} (Limit: {DAILY_CREDIT_LIMIT})")
-        # Return a 429 Too Many Requests error. This is the standard.
+    if current_usage >= chat_limit:
+        logger.warning(f"Chat credit limit exceeded for user: {user_id} (Limit: {chat_limit})")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"You have used all your {DAILY_CREDIT_LIMIT} daily credits. Please try again tomorrow or upgrade for unlimited access."
+            detail=f"You have used all your {chat_limit} daily chat credits. Please try again tomorrow or upgrade for unlimited access."
         )
 
-    # 3. If the user is within their limit, increment the usage.
-    usage_count = increment_usage(user_id)
-    logger.info(f"Processing request for user: {user_id} (Daily request #{usage_count})")
+    # 3. If within limit, increment the 'chat' usage.
+    usage_count = increment_usage(user_id, "chat")
+    logger.info(f"Processing chat request for user: {user_id} (Daily chat request #{usage_count})")
 
-    # 2. Parse Request Data
+    # 4. Parse Request Data
     try:
         request_data = await request.json()
         model_name = request_data.get("model")
@@ -72,27 +77,25 @@ async def handle_chat_completions_endpoint(request: Request, user_id: AuthUser):
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON request body.")
 
-    # 3. Find the appropriate handler
+    # 5. Find the appropriate handler
     selected_handler = next((h for h in api_handlers.API_HANDLERS.values() if model_name in [m["name"] for m in h.get_models()]), None)
 
     if not selected_handler:
         logger.warning(f"Request for unsupported model: {model_name}")
         raise HTTPException(status_code=404, detail=f"Model '{model_name}' is not found or supported.")
 
-    # 4. Execute handler logic
+    # 6. Execute handler logic
     try:
         response_payload = await selected_handler.handle_request(request_data)
         return JSONResponse(content=response_payload)
     except (HandlerError, ConfigError, BackendAPIError) as e:
         logger.error(f"Handler error for model '{model_name}': {e}", exc_info=True)
-        # Re-raise with appropriate status code if the error object has one
         status_code = getattr(e, 'status_code', 500)
         raise HTTPException(status_code=status_code, detail=str(e))
     except Exception as e:
         logger.exception(f"Unexpected error processing request with handler {selected_handler.name}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
-# (The model listing endpoints /api/models and /api/tags can remain as they are)
 
 @compute_router.get("/api/tags", summary="List available models (Ollama compatible format)")
 async def list_tags_endpoint():
@@ -105,7 +108,6 @@ async def list_tags_endpoint():
         for handler in api_handlers.API_HANDLERS.values():
             try:
                 for model_info in handler.get_models():
-                     # Basic mapping, add more fields if your get_models provides them
                      name = model_info.get("name", "")
                      if name in EXCLUDED:
                          continue
@@ -114,12 +116,12 @@ async def list_tags_endpoint():
                      model_entry = {
                           "name": model_info.get("name", "unknown"),
                           "model": model_info.get("name", "unknown"),
-                          "size": model_info.get("size_bytes", 0), # Placeholder size
-                          "digest": model_info.get("digest", ""), # Placeholder digest
+                          "size": model_info.get("size_bytes", 0),
+                          "digest": model_info.get("digest", ""),
                           "details": {
                                "parameter_size": model_info.get("parameters", "N/A"),
                                "quantization_level": model_info.get("quantization", "N/A"),
-                               "family": model_info.get("family", handler.name), # Use handler name as family default
+                               "family": model_info.get("family", handler.name),
                                "format": model_info.get("format", "N/A"),
                                "multimodal": is_multimodal
                           }
