@@ -8,12 +8,16 @@ interface AgentLogViewerProps {
   agentId: string;
   maxEntries?: number;
   maxHeight?: string;
+  getToken: () => Promise<string | undefined>;
+  isAuthenticated: boolean;
 }
 
 const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   agentId,
   maxEntries = 50,
   maxHeight = '400px',
+  getToken,
+  isAuthenticated
 }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
@@ -164,7 +168,11 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
       {/* --- FEEDBACK BUBBLE INTEGRATION --- */}
       {runCycleCount >= 3 && (
         <div className="p-2 mb-4">
-          <FeedbackBubble agentId={agentId} />
+          <FeedbackBubble 
+          agentId={agentId}
+          getToken={getToken}
+          isAuthenticated={isAuthenticated}
+          />
         </div>
       )}
 

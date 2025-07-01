@@ -150,6 +150,8 @@ interface AgentCardProps {
   onToggle: (agentId: string, isRunning: boolean) => Promise<void>;
   onMemory: (agentId: string) => void;
   onShowJupyterModal: () => void;
+  getToken: () => Promise<string | undefined>;
+  isAuthenticated: boolean;
 }
 
 const AgentCard: React.FC<AgentCardProps> = ({
@@ -162,7 +164,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
   onDelete,
   onToggle,
   onMemory,
-  onShowJupyterModal
+  onShowJupyterModal,
+  getToken,
+  isAuthenticated
 }) => {
   const [activityExpanded, setActivityExpanded] = useState(false);
   const [isPythonAgent, setIsPythonAgent] = useState(false);
@@ -352,7 +356,15 @@ const AgentCard: React.FC<AgentCardProps> = ({
             {activityExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
           </div>
         </button>
-        {activityExpanded && (<div className="border-t border-gray-100 p-4 bg-gray-50/50"><AgentLogViewer agentId={agent.id}/></div>)}
+        {activityExpanded && (
+          <div className="border-t border-gray-100 p-4 bg-gray-50/50">
+            <AgentLogViewer 
+              agentId={agent.id}
+              getToken={getToken}
+              isAuthenticated={isAuthenticated}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

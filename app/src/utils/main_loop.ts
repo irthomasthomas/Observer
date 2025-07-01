@@ -159,56 +159,32 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
   try {
     Logger.debug(agentId, `Starting agent iteration`);
 
-    // Get the latest agent data
     const agent = await getAgent(agentId);
     const agentCode = await getAgentCode(agentId) || '';
+    if (!agent) throw new Error(`Agent ${agentId} not found`);
 
-    if (!agent) {
-      throw new Error(`Agent ${agentId} not found`);
-    }
-
-    // 1. Pre-process: Prepare the prompt
     const systemPrompt = await preProcess(agentId, agent.system_prompt);
+    Logger.info(agentId, `Prompt`, { logType: 'model-prompt', content: systemPrompt });
 
-    Logger.info(agentId, `Prompt`, {
-      logType: 'model-prompt',
-      content: systemPrompt
-    });
-    console.log(systemPrompt);
-
-    // GET JWT TOKEN
     let token: string | undefined;
     if (loopData.getToken) {
         Logger.debug(agentId, 'Requesting fresh API token...');
         token = await loopData.getToken();
     }
 
-    // 2. Send prompt to API
     Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
-
-    const response = await sendPrompt(
-      serverHost,
-      serverPort,
-      agent.model_name,
-      systemPrompt,
-      token
-    );
-
-    Logger.info(agentId, `Response`, {
-      logType: 'model-response',
-      content: response
-    });
-
+    const response = await sendPrompt(serverHost, serverPort, agent.model_name, systemPrompt, token);
+    Logger.info(agentId, `Response`, { logType: 'model-response', content: response });
     Logger.debug(agentId, `Response Received: ${response}`);
-    Logger.debug(agentId, `About to call postProcess on ${agentId} with agentCode length: ${agentCode.length}`);
 
     try {
-      await postProcess(agentId, response, agentCode);
+      // Pass the getToken FUNCTION down to the post-processor
+      await postProcess(agentId, response, agentCode, loopData.getToken); // <-- PASS getToken HERE
       Logger.debug(agentId, `postProcess completed successfully`);
     } catch (postProcessError) {
       Logger.error(agentId, `Error in postProcess: ${postProcessError}`, postProcessError);
     } finally{
-      if (isAgentLoopRunning(agentId)) { // Only cycle if the agent wasn't just stopped
+      if (isAgentLoopRunning(agentId)) {
         recordingManager.handleEndOfLoop();
       }
     }

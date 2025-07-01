@@ -3,13 +3,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ThumbsUp, ThumbsDown, Send, FileText, X, AlertCircle } from 'lucide-react';
 import { generateFeedbackReportMarkdown } from '../utils/feedbackReporter';
-import { sendEmail } from '../utils/handlers/utils'; // <-- IMPORT YOUR UTILITY
+import { sendEmail } from '../utils/handlers/utils';
 
+// The component's contract: it requires the real authentication state and a function to get the token.
 interface FeedbackBubbleProps {
   agentId: string;
+  getToken: () => Promise<string | undefined>;
+  isAuthenticated: boolean;
 }
 
-const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId }) => {
+const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId, getToken, isAuthenticated }) => {
   const [sentiment, setSentiment] = useState<'like' | 'dislike' | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [comment, setComment] = useState('');
@@ -19,14 +22,8 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId }) => {
   const [previewData, setPreviewData] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // <-- NEW: AUTH STATE
   const bubbleRef = useRef<HTMLDivElement>(null);
 
-  // Check for login status on component mount
-  useEffect(() => {
-    const authCode = localStorage.getItem("observer_auth_code");
-    setIsLoggedIn(!!authCode);
-  }, []);
 
   const handleSentimentClick = (newSentiment: 'like' | 'dislike') => {
     setSentiment(newSentiment);
@@ -35,31 +32,43 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId }) => {
 
   const handleClose = () => {
     setIsExpanded(false);
-    setTimeout(() => { if (!isExpanded) setSentiment(null); }, 300);
+    // Delay resetting sentiment to allow for the closing animation.
+    setTimeout(() => {
+      if (!isExpanded) setSentiment(null);
+    }, 300);
   };
 
   const handlePreview = async () => {
     const markdownReport = await generateFeedbackReportMarkdown(
-        { agentId, includeAgentConfig: includeConfig, includeLogs: includeLogs },
-        { sentiment: sentiment || 'like', comment }
+      { agentId, includeAgentConfig: includeConfig, includeLogs: includeLogs },
+      { sentiment: sentiment || 'like', comment }
     );
     setPreviewData(markdownReport);
     setIsPreviewing(true);
   };
 
   const handleSubmit = async () => {
-    if (!sentiment || !isLoggedIn) return;
+    // Guard clause now uses the reliable `isAuthenticated` prop.
+    if (!sentiment || !isAuthenticated) return;
+
     setIsSubmitting(true);
     setSubmissionStatus('idle');
 
     try {
+      // 1. Get the JWT token using the provided function.
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Authentication failed. Could not retrieve token.");
+      }
+
+      // 2. Generate the feedback report.
       const markdownReport = await generateFeedbackReportMarkdown(
         { agentId, includeAgentConfig: includeConfig, includeLogs: includeLogs },
         { sentiment, comment }
       );
-      
-      // Use your existing sendEmail utility
-      await sendEmail(markdownReport, 'roymedina@me.com');
+
+      // 3. Call the `sendEmail` utility with the required token.
+      await sendEmail(markdownReport, 'roymedina@me.com', token);
 
       setSubmissionStatus('success');
       setTimeout(() => {
@@ -76,7 +85,7 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId }) => {
     }
   };
 
-  // Close bubble if clicked outside
+  // Effect to close the bubble when clicking outside of it.
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (bubbleRef.current && !bubbleRef.current.contains(event.target as Node)) {
@@ -121,10 +130,10 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId }) => {
                 </div>
                 
                 <div className="mt-4">
-                    <button onClick={handleSubmit} disabled={!sentiment || isSubmitting || !isLoggedIn} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition">
+                    <button onClick={handleSubmit} disabled={!sentiment || isSubmitting || !isAuthenticated} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition">
                         {isSubmitting ? 'Sending...' : 'Send Feedback'} <Send className="w-4 h-4" />
                     </button>
-                    {!isLoggedIn && (
+                    {!isAuthenticated && (
                         <p className="text-xs text-red-600 mt-2 text-center flex items-center justify-center gap-1.5"><AlertCircle className="w-4 h-4" /> Please sign in to send feedback.</p>
                     )}
                 </div>

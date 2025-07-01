@@ -475,6 +475,8 @@ function AppContent() {
                     onToggle={toggleAgent}
                     onMemory={handleMemoryClick}
                     onShowJupyterModal={() => setIsJupyterModalOpen(true)}
+                    getToken={getToken}
+                    isAuthenticated={isAuthenticated}
                   />
                 </div>
               )) : 
