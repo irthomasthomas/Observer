@@ -14,6 +14,7 @@ from sendgrid.helpers.mail import Mail
 
 # --- Local Imports ---
 from auth import AuthUser
+from admin_auth import get_admin_access
 # Import the new, unified quota manager functions and constants
 from quota_manager import increment_usage, get_usage_for_service, get_all_usage_data, QUOTA_LIMITS
 
@@ -62,12 +63,13 @@ def get_twilio_config():
 # --- API Endpoints ---
 
 @tools_router.get("/tools/usage", tags=["Admin"], summary="Get all current usage data")
-async def get_all_usage(user_id: AuthUser):
+async def get_all_usage(is_admin: bool = Depends(get_admin_access)):
     """
     (Admin) Returns a snapshot of the current in-memory usage database.
-    NOTE: Currently allows any authenticated user. In the future, you could add a
-    check to ensure the user_id belongs to an admin.
+    Requires a valid X-Admin-Key header.
     """
+    # The dependency already handled the security check.
+    # If the code reaches here, 'is_admin' is True.
     return get_all_usage_data()
 
 @tools_router.post("/tools/send-sms", tags=["Tools"])
