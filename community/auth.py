@@ -11,7 +11,7 @@ from typing import Annotated
 logger = logging.getLogger('auth_validator')
 
 # --- Configuration ---
-AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN", "dev-mzdd3k678tj1ja86.us.auth0.com")
+AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN", "auth.observer-ai.com")
 API_AUDIENCE = os.environ.get("API_AUDIENCE", "https://api.observer-ai.com")
 ALGORITHMS = ["RS256"]
 

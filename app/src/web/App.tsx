@@ -652,7 +652,7 @@ export function App() {
   // Otherwise, return the app with the full Auth0 provider for production/staging
   return (
     <Auth0Provider
-      domain="dev-mzdd3k678tj1ja86.us.auth0.com"
+      domain="auth.observer-ai.com"
       clientId="R5iv3RVkWjGZrexFSJ6HqlhSaaGLyFpm"
       authorizationParams={{ 
         redirect_uri: window.location.origin, 
