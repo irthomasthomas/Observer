@@ -6,7 +6,13 @@ import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import type { TokenProvider } from '@utils/main_loop';
 
-type QuotaInfo = { used: number; remaining: number, limit: number } | null;
+// Updated QuotaInfo type to handle the new API response structure
+type QuotaInfo = {
+  used: number;
+  remaining: number | 'unlimited';
+  limit: number | 'unlimited';
+  pro_status: boolean;
+} | null;
 
 interface AuthState {
   isLoading: boolean;
@@ -53,6 +59,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const isAuthenticated = authState?.isAuthenticated ?? false;
   const user = authState?.user;
+  
+  // Derived state to easily check for pro status
+  const isProUser = quotaInfo?.pro_status === true;
 
   const handleLogout = () => {
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
@@ -81,7 +90,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         if (data && typeof data.remaining === 'number') {
           localStorage.setItem('observer-quota-remaining', data.remaining.toString());
         } else {
-          // If user is Pro (data is null) or data is invalid, remove the key
+          // If user is Pro (data.remaining is 'unlimited') or data is invalid, remove the key
           localStorage.removeItem('observer-quota-remaining');
         }
       } else if (response.status === 401) {
@@ -240,7 +249,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-
+  // Updated rendering logic for quota status
   const renderQuotaStatus = () => {
     if (isSessionExpired) {
       return (
@@ -259,25 +268,27 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       return <span className="text-gray-500">Loading...</span>;
     }
 
-    // Pro User: quotaInfo is null, not loading, and session is not expired
-    if (quotaInfo === null) {
-      return <span className="font-semibold text-purple-600">Unlimited Access ✨</span>;
-    }
-    
-    // Standard User with quota
-    if (quotaInfo && typeof quotaInfo.remaining === 'number') {
-      return (
-        <span className={`font-medium ${
-          quotaInfo.remaining <= 0 ? 'text-red-500'
-          : quotaInfo.remaining <= 10 ? 'text-orange-500'
-          : 'text-green-600'
-        }`}>
-          {`${quotaInfo.remaining} / ${quotaInfo.limit} credits left`}
-        </span>
-      );
+    if (quotaInfo) {
+      // If user is pro, show Unlimited Access
+      if (quotaInfo.pro_status) {
+        return <span className="font-semibold text-green-600">Unlimited Access</span>;
+      }
+      
+      // Standard User with numeric quota
+      if (typeof quotaInfo.remaining === 'number') {
+        return (
+          <span className={`font-medium ${
+            quotaInfo.remaining <= 0 ? 'text-red-500'
+            : quotaInfo.remaining <= 10 ? 'text-orange-500'
+            : 'text-green-600'
+          }`}>
+            {`${quotaInfo.remaining} / ${quotaInfo.limit} credits left`}
+          </span>
+        );
+      }
     }
 
-    // Fallback
+    // Fallback for when quotaInfo is null or in an unexpected state
     return <span className="text-gray-500">Quota N/A</span>;
   };
 
@@ -321,7 +332,15 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 onClick={() => setIsPermissionsModalOpen(true)}
                 title="Initialize screen capture"
               />
-              <h1 className="text-xl font-semibold hidden md:block">Observer</h1>
+              {/* Updated Logo with conditional "pro" badge */}
+              <div className="relative hidden md:block">
+                <h1 className="text-xl font-semibold">Observer</h1>
+                {isProUser && (
+                  <span className="absolute top-0.5 -right-5 text-xs font-semibold text-black">
+                    pro
+                  </span>
+                )}
+              </div>
             </div> 
 
             {/* Right side */}
