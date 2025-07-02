@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Terminal, Server } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { 
   listAgents, 
   getAgentCode,
@@ -32,6 +33,9 @@ import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
 import ConversationalGeneratorModal from '@components/ConversationalGeneratorModal';
 import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
+import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
+
+
 
 function AppContent() {
   // Check our environment variable to see if Auth0 should be disabled
@@ -642,16 +646,21 @@ function AppContent() {
 }
 
 export function App() {
-  // Check our environment variable again
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
-  // If auth is disabled, just render the main content without the Auth0 wrapper
   if (isAuthDisabled) {
     console.log("Auth0 is disabled for local development.");
-    return <AppContent />;
+    // Even in dev mode, we need the router for consistency
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/*" element={<AppContent />} />
+        </Routes>
+      </BrowserRouter>
+    );
   }
   
-  // Otherwise, return the app with the full Auth0 provider for production/staging
+  // This is the main production logic
   return (
     <Auth0Provider
       domain="auth.observer-ai.com"
@@ -671,7 +680,24 @@ export function App() {
         );
       }}
     >
-      <AppContent />
+      {/* The Router now lives inside the Auth0Provider */}
+      {/* This ensures all pages can use the useAuth0() hook */}
+      <BrowserRouter>
+        <Routes>
+          {/* Route 1: The special page for after payment */}
+          <Route 
+            path="/upgrade-success" 
+            element={<UpgradeSuccessPage />} 
+          />
+
+          {/* Route 2: The catch-all for your main application */}
+          {/* The "/*" means "match any other URL" */}
+          <Route 
+            path="/*" 
+            element={<AppContent />} 
+          />
+        </Routes>
+      </BrowserRouter>
     </Auth0Provider>
   );
 }
