@@ -48,7 +48,7 @@ async def check_quota_endpoint(current_user: AuthUser):
 
 
 @compute_router.post("/v1/chat/completions", summary="Process chat completion requests")
-async def handle_chat_completions_endpoint(request: Request, user_id: AuthUser):
+async def handle_chat_completions_endpoint(request: Request, current_user: AuthUser):
     """
     Processes a chat completion request. Requires a valid JWT.
     Each call will consume one daily CHAT credit.
