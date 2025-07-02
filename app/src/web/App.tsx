@@ -672,6 +672,7 @@ export function App() {
       }}
       cacheLocation="localstorage"
       useRefreshTokens={true}
+      useRefreshTokensFallback={true}
       onRedirectCallback={(appState) => {
         window.history.replaceState(
           {},
