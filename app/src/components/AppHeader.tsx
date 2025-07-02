@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, LogOut, ExternalLink, RefreshCw } from 'lucide-react'; 
+import { Menu, LogOut, ExternalLink, RefreshCw } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
-import type { TokenProvider } from '@utils/main_loop'
+import type { TokenProvider } from '@utils/main_loop';
+
+type QuotaInfo = { used: number; remaining: number, limit: number } | null;
 
 interface AuthState {
   isLoading: boolean;
@@ -39,56 +41,65 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [serverAddress, setServerAddress] = useState('localhost:3838');
   const [pulseMenu, setPulseMenu] = useState(false);
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
-  const [quotaInfo, setQuotaInfo] = useState<{ used: number; remaining: number, limit: number } | null>(null);
+  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [showLoginMessage, setShowLoginMessage] = useState(false);
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
 
-  
-  const isUsingObServer = externalIsUsingObServer !== undefined 
-    ? externalIsUsingObServer 
+  const isUsingObServer = externalIsUsingObServer !== undefined
+    ? externalIsUsingObServer
     : internalIsUsingObServer;
 
-  // Simplified Auth State: We now ONLY trust the authState prop from the Auth0 SDK.
   const isAuthenticated = authState?.isAuthenticated ?? false;
   const user = authState?.user;
-      
+
   const handleLogout = () => {
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
   };
-  
+
   const fetchQuotaInfo = async () => {
-    // These checks remain the same.
     if (!isUsingObServer || !isAuthenticated || serverStatus !== 'online') {
-        setQuotaInfo(null);
-        return;
+      setQuotaInfo(null);
+      setIsSessionExpired(false);
+      return;
     }
 
     try {
       setIsLoadingQuota(true);
-      // This is the key part. It uses the `getToken` function passed down in props,
-      // which is connected to the reliable useAuth0 hook in AppContent.
-      const token = await getToken(); 
-      
-      if (!token) {
-        // If there's no token, we can't proceed.
-        throw new Error("Authentication token not available.");
-      }
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token not available.");
 
       const headers = { 'Authorization': `Bearer ${token}` };
       const response = await fetch('https://api.observer-ai.com/quota', { headers });
 
       if (response.ok) {
-        const data = await response.json();
+        const data: QuotaInfo = await response.json();
         setQuotaInfo(data);
+        setIsSessionExpired(false);
+        // Authoritative Write to localStorage
+        if (data && typeof data.remaining === 'number') {
+          localStorage.setItem('observer-quota-remaining', data.remaining.toString());
+        } else {
+          // If user is Pro (data is null) or data is invalid, remove the key
+          localStorage.removeItem('observer-quota-remaining');
+        }
+      } else if (response.status === 401) {
+        Logger.warn('AUTH', 'Session expired. Quota check failed with 401.');
+        setQuotaInfo(null);
+        setIsSessionExpired(true);
+        localStorage.removeItem('observer-quota-remaining');
       } else {
         Logger.error('QUOTA', `Failed to fetch quota, status: ${response.status}`);
         setQuotaInfo(null);
+        setIsSessionExpired(false);
+        localStorage.removeItem('observer-quota-remaining');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       Logger.error('QUOTA', `Error fetching quota info: ${errorMessage}`, err);
       setQuotaInfo(null);
+      setIsSessionExpired(false);
     } finally {
       setIsLoadingQuota(false);
     }
@@ -96,13 +107,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleToggleObServer = () => {
     const newValue = !isUsingObServer;
-    
-    // If user tries to enable Ob-Server without being logged in, show a message and stop.
+
     if (newValue && !isAuthenticated) {
       Logger.warn('AUTH', 'User attempted to enable Ob-Server while not authenticated.');
       setShowLoginMessage(true);
-      setTimeout(() => setShowLoginMessage(false), 3000); // Hide message after 3 seconds
-      return; // Prevent the toggle from actually changing state
+      setTimeout(() => setShowLoginMessage(false), 3000);
+      return;
     }
 
     if (externalSetIsUsingObServer) {
@@ -110,7 +120,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     } else {
       setInternalIsUsingObServer(newValue);
     }
-    
+
     if (newValue) {
       setServerAddress('api.observer-ai.com');
       setOllamaServerAddress('api.observer-ai.com', '443');
@@ -122,6 +132,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       Logger.info('SERVER', 'Switched to custom server mode');
       setServerStatus('unchecked');
       setQuotaInfo(null);
+      setIsSessionExpired(false);
     }
   };
 
@@ -192,6 +203,21 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   };
 
   useEffect(() => {
+    const handleQuotaUpdate = () => {
+      const storedQuota = localStorage.getItem('observer-quota-remaining');
+      if (storedQuota) {
+        setQuotaInfo(prev => prev ? { ...prev, remaining: parseInt(storedQuota, 10) } : null);
+      }
+    };
+
+    window.addEventListener('quotaUpdated', handleQuotaUpdate);
+    return () => {
+      window.removeEventListener('quotaUpdated', handleQuotaUpdate);
+    };
+  }, []);
+
+
+  useEffect(() => {
     if (isUsingObServer && isAuthenticated && serverStatus === 'online') {
       fetchQuotaInfo();
     }
@@ -213,6 +239,47 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }, 10000);
     return () => clearTimeout(timer);
   }, []);
+
+
+  const renderQuotaStatus = () => {
+    if (isSessionExpired) {
+      return (
+        <button
+          type="button"
+          onClick={() => authState?.loginWithRedirect()}
+          className="text-red-500 font-semibold hover:underline cursor-pointer"
+          title="Your session has expired. Click to log in again."
+        >
+          Session Expired
+        </button>
+      );
+    }
+
+    if (isLoadingQuota) {
+      return <span className="text-gray-500">Loading...</span>;
+    }
+
+    // Pro User: quotaInfo is null, not loading, and session is not expired
+    if (quotaInfo === null) {
+      return <span className="font-semibold text-purple-600">Unlimited Access ✨</span>;
+    }
+    
+    // Standard User with quota
+    if (quotaInfo && typeof quotaInfo.remaining === 'number') {
+      return (
+        <span className={`font-medium ${
+          quotaInfo.remaining <= 0 ? 'text-red-500'
+          : quotaInfo.remaining <= 10 ? 'text-orange-500'
+          : 'text-green-600'
+        }`}>
+          {`${quotaInfo.remaining} / ${quotaInfo.limit} credits left`}
+        </span>
+      );
+    }
+
+    // Fallback
+    return <span className="text-gray-500">Quota N/A</span>;
+  };
 
   return (
     <>
@@ -266,7 +333,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     <span className="text-sm text-gray-600 hidden md:inline">Ob-Server</span>
                     <button 
                       className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
-                        isUsingObServer ? 'bg-blue-500' : 'bg-gray-200'
+                        isUsingObServer ? 'bg-blue-500' : 'bg-slate-700'
                       }`}
                       onClick={handleToggleObServer}
                       aria-label={isUsingObServer ? "Disable Ob-Server" : "Enable Ob-Server"}
@@ -279,24 +346,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     </button>
                   </div>
                   {showLoginMessage ? (
-                     <span className="text-xs text-red-500 font-semibold mt-1">
+                    <span className="text-xs text-red-500 font-semibold mt-1">
                       Login Required
                     </span>
-                  ) : isUsingObServer && isAuthenticated && serverStatus === 'online' && (
+                  ) : isUsingObServer ? (
+                    isAuthenticated && serverStatus === 'online' && (
+                      <div className="text-xs text-center mt-1 h-4"> {/* h-4 to prevent layout shift */}
+                        {renderQuotaStatus()}
+                      </div>
+                    )
+                  ) : (
                     <div className="text-xs text-center mt-1">
-                      {isLoadingQuota ? (
-                        <span className="text-gray-500">Loading...</span>
-                      ) : quotaInfo ? (
-                        <span className={`font-medium ${
-                          quotaInfo.remaining === 0 ? 'text-red-500' 
-                          : quotaInfo.remaining <= 10 ? 'text-orange-500' 
-                          : 'text-green-600'
-                        }`}>
-                          {`${quotaInfo.remaining} / ${quotaInfo.limit} credits left`}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">Quota N/A</span>
-                      )}
+                      <span className="font-semibold text-slate-700">
+                        Local Inference
+                      </span>
                     </div>
                   )}
                 </div>

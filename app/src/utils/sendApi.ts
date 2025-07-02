@@ -2,6 +2,30 @@
 import { PreProcessorResult } from './pre-processor';
 
 /**
+ * Decrements the quota counter stored in localStorage and dispatches an event.
+ * This is an optimistic update for the UI.
+ */
+const optimisticUpdateQuota = () => {
+  try {
+    const key = 'observer-quota-remaining';
+    const currentQuotaStr = localStorage.getItem(key);
+
+    // Only update if there's an existing number value
+    if (currentQuotaStr !== null) {
+      const currentQuota = parseInt(currentQuotaStr, 10);
+      if (!isNaN(currentQuota)) {
+        localStorage.setItem(key, (currentQuota - 1).toString());
+        // Dispatch a custom event that the AppHeader can listen to
+        window.dispatchEvent(new CustomEvent('quotaUpdated'));
+      }
+    }
+  } catch (error) {
+    console.error('Failed to optimistically update quota:', error);
+  }
+};
+
+
+/**
  * Send a prompt to the API server using OpenAI-compatible v1 chat completions endpoint
  * @param host API server host
  * @param port API server port
@@ -27,6 +51,8 @@ export async function sendPrompt(
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
+      // Trigger the optimistic UI update
+      optimisticUpdateQuota();
     }
 
     let content: any = preprocessResult.modifiedPrompt;
