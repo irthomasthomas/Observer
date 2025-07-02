@@ -12,6 +12,7 @@ from pathlib import Path
 from marketplace import marketplace_router
 from compute import compute_router
 from tools_router import tools_router
+from payments import payments_router
 
 # Setup logging
 logging.basicConfig(
@@ -39,6 +40,12 @@ app.include_router(marketplace_router)
 app.include_router(compute_router)
 # Mount twilio router
 app.include_router(tools_router)
+# Payments router
+app.include_router(
+    payments_router,
+    prefix="/payments",
+    tags=["Payments"]
+)
 
 # Root path to check if service is running
 @app.get("/")
