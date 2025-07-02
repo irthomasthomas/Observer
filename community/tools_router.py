@@ -75,14 +75,14 @@ async def get_all_usage(is_admin: bool = Depends(get_admin_access)):
 @tools_router.post("/tools/send-sms", tags=["Tools"])
 async def send_sms(
     request_data: SmsRequest,
-    user_id: AuthUser,
+    current_user: AuthUser,
     config: TwilioConfig = Depends(get_twilio_config)
 ):
     """Sends an SMS, checking against the in-memory quota."""
     # 1. Quota Check (using the "sms" service)
     # TODO: In the future, check for a premium claim from the JWT here to bypass this.
     sms_limit = QUOTA_LIMITS["sms"]
-    current_sms_usage = get_usage_for_service(user_id, "sms")
+    current_sms_usage = get_usage_for_service(current_user.id, "sms")
     if current_sms_usage >= sms_limit:
         raise HTTPException(
             status_code=429,
@@ -90,8 +90,8 @@ async def send_sms(
         )
 
     # 2. If quota is fine, increment and proceed
-    increment_usage(user_id, "sms")
-    logger.info(f"Processing SMS for user_id: {user_id} to {request_data.to_number}")
+    increment_usage(current_user.id, "sms")
+    logger.info(f"Processing SMS for user_id: {current_user.id} to {request_data.to_number}")
 
     # 3. Action: Send the SMS
     try:
@@ -111,13 +111,13 @@ async def send_sms(
 @tools_router.post("/tools/send-whatsapp", tags=["Tools"])
 async def send_whatsapp(
     request_data: WhatsAppRequest,
-    user_id: AuthUser,
+    current_user: AuthUser,
     config: TwilioConfig = Depends(get_twilio_config)
 ):
     """Sends a WhatsApp message, sharing the 'sms' quota."""
     # 1. Quota Check (Shares the "sms" service quota)
     sms_limit = QUOTA_LIMITS["sms"]
-    current_sms_usage = get_usage_for_service(user_id, "sms")
+    current_sms_usage = get_usage_for_service(current_user.id, "sms")
     if current_sms_usage >= sms_limit:
         raise HTTPException(
             status_code=429,
@@ -125,8 +125,8 @@ async def send_whatsapp(
         )
 
     # 2. Increment and proceed (increments the shared 'sms' counter)
-    increment_usage(user_id, "sms")
-    logger.info(f"Processing WhatsApp for user_id: {user_id} to {request_data.to_number}")
+    increment_usage(current_user.id, "sms")
+    logger.info(f"Processing WhatsApp for user_id: {current_user.id} to {request_data.to_number}")
     
     # 3. Action: Send the WhatsApp message
     content_sid = os.getenv("TWILIO_WHATSAPP_TEMPLATE_SID")
@@ -150,12 +150,12 @@ async def send_whatsapp(
 @tools_router.post("/tools/send-email", tags=["Tools"])
 async def send_email(
     request_data: EmailRequest,
-    user_id: AuthUser
+    current_user: AuthUser
 ):
     """Sends an email, checking against the in-memory email quota."""
     # 1. Quota Check (using the "email" service)
     email_limit = QUOTA_LIMITS["email"]
-    current_email_usage = get_usage_for_service(user_id, "email")
+    current_email_usage = get_usage_for_service(current_user.id, "email")
     if current_email_usage >= email_limit:
         raise HTTPException(
             status_code=429,
@@ -163,8 +163,8 @@ async def send_email(
         )
 
     # 2. Increment and proceed
-    increment_usage(user_id, "email")
-    logger.info(f"Processing email for user_id: {user_id} to {request_data.to_email}")
+    increment_usage(current_user.id, "email")
+    logger.info(f"Processing email for user_id: {current_user.id} to {request_data.to_email}")
     
     # 3. Action: Send the Email
     sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
@@ -184,8 +184,8 @@ async def send_email(
     try:
         sendgrid_client = SendGridAPIClient(sendgrid_api_key)
         response = sendgrid_client.send(message)
-        logger.info(f"Email successfully sent to SendGrid for user {user_id}. Status: {response.status_code}")
+        logger.info(f"Email successfully sent to SendGrid for user {current_user.id}. Status: {response.status_code}")
         return {"success": True, "detail": "Email sent successfully."}
     except Exception as e:
-        logger.exception(f"An unexpected error occurred while sending email via SendGrid for user {user_id}")
+        logger.exception(f"An unexpected error occurred while sending email via SendGrid for user {current_user.id}")
         raise HTTPException(status_code=500, detail=f"An internal server error occurred: {str(e)}")
