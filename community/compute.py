@@ -30,17 +30,21 @@ compute_router = APIRouter()
 # --- API Routes ---
 
 @compute_router.get("/quota", summary="Check remaining API credits for the authenticated user")
-async def check_quota_endpoint(user_id: AuthUser):
+async def check_quota_endpoint(current_user: AuthUser): 
     """
     Returns the daily CHAT credit usage for the authenticated user.
-    Requires a valid JWT.
+    Requires a valid JWT. Pro users will show unlimited credits.
     """
+    # Check if the user is a pro member
+    if current_user.is_pro:
+        return JSONResponse(content={"used": 0, "remaining": "unlimited", "limit": "unlimited", "pro_status": True})
+
     # Use the new specific function for the 'chat' service
-    used = get_usage_for_service(user_id, "chat")
+    used = get_usage_for_service(current_user.id, "chat") # <-- Use current_user.id
     limit = QUOTA_LIMITS["chat"]
     remaining = max(0, limit - used)
     
-    return JSONResponse(content={"used": used, "remaining": remaining, "limit": limit})
+    return JSONResponse(content={"used": used, "remaining": remaining, "limit": limit, "pro_status": False})
 
 
 @compute_router.post("/v1/chat/completions", summary="Process chat completion requests")
@@ -52,21 +56,28 @@ async def handle_chat_completions_endpoint(request: Request, user_id: AuthUser):
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend LLM handlers are not available.")
 
-    # 1. Get current usage for the 'chat' service
-    chat_limit = QUOTA_LIMITS["chat"]
-    current_usage = get_usage_for_service(user_id, "chat")
-    
-    # 2. Enforce the limit.
-    if current_usage >= chat_limit:
-        logger.warning(f"Chat credit limit exceeded for user: {user_id} (Limit: {chat_limit})")
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"You have used all your {chat_limit} daily chat credits. Please try again tomorrow or upgrade for unlimited access."
-        )
-
-    # 3. If within limit, increment the 'chat' usage.
-    usage_count = increment_usage(user_id, "chat")
-    logger.info(f"Processing chat request for user: {user_id} (Daily chat request #{usage_count})")
+    # --- NEW: Quota Bypass Logic ---
+    # 1. Check if user is NOT pro. If they are, we skip all this.
+    if not current_user.is_pro:
+        # Get current usage for the 'chat' service
+        chat_limit = QUOTA_LIMITS["chat"]
+        current_usage = get_usage_for_service(current_user.id, "chat") 
+        
+        # Enforce the limit.
+        if current_usage >= chat_limit:
+            logger.warning(f"Chat credit limit exceeded for user: {current_user.id} (Limit: {chat_limit})")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"You have used all your {chat_limit} daily chat credits. Please try again tomorrow or upgrade for unlimited access."
+            )
+        
+        # If within limit, increment the 'chat' usage.
+        usage_count = increment_usage(current_user.id, "chat") # <-- Use current_user.id
+        logger.info(f"Processing chat request for free user: {current_user.id} (Daily chat request #{usage_count})")
+    else:
+        # Log for pro user
+        logger.info(f"Processing chat request for PRO user: {current_user.id} (quota bypassed)")
+    # --- END of Quota Logic ---
 
     # 4. Parse Request Data
     try:
