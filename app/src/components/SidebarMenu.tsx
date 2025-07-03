@@ -1,6 +1,6 @@
 // src/components/SidebarMenu.tsx
 import React from 'react';
-import { X, Home, Users, Database, Settings, Video } from 'lucide-react';
+import { X, Home, Users, Database, Settings, Video, Server } from 'lucide-react';
 import { Logger } from '@utils/logging';
 
 interface SidebarMenuProps {
@@ -101,6 +101,20 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
               >
                 <Database className="h-5 w-5" />
                 <span>Models</span>
+              </button>
+            </li>
+
+            <li>
+              <button
+                onClick={() => handleTabClick('obServer')}
+                className={`w-full flex items-center space-x-3 px-4 py-2 rounded-md ${
+                  activeTab === 'obServer' 
+                    ? 'bg-purple-100 text-purple-700' 
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <Server className="h-5 w-5" />
+                <span>Ob-Server</span>
               </button>
             </li>
 

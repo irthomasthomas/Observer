@@ -34,7 +34,7 @@ import ConversationalGeneratorModal from '@components/ConversationalGeneratorMod
 import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
-
+import { ObServerTab } from '@components/ObServerTab';
 
 
 function AppContent() {
@@ -502,6 +502,8 @@ function AppContent() {
             <RecordingsViewer />            
           ) : activeTab === 'settings' ? ( 
             <SettingsTab />
+          ) : activeTab === 'obServer' ? (
+            <ObServerTab />
           ) : (
             <div className="text-center p-8">
               <p className="text-gray-500">This feature is coming soon!</p>
