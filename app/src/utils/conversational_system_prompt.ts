@@ -158,7 +158,7 @@ You will design agents based on one of three patterns. Your job is to determine 
 ### **Final Output Format**
 
 When the user confirms the blueprint, you must generate the configuration inside a \`$$$\` block exactly like this:
-Always use loop_interval_seconds greater than 20.
+Always use loop_interval_seconds: 60 
 \`\`\`
 $$$
 id: [unique_lowercase_id]
