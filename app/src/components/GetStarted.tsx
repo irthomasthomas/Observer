@@ -10,6 +10,7 @@ interface GetStartedProps {
   onCreateNewAgent: () => void;
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
   getToken: TokenProvider;
+  isAuthDisabled: boolean;
 }
 
 const GetStarted: React.FC<GetStartedProps> = ({
@@ -17,6 +18,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
   onCreateNewAgent,
   onAgentGenerated,
   getToken,
+  isAuthDisabled
 }) => {
   return (
     <div className="w-full max-w-5xl mx-auto py-8 px-4">
@@ -35,6 +37,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
           <ConversationalGenerator 
           onAgentGenerated={onAgentGenerated} 
           getToken={getToken}
+          isAuthDisabled={isAuthDisabled}
           />
 
         </div>

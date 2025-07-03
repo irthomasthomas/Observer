@@ -1,26 +1,71 @@
 // src/components/ConversationalGenerator.tsx
+
 import React, { useState, useRef } from 'react';
-import { Send, Loader2, Save } from 'lucide-react';
+import { Send, Loader2, Save, Clipboard } from 'lucide-react'; // Added Clipboard
 import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse } from '@utils/agentParser';
-import getConversationalSystemPrompt from '@utils/conversational_system_prompt'; // Assuming you create this
+import getConversationalSystemPrompt from '@utils/conversational_system_prompt';
 import type { TokenProvider } from '@utils/main_loop';
-
 
 // Define the shape of a message
 interface Message {
   id: number;
   text: string;
-  sender: 'user' | 'ai' | 'system'; // 'system' for buttons or special messages
+  sender: 'user' | 'ai' | 'system';
 }
 
 interface ConversationalGeneratorProps {
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
   getToken: TokenProvider;
+  isAuthDisabled: boolean; 
 }
 
-const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAgentGenerated, getToken }) => {
+const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ 
+  onAgentGenerated, 
+  getToken, 
+  isAuthDisabled 
+}) => {
+  // We only need this state for the local/disabled mode
+  const [copyButtonText, setCopyButtonText] = useState('Copy System Prompt');
+
+  if (isAuthDisabled) {
+    const handleCopyPrompt = async () => {
+      const promptText = getConversationalSystemPrompt();
+      try {
+        await navigator.clipboard.writeText(promptText);
+        setCopyButtonText('Copied to Clipboard!');
+        setTimeout(() => setCopyButtonText('Copy System Prompt'), 2000); // Reset after 2 seconds
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+        setCopyButtonText('Copy Failed!');
+        setTimeout(() => setCopyButtonText('Copy System Prompt'), 2000);
+      }
+    };
+    
+    // Render a special view for local users
+    return (
+      <div className="flex flex-col h-[450px] bg-white rounded-b-xl border-x border-b border-indigo-200 shadow-md p-6 justify-center items-center text-center">
+        <div className="max-w-md">
+          <h4 className="text-lg font-semibold text-gray-800 mb-2">Manual Agent Generation</h4>
+          <p className="text-sm text-gray-600 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+            This AI builder uses a powerful cloud model. For local setups, we recommend copying the system prompt and using a large model (like Llama3:70b or via a web UI like ChatGPT/Claude/Gemini) to generate the agent configuration.
+          </p>
+          <button
+            onClick={handleCopyPrompt}
+            className="w-full px-4 py-2 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded-lg hover:from-indigo-600 hover:to-blue-600 font-medium transition-all flex items-center justify-center shadow-sm"
+          >
+            <Clipboard className="h-4 w-4 mr-2" />
+            {copyButtonText}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- ORIGINAL COMPONENT LOGIC FOR PRODUCTION/AUTHENTICATED MODE ---
+  // This part only runs if isAuthDisabled is false.
+
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, sender: 'ai', text: "Hi there! I'm Observer's agent builder. What would you like to create today?" }
   ]);
@@ -38,32 +83,28 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAge
     setUserInput('');
     setIsLoading(true);
 
-    // Prepare history for the AI
     const conversationHistory = updatedMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
     const fullPrompt = `${getConversationalSystemPrompt()}\n${conversationHistory}\nai:`;
 
     try {
       const token = await getToken();
-
       const responseText = await sendPrompt(
           'api.observer-ai.com', 
           '443', 
           'gemini-2.5-flash-preview-04-17', 
           { modifiedPrompt: fullPrompt, images: [] },
-          token // Pass the token here
+          token
       );
 
       const agentConfig = extractAgentConfig(responseText);
       
       if (agentConfig) {
-        // Agent is complete, show the save button
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
           sender: 'system',
           text: agentConfig
         }]);
       } else {
-        // Continue conversation
         setMessages(prev => [...prev, { 
           id: Date.now() + 1, 
           sender: 'ai', 

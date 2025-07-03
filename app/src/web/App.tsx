@@ -40,6 +40,7 @@ import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
 function AppContent() {
   // Check our environment variable to see if Auth0 should be disabled
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+  Logger.info('isAuthDisabled', `is it? lets see ${isAuthDisabled}`);
 
   // If Auth0 is disabled, create a mock auth object for local development.
   // Otherwise, use the real useAuth0 hook.
@@ -489,6 +490,7 @@ function AppContent() {
                   onCreateNewAgent={handleAddAgentClick}
                   onAgentGenerated={handleAgentGenerated}
                   getToken={getToken}
+                  isAuthDisabled={isAuthDisabled}
                 />
               }
             </div>
@@ -517,6 +519,7 @@ function AppContent() {
         onClose={() => setIsConversationalModalOpen(false)}
         onAgentGenerated={handleAgentGenerated}
         getToken={getToken}
+        isAuthDisabled={isAuthDisabled}
       />
 
       {isEditModalOpen && (
@@ -649,7 +652,7 @@ export function App() {
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
   if (isAuthDisabled) {
-    console.log("Auth0 is disabled for local development.");
+    Logger.info('isAuthDisabled',"Auth0 is disabled for local development.");
     // Even in dev mode, we need the router for consistency
     return (
       <BrowserRouter>

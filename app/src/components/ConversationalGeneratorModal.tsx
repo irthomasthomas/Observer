@@ -10,6 +10,7 @@ interface ConversationalGeneratorModalProps {
   onClose: () => void;
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
   getToken: TokenProvider;
+  isAuthDisabled: boolean;
 }
 
 const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> = ({
@@ -17,6 +18,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   onClose,
   onAgentGenerated,
   getToken,
+  isAuthDisabled
 }) => {
   if (!isOpen) return null;
 
@@ -50,6 +52,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
           <ConversationalGenerator 
           onAgentGenerated={handleAgentReady}
           getToken={getToken}
+          isAuthDisabled={isAuthDisabled}
           />
         </div>
       </div>
