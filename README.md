@@ -118,9 +118,9 @@ https://github.com/user-attachments/assets/1d19c572-359a-4eff-b6b6-f1e3efab9d86
 
 There are a couple of ways to get Observer up and running with local inference. We recommend using Docker for the simplest setup.
 
-### Option 1: Docker Setup (Recommended & Easiest)
+### Option 1: Full Docker Setup and Webapp (Recommended & Easiest)
 
-This method uses Docker Compose to run Observer and a local Ollama instance together in containers.
+This method uses Docker Compose to run Observer-Ollama and a local Ollama instance together in containers. This process makes all processing happen 100% in your computer.
 
 **Prerequisites:**
 *   [Docker](https://docs.docker.com/get-docker/) installed.
@@ -136,7 +136,7 @@ This method uses Docker Compose to run Observer and a local Ollama instance toge
     ```
     
 3.  **Access Observer:**
-    *   **Web UI:** Open your browser to `http://localhost:8080`
+    *   **WebApp:** Open your browser to `http://app.observer-ai.com`
     *   **Accept Local Certificates** Open up `https://localhost:3838` and your browser will show a warning about an "unsafe" or "untrusted" connection. This is because the proxy uses a self-signed SSL certificate for local HTTPS. You'll need to click "Advanced" and "Proceed to localhost (unsafe)" (or similar wording) to accept it. These certificates are signed by your computer! and this step is needed to make the browser happy and let it "see" the ollama server.
 
 4.  **Pull Ollama Models:**
@@ -145,13 +145,20 @@ This method uses Docker Compose to run Observer and a local Ollama instance toge
     docker-compose exec ollama_service ollama pull llama3 # Or any other model
     ```
     OR by **Using the Web App:**
-    *   Go to the Web UI (`http://localhost:8080`).
+    *   Go to the Web UI (`http://app.observer-ai.com`).
     *   In the Models tab, click on add model. This will give you the shell to your connected ollama instance, download models using ollama run. 
 
 **To Stop Observer (Docker Setup):**
 ```bash
 docker-compose down
 ```
+### Option 2: Full Docker Offline Setup 
+
+This method is the same as the Full docker setup, but accessing `https://localhost:8080` for the webapp instead of `http://app.observer-ai.com` for serving. 
+
+This works as a 100% offline alternative, but because of the offline "unsecure" environment (it is secure it just isn't https), Auth0 will complain; so the sendSms, sendWhatsapp and sendEmail tools won't work. 
+
+I recommend going with Option 1 (it is 100% local) to have all of the Auth0 features. But i still wanted to give the option to self-host the webpage. 
 
 ## Deploy & Share
 
