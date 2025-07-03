@@ -1,17 +1,15 @@
+// src/utils/recordingManager.ts
 import { StreamManager } from './streamManager';
-// FIX: Imported 'ClipMarker' type (PascalCase) instead of 'clipMarker' value.
 import { saveRecordingToDb, ClipMarker } from './recordingsDB';
 import { Logger } from './logging';
 
 type RecordableStreamType = 'screen' | 'camera';
 type RecordingState = 'IDLE' | 'BUFFERING' | 'RECORDING';
 
-// FIX: Renamed class from 'Manager' to 'RecordingManager' as requested.
 class RecordingManager {
   private state: RecordingState = 'IDLE';
   private recorders = new Map<RecordableStreamType, MediaRecorder>();
   private chunks = new Map<RecordableStreamType, Blob[]>();
-  // FIX: This now correctly references the imported 'ClipMarker' type.
   private pendingMarkers: ClipMarker[] = [];
 
 
@@ -49,7 +47,6 @@ class RecordingManager {
     if (this.state === 'IDLE') {
       Logger.warn("RecordingManager", `markClip called while IDLE. Marker will be stored and attached to the next recording session.`);
     }
-    // FIX: This now correctly references the imported 'ClipMarker' type.
     const marker: ClipMarker = {
       label,
       timestamp: Date.now(),
@@ -91,29 +88,23 @@ class RecordingManager {
   
     const saveJobs: Promise<void>[] = [];
   
-    // The original ondataavailable listener is already populating the chunks.
-    // We just need to stop the recorders and wait for them to finish.
     this.recorders.forEach((recorder, type) => {
       const chunks = this.chunks.get(type) ?? [];
       Logger.debug("RecordingManager",
         `Preparing to stop '${type}' recorder. Current chunks: ${chunks.length}, state: ${recorder.state}`);
   
       const job = new Promise<void>((resolve) => {
-        // This is the function that will perform the save operation.
         const finalizeAndSave = async () => {
-          // It's possible the recorder was already stopped and had no data.
           if (recorder.state === 'inactive' && chunks.length === 0) {
             Logger.warn("RecordingManager", `'${type}' recorder was already inactive with no data. Nothing to save.`);
             resolve();
             return;
           }
 
-          // The 'stop' event fires *after* the final 'dataavailable' event.
-          // By this point, our original listener has already pushed the last chunk.
           const blob = new Blob(chunks, { type: recorder.mimeType });
           const filename = `${type}-clip-${Date.now()}`;
           Logger.info("RecordingManager",
-            `'${type}' stopped. Saving ${chunks.length} chunks (${blob.size} bytes) as '${filename}'.`);
+            `'${type}' stopped. Saving ${chunks.length} chunks (${blob.size} bytes) as '${filename}' with mimeType: '${recorder.mimeType}'.`);
   
           try {
             await saveRecordingToDb(blob, this.pendingMarkers); 
@@ -124,13 +115,9 @@ class RecordingManager {
           resolve();
         };
 
-        // If the recorder is already inactive, just save what we have.
-        // This fixes the bug where nothing happens.
         if (recorder.state === 'inactive') {
           finalizeAndSave();
         } else {
-          // If it's still recording, set up a listener for the 'stop' event,
-          // then trigger it.
           recorder.addEventListener('stop', finalizeAndSave, { once: true });
           recorder.stop();
         }
@@ -139,7 +126,6 @@ class RecordingManager {
       saveJobs.push(job);
     });
   
-    // Wait for all save jobs to complete
     await Promise.all(saveJobs);
 
     if (this.pendingMarkers.length > 0) {
@@ -147,7 +133,6 @@ class RecordingManager {
         this.pendingMarkers = [];
     }
   
-    // Clean up
     this.recorders.clear();
     this.chunks.clear();
     Logger.debug("RecordingManager", "All recorders saved & cleared.");
@@ -157,7 +142,6 @@ class RecordingManager {
     if (this.recorders.size > 0) {
       this.discardAndShutdown();
     }
-
 
     const { 
       screenVideoStream, 
@@ -174,21 +158,20 @@ class RecordingManager {
     let bufferStarted = false;
 
     for (const { type, video, audio } of streamsToRecord) {
-      // If there's no video stream, there's nothing to record for this type.
       if (!video) continue;
   
-      // 3. Start with the video tracks.
       const tracks = [...video.getVideoTracks()];
-
-      // 4. If a corresponding audio stream exists, add its tracks.
       if (audio) {
         tracks.push(...audio.getAudioTracks());
       }
-
-      // 5. Create the combined stream and the recorder. The rest is the same.
       const combinedStream = new MediaStream(tracks);
       
-      const mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4' });
+      const mediaRecorder = this.createRecorderWithFallback(combinedStream, type);
+
+      if (!mediaRecorder) {
+        continue;
+      }
+      
       const chunksForType: Blob[] = [];
       this.chunks.set(type, chunksForType);
   
@@ -197,7 +180,7 @@ class RecordingManager {
       };
       
       this.recorders.set(type, mediaRecorder);
-      mediaRecorder.start(1000);
+      mediaRecorder.start(1000); // Start buffering
       bufferStarted = true;
     }
   
@@ -206,9 +189,39 @@ class RecordingManager {
       Logger.debug("RecordingManager", "New buffer started successfully. State is now BUFFERING.");
     } else {
       this.state = 'IDLE';
-      Logger.warn("RecordingManager", "startNewBuffer called, but no active streams found to record.");
+      Logger.warn("RecordingManager", "startNewBuffer called, but no active or recordable streams found.");
     }
+  }
 
+  // Helper method to find a supported MIME type and create a MediaRecorder.
+  private createRecorderWithFallback(stream: MediaStream, type: RecordableStreamType): MediaRecorder | null {
+    // List of MIME types to try, in order of preference.
+    // MP4 is often preferred for mobile compatibility.
+    // WebM with VP9/VP8 is the standard for web browsers.
+    const mimeTypesToTry = [
+        'video/mp4; codecs="avc1.42E01E, mp4a.40.2"', // H.264 video, AAC audio
+        'video/mp4',
+        'video/webm; codecs="vp9, opus"',
+        'video/webm; codecs="vp8, opus"',
+        'video/webm',
+    ];
+
+    for (const mimeType of mimeTypesToTry) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+            try {
+                const recorder = new MediaRecorder(stream, { mimeType });
+                Logger.info("RecordingManager", `Successfully created recorder for '${type}' with supported MIME type: ${mimeType}`);
+                return recorder;
+            } catch (err) {
+                Logger.warn("RecordingManager", `MIME type '${mimeType}' reported as supported, but failed to create recorder.`, err);
+                // Continue to the next type...
+            }
+        }
+    }
+    
+    // If we get here, no supported MIME type was found.
+    Logger.error("RecordingManager", `Could not create MediaRecorder for stream type '${type}'. No supported MIME types found in the preferred list.`);
+    return null; // Return null to indicate failure.
   }
 
 
@@ -228,5 +241,4 @@ class RecordingManager {
   }
 }
 
-// FIX: Instantiating the renamed 'RecordingManager' class.
 export const recordingManager = new RecordingManager();
