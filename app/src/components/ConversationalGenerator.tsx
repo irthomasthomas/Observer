@@ -91,7 +91,7 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({
       const responseText = await sendPrompt(
           'api.observer-ai.com', 
           '443', 
-          'gemini-2.5-flash-preview-04-17', 
+          'gemini-2.0-flash-lite',
           { modifiedPrompt: fullPrompt, images: [] },
           token
       );
