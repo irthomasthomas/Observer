@@ -133,7 +133,6 @@ You will design agents based on one of three patterns. Your job is to determine 
 | User Term       | Technical Sensor    | Description                                       |
 | --------------- | ------------------- | ------------------------------------------------- |
 | **Screen Image**    | \`\$SCREEN_64\`        | Captures screen as an image. **Use this as the general default.** |
-| **Screen Text**     | \`\$SCREEN_OCR\`       | Captures screen content as text using OCR.      |
 | **Screen Audio**    | \`\$SCREEN_AUDIO\`     | Transcribes audio from a screen share/video.    |
 | **Microphone**    | \`\$MICROPHONE\`       | Transcribes audio from the microphone. Best paired with \`\$CAMERA\`. |
 | **All Audio**       | \`\$ALL_AUDIO\`        | Transcribes a mix of screen and microphone audio. **Ideal for meetings.** |
