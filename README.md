@@ -118,7 +118,7 @@ https://github.com/user-attachments/assets/1d19c572-359a-4eff-b6b6-f1e3efab9d86
 
 There are a couple of ways to get Observer up and running with local inference. We recommend using Docker for the simplest setup.
 
-### Option 1: Full Docker Setup and Webapp (Recommended & Easiest)
+## Option 1: Full Docker Setup (Recommended & Easiest)
 
 This method uses Docker Compose to run Observer-Ollama and a local Ollama instance together in containers. This process makes all processing happen 100% in your computer.
 
@@ -152,13 +152,47 @@ This method uses Docker Compose to run Observer-Ollama and a local Ollama instan
 ```bash
 docker-compose down
 ```
-### Option 2: Full Docker Offline Setup 
 
-This method is the same as the Full docker setup, but accessing `https://localhost:8080` for the webapp instead of `https://app.observer-ai.com` for serving. 
+NOTE: complete offline setup
 
-This works as a 100% offline alternative, but because of the offline "unsecure" environment (it is secure it just isn't https), Auth0 will complain; so the sendSms, sendWhatsapp and sendEmail tools won't work. 
+When using the Full docker setup, the same webapp as in `app.observer-ai.com` is served on `https://localhost:8080`.
 
-I recommend going with Option 1 (it is 100% local) to have all of the Auth0 features. But i still wanted to give the option to self-host the webpage. 
+This works as a 100% offline alternative, but because of the offline "unsecure" environment (it is secure it just isn't https), Auth0 won't work; so the sendSms, sendWhatsapp and sendEmail tools won't work. 
+
+## Option 2: Standalone observer-ollama (`pip`)
+
+Use this method if you already have Ollama running on your machine and prefer not to use Docker.
+
+**Prerequisites:**
+*   [Python 3.8+](https://www.python.org/downloads/)
+*   [Ollama](https://ollama.com/) installed and running locally.
+
+**Instructions:**
+
+1.  **Install the proxy from PyPI:**
+    ```bash
+    pip install observer-ollama
+    ```
+
+2.  **Run the proxy:**
+    ```bash
+    observer-ollama
+    ```
+    The proxy will start on `https://localhost:3838`. By default, it will try to connect to Ollama at `http://localhost:11434`.
+
+3.  **Configuration (If needed):**
+    If your Ollama is running on a different host or port, use environment variables:
+    ```bash
+    # Example for a custom Ollama port
+    export OLLAMA_SERVICE_PORT=11434
+
+    # Example for Ollama running in Docker on another computer's IP
+    export OLLAMA_SERVICE_HOST=192.168.1.1
+    ```
+
+4.  **Connect and Use:**
+    *   **Accept Certificate:** Open `https://localhost:3838` and accept the security warning.
+    *   **Access the App:** Go to **[https://app.observer-ai.com](https://app.observer-ai.com)** and point it to your local proxy.
 
 ## Deploy & Share
 
