@@ -276,10 +276,19 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       
       // Standard User with numeric quota
       if (typeof quotaInfo.remaining === 'number') {
+        // Change: Display custom message when out of credits
+        if (quotaInfo.remaining <= 0) {
+          return (
+            <span className="font-medium text-red-500">
+              No credits left!
+            </span>
+          );
+        }
+
+        // Default display for users with credits remaining
         return (
           <span className={`font-medium ${
-            quotaInfo.remaining <= 0 ? 'text-red-500'
-            : quotaInfo.remaining <= 10 ? 'text-orange-500'
+            quotaInfo.remaining <= 10 ? 'text-orange-500'
             : 'text-green-600'
           }`}>
             {`${quotaInfo.remaining} / ${quotaInfo.limit} credits left`}
