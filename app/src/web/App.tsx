@@ -35,6 +35,7 @@ import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
 import { ObServerTab } from '@components/ObServerTab';
+import { UpgradeModal } from '@components/UpgradeModal';
 
 
 function AppContent() {
@@ -86,6 +87,10 @@ function AppContent() {
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
   const [isConversationalModalOpen, setIsConversationalModalOpen] = useState(false);
+
+  // --- NEW STATE FOR QUOTA ERRORS AND MODAL ---
+  const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
 
   const fetchAgents = useCallback(async () => {
@@ -179,6 +184,24 @@ function AppContent() {
         AGENT_STATUS_CHANGED_EVENT,
         handleAgentStatusChange as EventListener
       );
+    };
+  }, []);
+
+  // --- USEEFFECT FOR QUOTA EVENT LISTENER ---
+  useEffect(() => {
+    const handleQuotaExceeded = (event: CustomEvent<{ agentId: string }>) => {
+      const { agentId } = event.detail;
+      setAgentsWithQuotaError(prevSet => {
+        const newSet = new Set(prevSet);
+        newSet.add(agentId);
+        return newSet;
+      });
+    };
+
+    window.addEventListener('quotaExceeded', handleQuotaExceeded as EventListener);
+
+    return () => {
+      window.removeEventListener('quotaExceeded', handleQuotaExceeded as EventListener);
     };
   }, []);
 
@@ -410,6 +433,8 @@ function AppContent() {
         `}
       </style>
 
+        <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
+
         {showStartupDialog && (
           <StartupDialogs 
             onDismiss={handleDismissStartupDialog}
@@ -482,6 +507,8 @@ function AppContent() {
                     onShowJupyterModal={() => setIsJupyterModalOpen(true)}
                     getToken={getToken}
                     isAuthenticated={isAuthenticated}
+                    hasQuotaError={agentsWithQuotaError.has(agent.id)}
+                    onUpgradeClick={() => setIsUpgradeModalOpen(true)}
                   />
                 </div>
               )) : 

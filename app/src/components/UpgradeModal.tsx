@@ -1,22 +1,27 @@
-// src/components/ObServerTab.tsx
+// src/components/UpgradeModal.tsx
 
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { X as CloseIcon, Loader2 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { PricingTable } from './PricingTable'; // Import our new reusable component
 
-export const ObServerTab: React.FC = () => {
+interface UpgradeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
   const [status, setStatus] = useState<'loading' | 'pro' | 'free' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   
   const { getAccessTokenSilently, isAuthenticated, loginWithRedirect } = useAuth0();
 
-  // This logic stays here, as this component is responsible for fetching its own data.
+  // This logic is copied from ObServerTab - it's specific to this data-fetching context
   useEffect(() => {
-    if (!isAuthenticated) {
-      setStatus('free');
+    if (!isOpen || !isAuthenticated) {
+      if (!isAuthenticated) setStatus('free');
       return;
     }
     
@@ -27,7 +32,7 @@ export const ObServerTab: React.FC = () => {
         const response = await fetch('https://api.observer-ai.com/quota', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(`API request failed with status: ${response.status}`);
+        if (!response.ok) throw new Error(`API request failed: ${response.statusText}`);
         const data = await response.json();
         setStatus(data.pro_status ? 'pro' : 'free');
       } catch (err) {
@@ -38,9 +43,8 @@ export const ObServerTab: React.FC = () => {
     };
 
     checkProStatus();
-  }, [isAuthenticated, getAccessTokenSilently]);
+  }, [isOpen, isAuthenticated, getAccessTokenSilently]);
 
-  // This logic also stays here. The PricingTable component calls these functions via props.
   const handleApiAction = async (endpoint: 'create-checkout-session' | 'create-customer-portal-session') => {
     setIsButtonLoading(true);
     setError(null);
@@ -64,43 +68,42 @@ export const ObServerTab: React.FC = () => {
     }
   };
 
-  // --- RENDER LOGIC ---
-
-  // Handle the loading state
-  if (status === 'loading') {
-    return (
-      <div className="flex justify-center items-center p-20">
-        <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
-      </div>
-    );
-  }
-  
-  // Handle the error state
-  if (status === 'error') {
-      return (
-        <div className="max-w-3xl mx-auto p-8 bg-white rounded-lg shadow-md text-center border-l-4 border-red-500">
-            <AlertTriangle className="mx-auto h-16 w-16 text-red-500 mb-4" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Something Went Wrong</h1>
-            <p className="text-gray-600">{error || 'We could not load your subscription details. Please refresh the page.'}</p>
-        </div>
-      )
+  if (!isOpen) {
+    return null;
   }
 
-  // The main render path is now incredibly simple.
-  // It renders the reusable table with props tailored for the general "Ob-Server" tab.
   return (
-    <div className="bg-gray-50 -m-4 sm:-m-6 md:-m-8">
-      <PricingTable
-        headline="Choose Your Way to Observe"
-        subheadline="From total privacy on your machine to the convenience of the cloud, there's a path for you."
-        status={status}
-        isButtonLoading={isButtonLoading}
-        isAuthenticated={isAuthenticated}
-        error={error}
-        onCheckout={() => handleApiAction('create-checkout-session')}
-        onManageSubscription={() => handleApiAction('create-customer-portal-session')}
-        onLogin={loginWithRedirect}
-      />
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 transition-opacity duration-300"
+      onClick={onClose} // Close modal on overlay click
+    >
+      <div 
+        className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()} // Prevent clicks inside modal from closing it
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 z-10">
+          <CloseIcon className="h-6 w-6" />
+        </button>
+
+        {status === 'loading' ? (
+          <div className="flex justify-center items-center p-20">
+            <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
+          </div>
+        ) : (
+          <PricingTable
+            headline="You've Reached Your Daily Limit!"
+            subheadline="Upgrade to Observer Pro and support the project!"
+            status={status}
+            isButtonLoading={isButtonLoading}
+            isAuthenticated={isAuthenticated}
+            error={error}
+            onCheckout={() => handleApiAction('create-checkout-session')}
+            onManageSubscription={() => handleApiAction('create-customer-portal-session')}
+            onLogin={loginWithRedirect}
+            isTriggeredByQuotaError={true} // <-- Pass the special prop here
+          />
+        )}
+      </div>
     </div>
   );
 };

@@ -24,6 +24,12 @@ const optimisticUpdateQuota = () => {
   }
 };
 
+export class UnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
 
 /**
  * Send a prompt to the API server using OpenAI-compatible v1 chat completions endpoint
@@ -88,6 +94,10 @@ export async function sendPrompt(
       headers,
       body: requestBody,
     });
+
+    if (response.status === 429) {
+      throw new UnauthorizedError('Access denied. Quota may be exceeded.');
+    }
 
     if (!response.ok) {
         const errorBody = await response.text(); // Attempt to read error body

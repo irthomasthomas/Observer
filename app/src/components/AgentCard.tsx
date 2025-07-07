@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
-import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2} from 'lucide-react';
+import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2, Zap } from 'lucide-react'; // Added Zap
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
 import { isAgentScheduled, getScheduledTime } from './ScheduleAgentModal';
@@ -152,6 +152,9 @@ interface AgentCardProps {
   onShowJupyterModal: () => void;
   getToken: () => Promise<string | undefined>;
   isAuthenticated: boolean;
+  // --- NEW PROPS ---
+  hasQuotaError: boolean;
+  onUpgradeClick: () => void;
 }
 
 const AgentCard: React.FC<AgentCardProps> = ({
@@ -166,7 +169,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
   onMemory,
   onShowJupyterModal,
   getToken,
-  isAuthenticated
+  isAuthenticated,
+  // --- DESTRUCTURE NEW PROPS ---
+  hasQuotaError,
+  onUpgradeClick,
 }) => {
   const [activityExpanded, setActivityExpanded] = useState(false);
   const [isPythonAgent, setIsPythonAgent] = useState(false);
@@ -205,6 +211,13 @@ const AgentCard: React.FC<AgentCardProps> = ({
   }, []);
 
   useEffect(() => {
+    // If there's a quota error, the agent should effectively be 'IDLE' and not attempt to run.
+    if (hasQuotaError) {
+      setLiveStatus('IDLE');
+      setLastResponse('Agent paused due to daily credit limit.');
+      return;
+    }
+
     if (showStartingState && !isRunning) {
         setLiveStatus('STARTING');
         setLastResponse('Agent is preparing to start...');
@@ -231,11 +244,11 @@ const AgentCard: React.FC<AgentCardProps> = ({
     } else {
       setLiveStatus('IDLE');
     }
-  }, [isRunning, showStartingState, agent.id, liveStatus]);
+  }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError]); // Added hasQuotaError
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
-    if (isRunning && liveStatus === 'WAITING') {
+    if (isRunning && liveStatus === 'WAITING' && !hasQuotaError) { // Ensure not running on error
       const interval = 100;
       const totalDuration = agent.loop_interval_seconds * 1000;
       const increment = (interval / totalDuration) * 100;
@@ -252,7 +265,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       }, interval);
     }
     return () => { if (timer) clearInterval(timer); };
-  }, [isRunning, liveStatus, agent.loop_interval_seconds]);
+  }, [isRunning, liveStatus, agent.loop_interval_seconds, hasQuotaError]); // Added hasQuotaError
 
   const handleToggle = async () => {
     if (!isRunning) {
@@ -320,8 +333,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
         <div className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${ isPythonAgent ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
           {isPythonAgent ? <><Terminal className="w-4 h-4 mr-2" /> Python</> : <><Code className="w-4 h-4 mr-2" /> JavaScript</>}
         </div>
-        <button onClick={handleToggle} className={`px-6 py-2.5 rounded-lg font-medium flex items-center transition-colors ${ showStartingState ? 'bg-yellow-100 text-yellow-700 cursor-wait' : isRunning ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`} disabled={showStartingState}>
-          {showStartingState ? (
+        {/* Disable Start/Stop button if a quota error is present */}
+        <button onClick={handleToggle} className={`px-6 py-2.5 rounded-lg font-medium flex items-center transition-colors ${ hasQuotaError ? 'bg-red-100 text-red-700 cursor-not-allowed' : showStartingState ? 'bg-yellow-100 text-yellow-700 cursor-wait' : isRunning ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`} disabled={showStartingState || hasQuotaError}>
+          {hasQuotaError ? 'Limit Reached' : showStartingState ? (
             <>{isCheckingModel ? 'Checking...' : 'Starting...'}</>
           ) : isRunning ? 'Stop' : <><Play className="w-5 h-5 mr-1" />Start</>}
         </button>
@@ -331,7 +345,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
         <div className="flex gap-4">
           <div className="w-20 flex-shrink-0 flex flex-col items-center gap-3">
             <div className={`w-20 h-20 ${isPythonAgent ? 'bg-blue-100' : 'bg-amber-100'} rounded-full flex items-center justify-center`}>
-              <div className={`w-12 h-12 ${isPythonAgent ? 'bg-blue-500' : 'bg-amber-500'} rounded-full flex items-center justify-center ${isRunning && !showStartingState ? 'animate-pulse-grow' : ''}`}>
+              <div className={`w-12 h-12 ${isPythonAgent ? 'bg-blue-500' : 'bg-amber-500'} rounded-full flex items-center justify-center ${isRunning && !showStartingState && !hasQuotaError ? 'animate-pulse-grow' : ''}`}>
                 <User className="w-7 h-7 text-white" />
               </div>
             </div>
@@ -339,10 +353,19 @@ const AgentCard: React.FC<AgentCardProps> = ({
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-2xl font-semibold text-gray-800 truncate">{agent.name}</h3>
+            {/* Conditional rendering logic */}
             {isRunning || showStartingState ? (
               <LiveAgentView status={liveStatus} lastResponse={lastResponse} responseKey={responseKey} loopProgress={loopProgress} loopInterval={agent.loop_interval_seconds} streams={streams}/>
             ) : (
-              <StaticAgentInfo agent={agent} startWarning={startWarning} onEdit={onEdit} onDelete={onDelete}/>
+              <StaticAgentInfo 
+                agent={agent} 
+                startWarning={startWarning} 
+                onEdit={onEdit} 
+                onDelete={onDelete}
+                // --- PASS PROPS DOWN ---
+                hasQuotaError={hasQuotaError}
+                onUpgradeClick={onUpgradeClick}
+              />
             )}
           </div>
         </div>
@@ -459,24 +482,60 @@ const LiveAgentView: React.FC<{status: AgentLiveStatus, lastResponse: string, re
 };
 
 
-const StaticAgentInfo: React.FC<{agent: CompleteAgent, startWarning: string | null, onEdit: (id: string) => void, onDelete: (id: string) => Promise<void>}> = (props) => (
-  <>
-    <div className="flex items-center mt-1">
-      <div className="w-3 h-3 rounded-full mr-2 bg-gray-400"></div>
-      <span className="text-sm text-gray-600">Inactive</span>
+// --- NEW COMPONENT FOR QUOTA ERROR ---
+const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeClick }) => (
+  <div className="mt-2 p-4 bg-orange-50 border-l-4 border-orange-400 rounded-lg animate-fade-in">
+    <div className="flex items-start">
+      <Zap className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" />
+      <div>
+        <h4 className="font-bold text-orange-800">Daily Limit Reached</h4>
+        <p className="text-sm text-orange-700 mt-1">You've used all your free cloud credits for the day!</p>
+      </div>
     </div>
-    <p className="mt-2 text-gray-600">{props.agent.description}</p>
-    {props.startWarning && (<div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" /><span>{props.startWarning}</span></div></div>)}
-    <div className="mt-4 flex flex-wrap gap-2">
-      <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.model_name || "No model set"}</div>
-      <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.loop_interval_seconds}s</div>
-      {isAgentScheduled(props.agent.id) && <div className="px-3 py-1 bg-yellow-50 rounded-lg text-sm text-yellow-700">Scheduled: {getScheduledTime(props.agent.id)?.toLocaleString()}</div>}
-    </div>
-    <div className="mt-5 flex gap-3">
-      <button onClick={() => props.onEdit(props.agent.id)} className="px-5 py-2 rounded-lg flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700"><Edit className="w-4 h-4 mr-2" /> Edit</button>
-      <button onClick={() => props.onDelete(props.agent.id)} className="px-5 py-2 rounded-lg flex items-center bg-red-50 hover:bg-red-100 text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</button>
-    </div>
-  </>
+    <button
+      onClick={onUpgradeClick}
+      className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-sm"
+    >
+      Upgrade to Pro
+    </button>
+  </div>
 );
+
+
+// --- UPDATED StaticAgentInfo COMPONENT ---
+const StaticAgentInfo: React.FC<{
+  agent: CompleteAgent, 
+  startWarning: string | null, 
+  onEdit: (id: string) => void, 
+  onDelete: (id: string) => Promise<void>,
+  hasQuotaError: boolean, // New prop
+  onUpgradeClick: () => void, // New prop
+}> = (props) => {
+  // --- RENDER QUOTA ERROR VIEW IF PROP IS TRUE ---
+  if (props.hasQuotaError) {
+    return <QuotaErrorView onUpgradeClick={props.onUpgradeClick} />;
+  }
+
+  // --- OTHERWISE, RENDER THE NORMAL INACTIVE VIEW ---
+  return (
+    <>
+      <div className="flex items-center mt-1">
+        <div className="w-3 h-3 rounded-full mr-2 bg-gray-400"></div>
+        <span className="text-sm text-gray-600">Inactive</span>
+      </div>
+      <p className="mt-2 text-gray-600">{props.agent.description}</p>
+      {props.startWarning && (<div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" /><span>{props.startWarning}</span></div></div>)}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.model_name || "No model set"}</div>
+        <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.loop_interval_seconds}s</div>
+        {isAgentScheduled(props.agent.id) && <div className="px-3 py-1 bg-yellow-50 rounded-lg text-sm text-yellow-700">Scheduled: {getScheduledTime(props.agent.id)?.toLocaleString()}</div>}
+      </div>
+      <div className="mt-5 flex gap-3">
+        <button onClick={() => props.onEdit(props.agent.id)} className="px-5 py-2 rounded-lg flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700"><Edit className="w-4 h-4 mr-2" /> Edit</button>
+        <button onClick={() => props.onDelete(props.agent.id)} className="px-5 py-2 rounded-lg flex items-center bg-red-50 hover:bg-red-100 text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</button>
+      </div>
+    </>
+  );
+};
 
 export default AgentCard;

@@ -1,7 +1,7 @@
 // src/utils/main_loop.ts
 
 import { getAgent, getAgentCode } from './agent_database';
-import { sendPrompt } from './sendApi';
+import { sendPrompt, UnauthorizedError } from './sendApi';
 import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
@@ -190,8 +190,15 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     }
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    Logger.error(agentId, `Error in agent iteration: ${errorMessage}`, error);
+    if (error instanceof UnauthorizedError) {
+    // 1. Log a clear, specific warning for debugging
+      Logger.warn(agentId, 'Agent stopped due to quota limit (401 Unauthorized).');
+      stopAgentLoop(agentId);
+      window.dispatchEvent(new CustomEvent('quotaExceeded', {detail: { agentId: agentId }}));
+    } else {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      Logger.error(agentId, `Error in agent iteration: ${errorMessage}`, error);
+    }
   }
 }
 
