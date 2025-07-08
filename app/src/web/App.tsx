@@ -485,7 +485,6 @@ function AppContent() {
             isRefreshing={isRefreshing}
             onRefresh={fetchAgents}
             onGenerateAgent={() => setIsConversationalModalOpen(true)}
-
           />
 
           {error && <ErrorDisplay message={error} />}
@@ -517,7 +516,7 @@ function AppContent() {
                   onCreateNewAgent={handleAddAgentClick}
                   onAgentGenerated={handleAgentGenerated}
                   getToken={getToken}
-                  isAuthDisabled={isAuthDisabled}
+                  isAuthenticated={isAuthenticated}
                 />
               }
             </div>
@@ -549,7 +548,7 @@ function AppContent() {
         onClose={() => setIsConversationalModalOpen(false)}
         onAgentGenerated={handleAgentGenerated}
         getToken={getToken}
-        isAuthDisabled={isAuthDisabled}
+        isAuthenticated={isAuthenticated}
       />
 
       {isEditModalOpen && (
