@@ -47,7 +47,7 @@ export async function sendPrompt(
   token?: string
 ): Promise<string> {
   try {
-    const url = `https://${host}:${port}/v1/chat/completions`;
+    const url = `${host}:${port}/v1/chat/completions`;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

@@ -6,7 +6,37 @@ import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import type { TokenProvider } from '@utils/main_loop';
 
-// Updated QuotaInfo type to handle the new API response structure
+// --- NEW HELPER FUNCTION ---
+/**
+ * Parses a server address string into its host (with protocol) and port.
+ * Defaults to https if no protocol is provided.
+ * @param address The full address string, e.g., "localhost:3838" or "http://127.0.0.1:8080"
+ * @returns An object with host and port.
+ */
+const parseServerAddress = (address: string): { host: string; port: string } => {
+  let processedAddress = address.trim();
+
+  // If the user doesn't specify a protocol, default to https for security.
+  if (!processedAddress.startsWith('http://') && !processedAddress.startsWith('https://')) {
+    processedAddress = `https://${processedAddress}`;
+  }
+
+  const lastColonIndex = processedAddress.lastIndexOf(':');
+  
+  // Ensure the colon is present and is after the protocol part (e.g., "https://")
+  if (lastColonIndex === -1 || lastColonIndex < processedAddress.indexOf('//')) {
+    Logger.warn('SERVER_PARSE', `No port found in address: ${address}. Returning full address as host.`);
+    return { host: processedAddress, port: '' }; // No port found
+  }
+
+  const host = processedAddress.substring(0, lastColonIndex);
+  const port = processedAddress.substring(lastColonIndex + 1);
+
+  return { host, port };
+};
+
+
+// --- The rest of your component ---
 type QuotaInfo = {
   used: number;
   remaining: number | 'unlimited';
@@ -44,7 +74,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   setIsUsingObServer: externalSetIsUsingObServer,
   getToken,
 }) => {
-  const [serverAddress, setServerAddress] = useState('localhost:3838');
+  // --- MODIFIED --- Default to the full, desired URL for the proxy.
+  const [serverAddress, setServerAddress] = useState('https://localhost:3838');
   const [pulseMenu, setPulseMenu] = useState(false);
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo>(null);
@@ -60,7 +91,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const isAuthenticated = authState?.isAuthenticated ?? false;
   const user = authState?.user;
   
-  // Derived state to easily check for pro status
   const isProUser = quotaInfo?.pro_status === true;
 
   const handleLogout = () => {
@@ -86,11 +116,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         const data: QuotaInfo = await response.json();
         setQuotaInfo(data);
         setIsSessionExpired(false);
-        // Authoritative Write to localStorage
         if (data && typeof data.remaining === 'number') {
           localStorage.setItem('observer-quota-remaining', data.remaining.toString());
         } else {
-          // If user is Pro (data.remaining is 'unlimited') or data is invalid, remove the key
           localStorage.removeItem('observer-quota-remaining');
         }
       } else if (response.status === 401) {
@@ -131,14 +159,18 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
 
     if (newValue) {
+      // --- MODIFIED --- Set full address state, let checkObServerStatus handle parsing
       setServerAddress('api.observer-ai.com');
-      setOllamaServerAddress('api.observer-ai.com', '443');
       Logger.info('SERVER', 'Switched to Ob-Server (api.observer-ai.com)');
-      checkObServerStatus();
+      // Use a timeout to ensure state update propagates before checking status
+      setTimeout(() => checkObServerStatus(), 0);
     } else {
-      setServerAddress('localhost:3838');
-      setOllamaServerAddress('localhost', '3838');
+      // --- MODIFIED --- Revert to the default secure proxy address
+      setServerAddress('https://localhost:3838');
       Logger.info('SERVER', 'Switched to custom server mode');
+      // Set a temporary global state before the next checkServerStatus call
+      const { host, port } = parseServerAddress('https://localhost:3838');
+      setOllamaServerAddress(host, port);
       setServerStatus('unchecked');
       setQuotaInfo(null);
       setIsSessionExpired(false);
@@ -148,12 +180,19 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const checkObServerStatus = async () => {
     try {
       setServerStatus('unchecked');
-      Logger.info('SERVER', 'Checking connection to Ob-Server (api.observer-ai.com)');
-      setOllamaServerAddress('api.observer-ai.com', '443');
+      // --- MODIFIED --- Standardize how Ob-Server is handled
+      const { host, port } = parseServerAddress('api.observer-ai.com');
+      Logger.info('SERVER', `Checking connection to Ob-Server at ${host}:${port}`);
+      setOllamaServerAddress(host, port);
       
-      setServerStatus('online');
-      setError(null);
-      Logger.info('SERVER', 'Connected successfully to Ob-Server at api.observer-ai.com');
+      const result = await checkOllamaServer(host, port);
+      if (result.status === 'online') {
+        setServerStatus('online');
+        setError(null);
+        Logger.info('SERVER', `Connected successfully to Ob-Server at ${host}:${port}`);
+      } else {
+        throw new Error(result.error || 'Failed to connect');
+      }
     } catch (err) {
       setServerStatus('offline');
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -170,7 +209,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     
     try {
       setServerStatus('unchecked');
-      const [host, port] = serverAddress.split(':');
+      // --- MODIFIED --- Use the new robust parser
+      const { host, port } = parseServerAddress(serverAddress);
       Logger.info('SERVER', `Checking connection to Ollama server at ${host}:${port}`);
       setOllamaServerAddress(host, port);
       
@@ -195,20 +235,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleServerAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isUsingObServer) return;
-    const newAddress = e.target.value;
-    setServerAddress(newAddress);
-    if (newAddress.includes(':')) {
-      const [host, port] = newAddress.split(':');
-      setOllamaServerAddress(host, port);
-    }
+    // --- MODIFIED --- Only update the local state. The parsing happens on action.
+    setServerAddress(e.target.value);
   };
 
   const getServerUrl = () => {
-    let url = serverAddress;
-    if (!/^https?:\/\//i.test(url)) {
-      url = `https://${url}`;
-    }
-    return url;
+    // --- MODIFIED --- Use the parser to always get a valid URL for the link
+    const { host, port } = parseServerAddress(serverAddress);
+    return port ? `${host}:${port}` : host;
   };
 
   useEffect(() => {
@@ -232,14 +266,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   }, [isUsingObServer, isAuthenticated, serverStatus]);
 
-  useEffect(() => {
-    if (isUsingObServer) {
-      setServerAddress('api.observer-ai.com');
-      checkObServerStatus();
-    } else {
-      setServerAddress('localhost:3838');
-    }
-  }, [isUsingObServer]);
+  // --- REMOVED --- an effect that set serverAddress based on isUsingObServer,
+  // as this logic is now handled more robustly in handleToggleObServer.
 
   useEffect(() => {
     setPulseMenu(true);
@@ -249,7 +277,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Updated rendering logic for quota status
   const renderQuotaStatus = () => {
     if (isSessionExpired) {
       return (
@@ -269,14 +296,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
 
     if (quotaInfo) {
-      // If user is pro, show Unlimited Access
       if (quotaInfo.pro_status) {
         return <span className="font-semibold text-green-600">Unlimited Access</span>;
       }
-      
-      // Standard User with numeric quota
       if (typeof quotaInfo.remaining === 'number') {
-        // Change: Display custom message when out of credits
         if (quotaInfo.remaining <= 0) {
           return (
             <span className="font-medium text-red-500">
@@ -284,8 +307,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             </span>
           );
         }
-
-        // Default display for users with credits remaining
         return (
           <span className={`font-medium ${
             quotaInfo.remaining <= 10 ? 'text-orange-500'
@@ -296,8 +317,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         );
       }
     }
-
-    // Fallback for when quotaInfo is null or in an unexpected state
     return <span className="text-gray-500">Quota N/A</span>;
   };
 
@@ -396,7 +415,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   type="text"
                   value={serverAddress}
                   onChange={handleServerAddressChange}
-                  placeholder="api.observer.local"
+                  placeholder="http://localhost:11434" // Updated placeholder to reflect default
                   className={`px-2 sm:px-3 py-2 border rounded-md text-sm 
                               ${isUsingObServer ? 'bg-gray-100 opacity-70' : ''} 
                               w-32 sm:w-32 md:w-32 lg:w-auto`}

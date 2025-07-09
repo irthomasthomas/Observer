@@ -17,7 +17,7 @@ interface ModelsResponse {
 
 export async function checkOllamaServer(host: string, port: string): Promise<ServerResponse> {
   try {
-    const response = await fetch(`https://${host}:${port}/v1/models`, {
+    const response = await fetch(`${host}:${port}/v1/models`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -42,7 +42,7 @@ export async function checkOllamaServer(host: string, port: string): Promise<Ser
 
 export async function listModels(host: string, port: string): Promise<ModelsResponse> {
   try {
-    const response = await fetch(`https://${host}:${port}/v1/models`, {
+    const response = await fetch(`${host}:${port}/v1/models`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
