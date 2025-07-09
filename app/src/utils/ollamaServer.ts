@@ -1,3 +1,4 @@
+// src/utils/ollamaServer.ts
 interface ServerResponse {
   status: 'online' | 'offline';
   error?: string;
@@ -16,7 +17,7 @@ interface ModelsResponse {
 
 export async function checkOllamaServer(host: string, port: string): Promise<ServerResponse> {
   try {
-    const response = await fetch(`https://${host}:${port}/api/tags`, {
+    const response = await fetch(`https://${host}:${port}/v1/models`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +42,7 @@ export async function checkOllamaServer(host: string, port: string): Promise<Ser
 
 export async function listModels(host: string, port: string): Promise<ModelsResponse> {
   try {
-    const response = await fetch(`https://${host}:${port}/api/tags`, {
+    const response = await fetch(`https://${host}:${port}/v1/models`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -52,16 +53,16 @@ export async function listModels(host: string, port: string): Promise<ModelsResp
 
     const data = await response.json();
 
-    if (!data.models || !Array.isArray(data.models)) {
+    if (!data.data || !Array.isArray(data.data)) {
       return { models: [], error: 'Invalid response format from server' };
     }
 
     // Map the server response, EXTRACTING the new flag
-    const models: Model[] = data.models.map((model: any) => {
+    const models: Model[] = data.data.map((model: any) => {
       return {
-        name: model.name,
-        parameterSize: model.details?.parameter_size,
-        multimodal: model.details?.multimodal ?? false // <-- EXTRACT AND MAP HERE
+        name: model.id,
+        parameterSize: model.parameter_size,
+        multimodal: model.multimodal ?? false 
       };
     });
 

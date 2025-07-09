@@ -28,6 +28,7 @@ const AvailableModels: React.FC = () => {
       if (response.error) {
         throw new Error(response.error);
       }
+      Logger.debug('MODELS', response);
 
       setModels(response.models);
       Logger.info('MODELS', `Successfully loaded ${response.models.length} models`);
