@@ -75,7 +75,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   getToken,
 }) => {
   // --- MODIFIED --- Default to the full, desired URL for the proxy.
-  const [serverAddress, setServerAddress] = useState('https://localhost:3838');
+  const [serverAddress, setServerAddress] = useState('http://localhost:3838');
   const [pulseMenu, setPulseMenu] = useState(false);
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo>(null);
