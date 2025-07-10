@@ -113,7 +113,7 @@ To use Python agents:
 
 # 🚀 Getting Started with Local Inference
 
-https://github.com/user-attachments/assets/1d19c572-359a-4eff-b6b6-f1e3efab9d86
+https://github.com/user-attachments/assets/c5af311f-7e10-4fde-9321-bb98ceebc271
 
 
 > ✨ **Major Update: Simpler Setup & More Flexibility!**
