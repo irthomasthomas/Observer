@@ -53,20 +53,23 @@ export async function listModels(host: string, port: string): Promise<ModelsResp
 
     const data = await response.json();
 
+    // if null treat as empty
     const modelData = data.data || [];
 
-    if (!data.data || !Array.isArray(data.data)) {
-      return { models: [], error: 'Invalid response format from server' };
+    // Now, ensure the result is actually an array before we try to map it.
+    if (!Array.isArray(modelData)) {
+      return { models: [], error: 'Invalid response format from server: "data" field should be an array or null.' };
     }
 
-    // Map the server response, EXTRACTING the new flag
-    const models: Model[] = data.data.map((model: any) => {
+    // Map the server response, which is now guaranteed to be an array.
+    const models: Model[] = modelData.map((model: any) => {
       return {
         name: model.id,
         parameterSize: model.parameter_size,
-        multimodal: model.multimodal ?? false 
+        multimodal: model.multimodal ?? false
       };
     });
+
 
     return { models };
   } catch (error) {
