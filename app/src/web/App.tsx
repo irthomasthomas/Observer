@@ -41,7 +41,7 @@ import { UpgradeModal } from '@components/UpgradeModal';
 function AppContent() {
   // Check our environment variable to see if Auth0 should be disabled
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
-  Logger.info('isAuthDisabled', `is it? lets see ${isAuthDisabled}`);
+  Logger.debug('isAuthDisabled', `is it? lets see ${isAuthDisabled}`);
 
   // If Auth0 is disabled, create a mock auth object for local development.
   // Otherwise, use the real useAuth0 hook.

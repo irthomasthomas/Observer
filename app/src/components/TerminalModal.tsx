@@ -26,7 +26,7 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose }) => {
   const runCommand = () => {
     if (!command.trim()) return;
     const { host, port } = getOllamaServerAddress();
-    const url = `https://${host}:${port}/exec?cmd=${encodeURIComponent(command)}`;
+    const url = `${host}:${port}/exec?cmd=${encodeURIComponent(command)}`;
     const es = new EventSource(url);
     setOutput(prev => prev + `> ${command}\n`);
     setCommand('');
