@@ -16,9 +16,9 @@ import type { TokenProvider } from '@utils/main_loop';
 const parseServerAddress = (address: string): { host: string; port: string } => {
   let processedAddress = address.trim();
 
-  // If the user doesn't specify a protocol, default to https for security.
+  // If the user doesn't specify a protocol, default to http for simplicity.
   if (!processedAddress.startsWith('http://') && !processedAddress.startsWith('https://')) {
-    processedAddress = `https://${processedAddress}`;
+    processedAddress = `http://${processedAddress}`;
   }
 
   const lastColonIndex = processedAddress.lastIndexOf(':');
@@ -152,28 +152,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       return;
     }
 
+    // Just update the state. The useEffect will handle the rest.
     if (externalSetIsUsingObServer) {
       externalSetIsUsingObServer(newValue);
     } else {
       setInternalIsUsingObServer(newValue);
-    }
-
-    if (newValue) {
-      // --- MODIFIED --- Set full address state, let checkObServerStatus handle parsing
-      setServerAddress('api.observer-ai.com');
-      Logger.info('SERVER', 'Switched to Ob-Server (api.observer-ai.com)');
-      // Use a timeout to ensure state update propagates before checking status
-      setTimeout(() => checkObServerStatus(), 0);
-    } else {
-      // --- MODIFIED --- Revert to the default secure proxy address
-      setServerAddress('https://localhost:3838');
-      Logger.info('SERVER', 'Switched to custom server mode');
-      // Set a temporary global state before the next checkServerStatus call
-      const { host, port } = parseServerAddress('https://localhost:3838');
-      setOllamaServerAddress(host, port);
-      setServerStatus('unchecked');
-      setQuotaInfo(null);
-      setIsSessionExpired(false);
     }
   };
 
@@ -203,15 +186,42 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const checkServerStatus = async () => {
     if (isUsingObServer) {
-      checkObServerStatus();
+      // --- Handle Ob-Server Case ---
+      try {
+        setServerStatus('unchecked');
+        const host = 'https://api.observer-ai.com';
+        const port = '443';
+        Logger.info('SERVER', `Checking connection to Ob-Server...`);
+        // We set this in the useEffect, but it's safe to re-affirm here.
+        setOllamaServerAddress(host, port);
+        
+        const result = await checkOllamaServer(host, port);
+        if (result.status === 'online') {
+          setServerStatus('online');
+          setError(null);
+          Logger.info('SERVER', `Connected successfully to Ob-Server`);
+        } else {
+          throw new Error(result.error || 'Failed to connect');
+        }
+      } catch (err) {
+        setServerStatus('offline');
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError('Failed to connect to Ob-Server');
+        Logger.error('SERVER', `Error checking Ob-Server status: ${errorMessage}`, err);
+      }
       return;
     }
     
+    // --- Handle Local Inference Case ---
     try {
       setServerStatus('unchecked');
-      // --- MODIFIED --- Use the new robust parser
       const { host, port } = parseServerAddress(serverAddress);
-      Logger.info('SERVER', `Checking connection to Ollama server at ${host}:${port}`);
+      
+      if (!host || !port) {
+        throw new Error(`Invalid server address format. Please use 'host:port'.`);
+      }
+
+      Logger.info('SERVER', `Checking connection to local server at ${host}:${port}`);
       setOllamaServerAddress(host, port);
       
       const result = await checkOllamaServer(host, port);
@@ -219,17 +229,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       if (result.status === 'online') {
         setServerStatus('online');
         setError(null);
-        Logger.info('SERVER', `Connected successfully to Ollama server at ${host}:${port}`);
+        Logger.info('SERVER', `Connected successfully to local server.`);
       } else {
         setServerStatus('offline');
-        setError(result.error || 'Failed to connect to Ollama server');
-        Logger.error('SERVER', `Failed to connect to Ollama server: ${result.error || 'Unknown error'}`);
+        setError(result.error || 'Failed to connect to local server');
+        Logger.error('SERVER', `Failed to connect: ${result.error || 'Unknown error'}`);
       }
     } catch (err) {
       setServerStatus('offline');
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError('Failed to connect to Ollama server');
-      Logger.error('SERVER', `Error checking server status: ${errorMessage}`, err);
+      setError(`Connection failed: ${errorMessage}`);
+      Logger.error('SERVER', `Error checking local server status: ${errorMessage}`, err);
     }
   };
 
@@ -258,6 +268,28 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       window.removeEventListener('quotaUpdated', handleQuotaUpdate);
     };
   }, []);
+
+  useEffect(() => {
+    if (isUsingObServer) {
+      // --- Switching TO Ob-Server ---
+      setServerAddress('api.observer-ai.com'); // Update input field display
+      setOllamaServerAddress('https://api.observer-ai.com', '443'); // Set global state
+      Logger.info('SERVER', 'Switched to Ob-Server mode.');
+    } else {
+      // --- Switching TO Local Inference ---
+      const defaultLocal = 'http://localhost:3838'; // Your new default
+      setServerAddress(defaultLocal); // Update input field
+      const { host, port } = parseServerAddress(defaultLocal);
+      setOllamaServerAddress(host, port); // Set global state
+      setQuotaInfo(null); // Clear cloud state
+      setIsSessionExpired(false);
+      Logger.info('SERVER', 'Switched to local inference mode.');
+    }
+    
+    // Crucially, trigger the check *after* the state has been set for the new mode.
+    checkServerStatus();
+    
+  }, [isUsingObServer]);
 
 
   useEffect(() => {

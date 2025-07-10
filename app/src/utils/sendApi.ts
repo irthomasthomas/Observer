@@ -53,7 +53,7 @@ export async function sendPrompt(
       'Content-Type': 'application/json',
     };
 
-    if (host === 'api.observer-ai.com') {
+    if (host === 'https://api.observer-ai.com') {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
