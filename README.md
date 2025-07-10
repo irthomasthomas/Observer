@@ -120,7 +120,7 @@ There are a couple of ways to get Observer up and running with local inference. 
 
 ## Option 1: Full Docker Setup (Recommended & Easiest)
 
-This method uses Docker Compose to run Observer-Ollama and a local Ollama instance together in containers. This process makes all processing happen 100% in your computer.
+This method uses Docker Compose to run the webpapp, observer-ollama and a local Ollama instance together in containers. This process makes all processing happen 100% in your computer.
 
 **Prerequisites:**
 *   [Docker](https://docs.docker.com/get-docker/) installed.
@@ -136,30 +136,42 @@ This method uses Docker Compose to run Observer-Ollama and a local Ollama instan
     ```
     
 3.  **Access Observer:**
-    *   **WebApp:** Open your browser to `https://app.observer-ai.com`
-    *   **Accept Local Certificates** Open up `https://localhost:3838` and your browser will show a warning about an "unsafe" or "untrusted" connection. This is because the proxy uses a self-signed SSL certificate for local HTTPS. You'll need to click "Advanced" and "Proceed to localhost (unsafe)" (or similar wording) to accept it. These certificates are signed by your computer! and this step is needed to make the browser happy and let it "see" the ollama server.
+    *   **WebApp:** Open your browser to `http://localhost:8080`
 
 4.  **Pull Ollama Models:**
-    Once the services are running, you can pull models into your Ollama instance using the terminal feature in the Observer UI, or by running:
-    ```bash
-    docker-compose exec ollama_service ollama pull llama3 # Or any other model
-    ```
-    OR by **Using the Web App:**
-    *   Go to the Web UI (`https://app.observer-ai.com`).
+    Once the services are running, you can pull models into your Ollama instance using the UI on `http://localhost:8080`
     *   In the Models tab, click on add model. This will give you the shell to your connected ollama instance, download models using ollama run. 
+    ```
+    ollama run gemma3:4b
+    ```
+
+    Or with terminal on the docker container by running:
+    ```bash
+    docker-compose exec ollama_service ollama pull gemma3:4b
+    ```
 
 **To Stop Observer (Docker Setup):**
 ```bash
 docker-compose down
 ```
 
-NOTE: complete offline setup
+NOTE: Connecting from another device on the network.
 
-When using the Full docker setup, the same webapp as in `app.observer-ai.com` is served on `https://localhost:8080`.
+If you host the webpage on a PC and access it from another device Auth0 won't work; so the sendSms, sendWhatsapp and sendEmail tools won't work. 
 
-This works as a 100% offline alternative, but because of the offline "unsecure" environment (it is secure it just isn't https), Auth0 won't work; so the sendSms, sendWhatsapp and sendEmail tools won't work. 
+In this case you can edit supervisord.conf:
+```
+[program:observer_proxy]
+command=python3 -m observer_ollama --disable-ssl --enable-exec --docker-container-name 'ollama_service'
+```
 
-## Option 2: Standalone observer-ollama (`pip`)
+Remove the --disable-ssl flag to enable self signed certificates, visit `https://192.168.0.1:3838` (local ip where you ran docker compose) accept the local certificates signed by the host pc, then set up the address on the App Header on `app.observer-ai.com` to the address running the local inference `https://192.168.0.1:3838` and it should connect.
+
+## Option 2: llama.cpp or any local v1/chat/ endpoint.
+
+Do the same steps as Option 1 to self host the webpage, but on the app header set the ip of where the serice is running on your local network. For example `http://127.0.0.1:8080` for llama.cpp 
+
+## Option 3: Standalone observer-ollama (`pip`)
 
 Use this method if you already have Ollama running on your machine and prefer not to use Docker.
 
