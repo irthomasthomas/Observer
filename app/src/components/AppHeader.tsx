@@ -160,30 +160,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
-  const checkObServerStatus = async () => {
-    try {
-      setServerStatus('unchecked');
-      // --- MODIFIED --- Standardize how Ob-Server is handled
-      const { host, port } = parseServerAddress('api.observer-ai.com');
-      Logger.info('SERVER', `Checking connection to Ob-Server at ${host}:${port}`);
-      setOllamaServerAddress(host, port);
-      
-      const result = await checkOllamaServer(host, port);
-      if (result.status === 'online') {
-        setServerStatus('online');
-        setError(null);
-        Logger.info('SERVER', `Connected successfully to Ob-Server at ${host}:${port}`);
-      } else {
-        throw new Error(result.error || 'Failed to connect');
-      }
-    } catch (err) {
-      setServerStatus('offline');
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError('Failed to connect to Ob-Server');
-      Logger.error('SERVER', `Error checking Ob-Server status: ${errorMessage}`, err);
-    }
-  };
-
   const checkServerStatus = async () => {
     if (isUsingObServer) {
       // --- Handle Ob-Server Case ---
