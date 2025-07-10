@@ -53,6 +53,8 @@ export async function listModels(host: string, port: string): Promise<ModelsResp
 
     const data = await response.json();
 
+    const modelData = data.data || [];
+
     if (!data.data || !Array.isArray(data.data)) {
       return { models: [], error: 'Invalid response format from server' };
     }
