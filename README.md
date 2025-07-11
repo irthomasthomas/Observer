@@ -162,7 +162,7 @@ docker-compose down
 If you need to access your local inference server from another device (like your phone) or want to use the authenticated tools (`sendEmail`, etc.), you must use the public WebApp (`app.observer-ai.com`) and **re-enable SSL** on your local server.
 
 1.  **Enable SSL in Docker:**
-    *   Open the file: `docker/observer-ollama/supervisor.d/observer-ollama.conf`
+    *   Open the file: `supervisord.conf`
     *   Find the `command` line and **remove the `--disable-ssl` flag**.
     *   **Change this:** `command=... --disable-ssl ...`
     *   **To this:** `command=... --enable-exec ...` (just remove the ssl flag)
