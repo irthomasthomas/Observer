@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, LogOut, ExternalLink, RefreshCw, Server } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
-import { setOllamaServerAddress, getOllamaServerAddress } from '@utils/main_loop';
+import { setOllamaServerAddress } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import ConnectionSettingsModal from './ConnectionSettingsModal';

@@ -23,7 +23,7 @@ interface ConnectionSettingsModalProps {
   quotaInfo: QuotaInfo;
   renderQuotaStatus: () => React.ReactNode;
   serverAddress: string;
-  handleServerAddressChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleAddressInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   checkServerStatus: () => void;
   getServerUrl: () => string;
 }
@@ -38,7 +38,7 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
   serverStatus,
   renderQuotaStatus,
   serverAddress,
-  handleServerAddressChange,
+  handleAddressInputChange,
   checkServerStatus,
   getServerUrl,
 }) => {
@@ -88,7 +88,7 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
                   id="server-address-input"
                   type="text"
                   value={serverAddress}
-                  onChange={handleServerAddressChange}
+                  onChange={handleAddressInputChange}
                   placeholder="http://localhost:3838"
                   className="flex-grow px-3 py-2 border rounded-md text-sm bg-white"
                   disabled={isUsingObServer}
