@@ -1,9 +1,11 @@
+// components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { Menu, LogOut, ExternalLink, RefreshCw } from 'lucide-react';
+import { Menu, LogOut, ExternalLink, RefreshCw, Server } from 'lucide-react'; 
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
+import ConnectionSettingsModal from './ConnectionSettingsModal'; 
 import type { TokenProvider } from '@utils/main_loop';
 
 // --- NEW HELPER FUNCTION ---
@@ -83,6 +85,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [showLoginMessage, setShowLoginMessage] = useState(false);
   const [isSessionExpired, setIsSessionExpired] = useState(false);
+  
+  // --- NEW --- State to control the visibility of the new settings modal
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const isUsingObServer = externalIsUsingObServer !== undefined
     ? externalIsUsingObServer
@@ -381,7 +386,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
             {/* Right side */}
             <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
-              <div className="flex items-center space-x-1 sm:space-x-2"> 
+              {/* Desktop Controls (Visible on md screens and up) */}
+              <div className="hidden md:flex items-center space-x-1 sm:space-x-2"> 
                 {/* Ob-Server Toggle */}
                 <div className="flex flex-col items-center">
                   <div className="flex items-center space-x-1 sm:space-x-2">
@@ -470,6 +476,23 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 )}
               </div>
 
+              {/* Mobile Controls (Visible below md screens) */}
+              <div className="flex md:hidden items-center space-x-2">
+                {/* Status Indicator Dot */}
+                <div className={`w-3 h-3 rounded-full
+                    ${serverStatus === 'online' ? 'bg-green-500' : serverStatus === 'offline' ? 'bg-red-500' : 'bg-orange-500 animate-pulse'}
+                `} title={`Status: ${serverStatus}`}></div>
+                
+                {/* Settings Button */}
+                <button
+                    onClick={() => setIsSettingsModalOpen(true)}
+                    className="p-2 rounded-md hover:bg-gray-100"
+                    aria-label="Open connection settings"
+                >
+                    <Server className="h-5 w-5 text-gray-600" />
+                </button>
+              </div>
+
               {/* Auth Section */}
               <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
                 {authState ? (
@@ -513,6 +536,25 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       <SharingPermissionsModal
         isOpen={isPermissionsModalOpen}
         onClose={() => setIsPermissionsModalOpen(false)}
+      />
+      
+      {/* --- NEW --- Render the settings modal */}
+      <ConnectionSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        {...{
+          isUsingObServer,
+          handleToggleObServer,
+          showLoginMessage,
+          isAuthenticated,
+          serverStatus,
+          quotaInfo,
+          renderQuotaStatus,
+          serverAddress,
+          handleServerAddressChange,
+          checkServerStatus,
+          getServerUrl
+        }}
       />
     </>
   );
