@@ -70,7 +70,7 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({
         throw new Error("Authentication failed. Please log in again.");
       }
       const responseText = await sendPrompt(
-          'api.observer-ai.com', 
+          'https://api.observer-ai.com', 
           '443', 
           'gemini-2.0-flash-lite',
           { modifiedPrompt: fullPrompt, images: [] },
