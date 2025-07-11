@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
-import { Edit, Trash2, MessageCircle, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2, Zap } from 'lucide-react'; // Added Zap
+import { Edit, Trash2, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2, Zap, MessageSquareWarning, MessageCircle } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
 import { isAgentScheduled, getScheduledTime } from './ScheduleAgentModal';
@@ -8,7 +8,6 @@ import { listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
 import { Logger, LogEntry } from '@utils/logging';
 import { StreamManager, StreamState, AudioStreamType } from '@utils/streamManager';
-
 
 /**
  * Defines the shape of the data needed by the UI to render an audio stream.
@@ -19,6 +18,28 @@ interface UiAudioStream {
   title: string;
   icon: ReactNode;
 }
+
+/**
+ * Scans agent code for specific function calls that require warnings.
+ * @param code The agent's JS or Python code as a string.
+ * @returns An object indicating which communication methods are used.
+ */
+const getCommunicationWarnings = (code: string | undefined): { hasSms: boolean, hasWhatsapp: boolean } => {
+  if (!code) {
+    return { hasSms: false, hasWhatsapp: false };
+  }
+
+  const smsRegex = /\bsendSms\s*\(/;
+  const whatsappRegex = /\bsendWhatsapp\s*\(/;
+
+  const hasSms = smsRegex.test(code);
+  const hasWhatsapp = whatsappRegex.test(code);
+
+  return {
+    hasSms,
+    hasWhatsapp,
+  };
+};
 
 /**
  * A "selector" function that takes the raw StreamState and returns only the audio
@@ -152,7 +173,6 @@ interface AgentCardProps {
   onShowJupyterModal: () => void;
   getToken: () => Promise<string | undefined>;
   isAuthenticated: boolean;
-  // --- NEW PROPS ---
   hasQuotaError: boolean;
   onUpgradeClick: () => void;
 }
@@ -170,7 +190,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
   onShowJupyterModal,
   getToken,
   isAuthenticated,
-  // --- DESTRUCTURE NEW PROPS ---
   hasQuotaError,
   onUpgradeClick,
 }) => {
@@ -191,6 +210,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
     microphoneStream: null,
     allAudioStream: null
   });
+
+  // NEW: Memoized derivation of communication warnings from agent code
+  const communicationWarnings = useMemo(() => {
+    return getCommunicationWarnings(code);
+  }, [code]);
+
 
   useEffect(() => {
     if (code && code.trim().startsWith('#python')) {
@@ -362,9 +387,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
                 startWarning={startWarning} 
                 onEdit={onEdit} 
                 onDelete={onDelete}
-                // --- PASS PROPS DOWN ---
                 hasQuotaError={hasQuotaError}
                 onUpgradeClick={onUpgradeClick}
+                communicationWarnings={communicationWarnings} // MODIFIED: Pass down the new prop
               />
             )}
           </div>
@@ -502,21 +527,50 @@ const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeCli
 );
 
 
-// --- UPDATED StaticAgentInfo COMPONENT ---
+// NEW: The dedicated warning component. Place it here.
+const CommunicationWarning: React.FC<{ warnings: { hasSms: boolean; hasWhatsapp: boolean } }> = ({ warnings }) => {
+  if (!warnings.hasSms && !warnings.hasWhatsapp) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg animate-fade-in">
+      <div className="flex items-start">
+        <MessageSquareWarning className="h-6 w-6 text-blue-500 mr-3 flex-shrink-0" />
+        <div>
+          <h4 className="font-bold text-blue-800">Notification Notice</h4>
+          {warnings.hasWhatsapp && (
+            <p className="text-sm text-blue-700 mt-1">
+              <b>WhatsApp:</b> To receive messages, you must first message the number: +1 (555) 783-4727. This opens a 24-hour window due to Meta's policies.
+            </p>
+          )}
+          {warnings.hasSms && (
+            <p className="text-sm text-blue-700 mt-2">
+              <b>SMS:</b> Delivery to US/Canada is currently unreliable due to carrier restrictions (A2P). It is recommend using email for now.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// MODIFIED: Updated StaticAgentInfo component to accept and render the new warning
 const StaticAgentInfo: React.FC<{
-  agent: CompleteAgent, 
-  startWarning: string | null, 
-  onEdit: (id: string) => void, 
-  onDelete: (id: string) => Promise<void>,
-  hasQuotaError: boolean, // New prop
-  onUpgradeClick: () => void, // New prop
+  agent: CompleteAgent;
+  startWarning: string | null;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
+  hasQuotaError: boolean;
+  onUpgradeClick: () => void;
+  communicationWarnings: { hasSms: boolean; hasWhatsapp: boolean }; // New prop
 }> = (props) => {
-  // --- RENDER QUOTA ERROR VIEW IF PROP IS TRUE ---
   if (props.hasQuotaError) {
     return <QuotaErrorView onUpgradeClick={props.onUpgradeClick} />;
   }
+  Logger.info('static agent info', `communication warnings: ${props.communicationWarnings.hasSms}`);
 
-  // --- OTHERWISE, RENDER THE NORMAL INACTIVE VIEW ---
   return (
     <>
       <div className="flex items-center mt-1">
@@ -524,6 +578,10 @@ const StaticAgentInfo: React.FC<{
         <span className="text-sm text-gray-600">Inactive</span>
       </div>
       <p className="mt-2 text-gray-600">{props.agent.description}</p>
+      
+      {/* NEW: Render the communication warnings */}
+      <CommunicationWarning warnings={props.communicationWarnings} />
+      
       {props.startWarning && (<div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" /><span>{props.startWarning}</span></div></div>)}
       <div className="mt-4 flex flex-wrap gap-2">
         <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.model_name || "No model set"}</div>
