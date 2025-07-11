@@ -82,7 +82,7 @@ function AppContent() {
   const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('myAgents');
-  const [isUsingObServer, setIsUsingObServer] = useState(false);
+  const [isUsingObServer, setIsUsingObServer] = useState(true);
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
