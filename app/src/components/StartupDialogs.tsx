@@ -32,7 +32,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
   const handleAcceptCertClick = (e: React.MouseEvent) => {
     e.preventDefault();
     const { host, port } = getOllamaServerAddress();
-    const url = `https://${host}:${port}`;
+    const url = `${host}:${port}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
