@@ -478,18 +478,21 @@ function AppContent() {
         />
 
         <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
-          <AgentImportHandler 
-            onAddAgent={handleAddAgentClick}
-            agentCount={agents.length}
-            activeAgentCount={runningAgents.size}
-            isRefreshing={isRefreshing}
-            onRefresh={fetchAgents}
-            onGenerateAgent={() => setIsConversationalModalOpen(true)}
-          />
 
           {error && <ErrorDisplay message={error} />}
 
           {activeTab === 'myAgents' ? (
+          <>
+
+            <AgentImportHandler 
+              onAddAgent={handleAddAgentClick}
+              agentCount={agents.length}
+              activeAgentCount={runningAgents.size}
+              isRefreshing={isRefreshing}
+              onRefresh={fetchAgents}
+              onGenerateAgent={() => setIsConversationalModalOpen(true)}
+            />
+
             <div className="flex flex-wrap gap-6">
               {agents.length > 0 ? agents.map(agent => (
                 <div key={agent.id} className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0">
@@ -520,6 +523,7 @@ function AppContent() {
                 />
               }
             </div>
+          </>
           ) : activeTab === 'community' ? (
             <CommunityTab />
           ) : activeTab === 'models' ? (
