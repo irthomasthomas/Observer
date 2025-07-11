@@ -1,17 +1,17 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { Menu, LogOut, ExternalLink, RefreshCw, Server } from 'lucide-react'; 
+import { Menu, LogOut, ExternalLink, RefreshCw, Server } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
-import { setOllamaServerAddress } from '@utils/main_loop';
+import { setOllamaServerAddress, getOllamaServerAddress } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
-import ConnectionSettingsModal from './ConnectionSettingsModal'; 
+import ConnectionSettingsModal from './ConnectionSettingsModal';
 import type { TokenProvider } from '@utils/main_loop';
 
 // --- NEW HELPER FUNCTION ---
 /**
  * Parses a server address string into its host (with protocol) and port.
- * Defaults to https if no protocol is provided.
+ * Defaults to http if no protocol is provided.
  * @param address The full address string, e.g., "localhost:3838" or "http://127.0.0.1:8080"
  * @returns An object with host and port.
  */
@@ -24,7 +24,7 @@ const parseServerAddress = (address: string): { host: string; port: string } => 
   }
 
   const lastColonIndex = processedAddress.lastIndexOf(':');
-  
+
   // Ensure the colon is present and is after the protocol part (e.g., "https://")
   if (lastColonIndex === -1 || lastColonIndex < processedAddress.indexOf('//')) {
     Logger.warn('SERVER_PARSE', `No port found in address: ${address}. Returning full address as host.`);
@@ -85,7 +85,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [showLoginMessage, setShowLoginMessage] = useState(false);
   const [isSessionExpired, setIsSessionExpired] = useState(false);
-  
+
   // --- NEW --- State to control the visibility of the new settings modal
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
@@ -95,7 +95,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const isAuthenticated = authState?.isAuthenticated ?? false;
   const user = authState?.user;
-  
+
   const isProUser = quotaInfo?.pro_status === true;
 
   const handleLogout = () => {
@@ -175,7 +175,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         Logger.info('SERVER', `Checking connection to Ob-Server...`);
         // We set this in the useEffect, but it's safe to re-affirm here.
         setOllamaServerAddress(host, port);
-        
+
         const result = await checkOllamaServer(host, port);
         if (result.status === 'online') {
           setServerStatus('online');
@@ -192,21 +192,22 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       }
       return;
     }
-    
+
     // --- Handle Local Inference Case ---
     try {
       setServerStatus('unchecked');
       const { host, port } = parseServerAddress(serverAddress);
-      
+      Logger.debug('SERVER', `parsed address: ${serverAddress} and got host: ${host} and port: ${port}`);
+
       if (!host || !port) {
         throw new Error(`Invalid server address format. Please use 'host:port'.`);
       }
 
       Logger.info('SERVER', `Checking connection to local server at ${host}:${port}`);
       setOllamaServerAddress(host, port);
-      
+
       const result = await checkOllamaServer(host, port);
-      
+
       if (result.status === 'online') {
         setServerStatus('online');
         setError(null);
@@ -224,10 +225,22 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
-  const handleServerAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddressInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isUsingObServer) return;
-    // --- MODIFIED --- Only update the local state. The parsing happens on action.
     setServerAddress(e.target.value);
+  };
+
+  const handleAddressInputBlur = () => {
+    if (isUsingObServer) return; // Don't format if in Ob-Server mode
+
+    const currentAddress = serverAddress.trim();
+    if (!currentAddress) return;
+
+    // Only add a protocol if one isn't already there.
+    if (!currentAddress.startsWith('http://') && !currentAddress.startsWith('https://')) {
+        const isLocal = currentAddress.startsWith('localhost') || /^\d{1,3}(\.\d{1,3}){3}/.test(currentAddress);
+        setServerAddress(isLocal ? `http://${currentAddress}` : `https://${currentAddress}`);
+    }
   };
 
   const getServerUrl = () => {
@@ -250,27 +263,31 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     };
   }, []);
 
+  // Effect #1: The Mode Switcher. Its ONLY job is to update the address.
   useEffect(() => {
     if (isUsingObServer) {
-      // --- Switching TO Ob-Server ---
-      setServerAddress('api.observer-ai.com'); // Update input field display
-      setOllamaServerAddress('https://api.observer-ai.com', '443'); // Set global state
-      Logger.info('SERVER', 'Switched to Ob-Server mode.');
+      setServerAddress('api.observer-ai.com');
+      Logger.info('SERVER', 'Mode switched to Ob-Server. Updating address...');
+      setOllamaServerAddress('https://api.observer-ai.com', '443'); // Set global state immediately
     } else {
-      // --- Switching TO Local Inference ---
-      const defaultLocal = 'http://localhost:3838'; // Your new default
-      setServerAddress(defaultLocal); // Update input field
-      const { host, port } = parseServerAddress(defaultLocal);
-      setOllamaServerAddress(host, port); // Set global state
+      setServerAddress('http://localhost:3838');
+      Logger.info('SERVER', 'Mode switched to Local. Updating address...');
+      const { host, port } = parseServerAddress('http://localhost:3838');
+      setOllamaServerAddress(host, port); // Set global state immediately
       setQuotaInfo(null); // Clear cloud state
       setIsSessionExpired(false);
-      Logger.info('SERVER', 'Switched to local inference mode.');
     }
-    
-    // Crucially, trigger the check *after* the state has been set for the new mode.
-    checkServerStatus();
-    
-  }, [isUsingObServer]);
+    // We do NOT call handleCheckServerStatus() here.
+  }, [isUsingObServer]); // This runs ONLY when the mode toggles.
+
+
+  // Effect #2: The Connection Checker. This runs AFTER Effect #1 has updated the state.
+  useEffect(() => {
+    // This effect runs on the initial component mount AND whenever serverAddress changes.
+    // By definition, it will always have the latest `serverAddress` value.
+    Logger.info('SERVER', `Address changed to "${serverAddress}", initiating connection check.`);
+    checkServerStatus(); // Call the function responsible for checking
+  }, [serverAddress]); // The dependency array is the magic.
 
 
   useEffect(() => {
@@ -279,8 +296,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   }, [isUsingObServer, isAuthenticated, serverStatus]);
 
-  // --- REMOVED --- an effect that set serverAddress based on isUsingObServer,
-  // as this logic is now handled more robustly in handleToggleObServer.
 
   useEffect(() => {
     setPulseMenu(true);
@@ -347,7 +362,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           }
         `}
       </style>
-      
+
       <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-4">
           <div className="flex justify-between items-center">
@@ -366,9 +381,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   </span>
                 )}
               </button>
-              <img 
-                src="/eye-logo-black.svg" 
-                alt="Observer Logo" 
+              <img
+                src="/eye-logo-black.svg"
+                alt="Observer Logo"
                 className="h-8 w-8 cursor-pointer hover:opacity-80"
                 onClick={() => setIsPermissionsModalOpen(true)}
                 title="Initialize screen capture"
@@ -382,17 +397,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   </span>
                 )}
               </div>
-            </div> 
+            </div>
 
             {/* Right side */}
             <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
               {/* Desktop Controls (Visible on md screens and up) */}
-              <div className="hidden md:flex items-center space-x-1 sm:space-x-2"> 
+              <div className="hidden md:flex items-center space-x-1 sm:space-x-2">
                 {/* Ob-Server Toggle */}
                 <div className="flex flex-col items-center">
                   <div className="flex items-center space-x-1 sm:space-x-2">
                     <span className="text-sm text-gray-600 hidden md:inline">Ob-Server</span>
-                    <button 
+                    <button
                       className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
                         isUsingObServer ? 'bg-blue-500' : 'bg-slate-700'
                       }`}
@@ -428,10 +443,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 <input
                   type="text"
                   value={serverAddress}
-                  onChange={handleServerAddressChange}
+                  onChange={handleAddressInputChange}
+                  onBlur={handleAddressInputBlur} // Apply formatting when user is done.
                   placeholder="http://localhost:11434" // Updated placeholder to reflect default
-                  className={`px-2 sm:px-3 py-2 border rounded-md text-sm 
-                              ${isUsingObServer ? 'bg-gray-100 opacity-70' : ''} 
+                  className={`px-2 sm:px-3 py-2 border rounded-md text-sm
+                              ${isUsingObServer ? 'bg-gray-100 opacity-70' : ''}
                               w-32 sm:w-32 md:w-32 lg:w-auto`}
                   disabled={isUsingObServer}
                 />
@@ -460,7 +476,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     </>
                   )}
                 </button>
-                
+
                 {/* Helper link for local server */}
                 {(serverStatus === 'offline' || serverStatus === 'unchecked') && !isUsingObServer && (
                   <a
@@ -482,7 +498,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 <div className={`w-3 h-3 rounded-full
                     ${serverStatus === 'online' ? 'bg-green-500' : serverStatus === 'offline' ? 'bg-red-500' : 'bg-orange-500 animate-pulse'}
                 `} title={`Status: ${serverStatus}`}></div>
-                
+
                 {/* Settings Button */}
                 <button
                     onClick={() => setIsSettingsModalOpen(true)}
@@ -505,7 +521,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                       </span>
                       <button
                         onClick={handleLogout}
-                        className="bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center justify-center p-2" 
+                        className="bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center justify-center p-2"
                         aria-label="Logout"
                       >
                       <LogOut className="h-5 w-5" />
@@ -514,7 +530,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   ) : (
                     <button
                       onClick={() => authState.loginWithRedirect()}
-                      className="bg-green-500 text-white rounded hover:bg-green-600 
+                      className="bg-green-500 text-white rounded hover:bg-green-600
                                  text-sm px-2 py-2 sm:px-3 md:text-base md:px-4"
                     >
                       <span className="md:hidden">Log In</span>
@@ -532,12 +548,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           </div>
         </div>
       </header>
-      
+
       <SharingPermissionsModal
         isOpen={isPermissionsModalOpen}
         onClose={() => setIsPermissionsModalOpen(false)}
       />
-      
+
       {/* --- NEW --- Render the settings modal */}
       <ConnectionSettingsModal
         isOpen={isSettingsModalOpen}
@@ -551,7 +567,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           quotaInfo,
           renderQuotaStatus,
           serverAddress,
-          handleServerAddressChange,
+          handleAddressInputChange,
           checkServerStatus,
           getServerUrl
         }}
