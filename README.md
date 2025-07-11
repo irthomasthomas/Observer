@@ -103,7 +103,7 @@ The Python environment receives:
 
 To use Python agents:
 
-1. Run a Jupyter server on your machine
+1. Run a Jupyter server on your machine with c.ServerApp.allow_origin = '*'
 2. Configure the connection in the Observer AI interface:
    * Host: The server address (e.g., 127.0.0.1)
    * Port: The server port (e.g., 8888)
