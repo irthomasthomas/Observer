@@ -1,5 +1,3 @@
-// src/components/EditAgent/EditAgentModal.tsx
-
 import React, {
   Suspense, useState, useEffect, useRef,
 } from 'react';
@@ -15,7 +13,6 @@ import {
   Zap,
   Monitor,
   Brain,
-  PlusCircle,
   Activity,
   Edit3,
   Tag,
@@ -26,8 +23,8 @@ import {
   Mic,
   Camera,
   AlertTriangle,
-  Volume2, // <-- Added
-  Blend     // <-- Added
+  Volume2,
+  Blend
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import JupyterServerModal from '@components/JupyterServerModal';
@@ -137,7 +134,8 @@ interface ConfigContentProps {
   setIsModelDropdownOpen: (isOpen: boolean) => void;
   loadingModels: boolean;
   modelsError: string | null;
-  availableModels: { name: string; multimodal: boolean }[];
+  // FIX: Changed `multimodal: boolean | undefined` to `multimodal?: boolean` to make it optional
+  availableModels: { name: string; multimodal?: boolean }[];
   loopInterval: number;
   setLoopInterval: (interval: number) => void;
   description: string;
@@ -247,7 +245,7 @@ const PromptContent: React.FC<PromptContentProps> = ({
             <SensorButton icon={Mic} label="Microphone" onClick={() => insertSystemPromptText('$MICROPHONE')} colorClass="text-slate-600" />
             <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSystemPromptText('$SCREEN_AUDIO')} colorClass="text-slate-600" />
             <SensorButton icon={Blend} label="All Audio" onClick={() => insertSystemPromptText('$ALL_AUDIO')} colorClass="text-slate-600" />
-            
+
             {availableAgentsForBlocks.map(agent => (
                 <SensorButton
                   key={agent.id}
@@ -293,7 +291,7 @@ const LogsContent: React.FC<LogsContentProps> = ({ testOutput }) => (
 interface CodeEditorContentProps {
   isPythonMode: boolean;
   setIsPythonMode: (isPython: boolean) => void;
-  jupyterStatus: 'checking' | 'connected' | 'error' | 'disconnected';
+  jupyterStatus: 'checking' | 'connected' | 'error' | 'disconnected' | 'unknown';
   setIsJupyterModalOpen: (isOpen: boolean) => void;
   handleRunCode: () => void;
   isRunningCode: boolean;
