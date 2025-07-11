@@ -90,12 +90,12 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
                 </ul>
             </div>
             <div className="mt-6">
+                <p className="text-center text-xs text-gray-600 mt-3 leading-relaxed">
+                  Run <a href="https://github.com/Roy3838/Observer" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">observer-ollama</a> and <a href="#" onClick={handleAcceptCertClick} className="text-blue-600 hover:underline">check server</a>.
+                </p>
                 <button onClick={handleSetupLocal} className="w-full px-4 py-2.5 sm:py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm sm:text-base">
                     Use Local Server
                 </button>
-                <p className="text-center text-xs text-gray-600 mt-3 leading-relaxed">
-                  Run <a href="https://github.com/Roy3838/Observer" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">observer-ollama</a> and <a href="#" onClick={handleAcceptCertClick} className="text-blue-600 hover:underline">Accept Certs</a>.
-                </p>
             </div>
           </div>
         </div>
