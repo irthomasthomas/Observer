@@ -130,7 +130,6 @@ Observer can connect directly to any server that provides a `v1/chat/completions
 
 1.  **Self-host the WebApp:** with run script
     ```
-    # clone the repository
     git clone https://github.com/Roy3838/Observer
     cd Observer
     chmod +x run.sh
