@@ -121,7 +121,30 @@ https://github.com/user-attachments/assets/c5af311f-7e10-4fde-9321-bb98ceebc271
 
 There are a few ways to get Observer up and running with local inference. I recommend using Docker for the simplest setup.
 
-## Option 1: Full Docker Setup (Recommended)
+## Option 1: Just host the webapp with any OpenAI compatible endpoint.
+
+Observer can connect directly to any server that provides a `v1/chat/completions` endpoint.
+
+**Prerequisites:**
+*   [Node.js v18+](https://nodejs.org/) (which includes npm).
+
+1.  **Self-host the WebApp:** with run script
+    ```
+    # clone the repository
+    git clone https://github.com/Roy3838/Observer
+    cd Observer
+    chmod +x run.sh
+    ./run.sh
+    ```
+2.  **Run your Llama.cpp server:**
+    ```bash
+    # Example command
+    ./server -m your-model.gguf -c 4096 --host 0.0.0.0 --port 8001
+    ```
+3.  **Connect Observer:** In the Observer app (`http://localhost:8080`), set the Model Server Address to your Llama.cpp server's address (e.g., `http://127.0.0.1:8001`).
+
+
+## Option 2: Full Docker Setup (Recommended)
 
 This method uses Docker Compose to run everything you need in containers: the Observer WebApp, the `observer-ollama` translator, and a local Ollama instance. This is the easiest way to get a 100% private, local-first setup.
 
@@ -180,21 +203,9 @@ If you need to access your local inference server from another device (like your
     *   Go to **`https://app.observer-ai.com`**.
     *   In the header/settings, set the Model Server Address to `https://<YOUR-PC-IP>:3838`. It should now connect successfully.
 
----
-## Option 2: Connect to Llama.cpp (or any OpenAI-compatible API)
-
-Observer can connect directly to any server that provides a `v1/chat/completions` endpoint.
-
-1.  **Self-host the WebApp:** Follow steps 1 & 2 from the **Docker Setup (Option 1)** to get the web interface running at `http://localhost:8080`. You can ignore the `observer-ollama` service.
-2.  **Run your Llama.cpp server:**
-    ```bash
-    # Example command
-    ./server -m your-model.gguf -c 4096 --host 0.0.0.0 --port 8001
-    ```
-3.  **Connect Observer:** In the Observer app (`http://localhost:8080`), set the Model Server Address to your Llama.cpp server's address (e.g., `http://127.0.0.1:8001`).
 
 ---
-## Option 3: Standalone `observer-ollama` (`pip`)
+## Option 3: Standalone `observer-ollama` (`pip`) (Already have system ollama installed)
 
 Use this if you already have Ollama running on your machine and prefer not to use Docker for the translator.
 
