@@ -47,7 +47,7 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
     if (!agent) throw new Error(`Agent ${agentId} not found`);
 
     const streamRequirementsMap = {
-      '$SCREEN_64': 'screenVideo', '$CAMERA': 'camera', '$SCREEN_AUDIO': 'screenAudio',
+      '$SCREEN_64': 'screenVideo', '$SCREEN_OCR': 'screenVideo', '$CAMERA': 'camera', '$SCREEN_AUDIO': 'screenAudio',
       '$MICROPHONE': 'microphone', '$ALL_AUDIO': 'allAudio'
     };
     
