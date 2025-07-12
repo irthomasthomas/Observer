@@ -200,6 +200,7 @@ Your goal is to guide the user to one of the three core patterns without ever us
 
 When the user confirms the blueprint, you must generate the configuration inside a \`$$$\` block exactly like this:
 Always use loop_interval_seconds: 60 
+Always use at least 1 sensor. 
 \`\`\`
 $$$
 id: [unique_lowercase_id]
