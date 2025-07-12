@@ -4,6 +4,7 @@ import urllib.request
 import urllib.error
 import socket
 import logging
+import ssl
 
 logger = logging.getLogger('ollama-proxy.client')
 
@@ -47,8 +48,15 @@ def forward_to_ollama(method, path, headers, body):
         if header in headers:
             req.add_header(header, headers[header])
 
+    ssl_context = None
+    if target_url.startswith("https://"):
+        # Create an SSL context that does NOT verify certificates
+        ssl_context = ssl._create_unverified_context()
+        logger.debug("Using unverified SSL context for outgoing request.")
+
     try:
-        response = urllib.request.urlopen(req, timeout=timeout)
+        # Pass the context to urlopen. If ssl_context is None, it uses the default (verifying) context.
+        response = urllib.request.urlopen(req, timeout=timeout, context=ssl_context)
         
         def response_iterator():
             while True:
