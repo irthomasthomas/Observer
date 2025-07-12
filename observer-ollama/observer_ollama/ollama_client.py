@@ -20,7 +20,12 @@ OLLAMA_BASE_URL = f"http://{_OLLAMA_TARGET_HOST}:{_OLLAMA_TARGET_PORT}"
 def set_ollama_destination(host, port):
     """Updates the global Ollama destination URL."""
     global OLLAMA_BASE_URL
-    OLLAMA_BASE_URL = f"http://{host}:{port}"
+
+    if host.startswith("https://") or host.startswith("http://"):
+        OLLAMA_BASE_URL = f"{host}:{port}"
+    else:
+        OLLAMA_BASE_URL = f"http://{host}:{port}"
+
     logger.info(f"Ollama destination set to: {OLLAMA_BASE_URL}")
 
 # --- End of new/modified code ---
