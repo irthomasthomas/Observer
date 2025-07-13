@@ -38,31 +38,33 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-      {/* --- MODIFIED --- More responsive padding for the main dialog */}
       <div className="bg-white rounded-xl shadow-xl p-4 sm:p-6 md:p-8 max-w-3xl w-full">
         <div className="flex items-center gap-3 mb-4 sm:mb-6">
           <Terminal className="h-7 w-7 sm:h-8 sm:w-8 text-blue-500" />
-          {/* --- MODIFIED --- Responsive font size for the main title */}
           <h2 className="text-xl sm:text-2xl font-semibold">Welcome to Observer</h2>
         </div>
         <p className="text-gray-600 mb-6 text-sm sm:text-base">Choose how you want to get started:</p>
         
-        {/* --- MODIFIED --- Smaller gap on mobile for a tighter vertical stack */}
         <div className="grid md:grid-cols-2 gap-4 md:gap-6 mb-6">
           {/* Ob-Server Cloud Card */}
-          {/* --- MODIFIED --- More responsive padding inside the card */}
           <div className="border rounded-lg p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow bg-blue-50 border-blue-100 flex flex-col justify-between h-full">
             <div>
               <div className="flex justify-between items-start mb-4">
-                {/* --- MODIFIED --- Responsive title and icon size */}
                 <h3 className="text-lg font-medium text-blue-700">Ob-Server Cloud</h3>
                 <Cloud className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
               </div>
-              <ul className="space-y-2 text-sm">
+              
+              {/* --- MODIFIED: Desktop View (hidden on mobile) --- */}
+              <ul className="space-y-2 text-sm hidden sm:block">
                 <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></div><span className="text-gray-700">No installation needed</span></li>
                 <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></div><span className="text-gray-700">Easy to use</span></li>
                 <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></div><span className="text-gray-700">Privacy respecting</span></li>
               </ul>
+
+              {/* --- MODIFIED: Mobile View (hidden on desktop) --- */}
+              <p className="text-sm text-blue-800/80 block sm:hidden">
+                Easy · No Install · Privacy Respecting
+              </p>
             </div>
             <div className="mt-6">
               <button 
@@ -75,19 +77,24 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
           </div>
           
           {/* Local Server Card */}
-          {/* --- MODIFIED --- More responsive padding inside the card */}
           <div className="border rounded-lg p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow bg-gray-50 border-gray-200 flex flex-col justify-between h-full">
             <div>
                 <div className="flex justify-between items-start mb-4">
-                {/* --- MODIFIED --- Responsive title and icon size */}
                 <h3 className="text-lg font-medium text-slate-800">Local Server</h3>
                 <Server className="h-5 w-5 sm:h-6 sm:w-6 text-slate-500" />
                 </div>
-                <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"></div><span className="text-gray-700">Full Control</span></li>
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"></div><span className="text-gray-700">Use your own hardware</span></li>
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"></div><span className="text-gray-700">Complete privacy</span></li>
+
+                {/* --- MODIFIED: Desktop View (hidden on mobile) --- */}
+                <ul className="space-y-2 text-sm hidden sm:block">
+                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"></div><span className="text-gray-700">Full Control</span></li>
+                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"></div><span className="text-gray-700">Use your own hardware</span></li>
+                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"></div><span className="text-gray-700">Complete privacy</span></li>
                 </ul>
+
+                {/* --- MODIFIED: Mobile View (hidden on desktop) --- */}
+                <p className="text-sm text-slate-600 block sm:hidden">
+                    Full Control · Complete Privacy
+                </p>
             </div>
             <div className="mt-6">
                 <p className="text-center text-xs text-gray-600 mb-2 leading-relaxed">
