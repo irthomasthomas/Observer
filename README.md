@@ -174,6 +174,25 @@ This method uses Docker Compose to run everything you need in containers: the Ob
         ```bash
         ollama run gemma3:4b # <- highly recommended model!
         ```
+        
+For NVIDIA GPUs: it's recommended to edit `docker-compose.yml` and explicitly add gpu runtime to the ollama docker container.
+Add these to the ollama section of `docker-compose.yml`:
+```
+    volumes:
+      - ollama_data:/root/.ollama
+    # ADD THIS SECTION
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # UP TO HERE
+    ports:
+      - "11434:11434"
+```
 
 **To Stop the Docker Setup:**
 ```bash
