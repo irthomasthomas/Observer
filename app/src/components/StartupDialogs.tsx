@@ -38,7 +38,6 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-      {/* --- MODIFIED --- Adjusted padding for a better mobile fit */}
       <div className="bg-white rounded-xl shadow-xl p-5 md:p-8 max-w-3xl w-full">
         <div className="flex items-center gap-3 mb-6">
           <Terminal className="h-8 w-8 text-blue-500" />
@@ -46,7 +45,25 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
         </div>
         <p className="text-gray-600 mb-6 text-sm sm:text-base">Choose how you want to get started:</p>
         
-        {/* The md:grid-cols-2 class is perfect. It automatically handles stacking on mobile. */}
+        {/* --- START: PRODUCT HUNT BANNER --- */}
+        <div className="my-6 p-4 bg-purple-50 border border-purple-200 rounded-lg text-center shadow-sm">
+            <h3 className="font-semibold text-lg text-purple-800 mb-2">
+                🚀 We're Live on Product Hunt!
+            </h3>
+            <p className="text-sm text-purple-700 mb-4">
+                As a solo developer, your support would mean the world to me. Please consider upvoting!
+            </p>
+            <a 
+                href="https://www.producthunt.com/products/observer-ai?utm_source=other&utm_medium=social" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-5 rounded-lg transition-colors text-sm"
+            >
+                Support on Product Hunt
+            </a>
+        </div>
+        {/* --- END: PRODUCT HUNT BANNER --- */}
+
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           {/* Ob-Server Cloud Card */}
           <div className="border rounded-lg p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow bg-blue-50 border-blue-100 flex flex-col justify-between h-full">
@@ -62,21 +79,16 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
               </ul>
             </div>
             <div className="mt-6">
-              {/* --- MODIFIED --- 
-                  This button is now "smarter". It shows a single, clear call-to-action
-                  based on the authentication state. This cleans up the UI significantly on mobile.
-              */}
               <button 
                 onClick={handleObServerStart} 
                 className="w-full px-4 py-2.5 sm:py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm sm:text-base"
               >
                 {isAuthenticated ? 'Start with Ob-Server' : 'Log In to Get Started'}
               </button>
-              {/* The secondary login button is now removed as its logic is combined above. */}
             </div>
           </div>
           
-          {/* Local Server Card - No changes needed, it stacks perfectly. */}
+          {/* Local Server Card */}
           <div className="border rounded-lg p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow bg-gray-50 border-gray-200 flex flex-col justify-between h-full">
             <div>
                 <div className="flex justify-between items-start mb-4">
