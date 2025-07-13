@@ -5,7 +5,7 @@ services:
     container_name: ollama_service # Good for user if they need to exec into it manually
     volumes:
       - ollama_data:/root/.ollama
-    # FOR NVIDIA GPUS
+    # runtime: nvidia
     # deploy:
     #   resources:
     #     reservations:
