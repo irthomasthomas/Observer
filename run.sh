@@ -16,6 +16,9 @@ fi
 
 echo "✅ Node.js and npm found."
 
+# To disable auth
+export VITE_DISABLE_AUTH=false
+
 # Navigate to the app directory
 cd app || { echo "Error: 'app' directory not found. Make sure you are in the project root."; exit 1; }
 
