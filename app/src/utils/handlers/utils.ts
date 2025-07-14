@@ -288,7 +288,7 @@ export async function sendDiscordBot(message: string, webhookUrl: string, authTo
   // Check if the message is too long
   if (message.length > DISCORD_MESSAGE_LIMIT) {
       // Log a warning in the Observer AI logs so the developer knows this happened
-      Logger.warn(agentId, `Discord message was too long (${message.length} chars) and has been automatically truncated.`);
+      Logger.warn('utils', `Discord message was too long (${message.length} chars) and has been automatically truncated.`);
       
       // Truncate the message and add a clear indicator that it was shortened
       messageToSend = message.substring(0, DISCORD_MESSAGE_LIMIT) + "... (msg trunc)";
