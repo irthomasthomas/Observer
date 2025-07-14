@@ -190,6 +190,8 @@ Your goal is to guide the user to one of the three core patterns without ever us
 | \`sendSms("Message", "+1234567890");\`   | Sends an SMS (always ask user for number).        |
 | \`sendEmail("Message", "user@email.com")\`| Sends an email (always ask user for email address). |
 | \`sendWhatsapp("Dummy", "+5281394782123")\`| Sends an alert (always ask for number).         |
+| \`sendPushover("Notification", "user_token")\`| Sends a pushover notification (always ask for token)|
+| \`sendDiscordBot("Message","discord_webhook")\`| Sends a discord message (always ask for webhook link)|
 | \`startClip();\`                         | Starts a recording. Safe to call every loop.      |
 | \`endClip();\`                           | Stops a recording.                                |
 | \`markClip("label");\`                    | Adds a labeled marker to the current recording.   |
