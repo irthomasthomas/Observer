@@ -2,12 +2,14 @@
 
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip';
+export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord';
 
 export interface ToolData {
   smsPhoneNumber?: string;
   emailAddress?: string;
   whatsappPhoneNumber?: string;
+  pushoverUserKey?: string;
+  discordWebhookUrl?: string;
 }
 
 const TOOL_CODE_SNIPPETS: Record<SimpleTool, (data: ToolData) => string> = {
@@ -45,6 +47,22 @@ sendWhatsapp(response, ${phoneNumber});
 // --- EMAIL TOOL ---
 // Sends the model's response as an email to the specified address.
 sendEmail(response, ${emailAddr});
+`;
+  },
+  pushover: (data: ToolData) => {
+    const userKey = data.pushoverUserKey ? JSON.stringify(data.pushoverUserKey) : '""';
+    return `
+// --- PUSHOVER TOOL ---
+// Sends the model's response as a Pushover notification.
+sendPushover(response, ${userKey});
+`;
+  },
+  discord: (data: ToolData) => {
+    const webhookUrl = data.discordWebhookUrl ? JSON.stringify(data.discordWebhookUrl) : '""';
+    return `
+// --- DISCORD TOOL ---
+// Sends the model's response to a Discord channel via a webhook.
+sendDiscordBot(response, ${webhookUrl});
 `;
   },
   start_clip: () => `

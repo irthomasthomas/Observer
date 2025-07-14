@@ -82,6 +82,8 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const [smsPhoneNumber, setSmsPhoneNumber] = useState('');
   const [whatsappPhoneNumber, setWhatsappPhoneNumber] = useState('');
   const [emailAddress, setEmailAddress] = useState('');
+  const [pushoverUserKey, setPushoverUserKey] = useState('');
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
 
   const [conditionEnabled, setConditionEnabled] = useState(false);
   const [conditionKeyword, setConditionKeyword] = useState('');
@@ -101,6 +103,8 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
     setSmsPhoneNumber('');
     setWhatsappPhoneNumber('');
     setEmailAddress('');
+    setPushoverUserKey('');
+    setDiscordWebhookUrl('');
     setConditionEnabled(false); setConditionKeyword('');
   }, []);
 
@@ -175,6 +179,8 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
             tool === 'sms' ? { smsPhoneNumber } :
             tool === 'whatsapp' ? { whatsappPhoneNumber } :
             tool === 'email' ? { emailAddress } :
+            tool === 'pushover' ? { pushoverUserKey } :
+            tool === 'discord' ? { discordWebhookUrl } :
             {};
         newMap.set(tool, initialData);
       }
@@ -331,6 +337,12 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
 
                 {/* --- Email Tool */}
                 <button type="button" title={!isAuthenticated ? 'Please sign in to use the Email tool.' : ''} onClick={() => toggleTool('email')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('email') ? 'border-cyan-500 bg-cyan-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}><div className="flex items-center space-x-4"><Mail className={`h-8 w-8 transition-colors ${selectedTools.has('email') ? 'text-cyan-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send an Email</h3><p className="text-sm text-gray-500">Sends response as an email.</p></div></div>{selectedTools.has('email') && (<div className="relative pl-12 pt-2"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="email" value={emailAddress} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newAddress = e.target.value; setEmailAddress(newAddress); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('email', { emailAddress: newAddress }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500" placeholder="recipient@example.com"/></div>)}</button>
+
+                {/* --- Pushover Tool --- */}
+                <button type="button" title={!isAuthenticated ? 'Please sign in to use the Pushover tool.' : ''} onClick={() => toggleTool('pushover')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('pushover') ? 'border-orange-500 bg-orange-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}><div className="flex items-center space-x-4"><Smartphone className={`h-8 w-8 transition-colors ${selectedTools.has('pushover') ? 'text-orange-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send a Pushover</h3><p className="text-sm text-gray-500">Sends a Pushover notification.</p></div></div>{selectedTools.has('pushover') && (<div className="relative pl-12 pt-2"><input type="text" value={pushoverUserKey} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newKey = e.target.value; setPushoverUserKey(newKey); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('pushover', { pushoverUserKey: newKey }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500" placeholder="Your Pushover User Key"/></div>)}</button>
+
+                {/* --- Discord Tool --- */}
+                <button type="button" title={!isAuthenticated ? 'Please sign in to use the Discord tool.' : ''} onClick={() => toggleTool('discord')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('discord') ? 'border-purple-500 bg-purple-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300`}><div className="flex items-center space-x-4"><MessageSquare className={`h-8 w-8 transition-colors ${selectedTools.has('discord') ? 'text-purple-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send a Discord</h3><p className="text-sm text-gray-500">Sends a Discord notification.</p></div></div>{selectedTools.has('discord') && (<div className="relative pl-12 pt-2"><input type="text" value={discordWebhookUrl} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newUrl = e.target.value; setDiscordWebhookUrl(newUrl); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('discord', { discordWebhookUrl: newUrl }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500" placeholder="Your Discord Webhook URL"/></div>)}</button>
 
               </div>
             </div>
