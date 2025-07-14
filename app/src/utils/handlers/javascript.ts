@@ -93,6 +93,22 @@ export async function executeJavaScript(
         
         Logger.info(agentId, `Successfully sent Pushover notification request.`);
       },
+
+      sendDiscordBot: async (message: string, webhookUrl: string) => {
+        Logger.info(agentId, `Agent is attempting to send a Discord notification via webhook.`);
+        if (!getToken) {
+            throw new Error("Authentication context not available for sendDiscordBot.");
+        }
+
+        const token = await getToken();
+        if (!token) {
+            throw new Error("Failed to retrieve authentication token for sendDiscordBot.");
+        }
+
+        await utils.sendDiscordBot(message, webhookUrl, token);
+        
+        Logger.info(agentId, `Successfully sent Discord notification request.`);
+      },
       
       startClip: utils.startClip,
       stopClip: utils.stopClip,

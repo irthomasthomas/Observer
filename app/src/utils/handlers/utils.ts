@@ -264,3 +264,56 @@ export async function sendPushover(message: string, userKey: string, authToken: 
     throw error;
   }
 }
+
+/**
+ * Sends a Discord notification via a user-provided webhook by calling the backend API.
+ * @param message The main content of the notification.
+ * @param webhookUrl The user's unique Discord Webhook URL.
+ * @param authToken The authentication token for the Observer AI API.
+ */
+export async function sendDiscordBot(message: string, webhookUrl: string, authToken: string): Promise<void> {
+  const API_HOST = "https://api.observer-ai.com";
+
+  if (!authToken) {
+    throw new Error("Authentication error: Auth token is missing.");
+  }
+  if (!webhookUrl) {
+    throw new Error("Discord webhook URL is missing.");
+  }
+
+  const DISCORD_MESSAGE_LIMIT = 1990;
+
+  let messageToSend = message;
+
+  // Check if the message is too long
+  if (message.length > DISCORD_MESSAGE_LIMIT) {
+      // Log a warning in the Observer AI logs so the developer knows this happened
+      Logger.warn(agentId, `Discord message was too long (${message.length} chars) and has been automatically truncated.`);
+      
+      // Truncate the message and add a clear indicator that it was shortened
+      messageToSend = message.substring(0, DISCORD_MESSAGE_LIMIT) + "... (msg trunc)";
+  }
+
+  try {
+    const response = await fetch(`${API_HOST}/tools/send-discordbot`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`, 
+      },
+      body: JSON.stringify({
+        message: messageToSend,
+        webhook_url: webhookUrl, // snake_case to match the Pydantic model
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData.detail || 'Failed to send Discord notification due to a server error.';
+      throw new Error(errorMessage);
+    }
+  } catch (error) {
+    // Rethrow the error so the agent's execution log can see it
+    throw error;
+  }
+}
