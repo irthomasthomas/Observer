@@ -221,3 +221,46 @@ export function markClip(label: string): void {
     Logger.error('markClip', `Error creating marker: ${error}`);
   }
 }
+
+/**
+ * Sends a Pushover notification by calling the backend API.
+ * @param message The main content of the notification.
+ * @param userKey The user's individual Pushover Key.
+ * @param authToken The authentication token for the Observer AI API.
+ * @param title An optional title for the notification.
+ */
+export async function sendPushover(message: string, userKey: string, authToken: string, title?: string): Promise<void> {
+  const API_HOST = "https://api.observer-ai.com";
+
+  if (!authToken) {
+    throw new Error("Authentication error: Auth token is missing.");
+  }
+
+  if (!userKey) {
+    throw new Error("Pushover user key is missing.");
+  }
+
+  try {
+    const response = await fetch(`${API_HOST}/tools/send-pushover`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`, 
+      },
+      body: JSON.stringify({
+        user_key: userKey, // Note: snake_case to match the Pydantic model on the backend
+        message: message,
+        title: title // This will be included if provided, otherwise ignored by the backend
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData.detail || 'Failed to send Pushover notification due to a server error.';
+      throw new Error(errorMessage);
+    }
+  } catch (error) {
+    // Rethrow the error so the agent's execution log can catch it
+    throw error;
+  }
+}

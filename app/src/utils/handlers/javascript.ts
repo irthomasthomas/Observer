@@ -77,6 +77,22 @@ export async function executeJavaScript(
         await utils.sendEmail(message, emailAddress, token);
         Logger.info(agentId, `Successfully sent email request for address: ${emailAddress}.`);
       },
+
+      sendPushover: async (message: string, userKey: string, title?: string) => {
+        Logger.info(agentId, `Agent is attempting to send a Pushover notification.`);
+        if (!getToken) {
+            throw new Error("Authentication context not available for sendPushover.");
+        }
+
+        const token = await getToken();
+        if (!token) {
+            throw new Error("Failed to retrieve authentication token for Pushover.");
+        }
+
+        await utils.sendPushover(message, userKey, token, title);
+        
+        Logger.info(agentId, `Successfully sent Pushover notification request.`);
+      },
       
       startClip: utils.startClip,
       stopClip: utils.stopClip,
