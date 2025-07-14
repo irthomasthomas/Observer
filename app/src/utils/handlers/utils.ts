@@ -281,7 +281,7 @@ export async function sendDiscordBot(message: string, webhookUrl: string, authTo
     throw new Error("Discord webhook URL is missing.");
   }
 
-  const DISCORD_MESSAGE_LIMIT = 1990;
+  const DISCORD_MESSAGE_LIMIT = 1900;
 
   let messageToSend = message;
 
