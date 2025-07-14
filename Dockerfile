@@ -1,6 +1,10 @@
 # Stage 1: Build the Vite application
 FROM node:20-alpine as builder
 
+ARG VITE_DISABLE_AUTH
+# Set it as an environment variable for the subsequent RUN commands
+ENV VITE_DISABLE_AUTH=${VITE_DISABLE_AUTH}
+
 WORKDIR /app
 COPY app/package.json app/package-lock.json* ./
 RUN npm install

@@ -21,6 +21,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+       - VITE_DISABLE_AUTH=false
 
     container_name: observer_app_and_proxy
     ports:
@@ -34,7 +36,6 @@ services:
       # Defaults in Python code are "ollama" and "11434", which work with the bundled service.
       - OLLAMA_SERVICE_HOST=${OLLAMA_HOST_OVERRIDE:-ollama}
       - OLLAMA_SERVICE_PORT=${OLLAMA_PORT_OVERRIDE:-11434}
-      - REACT_APP_DISABLE_AUTH=true
     # If you want to use the system's ollama in windows/macos set OLLAMA_HOST_OVERRIDE=host.docker.internal
 
     # Mount Docker socket only if /exec feature is active and desired

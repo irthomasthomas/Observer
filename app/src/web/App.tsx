@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Terminal, Server } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -41,9 +41,18 @@ import { UpgradeModal } from '@components/UpgradeModal';
 function AppContent() {
   // Check our environment variable to see if Auth0 should be disabled
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
-  Logger.debug('isAuthDisabled', `is it? lets see ${isAuthDisabled}`);
 
   // If Auth0 is disabled, create a mock auth object for local development.
+  //
+  const mockAuth = useMemo(() => ({
+    isAuthenticated: false,
+    user: { name: 'Local Dev User', email: 'dev@local.host' },
+    loginWithRedirect: () => Promise.resolve(),
+    logout: () => {},
+    isLoading: false,
+    getAccessTokenSilently: async () => 'mock_token'
+  }), []);
+
   // Otherwise, use the real useAuth0 hook.
   const { 
     isAuthenticated, 
@@ -52,16 +61,7 @@ function AppContent() {
     logout, 
     isLoading,
     getAccessTokenSilently
-  } = isAuthDisabled 
-    ? {
-        isAuthenticated: true,
-        user: { name: 'Local Dev User', email: 'dev@local.host' },
-        loginWithRedirect: () => Promise.resolve(),
-        logout: () => {},
-        isLoading: false,
-        getAccessTokenSilently: async () => 'mock_token'
-      } 
-    : useAuth0(); 
+  } = isAuthDisabled ? mockAuth : useAuth0();
 
   const [agents, setAgents] = useState<CompleteAgent[]>([]);
   const [agentCodes, setAgentCodes] = useState<Record<string, string>>({});
@@ -683,6 +683,8 @@ function AppContent() {
 
 export function App() {
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+
+  Logger.info('AUTH', `is Auth disabled?: ${isAuthDisabled}`);
 
   if (isAuthDisabled) {
     Logger.info('isAuthDisabled',"Auth0 is disabled for local development.");
