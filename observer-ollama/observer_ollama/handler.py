@@ -102,9 +102,11 @@ class OllamaProxyHandler(CorsMixin, http.server.BaseHTTPRequestHandler):
         path = self.path
         
         # The core translation logic
-        is_chat_completions = (method == 'POST' and self.path == '/v1/chat/completions')
-        if is_chat_completions:
-            original_model = json.loads(body).get('model', 'unknown') if body else 'unknown'
+        is_chat_completions = (method == 'POST' and path == '/v1/chat/completions')
+        
+        # Only translate if the flag is enabled from the server config
+        if is_chat_completions and self.server.enable_legacy_translation:
+            logger.debug("Legacy translation enabled. Translating request to /api/generate.")
             path, body = translator.translate_request_to_ollama(body)
 
         # Delegate the actual network call to the client
