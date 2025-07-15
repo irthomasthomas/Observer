@@ -59,7 +59,7 @@ def main():
         "--legacy-translation",
         dest="enable_legacy_translation",
         action=argparse.BooleanOptionalAction,
-        default=get_bool_env('ENABLE_LEGACY_TRANSLATION', False),
+        default=get_bool_env('ENABLE_LEGACY_TRANSLATION', True),
         help="Enable translation to legacy /api/generate endpoint (--legacy-translation or --no-legacy-translation)."
     )
     

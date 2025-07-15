@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   # This container runs both the Web UI and the backend proxy.
-  observer_app_and_proxy:
+  observer_app:
     build: . # Uses the Dockerfile in the current directory
     container_name: observer_app_and_proxy
     ports:
@@ -54,6 +54,10 @@ services:
 
       # The name of the ollama container for the 'exec' feature to target.
       - OLLAMA_CONTAINER_NAME=ollama_service
+      
+      # --- THIS IS THE FIX --
+      # Tells the Python proxy how to find the Ollama service within the Docker network.
+      - OLLAMA_SERVICE_HOST=ollama
 
 volumes:
   ollama_data: {}

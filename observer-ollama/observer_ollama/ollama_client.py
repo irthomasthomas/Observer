@@ -41,7 +41,7 @@ def forward_to_ollama(method, path, headers, body):
     target_url = f"{OLLAMA_BASE_URL}{path}"
     logger.debug(f"Forwarding {method} request to: {target_url}")
 
-    timeout = 300 if path == '/api/generate' else 60
+    timeout = 300 
     req = urllib.request.Request(target_url, data=body, method=method)
     
     for header in ['Content-Type', 'Authorization', 'User-Agent']:
