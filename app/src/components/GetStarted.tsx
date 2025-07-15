@@ -11,6 +11,7 @@ interface GetStartedProps {
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
   getToken: TokenProvider;
   isAuthenticated: boolean;
+  isUsingObServer: boolean;
 }
 
 const GetStarted: React.FC<GetStartedProps> = ({
@@ -18,7 +19,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
   onCreateNewAgent,
   onAgentGenerated,
   getToken,
-  isAuthenticated
+  isAuthenticated,
+  isUsingObServer
 }) => {
   return (
     // --- MODIFIED --- Reduced horizontal padding for mobile
@@ -47,6 +49,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
             onAgentGenerated={onAgentGenerated} 
             getToken={getToken}
             isAuthenticated={isAuthenticated}
+            isUsingObServer={isUsingObServer}
           />
         </div>
 
