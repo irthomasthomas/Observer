@@ -179,9 +179,11 @@ docker-compose down
 ```
 
 ---
-### Accessing from Your Phone or Laptop (Docker)
+### Accessing from Your Phone or Tablet (Docker)
 
-If you want to access your self-hosted Observer from another device on your local network (like a phone or laptop), you need to make one small change to disable authentication.
+Running an inference server on another device on the network is fully supported, just place the address to the OpenAI-compatible server from within the self-hosted webpage. 
+
+If you want to access your self-hosted Observer from another device that can't self host its own webpage (phones or tablets), you need to make one small change to disable authentication. This is due to Auth0 strict origin policy.
 
 1.  **Edit the `docker-compose.yml` file:**
     ```yaml
