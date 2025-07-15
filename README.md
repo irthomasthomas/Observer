@@ -178,30 +178,9 @@ docker-compose down
 ```
 
 ---
-### Accessing from Your Phone or Tablet (Docker)
+### ⚙️ Configuration (Docker)
 
-Running an inference server on another device on the network is fully supported, just place the address to the OpenAI-compatible server from within the self-hosted webpage. 
-
-If you want to access your self-hosted Observer from another device that can't self host its own webpage (phones or tablets), you need to make one small change to disable authentication. This is due to Auth0 strict origin policy.
-
-1.  **Edit the `docker-compose.yml` file:**
-    ```yaml
-    # In docker-compose.yml
-    services:
-      observer_app:
-        build:
-          context: .
-          dockerfile: Dockerfile
-          args:
-            # Set this value to true to disable authentication
-            - VITE_DISABLE_AUTH=true
-    ```
-
-2.  **Restart Docker:**
-    ```bash
-    docker-compose up --build --force-recreate
-    ```
-    You can now access Observer by navigating to `http://<YOUR_PC_IP_ADDRESS>:8080` on your other device.
+To customize your setup (e.g., enable SSL to access from `app.observer-ai.com`, disabling docker exec feature), simply edit the `environment:` section in your `docker-compose.yml` file. All options are explained with comments directly in the file.
 
 ## Option 2: Just host the webapp with any OpenAI compatible endpoint (Ollama, llama.cpp, vLLM)
 
