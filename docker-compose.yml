@@ -24,7 +24,12 @@ services:
 
   # This container runs both the Web UI and the backend proxy.
   observer_app:
-    build: . # Uses the Dockerfile in the current directory
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+       - VITE_DISABLE_AUTH=false
+
     container_name: observer_app_and_proxy
     ports:
       - "8080:80"    # Web UI (HTTP)
@@ -50,7 +55,7 @@ services:
       
       # Forwards requests to Ollama's legacy '/api/generate' endpoint.
       # Not needed for modern Ollama versions. Keep 'false' unless you have a specific reason.
-      - ENABLE_LEGACY_TRANSLATION=false
+      - ENABLE_LEGACY_TRANSLATION=true
 
       # The name of the ollama container for the 'exec' feature to target.
       - OLLAMA_CONTAINER_NAME=ollama_service
