@@ -11,21 +11,20 @@ from .handler import OllamaProxyHandler
 logger = logging.getLogger('ollama-proxy.server')
 
 
-def run_server(port, cert_dir, dev_mode, use_ssl=True, enable_exec=False, docker_container_name=""):
+def run_server(port, cert_dir, dev_mode, use_ssl, enable_exec, docker_container_name, enable_legacy_translation):
     """Configures and starts the proxy server (HTTPS or HTTP)."""
     protocol = "https" if use_ssl else "http"
     logger.info(f"--- Ollama {protocol.upper()} Proxy ---")
 
-    # The CustomServer now correctly receives and stores the new configuration
-    # so the handler instances can access it via `self.server.enable_exec` etc.
     class CustomThreadingTCPServer(socketserver.ThreadingTCPServer):
         allow_reuse_address = True
         def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
-            # Pass the config values to the instance
+            # Store all config values on the server instance
             self.dev_mode = dev_mode
             self.enable_exec = enable_exec
             self.docker_container_name = docker_container_name
-            # Now call the parent constructor
+            # --- New: Store the translation setting ---
+            self.enable_legacy_translation = enable_legacy_translation
             super().__init__(server_address, RequestHandlerClass, bind_and_activate)
 
     httpd = CustomThreadingTCPServer(("", port), OllamaProxyHandler)

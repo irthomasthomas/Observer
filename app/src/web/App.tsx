@@ -520,6 +520,7 @@ function AppContent() {
                   onAgentGenerated={handleAgentGenerated}
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
+                  isUsingObServer={isUsingObServer}
                 />
               }
             </div>
@@ -553,6 +554,7 @@ function AppContent() {
         onAgentGenerated={handleAgentGenerated}
         getToken={getToken}
         isAuthenticated={isAuthenticated}
+        isUsingObServer={isUsingObServer}
       />
 
       {isEditModalOpen && (

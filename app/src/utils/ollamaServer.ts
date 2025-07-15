@@ -35,7 +35,7 @@ export async function checkOllamaServer(host: string, port: string): Promise<Ser
   } catch (error) {
     return { 
       status: 'offline', 
-      error: 'Could not connect to Ollama server' 
+      error: 'Could not connect to server' 
     };
   }
 }

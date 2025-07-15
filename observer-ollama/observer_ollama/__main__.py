@@ -1,4 +1,4 @@
-# ollama_proxy/__main__.py
+# observer_ollama/__main__.py
 import argparse
 import logging
 import os
@@ -13,55 +13,87 @@ logging.basicConfig(
 )
 logger = logging.getLogger('ollama-proxy')
 
+# --- New: Helper function for reading boolean environment variables ---
+def get_bool_env(var_name, default=False):
+    """Reads an environment variable and interprets it as a boolean."""
+    val = os.environ.get(var_name, str(default))
+    return val.lower() in ['true', '1', 't', 'y', 'yes']
+
 def main():
     """Main entry point for the Ollama Proxy."""
     parser = argparse.ArgumentParser(
-        description="A pure HTTPS/HTTP proxy for Ollama with OpenAI API translation.",
+        description="A proxy for Ollama with OpenAI API compatibility.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    
+
     server_group = parser.add_argument_group('Server Configuration')
-    server_group.add_argument("--port", type=int, default=3838, help="Port to run the proxy server on.")
+    server_group.add_argument("--port", type=int, default=os.environ.get("PORT", "3838"), help="Port to run the proxy server on. Overrides PORT env var.")
     server_group.add_argument("--dev", action="store_true", help="Enable development mode (e.g., allows all CORS origins).")
 
+    # --- Modified: SSL configuration using the new pattern ---
     ssl_group = parser.add_argument_group('SSL Configuration')
-    ssl_group.add_argument("--disable-ssl", action="store_true", help="Run the server over plain HTTP instead of HTTPS.")
-    ssl_group.add_argument("--cert-dir", default="./certs", help="Directory to store self-signed certificates (if SSL is enabled).")
+    # The default is now read from the environment. Flag overrides it.
+    ssl_group.add_argument(
+        "--ssl",
+        dest="use_ssl",
+        action=argparse.BooleanOptionalAction,
+        default=get_bool_env('ENABLE_SSL', False),
+        help="Enable/disable SSL (--ssl or --no-ssl). Overrides ENABLE_SSL env var."
+    )
+    ssl_group.add_argument("--cert-dir", default="./certs", help="Directory to store self-signed certificates.")
+    
+    # --- Modified: Command Execution configuration using the new pattern ---
+    exec_group = parser.add_argument_group('Command Execution (via /exec endpoint)')
+    exec_group.add_argument(
+        "--exec",
+        dest="enable_exec",
+        action=argparse.BooleanOptionalAction,
+        default=get_bool_env('ENABLE_DOCKER_EXEC', True),
+        help="[SECURITY RISK] Enable/disable the /exec endpoint (--exec or --no-exec). Overrides ENABLE_DOCKER_EXEC env var."
+    )
+    exec_group.add_argument("--docker-container-name", default=os.environ.get("OLLAMA_CONTAINER_NAME", "ollama_service"), help="Name of the Docker container to execute commands in.")
+
+    # --- New: Legacy Translation configuration group ---
+    translation_group = parser.add_argument_group('Legacy Ollama Support')
+    translation_group.add_argument(
+        "--legacy-translation",
+        dest="enable_legacy_translation",
+        action=argparse.BooleanOptionalAction,
+        default=get_bool_env('ENABLE_LEGACY_TRANSLATION', True),
+        help="Enable translation to legacy /api/generate endpoint (--legacy-translation or --no-legacy-translation)."
+    )
     
     ollama_group = parser.add_argument_group('Ollama Destination Configuration')
     ollama_group.add_argument("--ollama-host", default=os.environ.get("OLLAMA_SERVICE_HOST", "localhost"), help="The hostname of the Ollama service to proxy to.")
     ollama_group.add_argument("--ollama-port", type=int, default=os.environ.get("OLLAMA_SERVICE_PORT", "11434"), help="The port of the Ollama service.")
     
-    # --- Start of new code ---
-    exec_group = parser.add_argument_group('Command Execution (via /exec endpoint)')
-    exec_group.add_argument("--enable-exec", action="store_true", help="[SECURITY RISK] Enable the /exec endpoint to run commands inside the container.")
-    exec_group.add_argument("--docker-container-name", default="ollama_service", help="Name of the Docker container to execute commands in.")
-    # --- End of new code ---
-
     log_group = parser.add_argument_group('Logging')
     log_group.add_argument("--debug", action="store_true", help="Enable debug logging for all modules.")
     
     args = parser.parse_args()
     
     if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-        for handler in logging.getLogger().handlers:
-            handler.setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.DEBUG) # Configure root logger
         logger.info("Debug logging enabled.")
 
-    if not args.enable_exec:
-        logger.info("Command execution endpoint (/exec) is disabled. Use --enable-exec to activate it.")
+    # Log the final, resolved configuration
+    logger.info(f"--- Configuration ---")
+    logger.info(f"SSL Enabled: {args.use_ssl}")
+    logger.info(f"Exec Endpoint Enabled: {args.enable_exec}")
+    logger.info(f"Legacy Translation Enabled: {args.enable_legacy_translation}")
+    logger.info(f"---------------------")
 
     set_ollama_destination(args.ollama_host, args.ollama_port)
     
-    # Pass the new arguments to the server runner
+    # Pass all resolved arguments to the server runner
     run_server(
         port=args.port, 
         cert_dir=args.cert_dir, 
         dev_mode=args.dev, 
-        use_ssl=(not args.disable_ssl),
+        use_ssl=args.use_ssl,
         enable_exec=args.enable_exec,
-        docker_container_name=args.docker_container_name
+        docker_container_name=args.docker_container_name,
+        enable_legacy_translation=args.enable_legacy_translation
     )
 
 if __name__ == "__main__":
