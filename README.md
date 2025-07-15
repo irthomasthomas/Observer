@@ -1,5 +1,4 @@
-# Observer AI Just Launched Today 🚀! Support the project on ProductHunt!
-## [ProductHunt Link](https://www.producthunt.com/products/observer-ai?utm_source=other&utm_medium=social)
+# Observer AI 🚀! 
 
 ## It's not spying... if it's for you 👀
 Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
