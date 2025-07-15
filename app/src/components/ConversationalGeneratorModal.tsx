@@ -11,6 +11,7 @@ interface ConversationalGeneratorModalProps {
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
   getToken: TokenProvider;
   isAuthenticated: boolean;
+  isUsingObServer: boolean;
 }
 
 const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> = ({
@@ -18,7 +19,8 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   onClose,
   onAgentGenerated,
   getToken,
-  isAuthenticated
+  isAuthenticated,
+  isUsingObServer
 }) => {
   if (!isOpen) return null;
 
@@ -53,6 +55,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
           onAgentGenerated={handleAgentReady}
           getToken={getToken}
           isAuthenticated={isAuthenticated}
+          isUsingObServer={isUsingObServer}
           />
         </div>
       </div>
