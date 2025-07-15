@@ -107,23 +107,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
           </div>
         </div>
         
-        {/* --- PRODUCT HUNT BANNER --- */}
-        <div className="mt-6 p-3 sm:p-4 bg-purple-50 border border-purple-200 rounded-lg text-center shadow-sm">
-            <h3 className="font-semibold text-md sm:text-lg text-purple-800 mb-2">
-                🚀 Observer is Live on Product Hunt!
-            </h3>
-            <p className="text-xs sm:text-sm text-purple-700 mb-3 sm:mb-4">
-                Your support means the world. Please consider upvoting the project!
-            </p>
-            <a 
-                href="https://www.producthunt.com/products/observer-ai?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-observer&#0045;ai"
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-bold py-1.5 px-4 sm:py-2 sm:px-5 rounded-lg transition-colors text-sm"
-            >
-                Support on Product Hunt
-            </a>
-        </div>
+        
 
         <div className="text-center text-xs sm:text-sm text-gray-500 mt-6">
           You can switch between options anytime from the app header.
