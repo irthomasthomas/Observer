@@ -24,7 +24,8 @@
     "@lexical/react": "^0.25.0",
     "@lexical/rich-text": "^0.25.0",
     "@lexical/selection": "^0.25.0",
-    "@tauri-apps/api": "^2.3.0",
+    "@tauri-apps/api": "^2.6.0",
+    "@tauri-apps/plugin-shell": "^2.3.0",
     "@tinymce/tinymce-react": "^6.0.0",
     "@uiw/codemirror-theme-vscode": "^4.24.0",
     "@uiw/react-codemirror": "^4.23.8",
@@ -49,7 +50,7 @@
     "yaml": "^2.7.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.3.0",
+    "@tauri-apps/cli": "^2.6.2",
     "@types/dom-speech-recognition": "^0.0.6",
     "@types/js-yaml": "^4.0.9",
     "@types/react": "^18.2.55",
