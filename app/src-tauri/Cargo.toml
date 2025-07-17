@@ -36,4 +36,10 @@ tauri-plugin-shell = "2" # Add the shell plugin
 # Web server Dependencies
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.7", features = ["json"] } # MODIFIED
-tower-http = { version = "0.5.0", features = ["fs"] } # ADD "cors" FEATURE
+tower-http = { version = "0.5.0", features = ["fs", "cors"] } # ADD "cors" FEATURE
+futures = "0.3"
+async-stream = "0.3"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+http-body-util = "0.1"
+
+
