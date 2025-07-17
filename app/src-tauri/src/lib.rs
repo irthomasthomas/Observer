@@ -3,12 +3,72 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+// ---- Simplified Imports ----
+use axum::{
+    extract::Query,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+    Router,
+};
+use serde::Deserialize;
 use std::sync::Mutex;
 use tauri::{
-    menu::{Menu, MenuItem}, // Correct imports for v2
-    tray::TrayIconBuilder,    // Correct imports for v2
+    menu::{Menu, MenuItem},
+    tray::TrayIconBuilder,
     Manager, State,
 };
+use tokio::process::Command as TokioCommand; // Use Tokio's Command for async execution
+
+// Struct for query parameters: /exec?cmd=...
+#[derive(Debug, Deserialize)]
+struct ExecParams {
+    cmd: String,
+}
+
+// The new, simplified handler for the /exec endpoint
+async fn exec_handler(Query(params): Query<ExecParams>) -> impl IntoResponse {
+    log::info!("Received command to execute");
+
+
+    // DANGER: This approach bypasses Tauri's shell capabilities for this endpoint.
+    // It directly executes whatever command is passed.
+    // Ensure your frontend provides sanitized and expected commands.
+
+    let parts: Vec<&str> = params.cmd.split_whitespace().collect();
+    let (program, args) = match parts.split_first() {
+        Some((p, a)) => (*p, a),
+        None => {
+            let error_msg = "Error: Empty command received.".to_string();
+            log::error!("{}", error_msg);
+            return (StatusCode::BAD_REQUEST, error_msg);
+        }
+    };
+
+    // Execute the command using tokio::process::Command
+    match TokioCommand::new(program).args(args).output().await {
+        Ok(output) => {
+            // Combine stdout and stderr into a single response string
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let response_body = format!("{}\n{}", stdout, stderr).trim().to_string();
+
+            if output.status.success() {
+                log::info!("Command successful. Output:\n{}", response_body);
+                (StatusCode::OK, response_body)
+            } else {
+                log::error!("Command failed. Output:\n{}", response_body);
+                (StatusCode::INTERNAL_SERVER_ERROR, response_body)
+            }
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to execute command '{}': {}", program, e);
+            log::error!("{}", error_msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
+        }
+    }
+}
+
 
 // A struct to hold the server URL, which will be managed by Tauri.
 struct ServerUrl(String);
@@ -22,16 +82,14 @@ fn get_server_url(server_url: State<Mutex<ServerUrl>>) -> String {
 // This function starts the static file server only in release builds.
 #[cfg(not(debug_assertions))]
 fn start_static_server(app_handle: tauri::AppHandle) {
-    // This function remains unchanged.
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        use axum::Router;
         use tower_http::services::ServeDir;
 
         const SERVER_PORT: u16 = 3838;
         let url = format!("http://127.0.0.1:{}", SERVER_PORT);
         let addr_str = url.replace("http://", "");
-        
+
         let server_url_state = app_handle.state::<Mutex<ServerUrl>>();
         *server_url_state.lock().unwrap() = ServerUrl(url.clone());
 
@@ -43,7 +101,11 @@ fn start_static_server(app_handle: tauri::AppHandle) {
 
         log::info!("Serving static files from: {:?}", resource_path);
 
-        let app = Router::new().nest_service("/", ServeDir::new(resource_path));
+        // --- MODIFICATION: Router is now simpler, no CORS ---
+        let app = Router::new()
+            .route("/exec", get(exec_handler)) // Add our new simple route
+            .nest_service("/", ServeDir::new(resource_path));
+
         let listener = tokio::net::TcpListener::bind(&addr_str).await;
 
         match listener {
@@ -66,6 +128,7 @@ fn start_static_server(app_handle: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // This part remains unchanged
     tauri::Builder::default()
         .manage(Mutex::new(ServerUrl(String::new())))
         .setup(|app| {
@@ -75,7 +138,6 @@ pub fn run() {
                     .build(),
             )?;
 
-            // ---- Conditional Logic for Server ----
             #[cfg(not(debug_assertions))]
             {
                 let app_handle = app.handle().clone();
@@ -92,44 +154,33 @@ pub fn run() {
                 *server_url_state.lock().unwrap() = ServerUrl(dev_url.to_string());
             }
 
-            // --- Create the Tray Icon ---
             let handle = app.handle();
-
-            // In Tauri v2, you create menu items with a handle, text, enabled status, and an optional accelerator.
             let show = MenuItem::new(handle, "Show Launcher", true, None::<&str>)?;
             let quit = MenuItem::new(handle, "Quit", true, None::<&str>)?;
-
-            // In Tauri v2, you create the menu with a list of items.
             let menu = Menu::with_items(handle, &[&show, &quit])?;
 
-            // In Tauri v2, the builder methods are renamed (e.g., `with_tooltip` -> `tooltip`).
             let _tray = TrayIconBuilder::new()
                 .tooltip("Observer AI is running")
                 .icon(app.default_window_icon().cloned().unwrap())
                 .menu(&menu)
-                .on_menu_event(move |app, event| {
-                    match event.id().as_ref() { // Use event.id() to get the menu item ID
-                        "quit" => {
-                            app.exit(0);
+                .on_menu_event(move |app, event| match event.id().as_ref() {
+                    "quit" => app.exit(0),
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            window.show().unwrap();
+                            window.set_focus().unwrap();
                         }
-                        "show" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                window.show().unwrap();
-                                window.set_focus().unwrap();
-                            }
-                        }
-                        _ => {}
                     }
+                    _ => {}
                 })
                 .build(app)?;
 
             Ok(())
         })
         .on_window_event(|window, event| match event {
-            // This is the crucial part for minimizing to tray
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 window.hide().unwrap();
-                api.prevent_close(); // This prevents the app from closing
+                api.prevent_close();
             }
             _ => {}
         })
