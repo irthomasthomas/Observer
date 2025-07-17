@@ -26,6 +26,10 @@ use tauri::{
 use tauri_plugin_shell::ShellExt;
 use tower_http::{cors::{Any, CorsLayer}, services::ServeDir};
 
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command as TokioCommand;
+use futures::stream::select as stream_select;
+
 // Shared state for our application
 #[derive(Clone)]
 struct AppState {
@@ -38,7 +42,6 @@ struct ExecParams {
     cmd: String,
 }
 
-// exec_handler updated to allow the standalone "ollama" command.
 async fn exec_handler(
     AxumState(state): AxumState<AppState>,
     Query(params): Query<ExecParams>,
@@ -46,11 +49,12 @@ async fn exec_handler(
     log::info!("Received command to execute: '{}'", params.cmd);
 
     let stream = async_stream::stream! {
-        // --- Security Validation Start ---
+        // --- Security Validation (Unchanged) ---
+        const UNAUTHORIZED_MESSAGE: &str = "[unauthorized]";
 
-        // 1. Basic sanitization: check for shell command chaining/injection characters.
         if params.cmd.chars().any(|c| "&;|<>()`$".contains(c)) {
-            yield Ok(Event::default().event("error").data("Command contains forbidden characters."));
+            log::warn!("Unauthorized command blocked: contains forbidden characters ('{}').", params.cmd);
+            yield Ok(Event::default().event("error").data(UNAUTHORIZED_MESSAGE));
             return;
         }
 
@@ -60,65 +64,75 @@ async fn exec_handler(
             return;
         }
 
-        // 2. Ensure the command starts with "ollama".
         if parts[0] != "ollama" {
-            yield Ok(Event::default().event("error").data("Security Alert: Only 'ollama' commands are permitted."));
+            log::warn!("Unauthorized command blocked: only 'ollama' is permitted ('{}').", params.cmd);
+            yield Ok(Event::default().event("error").data(UNAUTHORIZED_MESSAGE));
             return;
         }
 
-        // 3. NEW: Validate subcommands if they exist, but allow the pure "ollama" command.
         let args: &[&str];
         if parts.len() == 1 {
-            // Case: The command is exactly "ollama". This is allowed.
-            // The shell command will have no arguments.
             args = &[];
         } else {
-            // Case: The command is "ollama <subcommand> ...".
-            // We must validate the subcommand.
             let subcommand = parts[1];
             let allowed_subcommands = [
                 "serve", "create", "show", "run", "stop", "pull",
                 "push", "list", "ps", "cp", "rm", "help"
             ];
-
             if !allowed_subcommands.contains(&subcommand) {
-                yield Ok(Event::default().event("error").data(format!("Security Alert: The 'ollama' subcommand '{}' is not permitted.", subcommand)));
+                log::warn!("Unauthorized command blocked: subcommand '{}' is not permitted.", subcommand);
+                yield Ok(Event::default().event("error").data(UNAUTHORIZED_MESSAGE));
                 return;
             }
-            // The arguments for the shell command are everything *after* "ollama".
             args = &parts[1..];
         }
 
-        // --- Security Validation End ---
-
-        // Use a fixed, absolute path for the executable to prevent PATH-based attacks.
+        // --- New Command Execution Logic ---
         let program = "/usr/local/bin/ollama";
-        log::info!("Executing validated command: {} with args {:?}", program, args);
+        log::info!("Executing validated command using TokioCommand: {} with args {:?}", program, args);
 
-        // NOTE: The `command` expects the arguments to the program, which in the case of
-        // `ollama list` would be `["list"]`. Our `args` slice correctly captures this.
-        // For the pure `ollama` command, `args` will be empty, which is also correct.
-        let command = state.app_handle.shell().command(program).args(args);
+        // 1. We now use tokio::process::Command directly
+        let mut command = TokioCommand::new(program);
+        command.args(args);
+        // 2. We tell it we want to capture the output pipes
+        command.stdout(std::process::Stdio::piped());
+        command.stderr(std::process::Stdio::piped());
 
         match command.spawn() {
-            Ok((mut rx, _child)) => {
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
-                            yield Ok(Event::default().data(String::from_utf8_lossy(&line).to_string()));
-                        }
-                        tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
-                            yield Ok(Event::default().data(String::from_utf8_lossy(&line).to_string()));
-                        }
-                        tauri_plugin_shell::process::CommandEvent::Terminated(payload) => {
-                            yield Ok(Event::default().event("done").data(format!("[COMMAND_FINISHED code={:?}]", payload.code)));
-                            break;
-                        }
-                        tauri_plugin_shell::process::CommandEvent::Error(e) => {
-                            yield Ok(Event::default().event("error").data(format!("[ERROR: {}]", e)));
-                            break;
-                        }
-                        _ => {}
+            Ok(mut child) => {
+                // 3. We take ownership of the stdout and stderr handles
+                let stdout = child.stdout.take().expect("Failed to capture stdout");
+                let stderr = child.stderr.take().expect("Failed to capture stderr");
+
+                // 4. We create buffered readers to read the streams line-by-line
+                let mut stdout_reader = BufReader::new(stdout).lines();
+                let mut stderr_reader = BufReader::new(stderr).lines();
+
+                loop {
+                    tokio::select! {
+                        // Read from stdout
+                        Ok(Some(line)) = stdout_reader.next_line() => {
+                            // HERE IS THE LOGGING YOU WANTED
+                            log::info!("RAW STDOUT BYTES AS STRING: {:?}", line);
+                            yield Ok(Event::default().data(line));
+                        },
+                        // Read from stderr
+                        Ok(Some(line)) = stderr_reader.next_line() => {
+                             // Log stderr as well for complete debugging
+                            log::info!("RAW STDERR BYTES AS STRING: {:?}", line);
+                            yield Ok(Event::default().data(line));
+                        },
+                        // Break the loop if both streams have ended
+                        else => break,
+                    }
+                }
+
+                match child.wait().await {
+                    Ok(status) => {
+                        yield Ok(Event::default().event("done").data(format!("[COMMAND_FINISHED code={:?}]", status.code())));
+                    }
+                    Err(e) => {
+                        yield Ok(Event::default().event("error").data(format!("[ERROR: Failed to wait for command. Error: {}]", e)));
                     }
                 }
             },
