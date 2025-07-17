@@ -77,7 +77,7 @@ async fn exec_handler(
             let subcommand = parts[1];
             let allowed_subcommands = [
                 "serve", "create", "show", "run", "stop", "pull",
-                "push", "list", "ps", "cp", "rm", "help"
+                "push", "list", "ps", "cp", "rm", "help", "--version", "--help"
             ];
             if !allowed_subcommands.contains(&subcommand) {
                 log::warn!("Unauthorized command blocked: subcommand '{}' is not permitted.", subcommand);
