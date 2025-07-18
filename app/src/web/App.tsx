@@ -493,37 +493,48 @@ function AppContent() {
               onGenerateAgent={() => setIsConversationalModalOpen(true)}
             />
 
-            <div className="flex flex-wrap gap-6">
-              {agents.length > 0 ? agents.map(agent => (
-                <div key={agent.id} className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0">
-                  <AgentCard
-                    agent={agent}
-                    code={agentCodes[agent.id]}
-                    isRunning={runningAgents.has(agent.id)}
-                    isStarting={startingAgents.has(agent.id)}
-                    isMemoryFlashing={flashingMemories.has(agent.id)}
-                    onEdit={handleEditClick}
-                    onDelete={handleDeleteClick}
-                    onToggle={toggleAgent}
-                    onMemory={handleMemoryClick}
-                    onShowJupyterModal={() => setIsJupyterModalOpen(true)}
+            <div className="flex flex-wrap gap-6 items-start">
+                {agents.length > 0 ? agents.map(agent => {
+                  const isAgentLive = runningAgents.has(agent.id) || startingAgents.has(agent.id);
+                  return (
+                    <div 
+                      key={agent.id} 
+                      className={`flex-shrink-0 transition-all duration-700 ease-in-out ${
+                        isAgentLive 
+                          ? 'w-full' 
+                          : 'w-full lg:w-[calc(50%-50px)]'
+                      }`}
+                    >
+                      <AgentCard
+                        agent={agent}
+                        code={agentCodes[agent.id]}
+                        isRunning={runningAgents.has(agent.id)}
+                        isStarting={startingAgents.has(agent.id)}
+                        isMemoryFlashing={flashingMemories.has(agent.id)}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                        onToggle={toggleAgent}
+                        onMemory={handleMemoryClick}
+                        onShowJupyterModal={() => setIsJupyterModalOpen(true)}
+                        getToken={getToken}
+                        isAuthenticated={isAuthenticated}
+                        hasQuotaError={agentsWithQuotaError.has(agent.id)}
+                        onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+                      />
+                    </div>
+                  );
+                }) : 
+                  <GetStarted 
+                    onExploreCommunity={() => setActiveTab('community')}
+                    onCreateNewAgent={handleAddAgentClick}
+                    onAgentGenerated={handleAgentGenerated}
                     getToken={getToken}
                     isAuthenticated={isAuthenticated}
-                    hasQuotaError={agentsWithQuotaError.has(agent.id)}
-                    onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+                    isUsingObServer={isUsingObServer}
                   />
-                </div>
-              )) : 
-                <GetStarted 
-                  onExploreCommunity={() => setActiveTab('community')}
-                  onCreateNewAgent={handleAddAgentClick}
-                  onAgentGenerated={handleAgentGenerated}
-                  getToken={getToken}
-                  isAuthenticated={isAuthenticated}
-                  isUsingObServer={isUsingObServer}
-                />
-              }
-            </div>
+                }
+              </div>
+
           </>
           ) : activeTab === 'community' ? (
             <CommunityTab />

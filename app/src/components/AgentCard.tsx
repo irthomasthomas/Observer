@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
+// AgentCard.tsx
+
+import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import { Edit, Trash2, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2, Zap, MessageSquareWarning, MessageCircle } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
@@ -160,6 +162,7 @@ const VideoStream: React.FC<{ stream: MediaStream }> = ({ stream }) => {
   );
 };
 
+
 interface AgentCardProps {
   agent: CompleteAgent;
   code?: string;
@@ -176,6 +179,121 @@ interface AgentCardProps {
   hasQuotaError: boolean;
   onUpgradeClick: () => void;
 }
+
+// NEW: A dedicated component for the status indicator for cleanliness.
+const AgentStatusPill: React.FC<{
+  isRunning: boolean;
+  isStarting: boolean;
+  hasQuotaError: boolean;
+}> = ({ isRunning, isStarting, hasQuotaError }) => {
+  let text = 'Inactive';
+  let colorClasses = 'bg-gray-100 text-gray-800'; // Default: Inactive
+
+  if (hasQuotaError) {
+    text = 'Limit Reached';
+    colorClasses = 'bg-red-100 text-red-700';
+  } else if (isStarting) {
+    text = 'Starting';
+    colorClasses = 'bg-yellow-100 text-yellow-800 animate-pulse';
+  } else if (isRunning) {
+    text = 'Active';
+    colorClasses = 'bg-green-100 text-green-800';
+  }
+
+  return (
+    <div className={`px-3 py-1 text-xs font-medium rounded-full inline-flex items-center ${colorClasses}`}>
+      <div className={`w-2 h-2 rounded-full mr-1.5 ${hasQuotaError ? 'bg-red-500' : isStarting ? 'bg-yellow-500' : isRunning ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+      <span>{text}</span>
+    </div>
+  );
+};
+
+// NEW: The dedicated warning component.
+const CommunicationWarning: React.FC<{ warnings: { hasSms: boolean; hasWhatsapp: boolean } }> = ({ warnings }) => {
+  if (!warnings.hasSms && !warnings.hasWhatsapp) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg animate-fade-in">
+      <div className="flex items-start">
+        <MessageSquareWarning className="h-6 w-6 text-blue-500 mr-3 flex-shrink-0" />
+        <div>
+          <h4 className="font-bold text-blue-800">Notification Notice</h4>
+          {warnings.hasWhatsapp && (
+            <p className="text-sm text-blue-700 mt-1">
+              <b>WhatsApp:</b> To receive messages, you must first message the number: +1 (555) 783-4727. This opens a 24-hour window due to Meta's policies.
+            </p>
+          )}
+          {warnings.hasSms && (
+            <p className="text-sm text-blue-700 mt-2">
+              <b>SMS:</b> Delivery to US/Canada is currently unreliable due to carrier restrictions (A2P). It is recommend using email for now.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// NEW COMPONENT FOR QUOTA ERROR
+const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeClick }) => (
+  <div className="mt-4 p-3 bg-orange-50 border-l-4 border-orange-400 rounded-r-lg animate-fade-in">
+    <div className="flex items-start">
+      <Zap className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" />
+      <div>
+        <h4 className="font-bold text-orange-800">Daily Limit Reached</h4>
+        <p className="text-sm text-orange-700 mt-1">You've used all your free cloud credits for the day!</p>
+      </div>
+    </div>
+    <button
+      onClick={onUpgradeClick}
+      className="w-full mt-3 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-sm"
+    >
+      Upgrade to Pro
+    </button>
+  </div>
+);
+
+
+const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
+  const statusInfo = useMemo(() => {
+    switch (status) {
+      case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
+      case 'CAPTURING': return { icon: <Eye className="w-5 h-5 animate-subtle-pulse" />, text: 'Capturing Inputs...', color: 'text-cyan-600' };
+      case 'THINKING': return { icon: <Activity className="w-5 h-5" />, text: 'Model is thinking...', color: 'text-purple-600' };
+      case 'WAITING': return { icon: <Clock className="w-5 h-5" />, text: 'Waiting for next cycle...', color: 'text-gray-500' };
+      default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };
+    }
+  }, [status]);
+  return (
+    <div className={`flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 ${statusInfo.color}`}>
+      <div className="flex-shrink-0">{statusInfo.icon}</div>
+      <span className="font-medium text-sm">{statusInfo.text}</span>
+      {(status === 'THINKING' || status === 'STARTING') && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin ml-auto" />}
+    </div>
+  );
+};
+
+const LoopProgressBar: React.FC<{ progress: number, interval: number }> = ({ progress, interval }) => (
+  <div>
+    <div className="flex justify-between items-center mb-1 text-xs text-gray-500">
+      <span>Next cycle in {interval}s</span>
+      <span>{Math.round(progress)}%</span>
+    </div>
+    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+      <div className="bg-green-500 h-2 rounded-full transition-all duration-100 ease-linear" style={{ width: `${progress}%` }}/>
+    </div>
+  </div>
+);
+
+const LastResponse: React.FC<{ response: string, responseKey: number }> = ({ response, responseKey }) => (
+  <div key={responseKey} className="bg-white border border-gray-200 rounded-lg shadow-sm animate-fade-in min-h-0">
+    <h4 className="text-xs font-semibold text-gray-500 mb-1 px-3 pt-2">Last Response</h4>
+    <p className="text-sm text-gray-700 whitespace-pre-wrap max-h-40 overflow-y-auto scrollbar-thin px-3 pb-2">{response}</p>
+  </div>
+);
+
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent,
@@ -201,7 +319,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [lastResponse, setLastResponse] = useState<string>('...');
   const [loopProgress, setLoopProgress] = useState(0);
   const [responseKey, setResponseKey] = useState(0);
-  const showStartingState = isStarting || isCheckingModel;
+  
+  const showStartingState = useMemo(() => isStarting || isCheckingModel, [isStarting, isCheckingModel]);
+  const isLive = useMemo(() => isRunning || showStartingState, [isRunning, showStartingState]);
 
   const [streams, setStreams] = useState<StreamState>({ 
     cameraStream: null,
@@ -211,7 +331,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
     allAudioStream: null
   });
 
-  // NEW: Memoized derivation of communication warnings from agent code
   const communicationWarnings = useMemo(() => {
     return getCommunicationWarnings(code);
   }, [code]);
@@ -236,7 +355,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
   }, []);
 
   useEffect(() => {
-    // If there's a quota error, the agent should effectively be 'IDLE' and not attempt to run.
     if (hasQuotaError) {
       setLiveStatus('IDLE');
       setLastResponse('Agent paused due to daily credit limit.');
@@ -269,11 +387,11 @@ const AgentCard: React.FC<AgentCardProps> = ({
     } else {
       setLiveStatus('IDLE');
     }
-  }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError]); // Added hasQuotaError
+  }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError]); 
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
-    if (isRunning && liveStatus === 'WAITING' && !hasQuotaError) { // Ensure not running on error
+    if (isRunning && liveStatus === 'WAITING' && !hasQuotaError) { 
       const interval = 100;
       const totalDuration = agent.loop_interval_seconds * 1000;
       const increment = (interval / totalDuration) * 100;
@@ -290,7 +408,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       }, interval);
     }
     return () => { if (timer) clearInterval(timer); };
-  }, [isRunning, liveStatus, agent.loop_interval_seconds, hasQuotaError]); // Added hasQuotaError
+  }, [isRunning, liveStatus, agent.loop_interval_seconds, hasQuotaError]); 
 
   const handleToggle = async () => {
     if (!isRunning) {
@@ -344,255 +462,173 @@ const AgentCard: React.FC<AgentCardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300">
-      <style>{`
-        @keyframes pulse-grow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
-        .animate-pulse-grow { animation: pulse-grow 2s infinite ease-in-out; }
-        @keyframes subtle-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .animate-subtle-pulse { animation: subtle-pulse 1.5s infinite ease-in-out; }
-        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-      `}</style>
+    <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 flex flex-col">
       
-      <div className="p-5 pb-0 flex justify-between items-start">
-        <div className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${ isPythonAgent ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
-          {isPythonAgent ? <><Terminal className="w-4 h-4 mr-2" /> Python</> : <><Code className="w-4 h-4 mr-2" /> JavaScript</>}
+      {/* === OMNIPRESENT PROGRESS BAR === */}
+      {isRunning && liveStatus === 'WAITING' && (
+        <div className="absolute top-0 left-0 right-0 h-1 z-10">
+          <div 
+            className="h-full bg-green-500 transition-all duration-150 ease-linear" 
+            style={{ width: `${loopProgress}%` }}
+          />
         </div>
-        {/* Disable Start/Stop button if a quota error is present */}
-        <button onClick={handleToggle} className={`px-6 py-2.5 rounded-lg font-medium flex items-center transition-colors ${ hasQuotaError ? 'bg-red-100 text-red-700 cursor-not-allowed' : showStartingState ? 'bg-yellow-100 text-yellow-700 cursor-wait' : isRunning ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`} disabled={showStartingState || hasQuotaError}>
-          {hasQuotaError ? 'Limit Reached' : showStartingState ? (
-            <>{isCheckingModel ? 'Checking...' : 'Starting...'}</>
-          ) : isRunning ? 'Stop' : <><Play className="w-5 h-5 mr-1" />Start</>}
-        </button>
-      </div>
-      
-      <div className="p-5">
-        <div className="flex gap-4">
-          <div className="w-20 flex-shrink-0 flex flex-col items-center gap-3">
-            <div className={`w-20 h-20 ${isPythonAgent ? 'bg-blue-100' : 'bg-amber-100'} rounded-full flex items-center justify-center`}>
-              <div className={`w-12 h-12 ${isPythonAgent ? 'bg-blue-500' : 'bg-amber-500'} rounded-full flex items-center justify-center ${isRunning && !showStartingState && !hasQuotaError ? 'animate-pulse-grow' : ''}`}>
-                <User className="w-7 h-7 text-white" />
+      )}
+
+      {/* === CARD BODY === */}
+      <div className="p-5 flex-grow">
+        {/* --- Header: Status, Name, and Start/Stop Button --- */}
+        <div className="flex justify-between items-center mb-4">
+           {/* MODIFIED: Agent Name is now grouped with status and left-aligned when inactive */}
+           <div className="flex-1 min-w-0">
+             {!isLive ? (
+                <>
+                  <h3 className="text-xl font-bold text-gray-800 truncate">
+                    {agent.name}
+                  </h3>
+                  <div className="mt-1">
+                    <AgentStatusPill isRunning={isRunning} isStarting={showStartingState} hasQuotaError={hasQuotaError} />
+                  </div>
+                </>
+             ) : (
+                <AgentStatusPill isRunning={isRunning} isStarting={showStartingState} hasQuotaError={hasQuotaError} />
+             )}
+           </div>
+
+           {/* NEW: Centered name ONLY when live */}
+           {isLive && (
+             <h3 className="text-xl font-bold text-gray-800 truncate text-center flex-1 px-4">
+               {agent.name}
+             </h3>
+           )}
+
+           <div className="flex-1 flex justify-end">
+             <button 
+               onClick={handleToggle} 
+               className={`px-4 py-2 rounded-lg font-medium flex-shrink-0 flex items-center transition-colors text-sm ${
+                 hasQuotaError 
+                   ? 'bg-red-100 text-red-700 cursor-not-allowed' 
+                   : showStartingState 
+                   ? 'bg-yellow-100 text-yellow-700 cursor-wait' 
+                   : isRunning 
+                   ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                   : 'bg-green-100 text-green-700 hover:bg-green-200'
+               }`} 
+               disabled={showStartingState || hasQuotaError}
+             >
+               {hasQuotaError ? (
+                   <><Zap className="w-4 h-4 mr-2" /> Limit</>
+               ) : showStartingState ? (
+                   <>{isCheckingModel ? 'Checking...' : 'Starting...'}</>
+               ) : isRunning ? (
+                   <><Power className="w-4 h-4 mr-2" /> Stop</>
+               ) : (
+                   <><Play className="w-4 h-4 mr-2" /> Start</>
+               )}
+             </button>
+           </div>
+        </div>
+
+        {/* --- Content Area: Switches between static info and the live two-column view --- */}
+        <div className={`${isLive ? 'grid md:grid-cols-2 md:gap-6' : ''}`}>
+          
+          {/* === LIVE VIEW === */}
+          {isLive && (
+            <>
+              {/* --- NEW Left Column: All SENSORY Input (Video + Audio) --- */}
+              <div className="space-y-4 animate-fade-in">
+                {/* Stacked Video Streams */}
+                {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} />}
+                {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
+                
+                {/* No video filler */}
+                {!streams.screenVideoStream && !streams.cameraStream && (
+                    <div className="bg-gray-900 rounded-lg aspect-video flex items-center justify-center text-gray-500">
+                      Awaiting visual stream...
+                    </div>
+                )}
+
+                {/* Stacked Audio Streams */}
+                <div className="grid grid-cols-1 gap-2">
+                    {getActiveAudioStreamsForDisplay(streams).map(({ type, stream, title, icon }) => (
+                      <AudioWaveform key={type} stream={stream} title={title} icon={icon} />
+                    ))}
+                </div>
               </div>
+
+              {/* --- NEW Right Column: All INTELLECT Info (State + Response) --- */}
+              <div className="space-y-4 animate-fade-in flex flex-col justify-start">
+                 <StateTicker status={liveStatus} />
+                 <LastResponse response={lastResponse} responseKey={responseKey} />
+              </div>
+            </>
+          )}
+
+          {/* === STATIC VIEW === */}
+          {!isLive && (
+            <div className="space-y-4 animate-fade-in">
+              {/* MODIFIED: Removed centering classes */}
+              <p className="text-sm text-gray-600">{agent.description || "No description provided."}</p>
+              
+              {/* MODIFIED: Agent Info Tags are now left-aligned */}
+              <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
+                  <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPythonAgent ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                    {isPythonAgent ? 'Python' : 'JavaScript'}
+                  </div>
+                  <div className="inline-flex items-center">
+                    <Brain className="w-4 h-4 mr-1.5" />
+                    {agent.model_name || "No model"}
+                  </div>
+                  <div className="inline-flex items-center">
+                    <Clock className="w-4 h-4 mr-1.5" />
+                    {agent.loop_interval_seconds}s interval
+                  </div>
+              </div>
+
+              {/* MODIFIED: Removed centering from warnings */}
+              {startWarning && (<div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md text-sm flex items-center gap-2"><AlertTriangle className="h-5 w-5 flex-shrink-0" /><span>{startWarning}</span></div>)}
+              <CommunicationWarning warnings={communicationWarnings} />
             </div>
-            <AgentPersistentControls isPythonAgent={isPythonAgent} jupyterConnected={isJupyterConnected()} isMemoryFlashing={isMemoryFlashing} onMemory={() => onMemory(agent.id)}/>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-2xl font-semibold text-gray-800 truncate">{agent.name}</h3>
-            {/* Conditional rendering logic */}
-            {isRunning || showStartingState ? (
-              <LiveAgentView status={liveStatus} lastResponse={lastResponse} responseKey={responseKey} loopProgress={loopProgress} loopInterval={agent.loop_interval_seconds} streams={streams}/>
-            ) : (
-              <StaticAgentInfo 
-                agent={agent} 
-                startWarning={startWarning} 
-                onEdit={onEdit} 
-                onDelete={onDelete}
-                hasQuotaError={hasQuotaError}
-                onUpgradeClick={onUpgradeClick}
-                communicationWarnings={communicationWarnings} // MODIFIED: Pass down the new prop
-              />
-            )}
-          </div>
+          )}
         </div>
       </div>
-      
-      <div>
-         <button onClick={() => setActivityExpanded(!activityExpanded)} className="w-full px-5 py-4 flex items-center border-t border-gray-100 hover:bg-gray-50 transition-colors">
-          <MessageCircle className="w-6 h-6 text-blue-500 mr-2" />
-          <span className="text-xl font-medium">Activity Log</span>
-          <div className="ml-auto">
-            {activityExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
-          </div>
-        </button>
-        {activityExpanded && (
-          <div className="border-t border-gray-100 p-4 bg-gray-50/50">
+
+      {/* === FOOTER: This part is consistent across both states === */}
+      <div className="border-t border-gray-100 bg-gray-50/75 px-4 py-2 flex justify-between items-center">
+        {/* Left Side: Edit/Delete */}
+        <div className="flex items-center gap-2">
+            <button onClick={() => onEdit(agent.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded-md"><Edit className="w-4 h-4" /> Edit</button>
+            <button onClick={() => onDelete(agent.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-100 rounded-md"><Trash2 className="w-4 h-4" /> Delete</button>
+        </div>
+        
+        {/* Right Side: Memory/Jupyter and Activity Log */}
+        <div className="flex items-center gap-2">
+             {isPythonAgent ? (
+                <button onClick={onShowJupyterModal} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md ${isJupyterConnected() ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50 hover:bg-red-100'}`}>
+                    <Terminal className="w-4 h-4" /> Jupyter
+                </button>
+            ) : (
+                <button onClick={() => onMemory(agent.id)} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-100 rounded-md ${isMemoryFlashing ? 'animate-pulse' : ''}`}>
+                    <Brain className="w-4 h-4" /> Memory
+                </button>
+            )}
+            <button onClick={() => setActivityExpanded(!activityExpanded)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100 rounded-md">
+                {activityExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                Activity
+            </button>
+        </div>
+      </div>
+
+      {/* EXPANDABLE LOGS SECTION */}
+      {activityExpanded && (
+        <div className="border-t border-gray-200 p-4 bg-gray-50">
             <AgentLogViewer 
               agentId={agent.id}
               getToken={getToken}
               isAuthenticated={isAuthenticated}
             />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const AgentPersistentControls: React.FC<{isPythonAgent: boolean, jupyterConnected: boolean, isMemoryFlashing: boolean, onMemory: () => void,}> = ({ isPythonAgent, jupyterConnected, isMemoryFlashing, onMemory }) => {
-  if (isPythonAgent) {
-    return (
-      <div className={`mt-1 flex items-center text-xs ${jupyterConnected ? 'text-green-600' : 'text-red-600'}`}>
-        <Terminal className="h-8 w-8 mr-1" />
-      </div>
-    );
-  }
-  return (
-    <button onClick={onMemory} className="mt-1 text-purple-600 hover:text-purple-800 flex items-center text-xs">
-      <Brain className={`h-8 w-8 mr-1 ${isMemoryFlashing ? 'animate-pulse' : ''}`} />
-    </button>
-  );
-};
-
-const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
-  const statusInfo = useMemo(() => {
-    switch (status) {
-      case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
-      case 'CAPTURING': return { icon: <Eye className="w-5 h-5 animate-subtle-pulse" />, text: 'Capturing Inputs...', color: 'text-cyan-600' };
-      case 'THINKING': return { icon: <Activity className="w-5 h-5" />, text: 'Model is thinking...', color: 'text-purple-600' };
-      case 'WAITING': return { icon: <Clock className="w-5 h-5" />, text: 'Waiting for next cycle...', color: 'text-gray-500' };
-      default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };
-    }
-  }, [status]);
-  return (
-    <div className={`flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 ${statusInfo.color}`}>
-      <div className="flex-shrink-0">{statusInfo.icon}</div>
-      <span className="font-medium text-sm">{statusInfo.text}</span>
-      {(status === 'THINKING' || status === 'STARTING') && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin ml-auto" />}
-    </div>
-  );
-};
-
-const LoopProgressBar: React.FC<{ progress: number, interval: number }> = ({ progress, interval }) => (
-  <div>
-    <div className="flex justify-between items-center mb-1 text-xs text-gray-500">
-      <span>Next cycle in {interval}s</span>
-      <span>{Math.round(progress)}%</span>
-    </div>
-    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-      <div className="bg-green-500 h-2 rounded-full transition-all duration-100 ease-linear" style={{ width: `${progress}%` }}/>
-    </div>
-  </div>
-);
-
-const LastResponse: React.FC<{ response: string, responseKey: number }> = ({ response, responseKey }) => (
-  <div key={responseKey} className="bg-white border border-gray-200 rounded-lg shadow-sm animate-fade-in min-h-0">
-    <h4 className="text-xs font-semibold text-gray-500 mb-1 px-3 pt-2">Last Response</h4>
-    <p className="text-sm text-gray-700 whitespace-pre-wrap max-h-24 overflow-y-auto scrollbar-thin px-3 pb-2">{response}</p>
-  </div>
-);
-
-const LiveAgentView: React.FC<{status: AgentLiveStatus, lastResponse: string, responseKey: number, loopProgress: number, loopInterval: number, streams: StreamState}> = ({ status, lastResponse, responseKey, loopProgress, loopInterval, streams }) => {
-  
-  const displayableAudioStreams = useMemo(() => getActiveAudioStreamsForDisplay(streams), [streams]);
-
-  return (
-    <div className="mt-2 space-y-3">
-      <StateTicker status={status} />
-      {status === 'WAITING' && (<div className="animate-fade-in"><LoopProgressBar progress={loopProgress} interval={loopInterval} /></div>)}
-      
-      {(streams.screenVideoStream || streams.cameraStream) && (
-        <div className="flex gap-2 animate-fade-in">
-          {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} />}
-          {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
         </div>
       )}
-
-      {/* It renders only if the selector returns streams, and then simply maps over them. */}
-      {displayableAudioStreams.length > 0 && (
-        <div className="flex gap-2 animate-fade-in">
-          {displayableAudioStreams.map(({ type, stream, title, icon }) => (
-            <AudioWaveform
-              key={type}
-              stream={stream}
-              title={title}
-              icon={icon}
-            />
-          ))}
-        </div>
-      )}
-
-      <LastResponse response={lastResponse} responseKey={responseKey} />
     </div>
-  );
-};
-
-
-// --- NEW COMPONENT FOR QUOTA ERROR ---
-const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeClick }) => (
-  <div className="mt-2 p-4 bg-orange-50 border-l-4 border-orange-400 rounded-lg animate-fade-in">
-    <div className="flex items-start">
-      <Zap className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" />
-      <div>
-        <h4 className="font-bold text-orange-800">Daily Limit Reached</h4>
-        <p className="text-sm text-orange-700 mt-1">You've used all your free cloud credits for the day!</p>
-      </div>
-    </div>
-    <button
-      onClick={onUpgradeClick}
-      className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-sm"
-    >
-      Upgrade to Pro
-    </button>
-  </div>
-);
-
-
-// NEW: The dedicated warning component. Place it here.
-const CommunicationWarning: React.FC<{ warnings: { hasSms: boolean; hasWhatsapp: boolean } }> = ({ warnings }) => {
-  if (!warnings.hasSms && !warnings.hasWhatsapp) {
-    return null;
-  }
-
-  return (
-    <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg animate-fade-in">
-      <div className="flex items-start">
-        <MessageSquareWarning className="h-6 w-6 text-blue-500 mr-3 flex-shrink-0" />
-        <div>
-          <h4 className="font-bold text-blue-800">Notification Notice</h4>
-          {warnings.hasWhatsapp && (
-            <p className="text-sm text-blue-700 mt-1">
-              <b>WhatsApp:</b> To receive messages, you must first message the number: +1 (555) 783-4727. This opens a 24-hour window due to Meta's policies.
-            </p>
-          )}
-          {warnings.hasSms && (
-            <p className="text-sm text-blue-700 mt-2">
-              <b>SMS:</b> Delivery to US/Canada is currently unreliable due to carrier restrictions (A2P). It is recommend using email for now.
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-// MODIFIED: Updated StaticAgentInfo component to accept and render the new warning
-const StaticAgentInfo: React.FC<{
-  agent: CompleteAgent;
-  startWarning: string | null;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => Promise<void>;
-  hasQuotaError: boolean;
-  onUpgradeClick: () => void;
-  communicationWarnings: { hasSms: boolean; hasWhatsapp: boolean }; // New prop
-}> = (props) => {
-  if (props.hasQuotaError) {
-    return <QuotaErrorView onUpgradeClick={props.onUpgradeClick} />;
-  }
-  Logger.info('static agent info', `communication warnings: ${props.communicationWarnings.hasSms}`);
-
-  return (
-    <>
-      <div className="flex items-center mt-1">
-        <div className="w-3 h-3 rounded-full mr-2 bg-gray-400"></div>
-        <span className="text-sm text-gray-600">Inactive</span>
-      </div>
-      <p className="mt-2 text-gray-600">{props.agent.description}</p>
-      
-      {/* NEW: Render the communication warnings */}
-      <CommunicationWarning warnings={props.communicationWarnings} />
-      
-      {props.startWarning && (<div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-md text-sm"><div className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" /><span>{props.startWarning}</span></div></div>)}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.model_name || "No model set"}</div>
-        <div className="px-3 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">{props.agent.loop_interval_seconds}s</div>
-        {isAgentScheduled(props.agent.id) && <div className="px-3 py-1 bg-yellow-50 rounded-lg text-sm text-yellow-700">Scheduled: {getScheduledTime(props.agent.id)?.toLocaleString()}</div>}
-      </div>
-      <div className="mt-5 flex gap-3">
-        <button onClick={() => props.onEdit(props.agent.id)} className="px-5 py-2 rounded-lg flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700"><Edit className="w-4 h-4 mr-2" /> Edit</button>
-        <button onClick={() => props.onDelete(props.agent.id)} className="px-5 py-2 rounded-lg flex items-center bg-red-50 hover:bg-red-100 text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</button>
-      </div>
-    </>
   );
 };
 
