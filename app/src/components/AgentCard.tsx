@@ -3,7 +3,7 @@
 // MODIFIED: Removed 'useCallback' as it's not used.
 import React, { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 // MODIFIED: Removed unused icons: Code, User, MessageCircle
-import { Edit, Trash2, ChevronDown, ChevronUp, Play, Terminal, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2, Zap, MessageSquareWarning, VideoOff } from 'lucide-react';
+import { Edit, Trash2, ChevronDown, ChevronUp, Play, Terminal, Brain, Cpu, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2, Zap, MessageSquareWarning, VideoOff } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
 // MODIFIED: Removed unused import for scheduling
@@ -561,8 +561,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
                   <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPythonAgent ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                     {isPythonAgent ? 'Python' : 'JavaScript'}
                   </div>
-                  <div className="inline-flex items-center"><Brain className="w-4 h-4 mr-1.5" />{agent.model_name || "No model"}</div>
-                  <div className="inline-flex items-center"><Clock className="w-4 h-4 mr-1.5" />{agent.loop_interval_seconds}s interval</div>
+                  <div className="inline-flex items-center"><Cpu className="w-4 h-4 mr-1.5" />{agent.model_name || "No model"}</div>
+                  <div className="inline-flex items-center"><Clock className="w-4 h-4 mr-1.5" />{agent.loop_interval_seconds}s</div>
               </div>
               {startWarning && (<div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md text-sm flex items-center gap-2"><AlertTriangle className="h-5 w-5 flex-shrink-0" /><span>{startWarning}</span></div>)}
               <CommunicationWarning warnings={communicationWarnings} />
