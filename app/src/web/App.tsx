@@ -485,7 +485,7 @@ function AppContent() {
           onClose={() => setIsJupyterModalOpen(false)}
         />
 
-        <main className="max-w-7xl mx-auto px-4 pt-24 pb-16">
+        <main className="pt-24 pb-16 px-4 pl-20 wide:px-4 max-w-7xl mx-auto">
 
           {error && <ErrorDisplay message={error} />}
 

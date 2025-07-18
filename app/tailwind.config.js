@@ -9,6 +9,7 @@ export default {
     extend: {
       screens: {
         'header-break': '900px', // Example: a custom breakpoint at 900px
+        'wide': '1630px',
       },
       colors: {
         // Custom dark mode colors
