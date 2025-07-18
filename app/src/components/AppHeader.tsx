@@ -352,13 +352,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               />
               {/* Updated Logo with conditional "pro" badge */}
               <div className="relative hidden md:block">
-                <h1 href="https://observer-ai.com" className="text-xl font-semibold">Observer</h1>
-                {isProUser && (
-                  <span className="absolute top-0.5 -right-5 text-xs font-semibold text-black">
-                    pro
-                  </span>
-                )}
-              </div>
+              {/* FIX: Wrap the text in an <a> tag instead of putting href on <h1> */}
+              <a href="https://observer-ai.com" target="_blank" rel="noopener noreferrer" className="text-xl font-semibold">
+                <h1>Observer</h1>
+              </a>
+              {isProUser && (
+                <span className="absolute top-0.5 -right-5 text-xs font-semibold text-black">
+                  pro
+                </span>
+              )}
+            </div>
+
             </div>
 
             {/* Right side */}
