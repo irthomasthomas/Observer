@@ -352,7 +352,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               />
               {/* Updated Logo with conditional "pro" badge */}
               <div className="relative hidden md:block">
-                <h1 className="text-xl font-semibold">Observer</h1>
+                <h1 href="https://observer-ai.com" className="text-xl font-semibold">Observer</h1>
                 {isProUser && (
                   <span className="absolute top-0.5 -right-5 text-xs font-semibold text-black">
                     pro
