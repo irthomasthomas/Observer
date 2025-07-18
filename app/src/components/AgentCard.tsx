@@ -1,10 +1,13 @@
 // AgentCard.tsx
 
-import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
-import { Edit, Trash2, ChevronDown, ChevronUp, Play, Terminal, Code, User, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2, Zap, MessageSquareWarning, MessageCircle } from 'lucide-react';
+// MODIFIED: Removed 'useCallback' as it's not used.
+import React, { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
+// MODIFIED: Removed unused icons: Code, User, MessageCircle
+import { Edit, Trash2, ChevronDown, ChevronUp, Play, Terminal, Brain, AlertTriangle, Eye, Activity, Clock, Power, Mic, Volume2, Zap, MessageSquareWarning, VideoOff } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import AgentLogViewer from './AgentLogViewer';
-import { isAgentScheduled, getScheduledTime } from './ScheduleAgentModal';
+// MODIFIED: Removed unused import for scheduling
+// import { isAgentScheduled, getScheduledTime } from './ScheduleAgentModal';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 import { listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
@@ -162,7 +165,6 @@ const VideoStream: React.FC<{ stream: MediaStream }> = ({ stream }) => {
   );
 };
 
-
 interface AgentCardProps {
   agent: CompleteAgent;
   code?: string;
@@ -179,6 +181,14 @@ interface AgentCardProps {
   hasQuotaError: boolean;
   onUpgradeClick: () => void;
 }
+
+// NEW: A dedicated component for placeholders when a stream is not available.
+const NoStreamPlaceholder: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
+  <div className="flex items-center justify-center gap-3 p-4 bg-gray-100 rounded-lg border border-dashed border-gray-300 text-gray-500">
+    {icon}
+    <span className="text-sm font-medium">{text}</span>
+  </div>
+);
 
 // NEW: A dedicated component for the status indicator for cleanliness.
 const AgentStatusPill: React.FC<{
@@ -208,7 +218,26 @@ const AgentStatusPill: React.FC<{
   );
 };
 
-// NEW: The dedicated warning component.
+// RE-INTRODUCED: The component for displaying the quota error and upgrade button.
+const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeClick }) => (
+  <div className="mt-4 p-4 bg-orange-50 border-l-4 border-orange-400 rounded-r-lg animate-fade-in">
+    <div className="flex items-start">
+      <Zap className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" />
+      <div>
+        <h4 className="font-bold text-orange-800">Daily Limit Reached</h4>
+        <p className="text-sm text-orange-700 mt-1">You've used all your free cloud credits for the day and the agent has been paused.</p>
+      </div>
+    </div>
+    <button
+      onClick={onUpgradeClick}
+      className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors shadow-sm"
+    >
+      Upgrade to Pro
+    </button>
+  </div>
+);
+
+
 const CommunicationWarning: React.FC<{ warnings: { hasSms: boolean; hasWhatsapp: boolean } }> = ({ warnings }) => {
   if (!warnings.hasSms && !warnings.hasWhatsapp) {
     return null;
@@ -236,25 +265,6 @@ const CommunicationWarning: React.FC<{ warnings: { hasSms: boolean; hasWhatsapp:
   );
 };
 
-// NEW COMPONENT FOR QUOTA ERROR
-const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeClick }) => (
-  <div className="mt-4 p-3 bg-orange-50 border-l-4 border-orange-400 rounded-r-lg animate-fade-in">
-    <div className="flex items-start">
-      <Zap className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" />
-      <div>
-        <h4 className="font-bold text-orange-800">Daily Limit Reached</h4>
-        <p className="text-sm text-orange-700 mt-1">You've used all your free cloud credits for the day!</p>
-      </div>
-    </div>
-    <button
-      onClick={onUpgradeClick}
-      className="w-full mt-3 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-sm"
-    >
-      Upgrade to Pro
-    </button>
-  </div>
-);
-
 
 const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
   const statusInfo = useMemo(() => {
@@ -275,17 +285,8 @@ const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
   );
 };
 
-const LoopProgressBar: React.FC<{ progress: number, interval: number }> = ({ progress, interval }) => (
-  <div>
-    <div className="flex justify-between items-center mb-1 text-xs text-gray-500">
-      <span>Next cycle in {interval}s</span>
-      <span>{Math.round(progress)}%</span>
-    </div>
-    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-      <div className="bg-green-500 h-2 rounded-full transition-all duration-100 ease-linear" style={{ width: `${progress}%` }}/>
-    </div>
-  </div>
-);
+// MODIFIED: Removed unused LoopProgressBar component
+// const LoopProgressBar...
 
 const LastResponse: React.FC<{ response: string, responseKey: number }> = ({ response, responseKey }) => (
   <div key={responseKey} className="bg-white border border-gray-200 rounded-lg shadow-sm animate-fade-in min-h-0">
@@ -321,7 +322,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [responseKey, setResponseKey] = useState(0);
   
   const showStartingState = useMemo(() => isStarting || isCheckingModel, [isStarting, isCheckingModel]);
-  const isLive = useMemo(() => isRunning || showStartingState, [isRunning, showStartingState]);
+  const isLive = useMemo(() => (isRunning || showStartingState) && !hasQuotaError, [isRunning, showStartingState, hasQuotaError]);
 
   const [streams, setStreams] = useState<StreamState>({ 
     cameraStream: null,
@@ -334,7 +335,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const communicationWarnings = useMemo(() => {
     return getCommunicationWarnings(code);
   }, [code]);
-
 
   useEffect(() => {
     if (code && code.trim().startsWith('#python')) {
@@ -478,9 +478,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
       <div className="p-5 flex-grow">
         {/* --- Header: Status, Name, and Start/Stop Button --- */}
         <div className="flex justify-between items-center mb-4">
-           {/* MODIFIED: Agent Name is now grouped with status and left-aligned when inactive */}
            <div className="flex-1 min-w-0">
-             {!isLive ? (
+             {!isLive && !hasQuotaError ? ( // Show name on left only when fully static
                 <>
                   <h3 className="text-xl font-bold text-gray-800 truncate">
                     {agent.name}
@@ -494,8 +493,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
              )}
            </div>
 
-           {/* NEW: Centered name ONLY when live */}
-           {isLive && (
+           {(isLive || hasQuotaError) && ( // Show centered name when live or in error state
              <h3 className="text-xl font-bold text-gray-800 truncate text-center flex-1 px-4">
                {agent.name}
              </h3>
@@ -528,63 +526,44 @@ const AgentCard: React.FC<AgentCardProps> = ({
            </div>
         </div>
 
-        {/* --- Content Area: Switches between static info and the live two-column view --- */}
-        <div className={`${isLive ? 'grid md:grid-cols-2 md:gap-6' : ''}`}>
-          
-          {/* === LIVE VIEW === */}
-          {isLive && (
-            <>
-              {/* --- NEW Left Column: All SENSORY Input (Video + Audio) --- */}
+        {/* --- MODIFIED Content Area: Prioritizes Quota Error View --- */}
+        <div>
+          {hasQuotaError ? (
+            <QuotaErrorView onUpgradeClick={onUpgradeClick} />
+          ) : isLive ? (
+            // --- LIVE VIEW ---
+            <div className="grid md:grid-cols-2 md:gap-6">
               <div className="space-y-4 animate-fade-in">
-                {/* Stacked Video Streams */}
                 {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} />}
                 {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
-                
-                {/* No video filler */}
                 {!streams.screenVideoStream && !streams.cameraStream && (
-                    <div className="bg-gray-900 rounded-lg aspect-video flex items-center justify-center text-gray-500">
-                      Awaiting visual stream...
-                    </div>
+                    <NoStreamPlaceholder 
+                        icon={<VideoOff className="w-5 h-5" />} 
+                        text="No Video Stream" 
+                    />
                 )}
-
-                {/* Stacked Audio Streams */}
                 <div className="grid grid-cols-1 gap-2">
                     {getActiveAudioStreamsForDisplay(streams).map(({ type, stream, title, icon }) => (
                       <AudioWaveform key={type} stream={stream} title={title} icon={icon} />
                     ))}
                 </div>
               </div>
-
-              {/* --- NEW Right Column: All INTELLECT Info (State + Response) --- */}
               <div className="space-y-4 animate-fade-in flex flex-col justify-start">
                  <StateTicker status={liveStatus} />
                  <LastResponse response={lastResponse} responseKey={responseKey} />
               </div>
-            </>
-          )}
-
-          {/* === STATIC VIEW === */}
-          {!isLive && (
+            </div>
+          ) : (
+            // --- STATIC VIEW ---
             <div className="space-y-4 animate-fade-in">
-              {/* MODIFIED: Removed centering classes */}
               <p className="text-sm text-gray-600">{agent.description || "No description provided."}</p>
-              
-              {/* MODIFIED: Agent Info Tags are now left-aligned */}
               <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
                   <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPythonAgent ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                     {isPythonAgent ? 'Python' : 'JavaScript'}
                   </div>
-                  <div className="inline-flex items-center">
-                    <Brain className="w-4 h-4 mr-1.5" />
-                    {agent.model_name || "No model"}
-                  </div>
-                  <div className="inline-flex items-center">
-                    <Clock className="w-4 h-4 mr-1.5" />
-                    {agent.loop_interval_seconds}s interval
-                  </div>
+                  <div className="inline-flex items-center"><Brain className="w-4 h-4 mr-1.5" />{agent.model_name || "No model"}</div>
+                  <div className="inline-flex items-center"><Clock className="w-4 h-4 mr-1.5" />{agent.loop_interval_seconds}s interval</div>
               </div>
-
-              {/* MODIFIED: Removed centering from warnings */}
               {startWarning && (<div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md text-sm flex items-center gap-2"><AlertTriangle className="h-5 w-5 flex-shrink-0" /><span>{startWarning}</span></div>)}
               <CommunicationWarning warnings={communicationWarnings} />
             </div>

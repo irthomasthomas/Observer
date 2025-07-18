@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Terminal, Server } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { 
-  listAgents, 
+import {
+  listAgents,
   getAgentCode,
   deleteAgent,
   saveAgent,
@@ -33,7 +33,7 @@ import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
 import ConversationalGeneratorModal from '@components/ConversationalGeneratorModal';
 import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
-import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
+import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming this path is correct
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 
@@ -43,7 +43,6 @@ function AppContent() {
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
   // If Auth0 is disabled, create a mock auth object for local development.
-  //
   const mockAuth = useMemo(() => ({
     isAuthenticated: false,
     user: { name: 'Local Dev User', email: 'dev@local.host' },
@@ -54,11 +53,11 @@ function AppContent() {
   }), []);
 
   // Otherwise, use the real useAuth0 hook.
-  const { 
-    isAuthenticated, 
-    user, 
-    loginWithRedirect, 
-    logout, 
+  const {
+    isAuthenticated,
+    user,
+    loginWithRedirect,
+    logout,
     isLoading,
     getAccessTokenSilently
   } = isAuthDisabled ? mockAuth : useAuth0();
@@ -92,7 +91,6 @@ function AppContent() {
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
-
   const fetchAgents = useCallback(async () => {
     try {
       setIsRefreshing(true);
@@ -121,7 +119,6 @@ function AppContent() {
   }, []);
 
   const getToken = useCallback(async () => {
-
     // If Auth0 is still loading its state, we can't get a token yet.
     if (isLoading) {
       Logger.warn('AUTH', 'getToken called while auth state is loading. Aborting.');
@@ -131,21 +128,24 @@ function AppContent() {
     // If loading is finished AND the user is not authenticated, abort.
     if (!isAuthenticated) {
       Logger.warn('AUTH', 'getToken called, but user is not authenticated.');
-      try{ 
+      try{
+        // This might be called before the initial auth check, so we try to get it anyway.
         const token = await getAccessTokenSilently({
           authorizationParams: {
             audience: 'https://api.observer-ai.com',
           },
         });
-        Logger.error('AUTH', `trying getToken anyway and got token ${token}`);
+        // If we get a token even when isAuthenticated is false, log it.
+        if (token) Logger.info('AUTH', `getToken succeeded even though isAuthenticated is false.`);
         return token;
       }
       catch (error){
-        Logger.warn('AUTH', `errored out in second try`);
+        Logger.warn('AUTH', `errored out trying getToken when not authenticated.`);
       }
       return undefined;
     }
 
+    // If authenticated, proceed to get the token.
     try {
       const token = await getAccessTokenSilently({
         authorizationParams: {
@@ -157,7 +157,6 @@ function AppContent() {
       Logger.error('AUTH', 'Failed to retrieve access token silently.', error);
       throw error;
     }
-    // ✨ Add isLoading to the dependency array
   }, [isAuthenticated, isLoading, getAccessTokenSilently]);
 
   useEffect(() => {
@@ -223,7 +222,7 @@ function AppContent() {
   const handleSimpleCreatorNext = (config: Parameters<typeof generateAgentFromSimpleConfig>[0]) => {
     Logger.info('APP', `Generating agent from Simple Creator`, config);
     const { agent, code } = generateAgentFromSimpleConfig(config);
-    
+
     setStagedAgentConfig({ agent, code });
     setIsSimpleCreatorOpen(false);
     setIsEditModalOpen(true);
@@ -235,10 +234,6 @@ function AppContent() {
       setIsCreateMode(true); // Signal that this is a new agent
       setIsEditModalOpen(true);
     };
-    
-
-  
-    
 
   const handleMemoryClick = (agentId: string) => {
     if (flashingMemories.has(agentId)) {
@@ -246,7 +241,7 @@ function AppContent() {
       newFlashing.delete(agentId);
       setFlashingMemories(newFlashing);
     }
-    
+
     setMemoryAgentId(agentId);
     setIsMemoryManagerOpen(true);
     Logger.info('APP', `Opening memory manager for agent ${agentId}`);
@@ -255,17 +250,17 @@ function AppContent() {
   const handleDeleteClick = async (agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     if (!agent) return;
-    
+
     if (window.confirm(`Are you sure you want to delete agent "${agent.name}"?`)) {
       try {
         setError(null);
         Logger.info('APP', `Deleting agent "${agent.name}" (${agentId})`);
-        
+
         if (runningAgents.has(agentId)) {
           Logger.info(agentId, `Stopping agent before deletion`);
           stopAgentLoop(agentId);
         }
-        
+
         await deleteAgent(agentId);
         Logger.info('APP', `Agent "${agent.name}" deleted successfully`);
         await fetchAgents();
@@ -292,7 +287,7 @@ function AppContent() {
     try {
       setError(null);
       const agent = agents.find(a => a.id === id);
-      
+
       if (!agent) {
         throw new Error(`Agent ${id} not found`);
       }
@@ -315,10 +310,11 @@ function AppContent() {
           updated.add(id);
           return updated;
         });
-        
+
         try {
           await startAgentLoop(id, getToken);
         } finally {
+          // This ensures that 'startingAgents' is cleared regardless of success or failure
           setStartingAgents(prev => {
             const updated = new Set(prev);
             updated.delete(id);
@@ -326,15 +322,16 @@ function AppContent() {
           });
         }
       }
-      
+
       await fetchAgents();
     } catch (err) {
+      // Ensure startingAgents is cleared on error as well
       setStartingAgents(prev => {
         const updated = new Set(prev);
         updated.delete(id);
         return updated;
       });
-      
+
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       Logger.error('APP', `Failed to toggle agent status: ${errorMessage}`, err);
@@ -342,39 +339,39 @@ function AppContent() {
   };
 
   const handleSaveAgent = async (agent: CompleteAgent, code: string) => {
-  try {
-    setError(null);
-    const isNew = !agents.some(a => a.id === agent.id);
-    
-    Logger.info('APP', isNew ? `Creating new agent "${agent.name}"` : `Updating agent "${agent.name}" (${agent.id})`);
-    
-    await saveAgent(agent, code);
-    Logger.info('APP', `Agent "${agent.name}" saved successfully`);
-    await fetchAgents();
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    setError(errorMessage);
-    Logger.error('APP', `Failed to save agent: ${errorMessage}`, err);
-  }
+    try {
+      setError(null);
+      const isNew = !agents.some(a => a.id === agent.id);
+
+      Logger.info('APP', isNew ? `Creating new agent "${agent.name}"` : `Updating agent "${agent.name}" (${agent.id})`);
+
+      await saveAgent(agent, code);
+      Logger.info('APP', `Agent "${agent.name}" saved successfully`);
+      await fetchAgents();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      Logger.error('APP', `Failed to save agent: ${errorMessage}`, err);
+    }
   };
 
   useEffect(() => {
     const handleMemoryUpdate = (event: CustomEvent) => {
       const updatedAgentId = event.detail.agentId;
-      
+
       if (updatedAgentId !== memoryAgentId || !isMemoryManagerOpen) {
         setFlashingMemories(prev => {
           const newSet = new Set(prev);
           newSet.add(updatedAgentId);
           return newSet;
         });
-        
+
         Logger.debug('APP', `Memory updated for agent ${updatedAgentId}, setting flash indicator`);
       }
     };
-    
+
     window.addEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
-    
+
     return () => {
       window.removeEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
     };
@@ -383,13 +380,13 @@ function AppContent() {
   useEffect(() => {
     Logger.info('APP', 'Application starting');
     fetchAgents();
-    
+
     if (isAuthenticated) {
       Logger.info('AUTH', `User authenticated: ${user?.name || user?.email || 'Unknown user'}`);
     } else if (!isLoading) {
       Logger.info('AUTH', 'User not authenticated');
     }
-    
+
     const handleWindowError = (event: ErrorEvent) => {
       Logger.error('APP', `Uncaught error: ${event.message}`, {
         filename: event.filename,
@@ -400,12 +397,12 @@ function AppContent() {
     };
 
     window.addEventListener('error', handleWindowError);
-    
+
     return () => {
       window.removeEventListener('error', handleWindowError);
     };
   }, [isAuthenticated, isLoading, user]);
-  
+
   useEffect(() => {
     if (!isLoading) {
       Logger.info('AUTH', `Auth loading complete, authenticated: ${isAuthenticated}`);
@@ -417,6 +414,25 @@ function AppContent() {
       setShowStartupDialog(true);
     }
   }, [serverStatus]);
+
+  // --- NEW: Memoized sorting logic ---
+  // This will sort the agents array to bring active ones to the top.
+  // useMemo ensures this only runs when the dependencies (agents, running, starting) change.
+  const sortedAgents = useMemo(() => {
+    // Create a shallow copy to sort, preventing mutation of the original state array.
+    return [...agents].sort((a, b) => {
+      const isALive = runningAgents.has(a.id) || startingAgents.has(a.id);
+      const isBLive = runningAgents.has(b.id) || startingAgents.has(b.id);
+
+      if (isALive && !isBLive) {
+        return -1; // a should come before b
+      }
+      if (!isALive && isBLive) {
+        return 1; // b should come before a
+      }
+      return 0; // The order remains the same for agents with the same status
+    });
+  }, [agents, runningAgents, startingAgents]);
 
 
   return (
@@ -436,7 +452,7 @@ function AppContent() {
         <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
 
         {showStartupDialog && (
-          <StartupDialogs 
+          <StartupDialogs
             onDismiss={handleDismissStartupDialog}
             setUseObServer={setIsUsingObServer}
             onLogin={loginWithRedirect}
@@ -444,7 +460,7 @@ function AppContent() {
             />
         )}
 
-        <AppHeader 
+        <AppHeader
           serverStatus={serverStatus}
           setServerStatus={setServerStatus}
           setError={setError}
@@ -462,7 +478,7 @@ function AppContent() {
           getToken={getToken}
         />
 
-        <SidebarMenu 
+        <SidebarMenu
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
           activeTab={activeTab}
@@ -484,7 +500,7 @@ function AppContent() {
           {activeTab === 'myAgents' ? (
           <>
 
-            <AgentImportHandler 
+            <AgentImportHandler
               onAddAgent={handleAddAgentClick}
               agentCount={agents.length}
               activeAgentCount={runningAgents.size}
@@ -494,55 +510,56 @@ function AppContent() {
             />
 
             <div className="flex flex-wrap gap-6 items-start">
-                {agents.length > 0 ? agents.map(agent => {
-                  const isAgentLive = runningAgents.has(agent.id) || startingAgents.has(agent.id);
-                  return (
-                    <div 
-                      key={agent.id} 
-                      className={`flex-shrink-0 transition-all duration-700 ease-in-out ${
-                        isAgentLive 
-                          ? 'w-full' 
-                          : 'w-full lg:w-[calc(50%-50px)]'
-                      }`}
-                    >
-                      <AgentCard
-                        agent={agent}
-                        code={agentCodes[agent.id]}
-                        isRunning={runningAgents.has(agent.id)}
-                        isStarting={startingAgents.has(agent.id)}
-                        isMemoryFlashing={flashingMemories.has(agent.id)}
-                        onEdit={handleEditClick}
-                        onDelete={handleDeleteClick}
-                        onToggle={toggleAgent}
-                        onMemory={handleMemoryClick}
-                        onShowJupyterModal={() => setIsJupyterModalOpen(true)}
-                        getToken={getToken}
-                        isAuthenticated={isAuthenticated}
-                        hasQuotaError={agentsWithQuotaError.has(agent.id)}
-                        onUpgradeClick={() => setIsUpgradeModalOpen(true)}
-                      />
-                    </div>
-                  );
-                }) : 
-                  <GetStarted 
-                    onExploreCommunity={() => setActiveTab('community')}
-                    onCreateNewAgent={handleAddAgentClick}
-                    onAgentGenerated={handleAgentGenerated}
-                    getToken={getToken}
-                    isAuthenticated={isAuthenticated}
-                    isUsingObServer={isUsingObServer}
-                  />
-                }
-              </div>
+              {/* MODIFIED: We now map over the newly created 'sortedAgents' array */}
+              {sortedAgents.length > 0 ? sortedAgents.map(agent => {
+                const isAgentLive = runningAgents.has(agent.id) || startingAgents.has(agent.id);
+                return (
+                  <div
+                    key={agent.id}
+                    className={`flex-shrink-0 transition-all duration-700 ease-in-out ${
+                      isAgentLive
+                        ? 'w-full'
+                        : 'w-full lg:w-[calc(50%-12px)]' // Use your preferred spacing, adjust if needed
+                    }`}
+                  >
+                    <AgentCard
+                      agent={agent}
+                      code={agentCodes[agent.id]}
+                      isRunning={runningAgents.has(agent.id)}
+                      isStarting={startingAgents.has(agent.id)}
+                      isMemoryFlashing={flashingMemories.has(agent.id)}
+                      onEdit={handleEditClick}
+                      onDelete={handleDeleteClick}
+                      onToggle={toggleAgent}
+                      onMemory={handleMemoryClick}
+                      onShowJupyterModal={() => setIsJupyterModalOpen(true)}
+                      getToken={getToken}
+                      isAuthenticated={isAuthenticated}
+                      hasQuotaError={agentsWithQuotaError.has(agent.id)}
+                      onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+                    />
+                  </div>
+                );
+              }) :
+                <GetStarted
+                  onExploreCommunity={() => setActiveTab('community')}
+                  onCreateNewAgent={handleAddAgentClick}
+                  onAgentGenerated={handleAgentGenerated}
+                  getToken={getToken}
+                  isAuthenticated={isAuthenticated}
+                  isUsingObServer={isUsingObServer}
+                />
+              }
+            </div>
 
           </>
           ) : activeTab === 'community' ? (
             <CommunityTab />
           ) : activeTab === 'models' ? (
             <AvailableModels />
-          ) : activeTab === 'recordings' ? ( 
-            <RecordingsViewer />            
-          ) : activeTab === 'settings' ? ( 
+          ) : activeTab === 'recordings' ? (
+            <RecordingsViewer />
+          ) : activeTab === 'settings' ? (
             <SettingsTab />
           ) : activeTab === 'obServer' ? (
             <ObServerTab />
@@ -553,23 +570,23 @@ function AppContent() {
           )}
         </main>
 
-        <SimpleCreatorModal 
+        <SimpleCreatorModal
           isOpen={isSimpleCreatorOpen}
           onClose={() => setIsSimpleCreatorOpen(false)}
           onNext={handleSimpleCreatorNext}
           isAuthenticated={isAuthenticated}
         />
         <ConversationalGeneratorModal
-        isOpen={isConversationalModalOpen}
-        onClose={() => setIsConversationalModalOpen(false)}
-        onAgentGenerated={handleAgentGenerated}
-        getToken={getToken}
-        isAuthenticated={isAuthenticated}
-        isUsingObServer={isUsingObServer}
-      />
+          isOpen={isConversationalModalOpen}
+          onClose={() => setIsConversationalModalOpen(false)}
+          onAgentGenerated={handleAgentGenerated}
+          getToken={getToken}
+          isAuthenticated={isAuthenticated}
+          isUsingObServer={isUsingObServer}
+        />
 
       {isEditModalOpen && (
-        <EditAgentModal 
+        <EditAgentModal
           isOpen={isEditModalOpen}
           onClose={() => {
             setIsEditModalOpen(false);
@@ -584,7 +601,7 @@ function AppContent() {
           getToken={getToken}
         />
       )}
-      
+
       {isScheduleModalOpen && schedulingAgentId && (
         <ScheduleAgentModal
           agentId={schedulingAgentId}
@@ -596,7 +613,7 @@ function AppContent() {
           onUpdate={fetchAgents}
         />
       )}
-      
+
       {isMemoryManagerOpen && memoryAgentId && (
         <MemoryManager
           agentId={memoryAgentId}
@@ -613,25 +630,25 @@ function AppContent() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <div className="flex space-x-3">
-              <button 
+              <button
                 className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
                 onClick={() => setShowGlobalLogs(!showGlobalLogs)}
               >
                 <Terminal className="h-5 w-5" />
               </button>
-              
-              <button 
+
+              <button
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
                 onClick={() => setIsJupyterModalOpen(true)}
               >
                 <Server className="h-5 w-5" />
               </button>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <span className="text-xs text-gray-500">Support the Project!</span>
               <div className="flex items-center space-x-2">
-                <a 
+                <a
                   href="https://discord.gg/wnBb7ZQDUC"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -642,8 +659,8 @@ function AppContent() {
                     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.127 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
                   </svg>
                 </a>
-                
-                <a 
+
+                <a
                   href="https://x.com/AppObserverAI"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -651,11 +668,11 @@ function AppContent() {
                   title="Follow us on X (Twitter)"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
                 </a>
-                
-                <a 
+
+                <a
                   href="https://buymeacoffee.com/roy3838"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -666,8 +683,8 @@ function AppContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </a>
-                
-                <a 
+
+                <a
                   href="https://github.com/Roy3838/Observer"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -683,9 +700,9 @@ function AppContent() {
           </div>
         </div>
       </footer>
-      
+
       {showGlobalLogs && (
-        <GlobalLogsViewer 
+        <GlobalLogsViewer
           isOpen={showGlobalLogs}
           onClose={() => setShowGlobalLogs(false)}
         />
@@ -710,14 +727,14 @@ export function App() {
       </BrowserRouter>
     );
   }
-  
+
   // This is the main production logic
   return (
     <Auth0Provider
       domain="auth.observer-ai.com"
       clientId="R5iv3RVkWjGZrexFSJ6HqlhSaaGLyFpm"
-      authorizationParams={{ 
-        redirect_uri: window.location.origin, 
+      authorizationParams={{
+        redirect_uri: window.location.origin,
         audience: 'https://api.observer-ai.com',
         scope: 'openid profile email offline_access'
       }}
@@ -737,16 +754,16 @@ export function App() {
       <BrowserRouter>
         <Routes>
           {/* Route 1: The special page for after payment */}
-          <Route 
-            path="/upgrade-success" 
-            element={<UpgradeSuccessPage />} 
+          <Route
+            path="/upgrade-success"
+            element={<UpgradeSuccessPage />}
           />
 
           {/* Route 2: The catch-all for your main application */}
           {/* The "/*" means "match any other URL" */}
-          <Route 
-            path="/*" 
-            element={<AppContent />} 
+          <Route
+            path="/*"
+            element={<AppContent />}
           />
         </Routes>
       </BrowserRouter>
