@@ -23,7 +23,7 @@ import ScheduleAgentModal from '@components/ScheduleAgentModal';
 import MemoryManager from '@components/MemoryManager';
 import ErrorDisplay from '@components/ErrorDisplay';
 import AgentImportHandler from '@components/AgentImportHandler';
-import SidebarMenu from '@components/SidebarMenu';
+import PersistentSidebar from '@components/PersistentSidebar';
 import AvailableModels from '@components/AvailableModels';
 import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
@@ -79,7 +79,6 @@ function AppContent() {
   const [isMemoryManagerOpen, setIsMemoryManagerOpen] = useState(false);
   const [memoryAgentId, setMemoryAgentId] = useState<string | null>(null);
   const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('myAgents');
   const [isUsingObServer, setIsUsingObServer] = useState(true);
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
@@ -473,19 +472,12 @@ function AppContent() {
             loginWithRedirect,
             logout
           }}
-          onMenuClick={() => setIsSidebarOpen(true)}
-          shouldHighlightMenu={agents.length === 0}
           getToken={getToken}
         />
 
-        <SidebarMenu
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
+        <PersistentSidebar
           activeTab={activeTab}
-          onTabChange={(tab) => {
-            setActiveTab(tab);
-            setIsSidebarOpen(false);
-          }}
+          onTabChange={setActiveTab}
         />
 
         <JupyterServerModal

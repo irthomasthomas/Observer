@@ -1,6 +1,6 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { Menu, LogOut, ExternalLink, RefreshCw, Server } from 'lucide-react';
+import { LogOut, ExternalLink, RefreshCw, Server } from 'lucide-react';
 import { checkOllamaServer } from '@utils/ollamaServer';
 import { setOllamaServerAddress } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
@@ -59,7 +59,6 @@ interface AppHeaderProps {
   setServerStatus: React.Dispatch<React.SetStateAction<'unchecked' | 'online' | 'offline'>>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   authState?: AuthState;
-  onMenuClick: () => void;
   shouldHighlightMenu?: boolean;
   isUsingObServer?: boolean;
   setIsUsingObServer?: (value: boolean) => void;
@@ -71,14 +70,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   setServerStatus,
   setError,
   authState,
-  onMenuClick,
   isUsingObServer: externalIsUsingObServer,
   setIsUsingObServer: externalSetIsUsingObServer,
   getToken,
 }) => {
   // --- MODIFIED --- Default to the full, desired URL for the proxy.
   const [serverAddress, setServerAddress] = useState('http://localhost:3838');
-  const [pulseMenu, setPulseMenu] = useState(false);
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
@@ -296,15 +293,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   }, [isUsingObServer, isAuthenticated, serverStatus]);
 
-
-  useEffect(() => {
-    setPulseMenu(true);
-    const timer = setTimeout(() => {
-      setPulseMenu(false);
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, []);
-
   const renderQuotaStatus = () => {
     if (isSessionExpired) {
       return (
@@ -350,37 +338,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <>
-      <style>
-        {`
-          @keyframes menu-pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-            50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
-          }
-          .menu-pulse {
-            animation: menu-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-            background-color: rgba(59, 130, 246, 0.1);
-          }
-        `}
-      </style>
-
       <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-4">
           <div className="flex justify-between items-center">
             {/* Left side */}
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <button
-                onClick={onMenuClick}
-                className={`p-2 rounded-md ${pulseMenu ? 'menu-pulse relative' : 'hover:bg-gray-100'}`}
-                aria-label="Open menu"
-              >
-                <Menu className="h-6 w-6" />
-                {pulseMenu && (
-                  <span className="absolute top-0 right-0 flex h-3 w-3">
-                    <span className="animate-ping absolute h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                    <span className="relative rounded-full h-3 w-3 bg-blue-500"></span>
-                  </span>
-                )}
-              </button>
               <img
                 src="/eye-logo-black.svg"
                 alt="Observer Logo"
