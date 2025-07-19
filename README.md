@@ -52,8 +52,8 @@ Creating your own Observer AI agent is simple, and consist of three things:
   * `sendEmail(content, email)` - Sends an email
   * `sendPushover("Message", "user_token")` - Sends a pushover notification.
   * `sendDiscordBot("Message","discord_webhook")`Sends a discord message to a server.
-  * `sendWhatsapp(content, phone_number)` - Sends a whatsapp message, IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number.
-  * `sendSms(content, phone_number)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). IMPORTANT: Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
+  * `sendWhatsapp(content, phone_number)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number.
+  * `sendSms(content, phone_number)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
   * `stopClip()` - Stops an active recording
   * `markClip(label)` - Adds a label to any active recording that will be displayed in the recording Tab.
