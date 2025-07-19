@@ -159,6 +159,25 @@ function AppContent() {
     }
   }, [isAuthenticated, isLoading, getAccessTokenSilently]);
 
+  const hostingContext = useMemo(() => {
+  const { protocol, hostname } = window.location;
+
+  // The primary condition for showing the warning is if the user is on a secure (HTTPS) page.
+  // We also add a check to ensure we treat `https://localhost` as a self-hosted environment,
+  // as a user in that scenario has full control.
+  if (protocol === 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    // This will be true for https://app.observer-ai.com, https://dev.observer-ai.com, etc.
+    return 'official-web';
+  }
+
+  // Any other scenario is treated as self-hosted. This includes:
+  // - http://localhost:xxxx
+  // - http://127.0.0.1:xxxx
+  // - https://localhost:xxxx (local dev with a self-signed cert)
+  // - Any other http:// address
+  return 'self-hosted';
+}, []);
+
   useEffect(() => {
     const handleAgentStatusChange = (event: CustomEvent) => {
       const { agentId, status } = event.detail || {};
@@ -458,6 +477,7 @@ function AppContent() {
             setUseObServer={setIsUsingObServer}
             onLogin={loginWithRedirect}
             isAuthenticated={isAuthenticated}
+            hostingContext={hostingContext}
             />
         )}
 
