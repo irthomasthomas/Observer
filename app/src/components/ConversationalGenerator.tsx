@@ -11,7 +11,7 @@ import { getOllamaServerAddress } from '@utils/main_loop';
 import { listModels, Model } from '@utils/ollamaServer';
 
 // ===================================================================================
-//  MODAL SUB-COMPONENT (LIVES INSIDE THE MAIN COMPONENT FILE)
+//  LOCAL MODEL SELECTION MODAL
 // ===================================================================================
 interface LocalModelSelectionModalProps {
   isOpen: boolean;
@@ -128,10 +128,10 @@ interface ConversationalGeneratorProps {
 
 const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAgentGenerated, getToken, isAuthenticated, isUsingObServer }) => {
   const [messages, setMessages] = useState<Message[]>([
-  {
-    id: 1,
-    sender: 'ai',
-    text: `Hi there! I'm Observer's agent builder. I can help you create agents to automate tasks by watching your screen.
+    {
+      id: 1,
+      sender: 'ai',
+      text: `Hi there! I'm Observer's agent builder. I can help you create agents to automate tasks by watching your screen.
 
 For example, I can build an agent to:
 *   **Record 🎥** when something specific happens.
@@ -139,8 +139,8 @@ For example, I can build an agent to:
 *   **Send alerts 🚀** via Discord, Email, or Pushover.
 
 What would you like to create today?`
-  }
-]);
+    }
+  ]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -154,7 +154,10 @@ What would you like to create today?`
     if (!userInput.trim() || isLoading) return;
 
     // Guard against submission if local model isn't selected in local mode
-    if (!isUsingObServer && !selectedLocalModel) return;
+    if (!isUsingObServer && !selectedLocalModel) {
+        setIsLocalModalOpen(true); // Prompt user to select a model
+        return;
+    }
 
     const newUserMessage: Message = { id: Date.now(), sender: 'user', text: userInput };
     setMessages(prev => [...prev, newUserMessage]);
@@ -215,7 +218,7 @@ What would you like to create today?`
   return (
     <>
       <div className="flex flex-col h-[450px] bg-white rounded-b-xl border-x border-b border-indigo-200 shadow-md">
-        {/* Chat Messages Area - No Changes */}
+        {/* Chat Messages Area */}
         <div className="flex-1 p-4 space-y-4 overflow-y-auto">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -225,7 +228,10 @@ What would you like to create today?`
                   <button onClick={() => handleConfigureAndSave(msg.text)} className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 font-medium transition-colors flex items-center mx-auto"><Save className="h-4 w-4 mr-2" />Configure & Save Agent</button>
                 </div>
               ) : (
-                <div className={`max-w-md p-3 rounded-lg ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>{msg.text}</div>
+                // --- MODIFIED: Added whitespace-pre-wrap to render newlines ---
+                <div className={`max-w-md p-3 rounded-lg whitespace-pre-wrap ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                  {msg.text}
+                </div>
               )}
             </div>
           ))}
@@ -233,7 +239,7 @@ What would you like to create today?`
           <div ref={chatEndRef} />
         </div>
 
-        {/* --- DYNAMIC INPUT AREA --- */}
+        {/* Dynamic Input Area */}
         <div className="p-3 border-t border-gray-200 bg-gray-50">
           <form onSubmit={handleSubmit} className="flex items-center space-x-2">
             <input
@@ -268,7 +274,7 @@ What would you like to create today?`
         </div>
       </div>
       
-      {/* --- RENDER THE MODAL (controlled by state) --- */}
+      {/* Render the modal (controlled by state) */}
       <LocalModelSelectionModal 
         isOpen={isLocalModalOpen}
         onClose={() => setIsLocalModalOpen(false)}
