@@ -85,6 +85,7 @@ function AppContent() {
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
   const [isConversationalModalOpen, setIsConversationalModalOpen] = useState(false);
+  const [hasCompletedStartupCheck, setHasCompletedStartupCheck] = useState(false);
 
   // --- NEW STATE FOR QUOTA ERRORS AND MODAL ---
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
@@ -273,6 +274,7 @@ function AppContent() {
 
   const handleDismissStartupDialog = () => {
     setShowStartupDialog(false);
+    setHasCompletedStartupCheck(true);
   };
 
   const toggleAgent = async (id: string, isCurrentlyRunning: boolean): Promise<void> => {
@@ -409,10 +411,10 @@ function AppContent() {
   }, [isLoading, isAuthenticated]);
 
   useEffect(() => {
-    if (serverStatus === 'offline') {
+    if (serverStatus === 'offline' && !hasCompletedStartupCheck) {
       setShowStartupDialog(true);
     }
-  }, [serverStatus]);
+  }, [serverStatus, hasCompletedStartupCheck]);
 
   // --- NEW: Memoized sorting logic ---
   // This will sort the agents array to bring active ones to the top.

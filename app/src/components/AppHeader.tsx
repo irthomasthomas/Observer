@@ -65,6 +65,10 @@ interface AppHeaderProps {
   getToken: TokenProvider;
 }
 
+
+const LOCAL_STORAGE_KEY = 'observer_local_server_address';
+
+
 const AppHeader: React.FC<AppHeaderProps> = ({
   serverStatus,
   setServerStatus,
@@ -75,7 +79,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   getToken,
 }) => {
   // --- MODIFIED --- Default to the full, desired URL for the proxy.
-  const [serverAddress, setServerAddress] = useState('http://localhost:3838');
+  const [serverAddress, setServerAddress] = useState(() => {
+  return localStorage.getItem(LOCAL_STORAGE_KEY) || 'http://localhost:3838';
+});
+
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
@@ -267,15 +274,19 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       Logger.info('SERVER', 'Mode switched to Ob-Server. Updating address...');
       setOllamaServerAddress('https://api.observer-ai.com', '443'); // Set global state immediately
     } else {
-      setServerAddress('http://localhost:3838');
-      Logger.info('SERVER', 'Mode switched to Local. Updating address...');
-      const { host, port } = parseServerAddress('http://localhost:3838');
-      setOllamaServerAddress(host, port); // Set global state immediately
-      setQuotaInfo(null); // Clear cloud state
-      setIsSessionExpired(false);
-    }
-    // We do NOT call handleCheckServerStatus() here.
-  }, [isUsingObServer]); // This runs ONLY when the mode toggles.
+      // --- MODIFIED LOGIC ---
+    // When switching back to local, get the last used address from storage.
+    const savedAddress = localStorage.getItem(LOCAL_STORAGE_KEY) || 'http://localhost:3838';
+    setServerAddress(savedAddress);
+    Logger.info('SERVER', `Mode switched to Local. Restoring address to ${savedAddress}...`);
+
+    // The rest of the logic uses the restored address
+    const { host, port } = parseServerAddress(savedAddress);
+    setOllamaServerAddress(host, port);
+    setQuotaInfo(null);
+    setIsSessionExpired(false);
+  }
+}, [isUsingObServer]);
 
 
   // Effect #2: The Connection Checker. This runs AFTER Effect #1 has updated the state.
@@ -292,6 +303,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       fetchQuotaInfo();
     }
   }, [isUsingObServer, isAuthenticated, serverStatus]);
+
+  useEffect(() => {
+    // We only want to save the address if the user is in local mode.
+    // This prevents us from saving the Ob-Server API address as a user preference.
+    if (!isUsingObServer) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, serverAddress);
+    }
+  }, [serverAddress, isUsingObServer]);
 
   const renderQuotaStatus = () => {
     if (isSessionExpired) {
