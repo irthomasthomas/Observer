@@ -30,6 +30,32 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command as TokioCommand;
 use futures::stream::select as stream_select;
 
+struct AppSettings {
+  ollama_url: Mutex<Option<String>>,
+}
+
+#[tauri::command]
+async fn set_ollama_url(
+    new_url: Option<String>, // Can be a string or null from frontend
+    settings: State<'_, AppSettings>,
+) -> Result<(), String> {
+    log::info!("Setting Ollama URL to: {:?}", new_url);
+    // Lock the mutex to get exclusive access and update the value.
+    *settings.ollama_url.lock().unwrap() = new_url;
+    Ok(()) // Return Ok to signal success to the frontend
+}
+
+#[tauri::command]
+async fn get_ollama_url(
+    settings: State<'_, AppSettings>,
+) -> Result<Option<String>, String> {
+    log::info!("Getting Ollama URL");
+    // Lock the mutex, clone the value inside, and return it.
+    // We clone so we don't hold the lock longer than necessary.
+    let url = settings.ollama_url.lock().unwrap().clone();
+    Ok(url)
+}
+
 // Shared state for our application
 #[derive(Clone)]
 struct AppState {
@@ -49,7 +75,6 @@ async fn exec_handler(
     log::info!("Received command to execute: '{}'", params.cmd);
 
     let stream = async_stream::stream! {
-        // --- Security Validation (Unchanged) ---
         const UNAUTHORIZED_MESSAGE: &str = "[unauthorized]";
 
         if params.cmd.chars().any(|c| "&;|<>()`$".contains(c)) {
@@ -87,24 +112,19 @@ async fn exec_handler(
             args = &parts[1..];
         }
 
-        // --- New Command Execution Logic ---
         let program = "/usr/local/bin/ollama";
         log::info!("Executing validated command using TokioCommand: {} with args {:?}", program, args);
 
-        // 1. We now use tokio::process::Command directly
         let mut command = TokioCommand::new(program);
         command.args(args);
-        // 2. We tell it we want to capture the output pipes
         command.stdout(std::process::Stdio::piped());
         command.stderr(std::process::Stdio::piped());
 
         match command.spawn() {
             Ok(mut child) => {
-                // 3. We take ownership of the stdout and stderr handles
                 let stdout = child.stdout.take().expect("Failed to capture stdout");
                 let stderr = child.stderr.take().expect("Failed to capture stderr");
 
-                // 4. We create buffered readers to read the streams line-by-line
                 let mut stdout_reader = BufReader::new(stdout).lines();
                 let mut stderr_reader = BufReader::new(stderr).lines();
 
@@ -112,17 +132,13 @@ async fn exec_handler(
                     tokio::select! {
                         // Read from stdout
                         Ok(Some(line)) = stdout_reader.next_line() => {
-                            // HERE IS THE LOGGING YOU WANTED
                             log::info!("RAW STDOUT BYTES AS STRING: {:?}", line);
                             yield Ok(Event::default().data(line));
                         },
-                        // Read from stderr
                         Ok(Some(line)) = stderr_reader.next_line() => {
-                             // Log stderr as well for complete debugging
                             log::info!("RAW STDERR BYTES AS STRING: {:?}", line);
                             yield Ok(Event::default().data(line));
                         },
-                        // Break the loop if both streams have ended
                         else => break,
                     }
                 }
@@ -145,7 +161,6 @@ async fn exec_handler(
     Sse::new(stream)
 }
 
-// The proxy handler remains unchanged.
 async fn proxy_handler(
     AxumState(state): AxumState<AppState>,
     method: Method,
@@ -264,6 +279,9 @@ fn start_static_server(app_handle: tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(ServerUrl("".to_string())))
+        .manage(AppSettings {
+            ollama_url: Mutex::new(None),
+        })
         .setup(|app| {
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
@@ -317,7 +335,11 @@ pub fn run() {
             _ => {}
         })
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![get_server_url])
+        .invoke_handler(tauri::generate_handler![
+            get_server_url,
+            set_ollama_url,
+            get_ollama_url
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
