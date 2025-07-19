@@ -317,3 +317,64 @@ export async function sendDiscordBot(message: string, webhookUrl: string, authTo
     throw error;
   }
 }
+
+/**
+ * Sends a notification directly to a user's self-hosted Gotify server.
+ * This function does NOT use the Observer AI backend API.
+ * @param message The main content of the notification.
+ * @param serverUrl The base URL of the user's Gotify server (e.g., "https://gotify.example.com").
+ * @param appToken The Gotify application token for authentication.
+ * @param title An optional title for the notification.
+ * @param priority An optional priority for the notification (numeric).
+ */
+export async function sendGotify(message: string, serverUrl: string, appToken: string, title?: string, priority?: number): Promise<void> {
+  // 1. Input Validation
+  if (!serverUrl || !appToken) {
+    throw new Error("Gotify server URL and application token are required.");
+  }
+
+  // Ensure the URL is clean and doesn't have a trailing slash for consistency
+  const cleanServerUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+  
+  // Construct the full API endpoint URL
+  const endpoint = `${cleanServerUrl}/message?token=${appToken}`;
+
+  // 2. Construct the Payload
+  const payload: { message: string; title?: string; priority?: number } = {
+    message: message,
+  };
+
+  if (title) {
+    payload.title = title;
+  }
+  if (priority) {
+    payload.priority = priority;
+  }
+
+  // 3. Perform the fetch request directly to the user's Gotify server
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    // 4. Handle Response
+    if (!response.ok) {
+      // Try to get a more specific error from Gotify's response body
+      const errorData = await response.json().catch(() => null); // Gracefully handle non-JSON responses
+      const errorMessage = errorData?.error_description || `Request failed with status: ${response.status}`;
+      throw new Error(`Failed to send Gotify notification: ${errorMessage}`);
+    }
+
+    // Log success for the user's agent logs
+    Logger.info('Gotify', `Successfully sent notification.`);
+
+  } catch (error) {
+    // Log the error and rethrow it so the agent's execution log can see it
+    Logger.error('Gotify', `Error sending notification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw error;
+  }
+}

@@ -109,6 +109,14 @@ export async function executeJavaScript(
         
         Logger.info(agentId, `Successfully sent Discord notification request.`);
       },
+
+      sendGotify: async (message: string, serverUrl: string, appToken: string, title?: string, priority?: number) => {
+        Logger.info(agentId, `Agent is attempting to send a Gotify notification.`);
+        
+        await utils.sendGotify(message, serverUrl, appToken, title, priority);
+        
+        Logger.info(agentId, `Successfully sent Gotify notification request.`);
+      },
       
       startClip: utils.startClip,
       stopClip: utils.stopClip,
