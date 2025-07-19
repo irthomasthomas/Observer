@@ -171,7 +171,22 @@ async fn proxy_handler(
     let path = uri.path();
     let query = uri.query().unwrap_or("");
 
-    let target_url = format!("http://127.0.0.1:11434{}?{}", path, query);
+    let target_url = {
+        // This whole block will evaluate to a single String value.
+
+        let settings = state.app_handle.state::<AppSettings>();
+        let ollama_url_guard = settings.ollama_url.lock().unwrap();
+        
+        let base_url = ollama_url_guard
+            .as_deref()
+            .unwrap_or("http://127.0.0.1:11434");
+
+        // 2. This is the last line. With no semicolon, its value is "returned"
+        //    from the block and assigned to `target_url`.
+        format!("{}{}?{}", base_url, path, query)
+
+    };
+
     log::info!("Proxying {} request to: {}", method, target_url);
 
     let body_bytes = match body.collect().await {
