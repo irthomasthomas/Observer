@@ -128,8 +128,19 @@ interface ConversationalGeneratorProps {
 
 const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAgentGenerated, getToken, isAuthenticated, isUsingObServer }) => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, sender: 'ai', text: "Hi there! I'm Observer's agent builder. What would you like to create today?" }
-  ]);
+  {
+    id: 1,
+    sender: 'ai',
+    text: `Hi there! I'm Observer's agent builder. I can help you create agents to automate tasks by watching your screen.
+
+For example, I can build an agent to:
+*   **Record 🎥** when something specific happens.
+*   **Log 🧠** important information to memory.
+*   **Send alerts 🚀** via Discord, Email, or Pushover.
+
+What would you like to create today?`
+  }
+]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
