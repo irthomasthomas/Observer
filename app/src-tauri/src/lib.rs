@@ -320,23 +320,30 @@ pub fn run() {
             }
 
             let handle = app.handle();
-            let show = MenuItem::new(handle, "Show Launcher", true, None::<&str>)?;
-            let quit = MenuItem::new(handle, "Quit", true, None::<&str>)?;
+            
+            let show = MenuItem::with_id(handle, "show", "Show Launcher", true, None::<&str>)?;
+            let quit = MenuItem::with_id(handle, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(handle, &[&show, &quit])?;
 
             let _tray = TrayIconBuilder::new()
                 .tooltip("Observer AI is running")
                 .icon(app.default_window_icon().cloned().unwrap())
                 .menu(&menu)
-                .on_menu_event(move |app, event| match event.id().as_ref() {
-                    "quit" => app.exit(0),
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            window.show().unwrap();
-                            window.set_focus().unwrap();
+                .on_menu_event(move |app, event| {
+                    // Compare against event.id directly
+                    match event.id.as_ref() {
+                        "quit" => {
+                            log::info!("Exit called");
+                            app.exit(0);
                         }
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                window.show().unwrap();
+                                window.set_focus().unwrap();
+                            }
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 })
                 .build(app)?;
 
