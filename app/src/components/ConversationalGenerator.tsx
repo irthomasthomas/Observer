@@ -155,9 +155,9 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAge
       text: `Hi there! I'm Observer's agent builder. I can help you create agents to automate tasks by watching your screen.
 
 For example, I can build an agent to:
-*   **Record 🎥** when something specific happens.
-*   **Log 🧠** important information to memory.
-*   **Send alerts 🚀** via Discord, Email, or Pushover.
+*   Record 🎥 when something specific happens.
+*   Log 🧠 important information to memory.
+*   Send alerts 🚀 via Discord, Email, or Pushover.
 
 What would you like to create today?`
     }
