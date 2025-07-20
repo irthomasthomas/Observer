@@ -10,6 +10,8 @@ on:
 jobs:
   build-tauri:
     # Use a strategy matrix to build on both windows and macos
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
