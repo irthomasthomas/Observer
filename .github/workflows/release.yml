@@ -21,7 +21,7 @@ jobs:
           - os: ubuntu-latest  # Linux (x86_64)
           - os: windows-latest # Windows (x86_64)
 
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform.os }}
     steps:
       # 1. Checkout the repository code
       - name: Checkout repository
