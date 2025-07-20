@@ -1,7 +1,7 @@
 // src/components/ConversationalGenerator.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Save, Cpu, X, AlertTriangle } from 'lucide-react';
+import { Send, Loader2, Save, Cpu, X, AlertTriangle, Clipboard } from 'lucide-react';
 import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse } from '@utils/agentParser';
@@ -24,6 +24,7 @@ const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isO
   const [localModels, setLocalModels] = useState<Model[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [localModelError, setLocalModelError] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -50,6 +51,14 @@ const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isO
     }
   }, [isOpen]);
 
+  const handleCopyPrompt = () => {
+    const promptText = getConversationalSystemPrompt();
+    navigator.clipboard.writeText(promptText).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
+    });
+  };
+
   const handleSelectAndClose = (modelName: string) => {
     onSelectModel(modelName);
     onClose();
@@ -67,11 +76,23 @@ const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isO
           </button>
         </div>
         <div className="p-6 space-y-6">
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-sm flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-bold">Heads Up!</p>
-              <p>This feature requires large, capable models for best results.</p>
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-sm">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-bold">Heads Up!</p>
+                <p>This feature requires large, capable models for best results.</p>
+                <p className="text-xs text-yellow-700 mt-2">
+                  If you don't have a model bigger than 70B parameters, it is recommended to use Ob-Server or any large LLM provider of your choice by copying the agent creator system prompt to your clipboard.
+                </p>
+                <button 
+                  onClick={handleCopyPrompt}
+                  className="mt-3 px-3 py-1.5 text-xs font-medium text-white bg-slate-700 rounded-md hover:bg-slate-800 transition-colors flex items-center"
+                >
+                  <Clipboard className="h-4 w-4 mr-2" />
+                  {isCopied ? 'Copied!' : 'Copy System Prompt'}
+                </button>
+              </div>
             </div>
           </div>
           <div>
