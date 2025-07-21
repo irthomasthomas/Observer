@@ -168,8 +168,12 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
 
     let token: string | undefined;
     if (loopData.getToken) {
-        Logger.debug(agentId, 'Requesting fresh API token...');
-        token = await loopData.getToken();
+        try{
+          Logger.debug(agentId, 'Requesting fresh API token...');
+          token = await loopData.getToken();
+        }catch (error){
+          Logger.warn(agentId, `Could not retrieve auth token: ${error}. Continuing without it.`);
+        }
     }
 
     Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
