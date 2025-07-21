@@ -53,46 +53,74 @@ function LauncherShell() {
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [saveFeedback, setSaveFeedback] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
-  // --- REWRITTEN SERVER CHECK LOGIC ---
   const runServerChecks = useCallback(async () => {
     setIsChecking(true);
     setFoundServers([]);
     setSaveFeedback(null);
 
     try {
-      // 1. First, ask the Rust backend for a saved custom URL
+      // 1. Determine which URLs to test (same logic as before)
       const savedUrl = await invoke<string | null>('get_ollama_url');
-
       let urlsToTest: string[] = [];
       if (savedUrl) {
-        // If a custom URL is saved, we ONLY test that one.
         urlsToTest.push(savedUrl);
       } else {
-        // Otherwise, fall back to default local ports.
         urlsToTest = ['http://127.0.0.1:11434', 'http://127.0.0.1:8080'];
       }
 
-      // 2. Create fetch promises for all URLs we need to test.
-      const promises = urlsToTest.map(url =>
-        fetch(`${url}/v1/models`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(2500),
-        }).then(response => {
-          if (!response.ok) throw new Error(`Server at ${url} is not a valid endpoint.`);
-          return url; // On success, return the URL that worked.
-        })
-      );
+      // 2. Create two promises: one for the browser fetch, one for the Rust command.
 
-      const results = await Promise.allSettled(promises);
-      const successfulUrls = results
-        .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
-        .map(result => result.value);
+      // Promise 1: Browser-based fetch
+      const browserCheckPromise = new Promise<string[]>(async (resolve, reject) => {
+        try {
+          const fetchPromises = urlsToTest.map(url =>
+            fetch(`${url}/v1/models`, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              signal: AbortSignal.timeout(2500),
+            }).then(response => {
+              if (!response.ok) throw new Error(`Server at ${url} not OK.`);
+              return url;
+            })
+          );
+          const results = await Promise.allSettled(fetchPromises);
+          const successfulUrls = results
+            .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+            .map(r => r.value);
+          
+          if (successfulUrls.length > 0) {
+            console.log("Browser check succeeded:", successfulUrls);
+            resolve(successfulUrls);
+          } else {
+            reject(new Error("Browser check found no servers."));
+          }
+        } catch (error) {
+          reject(error);
+        }
+      });
 
+      // Promise 2: Rust backend invoke
+      const backendCheckPromise = new Promise<string[]>(async (resolve, reject) => {
+        try {
+          const successfulUrls = await invoke<string[]>('check_ollama_servers', { urls: urlsToTest });
+          if (successfulUrls.length > 0) {
+            console.log("Backend check succeeded:", successfulUrls);
+            resolve(successfulUrls);
+          } else {
+            reject(new Error("Backend check found no servers."));
+          }
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      // 3. Race them! Promise.any resolves with the value of the FIRST promise to succeed.
+      const successfulUrls = await Promise.any([browserCheckPromise, backendCheckPromise]);
       setFoundServers(successfulUrls);
 
     } catch (error) {
-      console.error("Error during server check:", error);
+      // This block only runs if *both* checks fail.
+      console.error("Both browser and backend checks failed:", error);
       setFoundServers([]);
     } finally {
       setIsChecking(false);

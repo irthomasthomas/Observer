@@ -25,9 +25,12 @@ use tauri::{
 };
 use tauri_plugin_shell::ShellExt;
 use tower_http::{cors::{Any, CorsLayer}, services::ServeDir};
-
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command as TokioCommand;
+use tokio::{
+    self, 
+    io::{AsyncBufReadExt, BufReader},
+    process::Command as TokioCommand,
+};
+use futures::future::join_all;
 use futures::stream::select as stream_select;
 
 struct AppSettings {
@@ -54,6 +57,48 @@ async fn get_ollama_url(
     // We clone so we don't hold the lock longer than necessary.
     let url = settings.ollama_url.lock().unwrap().clone();
     Ok(url)
+}
+
+#[tauri::command]
+async fn check_ollama_servers(urls: Vec<String>) -> Result<Vec<String>, String> { // <-- No State parameter
+    log::info!("Rust backend received request to check servers (using dedicated client): {:?}", urls);
+
+    // Create a new, temporary client just for this operation.
+    let client = Client::new();
+
+    // The rest of the logic is identical.
+    let checks = urls.into_iter().map(|url| {
+        let client = client.clone();
+        let check_url = format!("{}/v1/models", url);
+
+        tokio::spawn(async move {
+            match client.get(&check_url).timeout(std::time::Duration::from_millis(2500)).send().await {
+                Ok(response) if response.status().is_success() => {
+                    log::info!("Success checking server at {}", url);
+                    Some(url)
+                }
+                Ok(response) => {
+                    log::warn!("Failed check for {}: Status {}", url, response.status());
+                    None
+                }
+                Err(e) => {
+                    log::warn!("Failed check for {}: Error: {}", url, e);
+                    None
+                }
+            }
+        })
+    });
+
+    let results = join_all(checks).await;
+
+    let successful_urls: Vec<String> = results
+        .into_iter()
+        .filter_map(|res| res.ok().flatten())
+        .collect();
+
+    log::info!("Found running servers at: {:?}", successful_urls);
+
+    Ok(successful_urls)
 }
 
 // Shared state for our application
@@ -365,7 +410,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_server_url,
             set_ollama_url,
-            get_ollama_url
+            get_ollama_url,
+            check_ollama_servers
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
