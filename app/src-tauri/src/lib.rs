@@ -158,7 +158,7 @@ async fn exec_handler(
         }
 
         #[cfg(target_os = "windows")]
-        let program = "C:\\Program Files\\Ollama\\ollama.exe";
+        let program = "ollama";
 
         #[cfg(not(target_os = "windows"))]
         let program = "/usr/local/bin/ollama";
@@ -316,6 +316,7 @@ fn start_static_server(app_handle: tauri::AppHandle) {
         let app = Router::new()
             .route("/exec", get(exec_handler))
             .route("/v1/*path", any(proxy_handler))
+            .route("/api/*path", any(proxy_handler))
             .fallback_service(ServeDir::new(resource_path))
             .with_state(state)
             .layer(cors);
