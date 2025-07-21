@@ -490,7 +490,7 @@ const CommunityTab: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {agents.map(agent => (
-            <div key={agent.id} className="bg-white rounded-lg shadow-md p-4">
+            <div key={agent.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">{agent.name}</h3>
                 <div className="flex space-x-2">
@@ -521,32 +521,36 @@ const CommunityTab: React.FC = () => {
                 </div>
               </div>
               
-              <span className="inline-block px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-700">
-                Community
-              </span>
+              <div className="flex-1">
+                <div className="mb-4">
+                  <span className="inline-block px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-700">
+                    Community
+                  </span>
+                  
+                  {isAuthorOfAgent(agent) && (
+                    <span className="inline-block ml-2 px-2 py-1 rounded-full text-sm bg-green-100 text-green-700">
+                      Your Agent
+                    </span>
+                  )}
+                </div>
               
-              {isAuthorOfAgent(agent) && (
-                <span className="inline-block ml-2 px-2 py-1 rounded-full text-sm bg-green-100 text-green-700">
-                  Your Agent
-                </span>
-              )}
-              
-              <div className="mt-4">
-                <p className="text-sm text-gray-600">
-                  Model: {agent.model_name}
-                </p>
-                <p className="mt-2 text-sm">{agent.description}</p>
-                {agent.author && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Contributed by: {agent.author}
-                    {agent.date_added && (
-                      <span> • {new Date(agent.date_added).toLocaleDateString()}</span>
-                    )}
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Model: {agent.model_name}
                   </p>
-                )}
+                  <p className="mt-2 text-sm">{agent.description}</p>
+                  {agent.author && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Contributed by: {agent.author}
+                      {agent.date_added && (
+                        <span> • {new Date(agent.date_added).toLocaleDateString()}</span>
+                      )}
+                    </p>
+                  )}
+                </div>
               </div>
               
-              <div className="mt-4 flex items-center space-x-4">
+              <div className="mt-auto pt-4 flex items-center space-x-4">
                 <button
                   onClick={() => handleImport(agent)}
                   className={`px-4 py-2 rounded-md ${
