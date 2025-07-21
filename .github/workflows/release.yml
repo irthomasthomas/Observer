@@ -18,10 +18,10 @@ jobs:
         platform:
           - os: macos-latest # Apple Silicon (ARM64)
           - os: macos-13     # Intel (x86_64)
-          - os: ubuntu-latest  # Linux (x86_64)
+          # - os: ubuntu-latest  # Linux (x86_64)
           - os: windows-latest # Windows (x86_64)
 
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform.os }}
     steps:
       # 1. Checkout the repository code
       - name: Checkout repository
@@ -36,6 +36,21 @@ jobs:
       # 3. Install Rust toolchain
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+
+      # It no workie
+      # - name: Install Linux dependencies
+      #   if: matrix.platform.os == 'ubuntu-latest'
+      #   run: |
+      #     sudo apt-get update
+      #     # ADDED libglib2.0-dev TO THE LIST
+      #     sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      #
+      # - name: Workaround for AppImage project migration
+      #   if: matrix.platform.os == 'ubuntu-latest'
+      #   run: |
+      #     mkdir -p ~/.cache/tauri-bundler/
+      #     wget -O ~/.cache/tauri-bundler/AppRun-x86_64 https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+      #     chmod +x ~/.cache/tauri-bundler/AppRun-x86_64
 
       # 4. Install frontend dependencies
       #    We specify the working-directory to run this command inside the 'app/' folder.
