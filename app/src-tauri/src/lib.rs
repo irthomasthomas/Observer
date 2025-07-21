@@ -112,7 +112,12 @@ async fn exec_handler(
             args = &parts[1..];
         }
 
+        #[cfg(target_os = "windows")]
+        let program = "C:\\Program Files\\Ollama\\ollama.exe";
+
+        #[cfg(not(target_os = "windows"))]
         let program = "/usr/local/bin/ollama";
+
         log::info!("Executing validated command using TokioCommand: {} with args {:?}", program, args);
 
         let mut command = TokioCommand::new(program);
