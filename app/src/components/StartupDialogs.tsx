@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Terminal, Cloud, Server, AlertTriangle, Download } from 'lucide-react';
-// We no longer need getOllamaServerAddress, we'll read from localStorage directly
-// import { getOllamaServerAddress } from '@utils/main_loop'; 
 import TerminalModal from '@components/TerminalModal';
 
 interface StartupDialogProps {
@@ -12,7 +10,6 @@ interface StartupDialogProps {
   hostingContext: 'official-web' | 'self-hosted' | 'tauri';
 }
 
-// Define the key for consistency, just as in your AppHeader
 const LOCAL_STORAGE_KEY = 'observer_local_server_address';
 const DEFAULT_SERVER_ADDRESS = 'http://localhost:3838';
 
@@ -32,16 +29,11 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
     if (hostingContext === 'self-hosted' || hostingContext === 'tauri') {
       const checkLocalModels = async () => {
         try {
-          // --- MODIFIED ---
-          // Read the server address directly from localStorage
           const serverAddress = localStorage.getItem(LOCAL_STORAGE_KEY) || DEFAULT_SERVER_ADDRESS;
-
-          // Avoid making requests to the official API by checking the hostname
           if (new URL(serverAddress).hostname.includes('api.observer-ai.com')) {
               setIsCheckingModels(false);
               return;
           }
-
           const response = await fetch(`${serverAddress}/api/tags`);
           if (!response.ok) {
             throw new Error('Server not reachable');
@@ -71,21 +63,29 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
     }
   };
 
+  // --- BUG FIX 1 
   const handleSetupLocalClick = () => {
     if (hostingContext === 'official-web') {
       setView('local-warning');
     } else if (hasNoModels) {
+      // Set the view AND set the server mode to local
       setView('no-models');
+      if (setUseObServer) setUseObServer(false);
     } else {
+      // Proceed as normal
       if (setUseObServer) setUseObServer(false);
       onDismiss();
     }
   };
   
+  // --- BUG FIX 2 
   const handleProceedWithLocal = () => {
     if (hasNoModels) {
+        // Set the view AND set the server mode to local
         setView('no-models');
+        if (setUseObServer) setUseObServer(false);
     } else {
+        // Proceed as normal
         if (setUseObServer) setUseObServer(false);
         onDismiss();
     }
@@ -101,11 +101,8 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
     onDismiss();
   }
 
-  // --- MODIFIED ---
-  // Helper to open the server address for certificate acceptance
   const handleAcceptCertClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Read directly from localStorage here as well for consistency
     const url = localStorage.getItem(LOCAL_STORAGE_KEY) || DEFAULT_SERVER_ADDRESS;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
