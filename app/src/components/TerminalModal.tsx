@@ -9,7 +9,9 @@ interface TerminalModalProps {
 
 const suggestions = [
   'ollama run gemma3:4b',
-  'ollama run deepseek-r1:8b'
+  'ollama run llava:7b',
+  'ollama run gemma3:12b',
+  'ollama run gemma3:27b'
 ];
 
 const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose }) => {
