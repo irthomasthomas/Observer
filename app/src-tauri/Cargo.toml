@@ -42,3 +42,6 @@ futures = "0.3"
 # async-stream is no longer needed as it was used in exec_handler
 reqwest = { version = "0.12", features = ["json", "stream"] }
 http-body-util = "0.1"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"

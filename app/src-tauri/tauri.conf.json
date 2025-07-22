@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Observer",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "identifier": "Observer",
   "build": {
     "frontendDist": "../dist",
@@ -23,10 +23,11 @@
       "csp": null,
       "capabilities": ["default"]
     },
-    "withGlobalTauri":true 
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true, 
     "targets": "all",
     "icon": [
       "icons/32x32.png",
@@ -38,5 +39,15 @@
     "resources": [
       "../dist"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": true, 
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1ODc2MzAxRDc0OUZDRTEKUldUaC9FblhBV09IRllDM0U0SVJWT2NkVkZlc3M2Yk1VbU96bm1nem13anRVNmNscW1FY1luV20K",
+      "endpoints": [
+        "https://github.com/Roy3838/Observer/releases/latest/download/update.json"
+      ]
+    }
   }
 }

@@ -26,6 +26,7 @@
     "@lexical/selection": "^0.25.0",
     "@tauri-apps/api": "^2.6.0",
     "@tauri-apps/plugin-shell": "^2.3.0",
+    "@tauri-apps/plugin-updater": "^2.9.0",
     "@tinymce/tinymce-react": "^6.0.0",
     "@uiw/codemirror-theme-vscode": "^4.24.0",
     "@uiw/react-codemirror": "^4.23.8",

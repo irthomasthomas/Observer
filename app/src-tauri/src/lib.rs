@@ -5,10 +5,10 @@
 // ---- Final, Corrected Imports ----
 use axum::{
     body::Body,
-    extract::{State as AxumState},
+    extract::State as AxumState,
     http::{HeaderMap, Method, StatusCode, Uri},
     response::Response,
-    routing::{any},
+    routing::any,
     Router,
 };
 use futures::future::join_all;
@@ -20,10 +20,14 @@ use tauri::{
     tray::TrayIconBuilder,
     AppHandle, Manager, State,
 };
-use tower_http::{cors::{Any, CorsLayer}, services::ServeDir};
+use tower_http::{
+    cors::{Any, CorsLayer},
+    services::ServeDir,
+};
+use tauri_plugin_updater::UpdaterExt;
 
 struct AppSettings {
-  ollama_url: Mutex<Option<String>>,
+    ollama_url: Mutex<Option<String>>,
 }
 
 #[tauri::command]
@@ -38,9 +42,7 @@ async fn set_ollama_url(
 }
 
 #[tauri::command]
-async fn get_ollama_url(
-    settings: State<'_, AppSettings>,
-) -> Result<Option<String>, String> {
+async fn get_ollama_url(settings: State<'_, AppSettings>) -> Result<Option<String>, String> {
     log::info!("Getting Ollama URL");
     // Lock the mutex, clone the value inside, and return it.
     // We clone so we don't hold the lock longer than necessary.
@@ -49,8 +51,12 @@ async fn get_ollama_url(
 }
 
 #[tauri::command]
-async fn check_ollama_servers(urls: Vec<String>) -> Result<Vec<String>, String> { // <-- No State parameter
-    log::info!("Rust backend received request to check servers (using dedicated client): {:?}", urls);
+async fn check_ollama_servers(urls: Vec<String>) -> Result<Vec<String>, String> {
+    // <-- No State parameter
+    log::info!(
+        "Rust backend received request to check servers (using dedicated client): {:?}",
+        urls
+    );
 
     // Create a new, temporary client just for this operation.
     let client = Client::new();
@@ -61,7 +67,12 @@ async fn check_ollama_servers(urls: Vec<String>) -> Result<Vec<String>, String> 
         let check_url = format!("{}/v1/models", url);
 
         tokio::spawn(async move {
-            match client.get(&check_url).timeout(std::time::Duration::from_millis(2500)).send().await {
+            match client
+                .get(&check_url)
+                .timeout(std::time::Duration::from_millis(2500))
+                .send()
+                .await
+            {
                 Ok(response) if response.status().is_success() => {
                     log::info!("Success checking server at {}", url);
                     Some(url)
@@ -112,7 +123,7 @@ async fn proxy_handler(
 
         let settings = state.app_handle.state::<AppSettings>();
         let ollama_url_guard = settings.ollama_url.lock().unwrap();
-        
+
         let base_url = ollama_url_guard
             .as_deref()
             .unwrap_or("http://127.0.0.1:11434");
@@ -120,7 +131,6 @@ async fn proxy_handler(
         // 2. This is the last line. With no semicolon, its value is "returned"
         //    from the block and assigned to `target_url`.
         format!("{}{}?{}", base_url, path, query)
-
     };
 
     log::info!("Proxying {} request to: {}", method, target_url);
@@ -144,7 +154,7 @@ async fn proxy_handler(
             let mut response_builder = Response::builder()
                 .status(upstream_response.status())
                 .version(upstream_response.version());
-            
+
             if let Some(headers) = response_builder.headers_mut() {
                 headers.extend(upstream_response.headers().clone());
             }
@@ -160,7 +170,6 @@ async fn proxy_handler(
         }
     }
 }
-
 
 #[derive(Clone)]
 struct ServerUrl(String);
@@ -226,14 +235,44 @@ fn start_static_server(app_handle: tauri::AppHandle) {
     });
 }
 
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // The plugin must be registered before the setup hook
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Mutex::new(ServerUrl("".to_string())))
         .manage(AppSettings {
             ollama_url: Mutex::new(None),
         })
         .setup(|app| {
+            // We use the handle to call updater and restart
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                // Notice we use the handle to get the updater
+                match handle.updater().unwrap().check().await {
+                    Ok(Some(update)) => {
+                        log::info!(
+                            "Update {} is available!",
+                            update.version
+                        );
+
+                        if let Err(e) = update.download_and_install(|_, _| {}, || {}).await {
+                             log::error!("Failed to install update: {}", e);
+                        }
+                        
+                        handle.restart();
+                    }
+                    Ok(None) => {
+                        log::info!("You are running the latest version!");
+                    }
+                    Err(e) => {
+                        log::error!("Updater check failed: {}", e);
+                    }
+                }
+            });
+
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Info)
@@ -255,18 +294,17 @@ pub fn run() {
                 *server_url_state.lock().unwrap() = ServerUrl(dev_url.to_string());
             }
 
-            let handle = app.handle();
-            
-            let show = MenuItem::with_id(handle, "show", "Show Launcher", true, None::<&str>)?;
-            let quit = MenuItem::with_id(handle, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(handle, &[&show, &quit])?;
+            let menu_handle = app.handle();
+
+            let show = MenuItem::with_id(menu_handle, "show", "Show Launcher", true, None::<&str>)?;
+            let quit = MenuItem::with_id(menu_handle, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(menu_handle, &[&show, &quit])?;
 
             let _tray = TrayIconBuilder::new()
                 .tooltip("Observer AI is running")
                 .icon(app.default_window_icon().cloned().unwrap())
                 .menu(&menu)
                 .on_menu_event(move |app, event| {
-                    // Compare against event.id directly
                     match event.id.as_ref() {
                         "quit" => {
                             log::info!("Exit called");
