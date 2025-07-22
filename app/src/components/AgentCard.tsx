@@ -180,6 +180,7 @@ interface AgentCardProps {
   isAuthenticated: boolean;
   hasQuotaError: boolean;
   onUpgradeClick: () => void;
+  onSave: (agent: CompleteAgent, code: string) => Promise<void>;
 }
 
 // NEW: A dedicated component for placeholders when a stream is not available.
@@ -410,6 +411,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   isAuthenticated,
   hasQuotaError,
   onUpgradeClick,
+  onSave
 }) => {
   const [activityExpanded, setActivityExpanded] = useState(false);
   const [isPythonAgent, setIsPythonAgent] = useState(false);
@@ -420,6 +422,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [loopProgress, setLoopProgress] = useState(0);
   const [responseKey, setResponseKey] = useState(0);
   const [currentModel, setCurrentModel] = useState(agent.model_name);
+  const initialModelRef = useRef(agent.model_name);
 
   const showStartingState = useMemo(() => isStarting || isCheckingModel, [isStarting, isCheckingModel]);
   const isLive = useMemo(() => (isRunning || showStartingState) && !hasQuotaError, [isRunning, showStartingState, hasQuotaError]);
@@ -443,6 +446,24 @@ const AgentCard: React.FC<AgentCardProps> = ({
       setIsPythonAgent(false);
     }
   }, [code]);
+
+  useEffect(() => {
+    // Only trigger save if the model has actually changed from its initial value
+    // and the necessary props are available.
+    if (currentModel !== initialModelRef.current && onSave && code !== undefined) {
+      console.log(`Model changed from "${initialModelRef.current}" to "${currentModel}". Saving...`);
+      const updatedAgent = { ...agent, model_name: currentModel };
+      onSave(updatedAgent, code);
+      
+      // Update the ref to prevent re-saving if the component re-renders for other reasons
+      initialModelRef.current = currentModel;
+    }
+  }, [currentModel, agent, code, onSave]);
+
+  useEffect(() => {
+    setCurrentModel(agent.model_name);
+    initialModelRef.current = agent.model_name;
+  }, [agent.model_name]);
 
   useEffect(() => {
     const handleStreamUpdate = (newState: StreamState) => {

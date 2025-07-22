@@ -551,6 +551,7 @@ function AppContent() {
                       isAuthenticated={isAuthenticated}
                       hasQuotaError={agentsWithQuotaError.has(agent.id)}
                       onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+                      onSave={handleSaveAgent}
                     />
                   </div>
                 );
