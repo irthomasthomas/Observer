@@ -6,7 +6,7 @@ Local Open-source micro-agents that observe, log and react, all while keeping yo
 
 ## [Try Observer App Online](https://app.observer-ai.com/)
 
-## [Download Official App](https://github.com/Roy3838/Observer/releases/tag/v1.0.4)
+## [Download Official App](https://github.com/Roy3838/Observer/releases/tag/v1.1.0)
 
 
 - [Support me and the project!](https://buymeacoffee.com/roy3838)
@@ -119,7 +119,7 @@ To use Python agents:
 
 # 🚀 Getting Started with Local Inference
 
-## Download the [Official App](https://github.com/Roy3838/Observer/releases/tag/v1.0.4)
+## Download the [Official App](https://github.com/Roy3838/Observer/releases/tag/v1.1.0)
 
 https://github.com/user-attachments/assets/c5af311f-7e10-4fde-9321-bb98ceebc271
 
