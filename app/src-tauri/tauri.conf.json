@@ -44,7 +44,7 @@
     "updater": {
       "active": true,
       "dialog": true, 
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1ODc2MzAxRDc0OUZDRTEKUldUaC9FblhBV09IRllDM0U0SVJWT2NkVkZlc3M2Yk1VbU96bm1nem13anRVNmNscW1FY1luV20K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDExODcyRkI1MDUwRDkyRUIKUldUcmtnMEZ0UytIRVMxZWEvcEFsZHQzRmlCZWZONjlDVENKOUFnUWk3d1ZVZERkU2tvOUFlTjgK",
       "endpoints": [
         "https://github.com/Roy3838/Observer/releases/latest/download/update.json"
       ]
