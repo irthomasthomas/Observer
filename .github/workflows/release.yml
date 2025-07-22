@@ -79,8 +79,6 @@ jobs:
           releaseBody: |
             This is an automated release.
             See the assets below to download the application for your operating system.
-
-          jsonFileName: 'update.json'
           
           # Creates a draft release. You must manually publish it after the workflow is done.
           # This is safer as it allows you to review and add changelogs.
