@@ -295,6 +295,105 @@ const LastResponse: React.FC<{ response: string, responseKey: number }> = ({ res
   </div>
 );
 
+const ModelDropdown: React.FC<{
+    currentModel: string;
+    onModelChange: (modelName: string) => void;
+}> = ({ currentModel, onModelChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [availableModels, setAvailableModels] = useState<{ name: string; multimodal?: boolean }[]>([]);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const fetchModels = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const serverDetails = getOllamaServerAddress();
+            if (!serverDetails.host || !serverDetails.port) {
+                throw new Error("Ollama server details not configured.");
+            }
+            const response = await listModels(serverDetails.host, serverDetails.port);
+            if (response.error) {
+                throw new Error(response.error);
+            }
+            setAvailableModels(response.models);
+        } catch (e) {
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            setError(`Failed to fetch models: ${errorMsg}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    const handleToggle = () => {
+        if (!isOpen) {
+            fetchModels();
+        }
+        setIsOpen(!isOpen);
+    };
+
+    const handleSelect = (modelName: string) => {
+        onModelChange(modelName);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="relative inline-block text-left" ref={dropdownRef}>
+            <div>
+                {/* MODIFIED: Reduced padding, font size, and icon size for a smaller button */}
+                <button
+                    type="button"
+                    className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-2.5 py-1.5 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
+                    onClick={handleToggle}
+                >
+                    <span className="truncate max-w-[150px]">{currentModel || 'Select Model'}</span>
+                    <ChevronDown className="-mr-1 ml-1.5 h-4 w-4" aria-hidden="true" />
+                </button>
+            </div>
+            {/* MODIFIED: Made the dropdown panel narrower */}
+            {isOpen && (
+                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                        {isLoading && <div className="px-3 py-1.5 text-xs text-gray-500">Loading...</div>}
+                        {error && <div className="px-3 py-1.5 text-xs text-red-600">{error}</div>}
+                        {!isLoading && !error && availableModels.length === 0 && (
+                            <div className="px-3 py-1.5 text-xs text-gray-500">No models found.</div>
+                        )}
+                        {!isLoading && !error && availableModels.map((model) => (
+                            <button
+                                key={model.name}
+                                onClick={() => handleSelect(model.name)}
+                                /* MODIFIED: Reduced padding and font size for list items */
+                                className={`${
+                                    model.name === currentModel ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                                } block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 hover:text-gray-900`}
+                                role="menuitem"
+                            >
+                                <div className="flex items-center justify-between">
+                                  <span className="truncate">{model.name}</span>
+                                  {model.multimodal && <Eye className="h-4 w-4 text-purple-600" />}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent,
@@ -320,11 +419,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [lastResponse, setLastResponse] = useState<string>('...');
   const [loopProgress, setLoopProgress] = useState(0);
   const [responseKey, setResponseKey] = useState(0);
-  
+  const [currentModel, setCurrentModel] = useState(agent.model_name);
+
   const showStartingState = useMemo(() => isStarting || isCheckingModel, [isStarting, isCheckingModel]);
   const isLive = useMemo(() => (isRunning || showStartingState) && !hasQuotaError, [isRunning, showStartingState, hasQuotaError]);
 
-  const [streams, setStreams] = useState<StreamState>({ 
+  const [streams, setStreams] = useState<StreamState>({
     cameraStream: null,
     screenVideoStream: null,
     screenAudioStream: null,
@@ -343,7 +443,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       setIsPythonAgent(false);
     }
   }, [code]);
-  
+
   useEffect(() => {
     const handleStreamUpdate = (newState: StreamState) => {
       setStreams(newState);
@@ -366,7 +466,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
         setLastResponse('Agent is preparing to start...');
         return;
     }
-    
+
     if (isRunning) {
       if (liveStatus === 'STARTING' || liveStatus === 'IDLE') {
           setLiveStatus('CAPTURING');
@@ -387,11 +487,11 @@ const AgentCard: React.FC<AgentCardProps> = ({
     } else {
       setLiveStatus('IDLE');
     }
-  }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError]); 
+  }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
-    if (isRunning && liveStatus === 'WAITING' && !hasQuotaError) { 
+    if (isRunning && liveStatus === 'WAITING' && !hasQuotaError) {
       const interval = 100;
       const totalDuration = agent.loop_interval_seconds * 1000;
       const increment = (interval / totalDuration) * 100;
@@ -408,19 +508,19 @@ const AgentCard: React.FC<AgentCardProps> = ({
       }, interval);
     }
     return () => { if (timer) clearInterval(timer); };
-  }, [isRunning, liveStatus, agent.loop_interval_seconds, hasQuotaError]); 
+  }, [isRunning, liveStatus, agent.loop_interval_seconds, hasQuotaError]);
 
   const handleToggle = async () => {
     if (!isRunning) {
         setStartWarning(null);
         setIsCheckingModel(true);
-        const agentModelName = agent.model_name;
+        const agentModelName = currentModel;
         if (!agentModelName || agentModelName.trim() === "") {
           setStartWarning(`This agent needs a model configured. Please edit the agent to select a model.`);
           setIsCheckingModel(false);
           return;
         }
-        
+
         let isModelAvailable = false;
         try {
           const serverDetails = getOllamaServerAddress();
@@ -440,19 +540,19 @@ const AgentCard: React.FC<AgentCardProps> = ({
           setIsCheckingModel(false);
           return;
         }
-  
+
         if (!isModelAvailable) {
           setStartWarning(`Model "${agentModelName}" is not available. Check server settings or edit the agent.`);
           setIsCheckingModel(false);
           return;
         }
-  
+
         if (isPythonAgent && !isJupyterConnected()) {
           onShowJupyterModal();
           setIsCheckingModel(false);
           return;
         }
-  
+
         setIsCheckingModel(false);
         onToggle(agent.id, isRunning);
       } else {
@@ -462,13 +562,13 @@ const AgentCard: React.FC<AgentCardProps> = ({
   };
 
   return (
-    <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 flex flex-col">
-      
+    <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 flex flex-col">
+
       {/* === OMNIPRESENT PROGRESS BAR === */}
       {isRunning && liveStatus === 'WAITING' && (
         <div className="absolute top-0 left-0 right-0 h-1 z-10">
-          <div 
-            className="h-full bg-green-500 transition-all duration-150 ease-linear" 
+          <div
+            className="h-full bg-green-500 transition-all duration-150 ease-linear"
             style={{ width: `${loopProgress}%` }}
           />
         </div>
@@ -500,17 +600,17 @@ const AgentCard: React.FC<AgentCardProps> = ({
            )}
 
            <div className="flex-1 flex justify-end">
-             <button 
-               onClick={handleToggle} 
+             <button
+               onClick={handleToggle}
                className={`px-4 py-2 rounded-lg font-medium flex-shrink-0 flex items-center transition-colors text-sm ${
-                 hasQuotaError 
-                   ? 'bg-red-100 text-red-700 cursor-not-allowed' 
-                   : showStartingState 
-                   ? 'bg-yellow-100 text-yellow-700 cursor-wait' 
-                   : isRunning 
-                   ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                 hasQuotaError
+                   ? 'bg-red-100 text-red-700 cursor-not-allowed'
+                   : showStartingState
+                   ? 'bg-yellow-100 text-yellow-700 cursor-wait'
+                   : isRunning
+                   ? 'bg-red-100 text-red-700 hover:bg-red-200'
                    : 'bg-green-100 text-green-700 hover:bg-green-200'
-               }`} 
+               }`}
                disabled={showStartingState || hasQuotaError}
              >
                {hasQuotaError ? (
@@ -537,9 +637,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
                 {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} />}
                 {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
                 {!streams.screenVideoStream && !streams.cameraStream && (
-                    <NoStreamPlaceholder 
-                        icon={<VideoOff className="w-5 h-5" />} 
-                        text="No Video Stream" 
+                    <NoStreamPlaceholder
+                        icon={<VideoOff className="w-5 h-5" />}
+                        text="No Video Stream"
                     />
                 )}
                 <div className="grid grid-cols-1 gap-2">
@@ -561,7 +661,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
                   <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPythonAgent ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                     {isPythonAgent ? 'Python' : 'JavaScript'}
                   </div>
-                  <div className="inline-flex items-center"><Cpu className="w-4 h-4 mr-1.5" />{agent.model_name || "No model"}</div>
+                  <div className="inline-flex items-center"><Cpu className="w-4 h-4 mr-1.5" /><ModelDropdown currentModel={currentModel} onModelChange={setCurrentModel} /></div>
                   <div className="inline-flex items-center"><Clock className="w-4 h-4 mr-1.5" />{agent.loop_interval_seconds}s</div>
               </div>
               {startWarning && (<div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md text-sm flex items-center gap-2"><AlertTriangle className="h-5 w-5 flex-shrink-0" /><span>{startWarning}</span></div>)}
@@ -578,7 +678,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             <button onClick={() => onEdit(agent.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded-md"><Edit className="w-4 h-4" /> Edit</button>
             <button onClick={() => onDelete(agent.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-100 rounded-md"><Trash2 className="w-4 h-4" /> Delete</button>
         </div>
-        
+
         {/* Right Side: Memory/Jupyter and Activity Log */}
         <div className="flex items-center gap-2">
              {isPythonAgent ? (
@@ -600,7 +700,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       {/* EXPANDABLE LOGS SECTION */}
       {activityExpanded && (
         <div className="border-t border-gray-200 p-4 bg-gray-50">
-            <AgentLogViewer 
+            <AgentLogViewer
               agentId={agent.id}
               getToken={getToken}
               isAuthenticated={isAuthenticated}
