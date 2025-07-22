@@ -41,17 +41,6 @@ def main():
         help="Enable/disable SSL (--ssl or --no-ssl). Overrides ENABLE_SSL env var."
     )
     ssl_group.add_argument("--cert-dir", default="./certs", help="Directory to store self-signed certificates.")
-    
-    # --- Modified: Command Execution configuration using the new pattern ---
-    exec_group = parser.add_argument_group('Command Execution (via /exec endpoint)')
-    exec_group.add_argument(
-        "--exec",
-        dest="enable_exec",
-        action=argparse.BooleanOptionalAction,
-        default=get_bool_env('ENABLE_DOCKER_EXEC', True),
-        help="[SECURITY RISK] Enable/disable the /exec endpoint (--exec or --no-exec). Overrides ENABLE_DOCKER_EXEC env var."
-    )
-    exec_group.add_argument("--docker-container-name", default=os.environ.get("OLLAMA_CONTAINER_NAME", "ollama_service"), help="Name of the Docker container to execute commands in.")
 
     # --- New: Legacy Translation configuration group ---
     translation_group = parser.add_argument_group('Legacy Ollama Support')
@@ -79,7 +68,6 @@ def main():
     # Log the final, resolved configuration
     logger.info(f"--- Configuration ---")
     logger.info(f"SSL Enabled: {args.use_ssl}")
-    logger.info(f"Exec Endpoint Enabled: {args.enable_exec}")
     logger.info(f"Legacy Translation Enabled: {args.enable_legacy_translation}")
     logger.info(f"---------------------")
 
@@ -91,8 +79,6 @@ def main():
         cert_dir=args.cert_dir, 
         dev_mode=args.dev, 
         use_ssl=args.use_ssl,
-        enable_exec=args.enable_exec,
-        docker_container_name=args.docker_container_name,
         enable_legacy_translation=args.enable_legacy_translation
     )
 

@@ -6,7 +6,6 @@ from urllib.parse import urlparse, parse_qs
 from .cors import CorsMixin
 from . import translator
 from . import ollama_client
-from . import command_executor
 
 logger = logging.getLogger('ollama-proxy.handler')
 
@@ -34,8 +33,6 @@ class OllamaProxyHandler(CorsMixin, http.server.BaseHTTPRequestHandler):
         """Routes GET requests."""
         if self.path == '/favicon.ico':
             self._handle_favicon_request()
-        elif self.path.startswith('/exec'):
-            self._handle_exec_request()
         else:
             # All other GETs use the simple, modern proxy
             self._handle_modern_proxy('GET')
@@ -133,34 +130,3 @@ class OllamaProxyHandler(CorsMixin, http.server.BaseHTTPRequestHandler):
         self.send_cors_headers()
         self.end_headers()
         logger.debug("Responded 204 No Content for /favicon.ico")
-
-    def _handle_exec_disabled(self):
-        self.send_response(403)
-        self.send_cors_headers()
-        self.send_header('Content-Type', 'application/json')
-        self.end_headers()
-        self.wfile.write(json.dumps({ "error": "Command execution is disabled." }).encode('utf-8'))
-
-    def _handle_exec_request(self):
-        # NOTE: Your original exec handler was for GET. This preserves that.
-        if not self.server.enable_exec:
-            self._handle_exec_disabled()
-            return
-            
-        logger.info(f"Handling /exec request from {self.address_string()}")
-        parsed_path = urlparse(self.path)
-        params = parse_qs(parsed_path.query)
-        command = params.get('cmd', [''])[0]
-
-        self.send_response(200)
-        self.send_cors_headers()
-        self.send_header("Content-Type", "text/event-stream")
-        self.send_header("Cache-Control", "no-cache")
-        self.end_headers()
-
-        try:
-            for sse_message in command_executor.execute_command_stream(command, self.server.docker_container_name):
-                self.wfile.write(sse_message.encode('utf-8'))
-                self.wfile.flush()
-        except BrokenPipeError:
-            logger.warning("Client disconnected during exec stream.")

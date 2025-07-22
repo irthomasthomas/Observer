@@ -11,7 +11,7 @@ from .handler import OllamaProxyHandler
 logger = logging.getLogger('ollama-proxy.server')
 
 
-def run_server(port, cert_dir, dev_mode, use_ssl, enable_exec, docker_container_name, enable_legacy_translation):
+def run_server(port, cert_dir, dev_mode, use_ssl, enable_legacy_translation):
     """Configures and starts the proxy server (HTTPS or HTTP)."""
     protocol = "https" if use_ssl else "http"
     logger.info(f"--- Ollama {protocol.upper()} Proxy ---")
@@ -21,13 +21,11 @@ def run_server(port, cert_dir, dev_mode, use_ssl, enable_exec, docker_container_
         def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
             # Store all config values on the server instance
             self.dev_mode = dev_mode
-            self.enable_exec = enable_exec
-            self.docker_container_name = docker_container_name
             # --- New: Store the translation setting ---
             self.enable_legacy_translation = enable_legacy_translation
             super().__init__(server_address, RequestHandlerClass, bind_and_activate)
 
-    httpd = CustomThreadingTCPServer(("", port), OllamaProxyHandler)
+    httpd = CustomThreadingTCPServer(('', port), OllamaProxyHandler)
     
     # Conditionally wrap the server socket with SSL
     if use_ssl:
