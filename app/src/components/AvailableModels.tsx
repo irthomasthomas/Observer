@@ -146,7 +146,11 @@ const AvailableModels: React.FC = () => {
            You can use them in your agents by specifying their name.
          </p>
       </div>
-      <TerminalModal isOpen={showTerminal} onClose={() => setShowTerminal(false)} />
+      <TerminalModal 
+      isOpen={showTerminal} 
+      onClose={() => setShowTerminal(false)}
+      onPullComplete={handleRefresh}
+      />
     </div>
   );
 };

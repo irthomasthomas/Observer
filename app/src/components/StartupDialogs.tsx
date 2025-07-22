@@ -26,30 +26,58 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 
   useEffect(() => {
+    // Only run this check if in a local context
     if (hostingContext === 'self-hosted' || hostingContext === 'tauri') {
       const checkLocalModels = async () => {
+        // 1. Create an AbortController to manage the fetch request
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        // 2. Set a 1-second timer. If it fires, it aborts the fetch request.
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 1000); // 1000 milliseconds = 1 second
+
         try {
           const serverAddress = localStorage.getItem(LOCAL_STORAGE_KEY) || DEFAULT_SERVER_ADDRESS;
+
+          // Don't bother checking if the address is the official cloud server
           if (new URL(serverAddress).hostname.includes('api.observer-ai.com')) {
+              clearTimeout(timeoutId); // Clear the timeout as we are not fetching
               setIsCheckingModels(false);
               return;
           }
-          const response = await fetch(`${serverAddress}/api/tags`);
+
+          // 3. Make the fetch request with the abort signal
+          const response = await fetch(`${serverAddress}/api/tags`, { signal });
+          
+          // 4. If the fetch completes in time, clear the timeout
+          clearTimeout(timeoutId);
+
           if (!response.ok) {
-            throw new Error('Server not reachable');
+            throw new Error(`Server not reachable (status: ${response.status})`);
           }
+
           const data = await response.json();
           if (data.models && data.models.length === 0) {
             setHasNoModels(true);
           }
-        } catch (error) {
-          console.error("Could not check for local models:", error);
+        } catch (error: any) {
+          // 5. If the fetch was aborted, it throws an 'AbortError'. We catch it here.
+          if (error.name === 'AbortError') {
+            console.error("Local model check timed out after 1 second. Assuming local server is not running.");
+          } else {
+            console.error("Could not check for local models:", error);
+          }
         } finally {
+          // 6. Always ensure the loading state is turned off
           setIsCheckingModels(false);
         }
       };
+
       checkLocalModels();
     } else {
+        // If not in a local context, just disable the loading state immediately
         setIsCheckingModels(false);
     }
   }, [hostingContext]);
@@ -226,14 +254,11 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
 
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
                   <h3 className="font-semibold text-green-800 mb-2 text-lg">Recommended Model: Gemma3 4B</h3>
-                  <p className="text-sm text-green-700 mb-5">
-                      A powerful and efficient model, great for a wide variety of tasks. The download will begin in a terminal window.
-                  </p>
                   <button 
                     onClick={handlePullModelClick} 
                     className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-base shadow-sm hover:shadow-md"
                   >
-                    Pull gemma3:4b
+                    Pull Your First Model!
                   </button>
               </div>
 
