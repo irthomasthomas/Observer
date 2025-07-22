@@ -5,33 +5,22 @@
 // ---- Final, Corrected Imports ----
 use axum::{
     body::Body,
-    extract::{Query, State as AxumState},
+    extract::{State as AxumState},
     http::{HeaderMap, Method, StatusCode, Uri},
     response::Response,
-    response::sse::{Event, Sse},
-    routing::{any, get},
+    routing::{any},
     Router,
 };
-use futures::stream::Stream;
+use futures::future::join_all;
 use http_body_util::BodyExt;
 use reqwest::Client;
-use serde::Deserialize;
-use std::convert::Infallible;
 use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
     AppHandle, Manager, State,
 };
-use tauri_plugin_shell::ShellExt;
 use tower_http::{cors::{Any, CorsLayer}, services::ServeDir};
-use tokio::{
-    self, 
-    io::{AsyncBufReadExt, BufReader},
-    process::Command as TokioCommand,
-};
-use futures::future::join_all;
-use futures::stream::select as stream_select;
 
 struct AppSettings {
   ollama_url: Mutex<Option<String>>,
@@ -106,109 +95,6 @@ async fn check_ollama_servers(urls: Vec<String>) -> Result<Vec<String>, String> 
 struct AppState {
     app_handle: AppHandle,
     http_client: Client,
-}
-
-#[derive(Debug, Deserialize)]
-struct ExecParams {
-    cmd: String,
-}
-
-async fn exec_handler(
-    AxumState(state): AxumState<AppState>,
-    Query(params): Query<ExecParams>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    log::info!("Received command to execute: '{}'", params.cmd);
-
-    let stream = async_stream::stream! {
-        const UNAUTHORIZED_MESSAGE: &str = "[unauthorized]";
-
-        if params.cmd.chars().any(|c| "&;|<>()`$".contains(c)) {
-            log::warn!("Unauthorized command blocked: contains forbidden characters ('{}').", params.cmd);
-            yield Ok(Event::default().event("error").data(UNAUTHORIZED_MESSAGE));
-            return;
-        }
-
-        let parts: Vec<&str> = params.cmd.split_whitespace().collect();
-        if parts.is_empty() {
-            yield Ok(Event::default().event("error").data("Empty command received."));
-            return;
-        }
-
-        if parts[0] != "ollama" {
-            log::warn!("Unauthorized command blocked: only 'ollama' is permitted ('{}').", params.cmd);
-            yield Ok(Event::default().event("error").data(UNAUTHORIZED_MESSAGE));
-            return;
-        }
-
-        let args: &[&str];
-        if parts.len() == 1 {
-            args = &[];
-        } else {
-            let subcommand = parts[1];
-            let allowed_subcommands = [
-                "serve", "create", "show", "run", "stop", "pull",
-                "push", "list", "ps", "cp", "rm", "help", "--version", "--help"
-            ];
-            if !allowed_subcommands.contains(&subcommand) {
-                log::warn!("Unauthorized command blocked: subcommand '{}' is not permitted.", subcommand);
-                yield Ok(Event::default().event("error").data(UNAUTHORIZED_MESSAGE));
-                return;
-            }
-            args = &parts[1..];
-        }
-
-        #[cfg(target_os = "windows")]
-        let program = "ollama";
-
-        #[cfg(not(target_os = "windows"))]
-        let program = "/usr/local/bin/ollama";
-
-        log::info!("Executing validated command using TokioCommand: {} with args {:?}", program, args);
-
-        let mut command = TokioCommand::new(program);
-        command.args(args);
-        command.stdout(std::process::Stdio::piped());
-        command.stderr(std::process::Stdio::piped());
-
-        match command.spawn() {
-            Ok(mut child) => {
-                let stdout = child.stdout.take().expect("Failed to capture stdout");
-                let stderr = child.stderr.take().expect("Failed to capture stderr");
-
-                let mut stdout_reader = BufReader::new(stdout).lines();
-                let mut stderr_reader = BufReader::new(stderr).lines();
-
-                loop {
-                    tokio::select! {
-                        // Read from stdout
-                        Ok(Some(line)) = stdout_reader.next_line() => {
-                            log::info!("RAW STDOUT BYTES AS STRING: {:?}", line);
-                            yield Ok(Event::default().data(line));
-                        },
-                        Ok(Some(line)) = stderr_reader.next_line() => {
-                            log::info!("RAW STDERR BYTES AS STRING: {:?}", line);
-                            yield Ok(Event::default().data(line));
-                        },
-                        else => break,
-                    }
-                }
-
-                match child.wait().await {
-                    Ok(status) => {
-                        yield Ok(Event::default().event("done").data(format!("[COMMAND_FINISHED code={:?}]", status.code())));
-                    }
-                    Err(e) => {
-                        yield Ok(Event::default().event("error").data(format!("[ERROR: Failed to wait for command. Error: {}]", e)));
-                    }
-                }
-            },
-            Err(e) => {
-                yield Ok(Event::default().event("error").data(format!("[ERROR: Failed to spawn command '{}'. Error: {}]", program, e)));
-            }
-        }
-    };
-
-    Sse::new(stream)
 }
 
 async fn proxy_handler(
@@ -314,7 +200,6 @@ fn start_static_server(app_handle: tauri::AppHandle) {
         };
 
         let app = Router::new()
-            .route("/exec", get(exec_handler))
             .route("/v1/*path", any(proxy_handler))
             .route("/api/*path", any(proxy_handler))
             .fallback_service(ServeDir::new(resource_path))

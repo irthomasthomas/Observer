@@ -14,32 +14,31 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 # --- Build Dependencies ---
 [build-dependencies]
-tauri-build = { version = "2.0.5", features = [] } # No features here
+tauri-build = { version = "2.0.5", features = [] }
 
 # --- Runtime Dependencies ---
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-# The 'api-all' feature goes on the 'tauri' crate, not 'tauri-build'
 tauri = { version = "2.3.0", features = ["tray-icon"] }
-tauri-plugin-log = "2.0.0-rc" 
+tauri-plugin-log = "2.0.0-rc"
 
+# These seem to be for other functionality, keeping them
 screenshots = "0.8.5"
 base64 = "0.21.0"
 image = "0.24.6"
 tauri-plugin-screenshots = "2.2.0"
 
-tauri-plugin-shell = "2" # Add the shell plugin
-
+# Keep the shell plugin for default actions
+tauri-plugin-shell = "2"
 
 # Web server Dependencies
-tokio = { version = "1", features = ["full"] }
-axum = { version = "0.7", features = ["json", "macros"] } # MODIFIED
-tower-http = { version = "0.5.0", features = ["fs", "cors"] } # ADD "cors" FEATURE
+# We can be more specific with tokio features now
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+axum = { version = "0.7", features = ["json"] } # "macros" feature is not used by your current code
+tower-http = { version = "0.5.0", features = ["fs", "cors"] }
 futures = "0.3"
-async-stream = "0.3"
+# async-stream is no longer needed as it was used in exec_handler
 reqwest = { version = "0.12", features = ["json", "stream"] }
 http-body-util = "0.1"
-
-
