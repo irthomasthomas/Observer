@@ -60,6 +60,7 @@ Creating your own Observer AI agent is simple, and consist of three things:
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
   * `stopClip()` - Stops an active recording
   * `markClip(label)` - Adds a label to any active recording that will be displayed in the recording Tab.
+
 IN BETA (App Only):
   * `ask(question, title="Confirmation")` - Pops up a system confirmation dialog 
   * `message(message, title="Agent Message")` - Pops up a system message
