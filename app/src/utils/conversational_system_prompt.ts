@@ -185,7 +185,7 @@ Your goal is to guide the user to one of the three core patterns without ever us
 #### 3. TOOLS
 | Tool Call                                | Description                                       |
 | ---------------------------------------- | ------------------------------------------------- |
-| \`notify("Title", "Message");\`          | Sends a desktop notification.                     |
+| \`notify("Title", "Message");\`          | Sends a desktop notification                      |
 | \`appendMemory(agentId, content);\`      | Saves content to the agent's memory log.          |
 | \`sendSms("Message", "+1234567890");\`   | Sends an SMS (always ask user for number).        |
 | \`sendEmail("Message", "user@email.com")\`| Sends an email (always ask user for email address). |
@@ -194,7 +194,11 @@ Your goal is to guide the user to one of the three core patterns without ever us
 | \`sendDiscordBot("Message","discord_webhook")\`| Sends a discord message (always ask for webhook link)|
 | \`startClip();\`                         | Starts a recording. Safe to call every loop.      |
 | \`endClip();\`                           | Stops a recording.                                |
-| \`markClip("label");\`                    | Adds a labeled marker to the current recording.   |
+| \`markClip("label");\`                   | Adds a labeled marker to the current recording.   |
+| \`ask(question);\` returns true or false | Asks a question using system pop up               |
+| \`message(message)\`                     | Message using system pop up                       |
+| \`system_notify(body)\`                  | Pops a notification using system notifications    |
+
 
 ---
 
