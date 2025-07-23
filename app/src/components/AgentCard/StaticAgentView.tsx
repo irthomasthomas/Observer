@@ -1,7 +1,6 @@
-// components/AgentCard/StaticAgentView.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { 
-    Cpu, Clock, Eye, ChevronDown, AlertTriangle, MessageSquareWarning, 
+import {
+    Cpu, Clock, Eye, ChevronDown, AlertTriangle,
     ScanText, Camera, Clipboard, Mic, Volume2, Blend, Brain,
     Bell, BotMessageSquare, Mail, PlayCircle, StopCircle, Video, VideoOff, SquarePen,
     MessageSquare, MessageSquarePlus, MessageSquareQuote, Tag, Hourglass, Send
@@ -28,7 +27,17 @@ const SENSOR_CONFIG = {
     ALL_AUDIO: { label: 'All Audio', icon: Blend },
 };
 
-const TOOL_CONFIG = {
+// --- FIX START: Define a type for the tool configuration ---
+type ToolConfigEntry = {
+    label: string;
+    icon: React.ElementType;
+    regex: RegExp;
+    warning?: string; // Optional property
+};
+
+// Apply the defined type to the configuration object
+const TOOL_CONFIG: { [key: string]: ToolConfigEntry } = {
+// --- FIX END ---
     notify: { label: 'Notification', icon: Bell, regex: /notify\s*\(/g },
     getMemory: { label: 'Get Memory', icon: Brain, regex: /getMemory\s*\(/g },
     setMemory: { label: 'Set Memory', icon: SquarePen, regex: /setMemory\s*\(/g },
@@ -39,15 +48,15 @@ const TOOL_CONFIG = {
     sendEmail: { label: 'Send Email', icon: Mail, regex: /sendEmail\s*\(/g },
     sendPushover: { label: 'Pushover', icon: PushoverIcon, regex: /sendPushover\s*\(/g },
     sendDiscordBot: { label: 'Discord Bot', icon: DiscordIcon, regex: /sendDiscordBot\s*\(/g },
-    sendWhatsapp: { 
-        label: 'WhatsApp', 
-        icon: WhatsAppIcon, 
+    sendWhatsapp: {
+        label: 'WhatsApp',
+        icon: WhatsAppIcon,
         regex: /sendWhatsapp\s*\(/g,
         warning: 'To receive messages, you must first message: +1 (555) 783-4727.'
     },
-    sendSms: { 
-        label: 'SMS', 
-        icon: SmsIcon, 
+    sendSms: {
+        label: 'SMS',
+        icon: SmsIcon,
         regex: /sendSms\s*\(/g,
         warning: 'Delivery to US/Canada is unreliable. Use email for now.'
     },
@@ -176,7 +185,7 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
 
 interface StaticAgentViewProps {
     agent: CompleteAgent;
-    code?: string; 
+    code?: string;
     isPythonAgent: boolean;
     currentModel: string;
     onModelChange: (modelName: string) => void;
@@ -213,9 +222,9 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
             const matches = agentCode.match(tool.regex);
             if (matches) {
                 for (let i = 0; i < matches.length; i++) {
-                    foundTools.push({ 
-                        key: `${key}-${i}`, 
-                        label: tool.label, 
+                    foundTools.push({
+                        key: `${key}-${i}`,
+                        label: tool.label,
                         icon: tool.icon,
                         warning: tool.warning
                     });
@@ -228,7 +237,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     return (
         <div className="space-y-4 animate-fade-in">
             <p className="text-sm text-gray-600">{agent.description || "No description provided."}</p>
-            
+
             {/* Agent Info Tags */}
             <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
                 <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPythonAgent ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
@@ -259,11 +268,11 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 {detectedTools.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                         {detectedTools.map(tool => (
-                            <InfoTag 
-                                key={tool.key} 
-                                icon={tool.icon} 
-                                label={tool.label} 
-                                warning={tool.warning} 
+                            <InfoTag
+                                key={tool.key}
+                                icon={tool.icon}
+                                label={tool.label}
+                                warning={tool.warning}
                             />
                         ))}
                     </div>
