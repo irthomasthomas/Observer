@@ -378,3 +378,79 @@ export async function sendGotify(message: string, serverUrl: string, appToken: s
     throw error;
   }
 }
+
+/**
+ * Shows a native "ask" dialog and waits for the user's boolean response.
+ * @param appUrl The base URL of the local Tauri server (e.g., "http://127.0.0.1:3838").
+ * @param title The title of the dialog window.
+ * @param question The main text/question in the dialog.
+ * @returns A promise that resolves to `true` if the user clicks "Yes", and `false` otherwise.
+ */
+export async function ask(appUrl: string, title: string, question: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${appUrl}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, question }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.answer;
+  } catch (error) {
+    Logger.error('NATIVE_ASK', `Error showing dialog: ${error}`);
+    // On error, it's safer to assume the answer is "no".
+    return false;
+  }
+}
+
+/**
+ * Shows a native message dialog that the user must acknowledge.
+ * @param appUrl The base URL of the local Tauri server.
+ * @param title The title of the dialog window.
+ * @param message The message to display.
+ */
+export async function message(appUrl: string, title: string, message: string): Promise<void> {
+  try {
+    const response = await fetch(`${appUrl}/message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, message }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+  } catch (error) {
+    Logger.error('NATIVE_MESSAGE', `Error showing message: ${error}`);
+    // We can still throw so the agent execution log shows the failure
+    throw error;
+  }
+}
+
+/**
+ * Sends a non-blocking native system notification.
+ * This is different from the browser-based `notify` function.
+ * @param appUrl The base URL of the local Tauri server.
+ * @param title The title of the notification.
+ * @param body The main content of the notification.
+ */
+export async function system_notify(appUrl: string, title: string, body: string): Promise<void> {
+  try {
+    const response = await fetch(`${appUrl}/notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, body }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+  } catch (error) {
+    Logger.error('NATIVE_NOTIFICATION', `Error sending notification: ${error}`);
+    throw error;
+  }
+}

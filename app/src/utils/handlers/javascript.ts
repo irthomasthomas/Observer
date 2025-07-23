@@ -121,6 +121,38 @@ export async function executeJavaScript(
       startClip: utils.startClip,
       stopClip: utils.stopClip,
       markClip: utils.markClip,
+
+      ask: async (question: string, title = 'Confirmation'): Promise<boolean> => {
+        const appUrl = "http://localhost:3838";
+ 
+        if (!appUrl) throw new Error("Could not determine the local app server address.");
+
+        Logger.info(agentId, `Agent is asking user: "${question}"`);
+        const response = await utils.ask(appUrl, title, question);
+        Logger.info(agentId, `User responded with: ${response}`);
+        return response;
+      },
+
+      message: async (message: string, title = 'Agent Message'): Promise<void> => {
+        const appUrl = "http://localhost:3838";
+
+        if (!appUrl) throw new Error("Could not determine the local app server address.");
+
+        Logger.info(agentId, `Agent is showing user a message: "${message}"`);
+        await utils.message(appUrl, title, message);
+        Logger.info(agentId, `User acknowledged message.`);
+      },
+
+      system_notify: async (body: string, title = 'Observer AI'): Promise<void> => {
+        const appUrl = "http://localhost:3838";
+
+        if (!appUrl) throw new Error("Could not determine the local app server address.");
+
+        Logger.info(agentId, `Agent is sending a system notification: "${body}"`);
+        await utils.system_notify(appUrl, title, body);
+        Logger.info(agentId, `System notification sent.`);
+      },
+
     };
 
     const wrappedCode = `

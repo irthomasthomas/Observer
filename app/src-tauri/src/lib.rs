@@ -2,6 +2,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod notifications;
+
 // ---- Final, Corrected Imports ----
 use axum::{
     body::Body,
@@ -20,11 +22,12 @@ use tauri::{
     tray::TrayIconBuilder,
     AppHandle, Manager, State,
 };
+use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_updater::UpdaterExt;
 use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeDir,
 };
-use tauri_plugin_updater::UpdaterExt;
 
 struct AppSettings {
     ollama_url: Mutex<Option<String>>,
@@ -211,6 +214,16 @@ fn start_static_server(app_handle: tauri::AppHandle) {
         let app = Router::new()
             .route("/v1/*path", any(proxy_handler))
             .route("/api/*path", any(proxy_handler))
+            .route("/ask", axum::routing::post(notifications::ask_handler))
+            .route(
+                "/ping",
+                axum::routing::get(|| async {
+                    log::info!("==== PING-PONG ====");
+                    "pong"
+                }),
+            )
+            .route("/message", axum::routing::post(notifications::message_handler))
+            .route("/notification", axum::routing::post(notifications::notification_handler))
             .fallback_service(ServeDir::new(resource_path))
             .with_state(state)
             .layer(cors);
@@ -235,12 +248,11 @@ fn start_static_server(app_handle: tauri::AppHandle) {
     });
 }
 
-
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // The plugin must be registered before the setup hook
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Mutex::new(ServerUrl("".to_string())))
         .manage(AppSettings {
@@ -253,16 +265,38 @@ pub fn run() {
                 // Notice we use the handle to get the updater
                 match handle.updater().unwrap().check().await {
                     Ok(Some(update)) => {
-                        log::info!(
-                            "Update {} is available!",
+                        log::info!("Update {} is available!", update.version);
+
+                        // ---- V2 UPDATER DIALOG LOGIC ----
+                        let question = format!(
+                            "A new version ({}) of Observer is available. Would you like to install it now and restart?",
                             update.version
                         );
-
-                        if let Err(e) = update.download_and_install(|_, _| {}, || {}).await {
-                             log::error!("Failed to install update: {}", e);
-                        }
                         
-                        handle.restart();
+                        // Use the new non-blocking dialog with a callback
+                        handle.dialog().message(question)
+                            .title("Update Available")
+                            .buttons(tauri_plugin_dialog::MessageDialogButtons::YesNo)
+                            .kind(tauri_plugin_dialog::MessageDialogKind::Info)
+                            .show(move |answer_is_yes| {
+                                if answer_is_yes {
+                                    log::info!("User agreed to update. Downloading and installing...");
+                                    
+                                    // We need a new async runtime to run the update download within the callback
+                                    let update_handle = handle.clone();
+                                    tauri::async_runtime::spawn(async move {
+                                        if let Err(e) = update.download_and_install(|_, _| {}, || {}).await {
+                                            log::error!("Failed to install update: {}", e);
+                                        } else {
+                                            // Relaunch after successful install
+                                            update_handle.restart();
+                                        }
+                                    });
+                                } else {
+                                    log::info!("User deferred the update.");
+                                }
+                            });
+
                     }
                     Ok(None) => {
                         log::info!("You are running the latest version!");
@@ -304,20 +338,18 @@ pub fn run() {
                 .tooltip("Observer AI is running")
                 .icon(app.default_window_icon().cloned().unwrap())
                 .menu(&menu)
-                .on_menu_event(move |app, event| {
-                    match event.id.as_ref() {
-                        "quit" => {
-                            log::info!("Exit called");
-                            app.exit(0);
-                        }
-                        "show" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                window.show().unwrap();
-                                window.set_focus().unwrap();
-                            }
-                        }
-                        _ => {}
+                .on_menu_event(move |app, event| match event.id.as_ref() {
+                    "quit" => {
+                        log::info!("Exit called");
+                        app.exit(0);
                     }
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            window.show().unwrap();
+                            window.set_focus().unwrap();
+                        }
+                    }
+                    _ => {}
                 })
                 .build(app)?;
 
