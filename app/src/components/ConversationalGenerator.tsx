@@ -238,7 +238,7 @@ What would you like to create today?`
 
   return (
     <>
-      <div className="flex flex-col h-[450px] bg-white rounded-b-xl border-x border-b border-indigo-200 shadow-md">
+      <div className="flex flex-col h-[450px] bg-gray-50 rounded-lg border border-gray-200">
         {/* Chat Messages Area */}
         <div className="flex-1 p-4 space-y-4 overflow-y-auto">
           {messages.map((msg) => (
@@ -261,14 +261,14 @@ What would you like to create today?`
         </div>
 
         {/* Dynamic Input Area */}
-        <div className="p-3 border-t border-gray-200 bg-gray-50">
+        <div className="p-5 border-t border-gray-200 bg-white rounded-b-lg">
           <form onSubmit={handleSubmit} className="flex items-center space-x-2">
             <input
               type="text"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               placeholder={getPlaceholderText()}
-              className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 p-3 border border-gray-300 rounded-lg text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
               disabled={isInputDisabled}
             />
             
@@ -285,11 +285,11 @@ What would you like to create today?`
 
             <button
               type="submit"
-              className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 transition-colors flex items-center"
+              className="p-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:bg-gray-300 transition-colors flex items-center"
               disabled={isSendDisabled}
               title="Send"
             >
-              <Send className="h-5 w-5" />
+              <Send className="h-4 w-4" />
             </button>
           </form>
         </div>

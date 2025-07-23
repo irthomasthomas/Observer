@@ -1,6 +1,6 @@
 // src/components/GetStarted.tsx
 import React from 'react';
-import { Plus, Users, Sparkles } from 'lucide-react';
+import { Plus, Users, MessageCircle, Code } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';
 import { CompleteAgent } from '@utils/agent_database';
 import type { TokenProvider } from '@utils/main_loop';
@@ -23,61 +23,72 @@ const GetStarted: React.FC<GetStartedProps> = ({
   isUsingObServer
 }) => {
   return (
-    // --- MODIFIED --- Reduced horizontal padding for mobile
-    <div className="w-full max-w-5xl mx-auto py-8 px-2 sm:px-4">
-      {/* --- MODIFIED --- Reduced padding for mobile */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-8 shadow-lg border border-indigo-200">
-        {/* --- MODIFIED --- Made title text size responsive */}
-        <h2 className="text-2xl sm:text-3xl font-bold text-indigo-900 mb-6 sm:mb-8 text-center">Welcome to Observer AI</h2>
-
-        {/* --- MODIFIED --- Reduced bottom margin for mobile */}
-        <div className="mb-8 sm:mb-12 max-w-3xl mx-auto">
-          
-          {/* --- MODIFIED (Desktop Version) --- */}
-          {/* This decorative header is now HIDDEN on mobile and visible on sm screens and up */}
-          <div className="hidden sm:flex bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-5 rounded-t-xl items-center">
-            <Sparkles className="h-6 w-6 mr-3" />
+    <div
+        className="text-black leading-[1.5] max-w-6xl font-[ui-sans-serif,_system-ui,_sans-serif,_&quot;Apple_Color_Emoji&quot;,_&quot;Segoe_UI_Emoji&quot;,_&quot;Segoe_UI_Symbol&quot;,_&quot;Noto_Color_Emoji&quot;] flex flex-col mx-auto size-full">
+        
+        <div className="min-h-0 grid-cols-3 grow grid gap-6">
+            <div className="min-h-0 flex flex-col col-span-2">
+                <div
+                    className="h-full bg-white shadow-[_#0000000d_0px_1px_2px_0px] flex flex-col border-gray-200 border-[1px] rounded-xl">
+                    <div className="border-b-gray-200 border-b-[1px] shrink-0 p-6">
+                        <div className="flex items-center">
+                            <div
+                                className="mr-3 bg-blue-50 flex justify-center items-center rounded-lg size-10">
+                                <MessageCircle className="text-blue-600 size-5" strokeWidth={2} />
+                            </div>
+                            <div>
+                                <h2
+                                    className="text-gray-900 leading-[28px] text-lg font-semibold">
+                                    Create Agent</h2>
+                                <p className="text-gray-600 leading-[20px] text-sm">
+                                    Describe what you want your agent to do</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="min-h-0 grow p-6">
+                        <ConversationalGenerator 
+                            onAgentGenerated={onAgentGenerated} 
+                            getToken={getToken}
+                            isAuthenticated={isAuthenticated}
+                            isUsingObServer={isUsingObServer}
+                        />
+                    </div>
+                </div>
+            </div>
             <div>
-              <h3 className="font-medium text-lg">Create a New AI Agent</h3>
-              <p className="text-sm text-blue-200">Just tell me what you want to build!</p>
+                <div
+                    onClick={onExploreCommunity}
+                    className="bg-white shadow-[_#0000000d_0px_1px_2px_0px] cursor-pointer p-6 border-gray-200 border-[1px] rounded-xl">
+                    <div className="mb-4 flex items-center cursor-pointer">
+                        <div
+                            className="mr-3 bg-blue-50 flex justify-center items-center cursor-pointer rounded-lg size-10">
+                            <Users className="text-blue-600 size-5" strokeWidth={2} />
+                        </div>
+                        <h3 className="text-gray-900 font-semibold cursor-pointer">
+                            Community</h3>
+                    </div>
+                    <p
+                        className="text-gray-600 leading-[20px] text-sm cursor-pointer">
+                        Browse and use pre-built agents from the community</p>
+                </div>
+                <div
+                    onClick={onCreateNewAgent}
+                    className="mt-4 bg-white shadow-[_#0000000d_0px_1px_2px_0px] cursor-pointer p-6 border-gray-200 border-[1px] rounded-xl">
+                    <div className="mb-4 flex items-center cursor-pointer">
+                        <div
+                            className="mr-3 bg-purple-50 flex justify-center items-center cursor-pointer rounded-lg size-10">
+                            <Code className="text-purple-600 size-5" strokeWidth={2} />
+                        </div>
+                        <h3 className="text-gray-900 font-semibold cursor-pointer">
+                            Build Custom</h3>
+                    </div>
+                    <p
+                        className="text-gray-600 leading-[20px] text-sm cursor-pointer">
+                        Create an agent manually with full control over its behavior
+                    </p>
+                </div>
             </div>
-          </div>
-          
-          {/* --- NEW (Mobile Version) --- */}
-          
-          <ConversationalGenerator 
-            onAgentGenerated={onAgentGenerated} 
-            getToken={getToken}
-            isAuthenticated={isAuthenticated}
-            isUsingObServer={isUsingObServer}
-          />
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 max-w-3xl mx-auto">
-          <div
-            onClick={onExploreCommunity}
-            // --- MODIFIED --- Reduced padding for mobile
-            className="bg-white border border-indigo-200 rounded-xl p-4 sm:p-6 text-center cursor-pointer hover:bg-indigo-50 transition-transform hover:-translate-y-1 flex flex-col items-center shadow-md"
-          >
-            {/* --- MODIFIED --- Made icon container smaller for mobile */}
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mb-3 sm:mb-4">
-              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600" />
-            </div>
-            <h3 className="font-medium text-indigo-800 text-base sm:text-lg">Community Agents</h3>
-          </div>
-          <div
-            onClick={onCreateNewAgent}
-            // --- MODIFIED --- Reduced padding for mobile
-            className="bg-white border border-indigo-200 rounded-xl p-4 sm:p-6 text-center cursor-pointer hover:bg-indigo-50 transition-transform hover:-translate-y-1 flex flex-col items-center shadow-md"
-          >
-            {/* --- MODIFIED --- Made icon container smaller for mobile */}
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mb-3 sm:mb-4">
-              <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600" />
-            </div>
-            <h3 className="font-medium text-indigo-800 text-base sm:text-lg">Build From Scratch</h3>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
