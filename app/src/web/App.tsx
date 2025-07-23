@@ -15,7 +15,7 @@ import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
 
 // Imported Components
 import AppHeader from '@components/AppHeader';
-import AgentCard from '@components/AgentCard';
+import AgentCard from '@components/AgentCard/AgentCard';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
 import StartupDialogs from '@components/StartupDialogs';
 import GlobalLogsViewer from '@components/GlobalLogsViewer';
