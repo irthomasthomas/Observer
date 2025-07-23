@@ -38,7 +38,12 @@ type ToolConfigEntry = {
 // Apply the defined type to the configuration object
 const TOOL_CONFIG: { [key: string]: ToolConfigEntry } = {
 // --- FIX END ---
-    notify: { label: 'Notification', icon: Bell, regex: /notify\s*\(/g },
+    notify: { 
+      label: 'Browser Notification', 
+      icon: Bell, 
+      regex: /\bnotify\s*\(/g,
+      warning: 'Browser notifications are unreliable, preferably use system_notify '
+    },
     getMemory: { label: 'Get Memory', icon: Brain, regex: /getMemory\s*\(/g },
     setMemory: { label: 'Set Memory', icon: SquarePen, regex: /setMemory\s*\(/g },
     appendMemory: { label: 'Append Memory', icon: SquarePen, regex: /appendMemory\s*\(/g },
