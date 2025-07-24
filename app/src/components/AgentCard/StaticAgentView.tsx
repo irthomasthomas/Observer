@@ -3,7 +3,7 @@ import {
     Cpu, Clock, Eye, ChevronDown, AlertTriangle,
     ScanText, Camera, Clipboard, Mic, Volume2, Blend, Brain,
     Bell, Mail, PlayCircle, StopCircle, Video, VideoOff, SquarePen,
-    MessageSquare, MessageSquarePlus, MessageSquareQuote, Tag, Hourglass, Send
+    MessageSquare, MessageSquarePlus, MessageSquareQuote, Tag, Hourglass, Send, Monitor
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/ollamaServer';
@@ -184,7 +184,8 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
         // Define configs inside the hook so they are always fresh
         const SENSOR_CONFIG = {
             SCREEN_OCR: { label: 'Screen OCR', icon: ScanText },
-            SCREEN_64: { label: 'Screenshot', icon: Camera },
+            SCREEN_64: { label: 'Screen', icon: Monitor },
+            CAMERA: { label: 'Camera', icon: Camera },
             MEMORY: { label: 'Memory', icon: Brain },
             CLIPBOARD: { label: 'Clipboard', icon: Clipboard },
             MICROPHONE: { label: 'Microphone', icon: Mic },
@@ -221,10 +222,6 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
             if (currentPrompt.includes(`$${key}`)) {
                 foundSensors.push({ key: key as keyof typeof SENSOR_CONFIG, ...config });
             }
-        }
-        // Special case for memory
-        if (currentPrompt.includes('$MEMORY@')) {
-            foundSensors.push({ key: 'MEMORY', ...SENSOR_CONFIG.MEMORY });
         }
 
 
