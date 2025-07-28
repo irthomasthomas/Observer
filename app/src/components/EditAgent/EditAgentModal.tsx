@@ -339,8 +339,9 @@ const CodeEditorContent: React.FC<CodeEditorContentProps> = ({
       </div>
       {/* The Logs section is shown on desktop, but hidden on mobile (where it's in an accordion) */}
       <div className="hidden md:block">
-          <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center"><Terminal size={14} className="mr-1.5" />Logs</label>
-          <LogsContent testOutput={testOutput} />
+          <Accordion title="Logs" icon={Terminal}>
+              <LogsContent testOutput={testOutput} />
+          </Accordion>
       </div>
    </div>
 );
@@ -471,52 +472,60 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
         <div className="flex-grow min-h-0 bg-gray-50 overflow-y-auto">
           {/* --- DESKTOP LAYOUT --- */}
           <div className="hidden md:flex flex-row flex-grow h-full">
-            <div className="w-1/2 p-5 flex flex-col space-y-5 overflow-y-auto border-r border-gray-200">
-              <ConfigContent
-                name={logic.name} setName={logic.setName}
-                agentId={logic.agentId} setAgentId={logic.setAgentId}
-                createMode={createMode}
-                currentModel={logic.currentModel} setCurrentModel={logic.setCurrentModel}
-                isModelDropdownOpen={logic.isModelDropdownOpen} setIsModelDropdownOpen={logic.setIsModelDropdownOpen}
-                loadingModels={logic.loadingModels} modelsError={logic.modelsError}
-                availableModels={logic.availableModels}
-                loopInterval={logic.loopInterval} setLoopInterval={logic.setLoopInterval}
-                description={logic.description} setDescription={logic.setDescription}
-              />
-              <PromptContent
-                systemPromptRef={logic.systemPromptRef}
-                systemPrompt={logic.systemPrompt} setSystemPrompt={logic.setSystemPrompt}
-                insertSystemPromptText={logic.insertSystemPromptText}
-                availableAgentsForBlocks={logic.availableAgentsForBlocks}
-                visionValidationError={logic.visionValidationError}
-              />
-            </div>
-            <div className="w-1/2 p-5 flex flex-col space-y-5 overflow-y-auto">
-              <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-lg font-semibold text-indigo-700 flex items-baseline"><code className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-mono text-lg mr-1.5 shadow-sm border border-blue-200">response</code>Preview</h3>
-                    <button onClick={logic.handleRunModel} disabled={logic.isRunningModel || !logic.currentModel} className={`px-3 py-1.5 rounded-md flex items-center text-sm text-white ${logic.isRunningModel ? 'bg-yellow-500 animate-pulse' : 'bg-green-500 hover:bg-green-600'}`}>
-                      {logic.isRunningModel ? (<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />) : (<Play size={16} className="mr-1" />)} Run Model
-                    </button>
-                </div>
-                <CodePreviewContent
-                  testResponseRef={logic.testResponseRef}
-                  testResponse={logic.testResponse}
-                  setTestResponse={logic.setTestResponse}
+            <div className="w-1/2 p-5 flex flex-col overflow-y-auto border-r border-gray-200">
+              <div className="flex-shrink-0 mb-5">
+                <Accordion title="Model Configuration" icon={Brain}>
+                  <ConfigContent
+                    name={logic.name} setName={logic.setName}
+                    agentId={logic.agentId} setAgentId={logic.setAgentId}
+                    createMode={createMode}
+                    currentModel={logic.currentModel} setCurrentModel={logic.setCurrentModel}
+                    isModelDropdownOpen={logic.isModelDropdownOpen} setIsModelDropdownOpen={logic.setIsModelDropdownOpen}
+                    loadingModels={logic.loadingModels} modelsError={logic.modelsError}
+                    availableModels={logic.availableModels}
+                    loopInterval={logic.loopInterval} setLoopInterval={logic.setLoopInterval}
+                    description={logic.description} setDescription={logic.setDescription}
+                  />
+                </Accordion>
+              </div>
+              <div className="flex-grow min-h-0">
+                <PromptContent
+                  systemPromptRef={logic.systemPromptRef}
+                  systemPrompt={logic.systemPrompt} setSystemPrompt={logic.setSystemPrompt}
+                  insertSystemPromptText={logic.insertSystemPromptText}
+                  availableAgentsForBlocks={logic.availableAgentsForBlocks}
+                  visionValidationError={logic.visionValidationError}
                 />
               </div>
-              <CodeEditorContent
-                isPythonMode={logic.isPythonMode} setIsPythonMode={logic.setIsPythonMode}
-                jupyterStatus={logic.jupyterStatus} setIsJupyterModalOpen={logic.setIsJupyterModalOpen}
-                handleRunCode={logic.handleRunCode}
-                isRunningCode={logic.isRunningCode}
-                testResponse={logic.testResponse}
-                langSnippets={logic.langSnippets}
-                insertCodeSnippet={logic.insertCodeSnippet}
-                editorIsLoaded={editorIsLoaded}
-                agentCode={logic.agentCode} setAgentCode={logic.setAgentCode}
-                testOutput={logic.testOutput}
-              />
+            </div>
+            <div className="w-1/2 p-5 flex flex-col overflow-y-auto">
+              <div className="flex-shrink-0 mb-5">
+                <Accordion title="Response Preview" icon={Play} rightContent={
+                  <button onClick={logic.handleRunModel} disabled={logic.isRunningModel || !logic.currentModel} className={`px-3 py-1.5 rounded-md flex items-center text-sm text-white ${logic.isRunningModel ? 'bg-yellow-500 animate-pulse' : 'bg-green-500 hover:bg-green-600'}`}>
+                    {logic.isRunningModel ? (<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />) : (<Play size={16} className="mr-1" />)} Run Model
+                  </button>
+                }>
+                  <CodePreviewContent
+                    testResponseRef={logic.testResponseRef}
+                    testResponse={logic.testResponse}
+                    setTestResponse={logic.setTestResponse}
+                  />
+                </Accordion>
+              </div>
+              <div className="flex-grow min-h-0">
+                <CodeEditorContent
+                  isPythonMode={logic.isPythonMode} setIsPythonMode={logic.setIsPythonMode}
+                  jupyterStatus={logic.jupyterStatus} setIsJupyterModalOpen={logic.setIsJupyterModalOpen}
+                  handleRunCode={logic.handleRunCode}
+                  isRunningCode={logic.isRunningCode}
+                  testResponse={logic.testResponse}
+                  langSnippets={logic.langSnippets}
+                  insertCodeSnippet={logic.insertCodeSnippet}
+                  editorIsLoaded={editorIsLoaded}
+                  agentCode={logic.agentCode} setAgentCode={logic.setAgentCode}
+                  testOutput={logic.testOutput}
+                />
+              </div>
             </div>
           </div>
 
