@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Zap } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
-import AgentActivityModal from '@components/AgentActivityModal';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 import { listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
@@ -56,7 +55,7 @@ interface AgentCardProps {
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent, code, isRunning, isStarting, isMemoryFlashing, onEdit, onDelete, onToggle,
-  onMemory, onActivity, onShowJupyterModal, getToken, isAuthenticated, hasQuotaError, onUpgradeClick, onSave
+  onMemory, onActivity, onShowJupyterModal, hasQuotaError, onUpgradeClick, onSave
 }) => {
   const [isPythonAgent, setIsPythonAgent] = useState(false);
   const [startWarning, setStartWarning] = useState<string | null>(null);

@@ -213,45 +213,6 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     }
   };
 
-  const renderIterationContent = (content: any, logType: string) => {
-    if (logType === 'iteration-start') {
-      return (
-        <div className="space-y-2">
-          <div className="font-medium text-gray-800 mb-2">Iteration Started</div>
-          <div className="bg-blue-50 p-3 rounded border border-blue-200">
-            <div className="text-sm text-blue-800">
-              <div>Model: {content.model}</div>
-              <div>Interval: {content.interval}s</div>
-              <div>Started: {new Date(content.timestamp).toLocaleString()}</div>
-            </div>
-          </div>
-        </div>
-      );
-    } else if (logType === 'iteration-end') {
-      return (
-        <div className="space-y-2">
-          <div className="font-medium text-gray-800 mb-2">
-            Iteration {content.success ? 'Completed' : 'Failed'}
-          </div>
-          <div className={`p-3 rounded border ${content.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-            <div className={`text-sm ${content.success ? 'text-green-800' : 'text-red-800'}`}>
-              <div>Status: {content.success ? 'Success' : 'Failed'}</div>
-              <div>Ended: {new Date(content.timestamp).toLocaleString()}</div>
-              {content.error && (
-                <div className="mt-1">
-                  <div className="font-medium">Error:</div>
-                  <div>{content.error}</div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    } else {
-      return <pre className="text-sm overflow-auto">{JSON.stringify(content, null, 2)}</pre>;
-    }
-  };
-
   // --- Main Render ---
 
   if (logs.length === 0) {
