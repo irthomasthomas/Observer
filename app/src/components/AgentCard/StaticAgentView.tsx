@@ -216,7 +216,6 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 
         // --- Sensor Detection Logic ---
         const currentPrompt = agent.system_prompt || '';
-        console.log(currentPrompt);
         const foundSensors: { key: keyof typeof SENSOR_CONFIG; icon: React.ElementType; label: string; }[] = [];
         for (const [key, config] of Object.entries(SENSOR_CONFIG)) {
             if (currentPrompt.includes(`$${key}`)) {
@@ -227,7 +226,6 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 
         // --- Tool Detection Logic ---
         const currentCode = code || '';
-        console.log(currentCode);
         const foundTools: { key: string; label: string; icon: React.ElementType; warning?: string }[] = [];
         for (const [key, tool] of Object.entries(TOOL_CONFIG)) {
             if (currentCode.match(tool.regex)) {
