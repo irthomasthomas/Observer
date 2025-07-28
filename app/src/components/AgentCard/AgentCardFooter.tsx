@@ -1,23 +1,22 @@
 // components/AgentCard/AgentCardFooter.tsx
 import React from 'react';
-import { Edit, Trash2, Terminal, Brain, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit, Trash2, Terminal, Brain } from 'lucide-react';
 
 interface AgentCardFooterProps {
     agentId: string;
     isPythonAgent: boolean;
     isJupyterConnected: boolean;
     isMemoryFlashing: boolean;
-    activityExpanded: boolean;
     onEdit: (agentId: string) => void;
     onDelete: (agentId: string) => void;
     onMemory: (agentId: string) => void;
+    onActivity: (agentId: string) => void;
     onShowJupyterModal: () => void;
-    setActivityExpanded: (expanded: boolean) => void;
 }
 
 const AgentCardFooter: React.FC<AgentCardFooterProps> = ({
-    agentId, isPythonAgent, isJupyterConnected, isMemoryFlashing, activityExpanded,
-    onEdit, onDelete, onMemory, onShowJupyterModal, setActivityExpanded
+    agentId, isPythonAgent, isJupyterConnected, isMemoryFlashing,
+    onEdit, onDelete, onMemory, onActivity, onShowJupyterModal
 }) => {
     return (
         <div className="border-t border-gray-100 bg-gray-50/75 px-4 py-2 flex justify-between items-center">
@@ -38,8 +37,7 @@ const AgentCardFooter: React.FC<AgentCardFooterProps> = ({
                         <Brain className="w-4 h-4" /> Memory
                     </button>
                 )}
-                <button onClick={() => setActivityExpanded(!activityExpanded)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100 rounded-md">
-                    {activityExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                <button onClick={() => onActivity(agentId)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100 rounded-md">
                     Activity
                 </button>
             </div>

@@ -158,10 +158,15 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
 
   try {
     Logger.debug(agentId, `Starting agent iteration`);
-
     const agent = await getAgent(agentId);
     const agentCode = await getAgentCode(agentId) || '';
     if (!agent) throw new Error(`Agent ${agentId} not found`);
+
+    // Enhanced logging: Mark iteration start with model info
+    Logger.info(agentId, `Iteration started`, { 
+      logType: 'iteration-start', 
+      content: { timestamp: Date.now(), model: agent.model_name, interval: agent.loop_interval_seconds }
+    });
 
     const systemPrompt = await preProcess(agentId, agent.system_prompt);
     Logger.info(agentId, `Prompt`, { logType: 'model-prompt', content: systemPrompt });
@@ -191,9 +196,20 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       if (isAgentLoopRunning(agentId)) {
         recordingManager.handleEndOfLoop();
       }
+      // Enhanced logging: Mark iteration end
+      Logger.info(agentId, `Iteration completed`, { 
+        logType: 'iteration-end', 
+        content: { timestamp: Date.now(), success: true }
+      });
     }
 
   } catch (error) {
+    // Enhanced logging: Mark iteration end with error
+    Logger.info(agentId, `Iteration failed`, { 
+      logType: 'iteration-end', 
+      content: { timestamp: Date.now(), success: false, error: error instanceof Error ? error.message : String(error) }
+    });
+    
     if (error instanceof UnauthorizedError) {
     // 1. Log a clear, specific warning for debugging
       Logger.warn(agentId, 'Agent stopped due to quota limit (401 Unauthorized).');

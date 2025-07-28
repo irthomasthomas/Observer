@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Zap } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
-import AgentLogViewer from '@components/AgentLogViewer';
+import AgentActivityModal from '@components/AgentActivityModal';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 import { listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
@@ -44,6 +44,7 @@ interface AgentCardProps {
   onDelete: (agentId: string) => Promise<void>;
   onToggle: (agentId: string, isRunning: boolean) => Promise<void>;
   onMemory: (agentId: string) => void;
+  onActivity: (agentId: string) => void;
   onShowJupyterModal: () => void;
   getToken: () => Promise<string | undefined>;
   isAuthenticated: boolean;
@@ -55,9 +56,8 @@ interface AgentCardProps {
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent, code, isRunning, isStarting, isMemoryFlashing, onEdit, onDelete, onToggle,
-  onMemory, onShowJupyterModal, getToken, isAuthenticated, hasQuotaError, onUpgradeClick, onSave
+  onMemory, onActivity, onShowJupyterModal, getToken, isAuthenticated, hasQuotaError, onUpgradeClick, onSave
 }) => {
-  const [activityExpanded, setActivityExpanded] = useState(false);
   const [isPythonAgent, setIsPythonAgent] = useState(false);
   const [startWarning, setStartWarning] = useState<string | null>(null);
   const [isCheckingModel, setIsCheckingModel] = useState(false);
@@ -228,23 +228,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
         isPythonAgent={isPythonAgent}
         isJupyterConnected={isJupyterConnected()}
         isMemoryFlashing={isMemoryFlashing}
-        activityExpanded={activityExpanded}
         onEdit={onEdit}
         onDelete={onDelete}
         onMemory={onMemory}
+        onActivity={onActivity}
         onShowJupyterModal={onShowJupyterModal}
-        setActivityExpanded={setActivityExpanded}
       />
-
-      {activityExpanded && (
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
-            <AgentLogViewer
-              agentId={agent.id}
-              getToken={getToken}
-              isAuthenticated={isAuthenticated}
-            />
-        </div>
-      )}
     </div>
   );
 };

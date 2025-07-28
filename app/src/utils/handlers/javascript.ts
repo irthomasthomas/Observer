@@ -54,6 +54,11 @@ export async function executeJavaScript(
 
         await utils.sendSms(message, number, token);
         Logger.info(agentId, `Successfully sent SMS request for number: ${number}.`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `SMS sent to ${number}`, { 
+          logType: 'tool-success', 
+          content: { tool: 'sendSms', params: { message: message.slice(0,100), number }, success: true }
+        });
       },
 
       sendWhatsapp: async(message: string, number: string) => {
@@ -65,6 +70,11 @@ export async function executeJavaScript(
 
         await utils.sendWhatsapp(message, number, token);
         Logger.info(agentId, `Successfully sent Whatsapp request for number: ${number}.`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `WhatsApp sent to ${number}`, { 
+          logType: 'tool-success', 
+          content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number }, success: true }
+        });
       },
 
       sendEmail: async (message: string, emailAddress: string) => {
@@ -76,6 +86,11 @@ export async function executeJavaScript(
 
         await utils.sendEmail(message, emailAddress, token);
         Logger.info(agentId, `Successfully sent email request for address: ${emailAddress}.`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `Email sent to ${emailAddress}`, { 
+          logType: 'tool-success', 
+          content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress }, success: true }
+        });
       },
 
       sendPushover: async (message: string, userKey: string, title?: string) => {
@@ -92,6 +107,11 @@ export async function executeJavaScript(
         await utils.sendPushover(message, userKey, token, title);
         
         Logger.info(agentId, `Successfully sent Pushover notification request.`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `Pushover notification sent`, { 
+          logType: 'tool-success', 
+          content: { tool: 'sendPushover', params: { message: message.slice(0,100), title }, success: true }
+        });
       },
 
       sendDiscordBot: async (message: string, webhookUrl: string) => {
@@ -108,6 +128,11 @@ export async function executeJavaScript(
         await utils.sendDiscordBot(message, webhookUrl, token);
         
         Logger.info(agentId, `Successfully sent Discord notification request.`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `Discord notification sent`, { 
+          logType: 'tool-success', 
+          content: { tool: 'sendDiscordBot', params: { message: message.slice(0,100) }, success: true }
+        });
       },
 
       sendGotify: async (message: string, serverUrl: string, appToken: string, title?: string, priority?: number) => {
@@ -116,6 +141,11 @@ export async function executeJavaScript(
         await utils.sendGotify(message, serverUrl, appToken, title, priority);
         
         Logger.info(agentId, `Successfully sent Gotify notification request.`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `Gotify notification sent`, { 
+          logType: 'tool-success', 
+          content: { tool: 'sendGotify', params: { message: message.slice(0,100), title, priority }, success: true }
+        });
       },
       
       startClip: utils.startClip,
@@ -130,6 +160,11 @@ export async function executeJavaScript(
         Logger.info(agentId, `Agent is asking user: "${question}"`);
         const response = await utils.ask(appUrl, title, question);
         Logger.info(agentId, `User responded with: ${response}`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `User dialog: ${response ? 'confirmed' : 'cancelled'}`, { 
+          logType: 'tool-success', 
+          content: { tool: 'ask', params: { question: question.slice(0,100), title }, result: response }
+        });
         return response;
       },
 
@@ -141,6 +176,11 @@ export async function executeJavaScript(
         Logger.info(agentId, `Agent is showing user a message: "${message}"`);
         await utils.message(appUrl, title, message);
         Logger.info(agentId, `User acknowledged message.`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `User message shown`, { 
+          logType: 'tool-success', 
+          content: { tool: 'message', params: { message: message.slice(0,100), title }, success: true }
+        });
       },
 
       system_notify: async (body: string, title = 'Observer AI'): Promise<void> => {
@@ -151,6 +191,11 @@ export async function executeJavaScript(
         Logger.info(agentId, `Agent is sending a system notification: "${body}"`);
         await utils.system_notify(appUrl, title, body);
         Logger.info(agentId, `System notification sent.`);
+        // Enhanced logging: Log tool success with details
+        Logger.info(agentId, `System notification sent`, { 
+          logType: 'tool-success', 
+          content: { tool: 'system_notify', params: { body: body.slice(0,100), title }, success: true }
+        });
       },
 
     };
@@ -172,6 +217,11 @@ export async function executeJavaScript(
 
   } catch (error) {
     Logger.error(agentId, `Error executing JavaScript: ${error}`);
+    // Enhanced logging: Log tool errors
+    Logger.error(agentId, `JavaScript execution failed`, { 
+      logType: 'tool-error', 
+      content: { error: error instanceof Error ? error.message : String(error), success: false }
+    });
     return false;
   }
 }

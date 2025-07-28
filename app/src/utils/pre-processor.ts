@@ -34,6 +34,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
         if (ocrResult.success && ocrResult.text) {
           Logger.debug(agentId, `OCR successful, text injected into prompt`);
+          // Enhanced logging: Log the OCR text separately for better debugging
+          Logger.info(agentId, `Screen OCR detected: ${ocrResult.text.length} characters`, { 
+            logType: 'sensor-ocr', 
+            content: ocrResult.text 
+          });
           return { replacementText: ocrResult.text };
         }
         Logger.error(agentId, `OCR failed: ${ocrResult.error || 'Unknown error'}`);
@@ -80,6 +85,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
             return { replacementText: '[Error: Invalid image data]' };
           }
           Logger.debug(agentId, `Base64 image captured (length: ${base64Image.length})`);
+          // Enhanced logging: Log screenshot capture separately
+          Logger.info(agentId, `Screenshot captured (${Math.round(base64Image.length/1024)}KB)`, { 
+            logType: 'sensor-screenshot', 
+            content: { size: base64Image.length, timestamp: Date.now() }
+          });
           return { replacementText: '', images: [base64Image] };
         }
         Logger.error(agentId, `Screen capture for image failed`);
@@ -99,6 +109,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
           const clipboardText = await navigator.clipboard.readText();
           Logger.debug(agentId, `Retrieved clipboard text: "${clipboardText}"`);
+          // Enhanced logging: Log clipboard content separately
+          Logger.info(agentId, `Clipboard accessed (${clipboardText.length} characters)`, { 
+            logType: 'sensor-clipboard', 
+            content: clipboardText 
+          });
           return { replacementText: clipboardText };
         }
         Logger.warn(agentId, `navigator.clipboard.readText is not available for CLIPBOARD_TEXT.`);
@@ -120,6 +135,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
       try {
         const transcript = StreamManager.getTranscript('microphone');
         Logger.debug(agentId, `Retrieved microphone transcript via StreamManager: "${transcript}"`);
+        // Enhanced logging: Log audio transcript separately
+        Logger.info(agentId, `Microphone transcript (${transcript.length} characters)`, { 
+          logType: 'sensor-audio', 
+          content: { source: 'microphone', transcript: transcript }
+        });
         return { replacementText: transcript };
       } catch (error: any) {
         Logger.error(agentId, `Error retrieving microphone transcript: ${error.message}`);
@@ -142,6 +162,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         if (base64Image) {
           // You can add the same base64 validation as SCREEN_64 if you like
           Logger.debug(agentId, `Base64 camera image captured (length: ${base64Image.length})`);
+          // Enhanced logging: Log camera capture separately
+          Logger.info(agentId, `Camera image captured (${Math.round(base64Image.length/1024)}KB)`, { 
+            logType: 'sensor-camera', 
+            content: { size: base64Image.length, timestamp: Date.now() }
+          });
           // Return an empty string to remove the placeholder, and provide the image data
           return { replacementText: '', images: [base64Image] };
         }
@@ -162,6 +187,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
       try {
         const transcript = StreamManager.getTranscript('screenAudio');
         Logger.debug(agentId, `Retrieved system audio transcript via StreamManager: "${transcript}"`);
+        // Enhanced logging: Log audio transcript separately
+        Logger.info(agentId, `Screen audio transcript (${transcript.length} characters)`, { 
+          logType: 'sensor-audio', 
+          content: { source: 'screenAudio', transcript: transcript }
+        });
         return { replacementText: transcript };
       } catch (error: any) {
         Logger.error(agentId, `Error retrieving system audio transcript: ${error.message}`);
@@ -177,6 +207,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
       try {
         const transcript = StreamManager.getTranscript('allAudio');
         Logger.debug(agentId, `Retrieved combined audio transcript via StreamManager: "${transcript}"`);
+        // Enhanced logging: Log audio transcript separately
+        Logger.info(agentId, `Combined audio transcript (${transcript.length} characters)`, { 
+          logType: 'sensor-audio', 
+          content: { source: 'allAudio', transcript: transcript }
+        });
         return { replacementText: transcript };
       } catch (error: any) {
         Logger.error(agentId, `Error retrieving combined audio transcript: ${error.message}`);

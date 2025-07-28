@@ -1,7 +1,7 @@
 // src/components/AgentLogViewer.tsx
 import React, { useState, useEffect } from 'react';
 import { LogEntry, LogLevel, Logger } from '../utils/logging';
-import { MessageCircle, ChevronDown, ChevronUp, Settings, Image as ImageIcon, Brain, HelpCircle } from 'lucide-react';
+import { MessageCircle, ChevronDown, ChevronUp, Settings, Image as ImageIcon, Brain, HelpCircle, Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle, Clock, Zap } from 'lucide-react';
 import FeedbackBubble from './FeedbackBubble'; // <-- IMPORT THE NEW COMPONENT
 
 interface AgentLogViewerProps {
@@ -33,8 +33,12 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
       level: LogLevel.INFO,
     });
     
-    // Set the most recent 'maxEntries' logs, ordered newest first
-    setLogs(initialLogs.slice(-maxEntries).reverse());
+    // Filter out iteration start/end logs and set the most recent 'maxEntries' logs, ordered newest first
+    const filteredLogs = initialLogs.filter(log => {
+      const logType = log.details?.logType;
+      return logType !== 'iteration-start' && logType !== 'iteration-end';
+    });
+    setLogs(filteredLogs.slice(-maxEntries).reverse());
     
     // Count initial cycles from the loaded logs
     const initialCycles = initialLogs.filter(log => log.details?.logType === 'model-response').length;
@@ -44,6 +48,10 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     const handleNewLog = (log: LogEntry) => {
       // Filter logs for the current agent and minimum level
       if (log.source !== agentId || log.level < LogLevel.INFO) return;
+
+      // Filter out iteration start/end logs
+      const logType = log.details?.logType;
+      if (logType === 'iteration-start' || logType === 'iteration-end') return;
 
       // Increment cycle count on each model response
       if (log.details?.logType === 'model-response') {
@@ -151,6 +159,99 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     }
   };
 
+  const renderSensorContent = (content: any, logType: string) => {
+    if (logType === 'sensor-ocr') {
+      return (
+        <div className="space-y-2">
+          <div className="font-medium text-gray-800 mb-2">OCR Text Detected:</div>
+          <div className="whitespace-pre-wrap bg-gray-50 p-3 rounded border border-gray-200 max-h-32 overflow-y-auto">
+            {content}
+          </div>
+        </div>
+      );
+    } else if (logType === 'sensor-audio') {
+      return (
+        <div className="space-y-2">
+          <div className="font-medium text-gray-800 mb-2">Audio Transcript ({content.source}):</div>
+          <div className="whitespace-pre-wrap bg-gray-50 p-3 rounded border border-gray-200 max-h-32 overflow-y-auto">
+            {content.transcript}
+          </div>
+        </div>
+      );
+    } else {
+      return <pre className="text-sm overflow-auto">{JSON.stringify(content, null, 2)}</pre>;
+    }
+  };
+
+  const renderToolContent = (content: any, logType: string) => {
+    if (logType === 'tool-success') {
+      return (
+        <div className="space-y-2">
+          <div className="font-medium text-gray-800 mb-2">Tool: {content.tool}()</div>
+          <div className="bg-green-50 p-3 rounded border border-green-200">
+            <div className="text-sm text-green-800">
+              <div className="font-medium">Parameters:</div>
+              <pre className="mt-1 text-xs overflow-auto">{JSON.stringify(content.params, null, 2)}</pre>
+            </div>
+          </div>
+        </div>
+      );
+    } else if (logType === 'tool-error') {
+      return (
+        <div className="space-y-2">
+          <div className="font-medium text-gray-800 mb-2">Tool Error</div>
+          <div className="bg-red-50 p-3 rounded border border-red-200">
+            <div className="text-sm text-red-800">
+              <div className="font-medium">Error:</div>
+              <div className="mt-1">{content.error}</div>
+            </div>
+          </div>
+        </div>
+      );
+    } else {
+      return <pre className="text-sm overflow-auto">{JSON.stringify(content, null, 2)}</pre>;
+    }
+  };
+
+  const renderIterationContent = (content: any, logType: string) => {
+    if (logType === 'iteration-start') {
+      return (
+        <div className="space-y-2">
+          <div className="font-medium text-gray-800 mb-2">Iteration Started</div>
+          <div className="bg-blue-50 p-3 rounded border border-blue-200">
+            <div className="text-sm text-blue-800">
+              <div>Model: {content.model}</div>
+              <div>Interval: {content.interval}s</div>
+              <div>Started: {new Date(content.timestamp).toLocaleString()}</div>
+            </div>
+          </div>
+        </div>
+      );
+    } else if (logType === 'iteration-end') {
+      return (
+        <div className="space-y-2">
+          <div className="font-medium text-gray-800 mb-2">
+            Iteration {content.success ? 'Completed' : 'Failed'}
+          </div>
+          <div className={`p-3 rounded border ${content.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+            <div className={`text-sm ${content.success ? 'text-green-800' : 'text-red-800'}`}>
+              <div>Status: {content.success ? 'Success' : 'Failed'}</div>
+              <div>Ended: {new Date(content.timestamp).toLocaleString()}</div>
+              {content.error && (
+                <div className="mt-1">
+                  <div className="font-medium">Error:</div>
+                  <div>{content.error}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    } else {
+      return <pre className="text-sm overflow-auto">{JSON.stringify(content, null, 2)}</pre>;
+    }
+  };
+
   // --- Main Render ---
 
   if (logs.length === 0) {
@@ -181,7 +282,16 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
         style={{ maxHeight }}
       >
         <div className="pt-2"> {/* Padding for the first log item */}
-          {logs.map((log) => { // Logs are already ordered newest first
+          {logs.map((log, index) => { // Logs are already ordered newest first
+            // Detect iteration start by looking for the first sensor after a model response
+            const currentLogType = log.details?.logType;
+            const prevLog = logs[index - 1];
+            const prevLogType = prevLog?.details?.logType;
+            
+            // New iteration starts when we see a sensor log (like screenshot) after a model response or at the beginning
+            const isNewIteration = (currentLogType?.startsWith('sensor-') && 
+                                   (prevLogType === 'model-response' || index === 0)) ||
+                                  (currentLogType === 'model-prompt' && index === 0);
             const logType = log.details?.logType || 'system';
             let bgColor = "bg-gray-50";
             let iconBgColor = "bg-gray-100";
@@ -206,13 +316,71 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
               iconBgColor = "bg-purple-100";
               textColor = "text-purple-700";
               icon = <Brain className="h-5 w-5 text-purple-600" />;
+            } else if (logType === 'sensor-ocr') {
+              bgColor = "bg-green-50";
+              iconBgColor = "bg-green-100";
+              textColor = "text-green-700";
+              icon = <Monitor className="h-5 w-5 text-green-600" />;
+            } else if (logType === 'sensor-screenshot') {
+              bgColor = "bg-blue-50";
+              iconBgColor = "bg-blue-100";
+              textColor = "text-blue-700";
+              icon = <ImageIcon className="h-5 w-5 text-blue-600" />;
+            } else if (logType === 'sensor-clipboard') {
+              bgColor = "bg-purple-50";
+              iconBgColor = "bg-purple-100";
+              textColor = "text-purple-700";
+              icon = <Clipboard className="h-5 w-5 text-purple-600" />;
+            } else if (logType === 'sensor-audio') {
+              bgColor = "bg-orange-50";
+              iconBgColor = "bg-orange-100";
+              textColor = "text-orange-700";
+              icon = <Mic className="h-5 w-5 text-orange-600" />;
+            } else if (logType === 'sensor-camera') {
+              bgColor = "bg-red-50";
+              iconBgColor = "bg-red-100";
+              textColor = "text-red-700";
+              icon = <Camera className="h-5 w-5 text-red-600" />;
+            } else if (logType === 'tool-success') {
+              bgColor = "bg-green-50";
+              iconBgColor = "bg-green-100";
+              textColor = "text-green-700";
+              icon = <CheckCircle className="h-5 w-5 text-green-600" />;
+            } else if (logType === 'tool-error') {
+              bgColor = "bg-red-50";
+              iconBgColor = "bg-red-100";
+              textColor = "text-red-700";
+              icon = <XCircle className="h-5 w-5 text-red-600" />;
+            } else if (logType === 'iteration-start') {
+              bgColor = "bg-blue-50";
+              iconBgColor = "bg-blue-100";
+              textColor = "text-blue-700";
+              icon = <Clock className="h-5 w-5 text-blue-600" />;
+            } else if (logType === 'iteration-end') {
+              bgColor = "bg-gray-50";
+              iconBgColor = "bg-gray-100";
+              textColor = "text-gray-700";
+              icon = <Zap className="h-5 w-5 text-gray-600" />;
             }
 
-            const isExpandable = logType === 'model-prompt' || logType === 'model-response' || logType === 'memory-update';
+            const isExpandable = logType === 'model-prompt' || logType === 'model-response' || logType === 'memory-update' || 
+                                 logType === 'sensor-ocr' || logType === 'sensor-audio' || logType === 'tool-success' || logType === 'tool-error';
             const isLogItemExpanded = expandedLogs[log.id] || false;
 
             return (
-              <div key={log.id || `${log.timestamp}-${log.message.slice(0,10)}`} className="mb-6 px-1">
+              <div key={log.id || `${log.timestamp}-${log.message.slice(0,10)}`}>
+                {/* Iteration separator */}
+                {isNewIteration && index > 0 && (
+                  <div className="mb-4 mt-6 flex items-center">
+                    <div className="flex-grow h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
+                    <div className="px-4 text-sm font-medium text-blue-600 bg-blue-50 rounded-full border border-blue-200">
+                      New Iteration
+                    </div>
+                    <div className="flex-grow h-px bg-gradient-to-l from-blue-200 to-transparent"></div>
+                  </div>
+                )}
+                
+                <div className="mb-6 px-1">
                 <div className="flex">
                   <div className={`w-10 h-10 rounded-full ${iconBgColor} flex items-center justify-center mr-4 flex-shrink-0`}>
                     {icon}
@@ -245,12 +413,17 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
                             ? renderPromptContent(log.details.content)
                             : logType === 'memory-update'
                               ? renderMemoryContent(log.details.content, log.details)
+                            : logType === 'sensor-ocr' || logType === 'sensor-audio'
+                              ? renderSensorContent(log.details.content, logType)
+                            : logType === 'tool-success' || logType === 'tool-error'
+                              ? renderToolContent(log.details.content, logType)
                               : renderResponseContent(log.details.content)
                           )
                           : <span className="text-gray-500 italic">No content details.</span>}
                       </div>
                     )}
                   </div>
+                </div>
                 </div>
               </div>
             );

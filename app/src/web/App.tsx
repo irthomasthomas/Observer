@@ -36,6 +36,7 @@ import SettingsTab from '@components/SettingsTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming this path is correct
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
+import AgentActivityModal from '@components/AgentActivityModal';
 
 
 function AppContent() {
@@ -90,6 +91,10 @@ function AppContent() {
   // --- NEW STATE FOR QUOTA ERRORS AND MODAL ---
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  // --- STATE FOR ACTIVITY MODAL ---
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [activityModalAgentId, setActivityModalAgentId] = useState<string | null>(null);
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -264,6 +269,12 @@ function AppContent() {
     setMemoryAgentId(agentId);
     setIsMemoryManagerOpen(true);
     Logger.info('APP', `Opening memory manager for agent ${agentId}`);
+  };
+
+  const handleActivityClick = (agentId: string) => {
+    setActivityModalAgentId(agentId);
+    setActivityModalOpen(true);
+    Logger.info('APP', `Opening activity modal for agent ${agentId}`);
   };
 
   const handleDeleteClick = async (agentId: string) => {
@@ -546,6 +557,7 @@ function AppContent() {
                       onDelete={handleDeleteClick}
                       onToggle={toggleAgent}
                       onMemory={handleMemoryClick}
+                      onActivity={handleActivityClick}
                       onShowJupyterModal={() => setIsJupyterModalOpen(true)}
                       getToken={getToken}
                       isAuthenticated={isAuthenticated}
@@ -720,6 +732,20 @@ function AppContent() {
         <GlobalLogsViewer
           isOpen={showGlobalLogs}
           onClose={() => setShowGlobalLogs(false)}
+        />
+      )}
+
+      {activityModalOpen && activityModalAgentId && (
+        <AgentActivityModal
+          isOpen={activityModalOpen}
+          onClose={() => {
+            setActivityModalOpen(false);
+            setActivityModalAgentId(null);
+          }}
+          agentId={activityModalAgentId}
+          agentName={agents.find(a => a.id === activityModalAgentId)?.name || activityModalAgentId}
+          getToken={getToken}
+          isAuthenticated={isAuthenticated}
         />
       )}
     </div>
