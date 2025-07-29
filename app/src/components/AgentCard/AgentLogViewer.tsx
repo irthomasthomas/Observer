@@ -2,12 +2,80 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Brain, HelpCircle, 
-  Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle, Clock, RotateCcw,
+  Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle,
   ScanText, Bell, Mail, Send, MessageSquare, MessageSquarePlus, 
-  MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass
+  MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass,
+  ArrowRight
 } from 'lucide-react';
-import FeedbackBubble from '../FeedbackBubble';
-import { IterationStore, IterationData, SensorData, ToolCall } from '../../utils/IterationStore';
+import { IterationStore, IterationData, SensorData, ToolCall, AgentSession } from '../../utils/IterationStore';
+
+// Lazy Image Loading Component
+interface LazyImageProps {
+  src: string;
+  alt: string;
+  className: string;
+  fallbackSrc: string;
+  imageId: string;
+  setLoadedImages: React.Dispatch<React.SetStateAction<Set<string>>>;
+}
+
+const LazyImage: React.FC<LazyImageProps> = ({ 
+  src, alt, className, fallbackSrc, imageId, setLoadedImages 
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    // Add a small delay to prevent all images from loading at once
+    const timer = setTimeout(() => {
+      setShouldLoad(true);
+    }, Math.random() * 500); // Random delay up to 500ms
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleLoad = () => {
+    setIsLoaded(true);
+    setLoadedImages(prev => new Set(prev).add(imageId));
+  };
+
+  const handleError = () => {
+    if (!error && fallbackSrc && fallbackSrc !== src) {
+      setError(true);
+      // Try fallback format (JPEG instead of PNG)
+    } else {
+      // Give up and show placeholder
+      setIsLoaded(true);
+    }
+  };
+
+  if (!shouldLoad) {
+    // Show placeholder while waiting to load
+    return (
+      <div className={`${className} bg-gray-200 flex items-center justify-center`}>
+        <Monitor className="w-6 h-6 text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {!isLoaded && (
+        <div className={`${className} bg-gray-200 flex items-center justify-center animate-pulse`}>
+          <Monitor className="w-6 h-6 text-gray-400" />
+        </div>
+      )}
+      <img
+        src={error ? fallbackSrc : src}
+        alt={alt}
+        className={`${className} ${isLoaded ? 'block' : 'hidden'}`}
+        onLoad={handleLoad}
+        onError={handleError}
+      />
+    </>
+  );
+};
 
 // Simple icon components for tools
 const getToolIcon = (toolName: string) => {
@@ -51,38 +119,46 @@ interface AgentLogViewerProps {
   agentId: string;
   maxEntries?: number;
   maxHeight?: string;
-  getToken: () => Promise<string | undefined>;
-  isAuthenticated: boolean;
+  getToken?: () => Promise<string | undefined>;
+  isAuthenticated?: boolean;
 }
 
 const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   agentId,
   maxEntries = 50,
   maxHeight = '400px',
-  getToken,
-  isAuthenticated
 }) => {
-  const [iterations, setIterations] = useState<IterationData[]>([]);
-  const [runCycleCount, setRunCycleCount] = useState(0);
+  const [currentIterations, setCurrentIterations] = useState<IterationData[]>([]);
+  const [historicalSessions, setHistoricalSessions] = useState<AgentSession[]>([]);
+  const [hoveredTool, setHoveredTool] = useState<{ index: string; name: string; status: string } | null>(null);
+  const [, setLoadedImages] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Get initial iterations
-    const initialIterations = IterationStore.getIterationsForAgent(agentId);
-    setIterations(initialIterations);
-    setRunCycleCount(initialIterations.length);
+    // Get initial data
+    const loadData = async () => {
+      const initialIterations = IterationStore.getIterationsForAgent(agentId);
+      const historicalData = await IterationStore.getHistoricalSessions(agentId);
+      
+      setCurrentIterations(initialIterations);
+      setHistoricalSessions(historicalData);
+    };
+    
+    loadData();
 
     // Subscribe to updates
-    const unsubscribe = IterationStore.subscribe(() => {
+    const unsubscribe = IterationStore.subscribe(async () => {
       const updatedIterations = IterationStore.getIterationsForAgent(agentId);
-      setIterations(updatedIterations);
-      setRunCycleCount(updatedIterations.length);
+      const updatedHistorical = await IterationStore.getHistoricalSessions(agentId);
+      
+      setCurrentIterations(updatedIterations);
+      setHistoricalSessions(updatedHistorical);
     });
 
     return unsubscribe;
   }, [agentId]);
 
   // Render sensor previews
-  const renderSensorPreviews = (sensors: SensorData[], modelImages?: string[]) => {
+  const renderSensorPreviews = (sensors: SensorData[], modelImages?: string[], iterationId?: string) => {
     const allPreviews: React.ReactNode[] = [];
     let imageIndex = 0;
 
@@ -96,20 +172,19 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
         const imageData = hasImage ? modelImages[imageIndex] : null;
         
         allPreviews.push(
-          <div key={index} className="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-xs">
-            <SensorIcon className="w-4 h-4 text-blue-600" />
+          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+            <SensorIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
             {imageData ? (
-              <img 
+              <LazyImage 
                 src={`data:image/png;base64,${imageData}`}
                 alt={`${sensor.type} ${imageIndex + 1}`}
-                className="w-6 h-6 rounded-sm border border-gray-200 object-cover"
-                onError={(e) => {
-                  const imgElement = e.target as HTMLImageElement;
-                  imgElement.src = `data:image/jpeg;base64,${imageData}`;
-                }}
+                className="w-full h-16 rounded border border-gray-200 object-cover"
+                fallbackSrc={`data:image/jpeg;base64,${imageData}`}
+                imageId={`${iterationId}-${sensor.type}-${imageIndex}`}
+                setLoadedImages={setLoadedImages}
               />
             ) : (
-              <span className="text-gray-700 capitalize">{sensor.type}</span>
+              <span className="text-gray-600 text-sm capitalize font-medium">{sensor.type}</span>
             )}
           </div>
         );
@@ -120,9 +195,9 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
           ? sensor.content.slice(0, 30) + (sensor.content.length > 30 ? '...' : '')
           : 'text';
         allPreviews.push(
-          <div key={index} className="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-xs">
-            <SensorIcon className="w-3 h-3 text-gray-600" />
-            <span className="text-gray-700 truncate max-w-[150px]">{preview}</span>
+          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+            <SensorIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
+            <span className="text-gray-700 text-sm truncate">{preview}</span>
           </div>
         );
       } else if (sensor.type === 'audio') {
@@ -130,16 +205,16 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
         const preview = transcript.slice(0, 30) + (transcript.length > 30 ? '...' : '');
         const source = sensor.source ? `(${sensor.source})` : '';
         allPreviews.push(
-          <div key={index} className="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-xs">
-            <SensorIcon className="w-3 h-3 text-gray-600" />
-            <span className="text-gray-700 truncate max-w-[150px]">{preview} {source}</span>
+          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+            <SensorIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
+            <span className="text-gray-700 text-sm truncate">{preview} {source}</span>
           </div>
         );
       } else {
         allPreviews.push(
-          <div key={index} className="flex items-center gap-1">
-            <SensorIcon className="w-4 h-4 text-gray-600" />
-            <span className="text-xs text-gray-500">{sensor.type}</span>
+          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+            <SensorIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
+            <span className="text-sm text-gray-600 capitalize font-medium">{sensor.type}</span>
           </div>
         );
       }
@@ -147,15 +222,15 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     
     if (allPreviews.length === 0) {
       return (
-        <div className="flex items-center gap-1 text-gray-400 text-xs">
-          <HelpCircle className="w-3 h-3" />
-          <span>No sensors</span>
+        <div className="flex items-center gap-2 text-gray-400 text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <HelpCircle className="w-4 h-4" />
+          <span>No sensor data</span>
         </div>
       );
     }
 
     return (
-      <div className="flex items-center flex-wrap gap-2">
+      <div className="space-y-2">
         {allPreviews}
       </div>
     );
@@ -164,43 +239,71 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   // Render model response preview
   const renderModelPreview = (response?: string) => {
     if (!response) {
-      return <span className="text-gray-400 text-xs italic">No response</span>;
+      return (
+        <div className="flex items-center gap-2 text-gray-400 text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <Brain className="w-4 h-4" />
+          <span className="italic">No response</span>
+        </div>
+      );
     }
     
-    const preview = response.slice(0, 60);
+    const preview = response.slice(0, 100);
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
         <Brain className="w-4 h-4 text-green-600 flex-shrink-0" />
-        <span className="text-sm text-gray-700 truncate">
-          "{preview}{response.length > 60 ? '...' : ''}"
+        <span className="text-sm text-green-700 truncate">
+          "{preview}{response.length > 100 ? '...' : ''}"
         </span>
       </div>
     );
   };
 
   // Render tool indicators
-  const renderToolIndicators = (tools: ToolCall[]) => {
+  const renderToolIndicators = (tools: ToolCall[], iterationId: string) => {
     if (tools.length === 0) {
       return (
-        <div className="text-xs text-gray-400 italic">
-          No tools used
+        <div className="flex items-center gap-2 text-gray-400 text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <span className="italic">No tools used</span>
         </div>
       );
     }
     
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-3 relative">
         {tools.map((tool, index) => {
           const isSuccess = tool.status === 'success';
           const ToolIcon = getToolIcon(tool.name);
+          const toolId = `${iterationId}-${tool.name}-${index}`;
           
           return (
-            <div key={index} className="flex items-center gap-0.5">
-              <ToolIcon className={`w-4 h-4 ${isSuccess ? 'text-green-600' : 'text-red-600'}`} />
-              {isSuccess ? (
-                <CheckCircle className="w-3 h-3 text-green-600" />
-              ) : (
-                <XCircle className="w-3 h-3 text-red-600" />
+            <div key={index} className="relative">
+              <div 
+                className={`flex items-center gap-1 px-2 py-1 rounded border cursor-help ${
+                  isSuccess 
+                    ? 'bg-green-50 border-green-200 hover:bg-green-100' 
+                    : 'bg-red-50 border-red-200 hover:bg-red-100'
+                }`}
+                onMouseEnter={() => setHoveredTool({ 
+                  index: toolId, 
+                  name: tool.name, 
+                  status: isSuccess ? 'Success' : 'Failed' 
+                })}
+                onMouseLeave={() => setHoveredTool(null)}
+              >
+                <ToolIcon className={`w-3 h-3 ${isSuccess ? 'text-green-600' : 'text-red-600'}`} />
+                {isSuccess ? (
+                  <CheckCircle className="w-3 h-3 text-green-600" />
+                ) : (
+                  <XCircle className="w-3 h-3 text-red-600" />
+                )}
+              </div>
+              
+              {/* Custom Tooltip */}
+              {hoveredTool?.index === toolId && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-10">
+                  {hoveredTool.name} - {hoveredTool.status}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                </div>
               )}
             </div>
           );
@@ -209,8 +312,67 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     );
   };
 
+  // Helper function to render iterations
+  const renderIterations = (iterations: IterationData[], sessionLabel?: string) => {
+    return iterations.map((iteration) => {
+      const iterationNumber = iteration.sessionIterationNumber;
+      
+      return (
+        <div 
+          key={iteration.id} 
+          className={`border rounded-lg p-4 transition-all duration-200 shadow-sm ${
+            iteration.hasError ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'
+          }`}
+        >
+          {/* Information Flow: Inputs → Response/Actions */}
+          <div className="flex gap-6">
+            {/* Header + Inputs - Half the card */}
+            <div className="flex-1 min-w-0">
+              {/* Compact Header with Inputs Label */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  iteration.hasError ? 'bg-red-500' : 'bg-blue-500'
+                }`}></div>
+                <span className="text-sm font-medium text-gray-700">
+                  #{iterationNumber}
+                </span>
+                {sessionLabel && (
+                  <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                    {sessionLabel}
+                  </span>
+                )}
+                <span className="text-xs font-medium text-gray-500">Inputs</span>
+              </div>
+              {renderSensorPreviews(iteration.sensors, iteration.modelImages, iteration.id)}
+            </div>
+            
+            {/* Flow Arrow */}
+            <div className="flex items-center justify-center pt-8">
+              <ArrowRight className="w-5 h-5 text-gray-400" />
+            </div>
+            
+            {/* Response and Actions - Half the card, stacked */}
+            <div className="flex-1 min-w-0 space-y-4">
+              {/* Processing (Model Response) */}
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-2">Response</div>
+                {renderModelPreview(iteration.modelResponse)}
+              </div>
+              
+              {/* Actions (Tools) */}
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-2">Actions</div>
+                {renderToolIndicators(iteration.tools, iteration.id)}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    });
+  };
+
   // Main render
-  if (iterations.length === 0) {
+  if (currentIterations.length === 0 && historicalSessions.length === 0) {
     return (
       <div className="p-4 text-center text-gray-500">
         <HelpCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
@@ -222,75 +384,59 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 
   return (
     <div>
-      {/* Feedback Bubble */}
-      {runCycleCount >= 3 && (
-        <div className="p-2 mb-4">
-          <FeedbackBubble 
-            agentId={agentId}
-            getToken={getToken}
-            isAuthenticated={isAuthenticated}
-          />
-        </div>
-      )}
 
       <div
         className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
         style={{ maxHeight }}
       >
         <div className="space-y-4 p-2">
-          {iterations.slice(0, maxEntries).map((iteration, index) => {
-            const iterationNumber = iterations.length - index;
+          {/* Current Session */}
+          {currentIterations.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="h-px bg-green-200 flex-grow"></div>
+                <span className="text-sm font-medium text-green-700 bg-green-50 px-3 py-1 rounded-full">
+                  Current Run
+                </span>
+                <div className="h-px bg-green-200 flex-grow"></div>
+              </div>
+              <div className="space-y-4">
+                {renderIterations(currentIterations.slice(0, maxEntries).reverse())}
+              </div>
+            </>
+          )}
+
+          {/* Historical Sessions */}
+          {historicalSessions.map((session, sessionIndex) => {
+            const sessionDate = new Date(session.startTime);
+            const sessionLabel = `Run ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString()}`;
+            
+            // Create relative time label
+            let relativeLabel = '';
+            if (sessionIndex === 0) {
+              relativeLabel = 'Last run';
+            } else if (sessionIndex === 1) {
+              relativeLabel = 'Two runs ago';
+            } else if (sessionIndex === 2) {
+              relativeLabel = 'Three runs ago';
+            } else {
+              relativeLabel = `${sessionIndex + 1} runs ago`;
+            }
             
             return (
-              <div 
-                key={iteration.id} 
-                className={`border rounded-lg p-4 transition-all duration-200 ${
-                  iteration.hasError ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'
-                }`}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <RotateCcw className={`w-5 h-5 ${
-                        iteration.hasError ? 'text-red-600' : 'text-blue-600'
-                      }`} />
-                      <span className="font-medium text-gray-900">
-                        Iteration #{iterationNumber}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(iteration.startTime).toLocaleTimeString()}
-                    </div>
-                  </div>
-                  
-                  {iteration.duration !== undefined && (
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      <span>{iteration.duration.toFixed(1)}s</span>
-                    </div>
-                  )}
+              <div key={session.sessionId}>
+                {/* Session Separator */}
+                <div className="flex items-center gap-2 my-6">
+                  <div className="h-px bg-gray-200 flex-grow"></div>
+                  <span className="text-sm font-medium text-gray-500 bg-gray-50 px-3 py-1 rounded-full">
+                    {relativeLabel} - {sessionLabel}
+                  </span>
+                  <div className="h-px bg-gray-200 flex-grow"></div>
                 </div>
                 
-                {/* Preview Content */}
-                <div className="space-y-2">
-                  {/* Sensors row */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500 w-16">SENSORS:</span>
-                    {renderSensorPreviews(iteration.sensors, iteration.modelImages)}
-                  </div>
-                  
-                  {/* Model response row */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500 w-16">MODEL:</span>
-                    {renderModelPreview(iteration.modelResponse)}
-                  </div>
-                  
-                  {/* Tools row */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500 w-16">TOOLS:</span>
-                    {renderToolIndicators(iteration.tools)}
-                  </div>
+                {/* Session Iterations */}
+                <div className="space-y-4">
+                  {renderIterations(session.iterations.slice(0, maxEntries).reverse())}
                 </div>
               </div>
             );

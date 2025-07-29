@@ -21,6 +21,8 @@ export interface ToolCall {
 export interface IterationData {
   id: string;
   agentId: string;
+  sessionId: string;
+  sessionIterationNumber: number; // 1, 2, 3... within this session
   startTime: string;
   sensors: SensorData[];
   modelPrompt?: string;
@@ -32,13 +34,25 @@ export interface IterationData {
   hasError: boolean;
 }
 
+export interface AgentSession {
+  sessionId: string;
+  agentId: string;
+  startTime: string;
+  endTime?: string;
+  iterations: IterationData[];
+}
+
 class IterationStoreClass {
   private iterations = new Map<string, IterationData>();
+  private currentSessions = new Map<string, string>(); // agentId -> sessionId
+  private sessionIterationCounts = new Map<string, number>(); // sessionId -> count
   private listeners: Array<(iterations: Map<string, IterationData>) => void> = [];
 
   constructor() {
     // Subscribe to all log entries
     Logger.addListener(this.handleLogEntry.bind(this));
+    // Load persisted data on startup
+    this.loadFromIndexedDB();
   }
 
   private handleLogEntry(log: LogEntry) {
@@ -48,9 +62,24 @@ class IterationStoreClass {
     // Get or create iteration
     let iteration = this.iterations.get(iterationId);
     if (!iteration) {
+      const agentId = log.source;
+      const sessionId = this.currentSessions.get(agentId);
+      
+      if (!sessionId) {
+        // Silently skip - iterations will be processed once session loads from IndexedDB
+        return;
+      }
+
+      // Get session iteration number
+      const currentCount = this.sessionIterationCounts.get(sessionId) || 0;
+      const sessionIterationNumber = currentCount + 1;
+      this.sessionIterationCounts.set(sessionId, sessionIterationNumber);
+
       iteration = {
         id: iterationId,
-        agentId: log.source,
+        agentId,
+        sessionId,
+        sessionIterationNumber,
         startTime: log.timestamp.toISOString(),
         sensors: [],
         tools: [],
@@ -189,11 +218,170 @@ class IterationStoreClass {
     this.listeners.forEach(listener => listener(this.iterations));
   }
 
+  // IndexedDB setup
+  private async openIterationDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('IterationStoreDB', 1);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        
+        // Store for current sessions tracking
+        if (!db.objectStoreNames.contains('currentSessions')) {
+          db.createObjectStore('currentSessions', { keyPath: 'agentId' });
+        }
+        
+        // Store for agent session history
+        if (!db.objectStoreNames.contains('agentSessions')) {
+          db.createObjectStore('agentSessions', { keyPath: 'key' }); // key will be agentId
+        }
+      };
+    });
+  }
+
+  private async loadFromIndexedDB() {
+    try {
+      const db = await this.openIterationDB();
+      
+      // Load current sessions
+      const tx = db.transaction('currentSessions', 'readonly');
+      const store = tx.objectStore('currentSessions');
+      const request = store.getAll();
+      
+      await new Promise<void>((resolve, reject) => {
+        request.onsuccess = () => {
+          const sessions = request.result;
+          sessions.forEach((item: { agentId: string, sessionId: string }) => {
+            this.currentSessions.set(item.agentId, item.sessionId);
+          });
+          resolve();
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      Logger.error('IterationStore', 'Failed to load from IndexedDB', error);
+    }
+  }
+
+  private async saveToIndexedDB() {
+    try {
+      const db = await this.openIterationDB();
+      const tx = db.transaction('currentSessions', 'readwrite');
+      const store = tx.objectStore('currentSessions');
+      
+      // Clear and rebuild current sessions
+      await new Promise<void>((resolve, reject) => {
+        const clearRequest = store.clear();
+        clearRequest.onsuccess = () => resolve();
+        clearRequest.onerror = () => reject(clearRequest.error);
+      });
+      
+      // Add all current sessions
+      for (const [agentId, sessionId] of this.currentSessions.entries()) {
+        await new Promise<void>((resolve, reject) => {
+          const request = store.add({ agentId, sessionId });
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      }
+    } catch (error) {
+      Logger.error('IterationStore', 'Failed to save to IndexedDB', error);
+    }
+  }
+
+  private async saveSessionToIndexedDB(agentId: string, sessionId: string) {
+    try {
+      const db = await this.openIterationDB();
+      
+      // Get existing agent data or create new
+      const tx = db.transaction('agentSessions', 'readwrite');
+      const store = tx.objectStore('agentSessions');
+      
+      let agentData: { key: string, currentSession: string, sessions: Record<string, AgentSession> } = {
+        key: agentId,
+        currentSession: sessionId,
+        sessions: {}
+      };
+
+      // Try to get existing data
+      const existingRequest = store.get(agentId);
+      await new Promise<void>((resolve, reject) => {
+        existingRequest.onsuccess = () => {
+          if (existingRequest.result) {
+            agentData = existingRequest.result;
+          }
+          resolve();
+        };
+        existingRequest.onerror = () => reject(existingRequest.error);
+      });
+
+      // Get all iterations for this session
+      const sessionIterations = this.getIterationsForSession(sessionId);
+      
+      agentData.currentSession = sessionId;
+      agentData.sessions[sessionId] = {
+        sessionId,
+        agentId,
+        startTime: sessionIterations.length > 0 ? sessionIterations[0].startTime : new Date().toISOString(),
+        iterations: sessionIterations
+      };
+
+      // Save updated data
+      await new Promise<void>((resolve, reject) => {
+        const request = store.put(agentData);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+      
+    } catch (error) {
+      Logger.error('IterationStore', `Failed to save session ${sessionId} for agent ${agentId}`, error);
+    }
+  }
+
   // Public API
+  public startSession(agentId: string, sessionId: string) {
+    this.currentSessions.set(agentId, sessionId);
+    this.sessionIterationCounts.set(sessionId, 0);
+    this.saveToIndexedDB();
+    Logger.info('IterationStore', `Started session ${sessionId} for agent ${agentId}`);
+  }
+
+  public async endSession(agentId: string): Promise<void> {
+    const sessionId = this.currentSessions.get(agentId);
+    if (sessionId) {
+      // Save current session to persistent storage
+      await this.saveSessionToIndexedDB(agentId, sessionId);
+      
+      // Clean up current session data
+      this.currentSessions.delete(agentId);
+      this.sessionIterationCounts.delete(sessionId);
+      
+      // Remove iterations from memory (they're now persisted)
+      const iterationsToRemove = Array.from(this.iterations.values())
+        .filter(iteration => iteration.sessionId === sessionId);
+      
+      iterationsToRemove.forEach(iteration => {
+        this.iterations.delete(iteration.id);
+      });
+      
+      await this.saveToIndexedDB();
+      this.notifyListeners();
+      
+      Logger.info('IterationStore', `Ended session ${sessionId} for agent ${agentId}`);
+    }
+  }
+
   public getIterationsForAgent(agentId: string): IterationData[] {
+    // Only return current session iterations (from memory)
+    const currentSessionId = this.currentSessions.get(agentId);
+    if (!currentSessionId) return [];
+
     return Array.from(this.iterations.values())
-      .filter(iteration => iteration.agentId === agentId)
-      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+      .filter(iteration => iteration.agentId === agentId && iteration.sessionId === currentSessionId)
+      .sort((a, b) => a.sessionIterationNumber - b.sessionIterationNumber);
   }
 
   public getIteration(iterationId: string): IterationData | undefined {
@@ -210,15 +398,51 @@ class IterationStoreClass {
     };
   }
 
+  public getIterationsForSession(sessionId: string): IterationData[] {
+    return Array.from(this.iterations.values())
+      .filter(iteration => iteration.sessionId === sessionId)
+      .sort((a, b) => a.sessionIterationNumber - b.sessionIterationNumber);
+  }
+
   public getAllIterations(): IterationData[] {
     return Array.from(this.iterations.values())
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+  }
+
+  public async getHistoricalSessions(agentId: string): Promise<AgentSession[]> {
+    try {
+      const db = await this.openIterationDB();
+      const tx = db.transaction('agentSessions', 'readonly');
+      const store = tx.objectStore('agentSessions');
+      const request = store.get(agentId);
+      
+      return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+          const result = request.result;
+          if (!result) {
+            resolve([]);
+            return;
+          }
+          
+          const sessions = (Object.values(result.sessions || {}) as AgentSession[]).sort((a: AgentSession, b: AgentSession) => 
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+          );
+          resolve(sessions);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      Logger.error('IterationStore', `Failed to get historical sessions for agent ${agentId}`, error);
+      return [];
+    }
   }
 
   // Debug method
   public debug() {
     console.log('IterationStore Debug:', {
       totalIterations: this.iterations.size,
+      currentSessions: Array.from(this.currentSessions.entries()),
+      sessionCounts: Array.from(this.sessionIterationCounts.entries()),
       iterations: Array.from(this.iterations.values())
     });
   }

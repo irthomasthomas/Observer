@@ -6,7 +6,8 @@ import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
 import { StreamManager, PseudoStreamType } from './streamManager'; // Import the new manager
-import { recordingManager } from './recordingManager'
+import { recordingManager } from './recordingManager';
+import { IterationStore } from './IterationStore';
 
 export type TokenProvider = () => Promise<string | undefined>;
 
@@ -63,6 +64,10 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
     if (isFirstAgent) {
       recordingManager.initialize();
     }
+
+    // Generate sessionId and start new session
+    const sessionId = `session_${new Date().toISOString()}_${Math.random().toString(36).substring(2, 9)}`;
+    IterationStore.startSession(agentId, sessionId);
 
     activeLoops[agentId] = { 
         intervalId: null, 
@@ -126,6 +131,8 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
 
     StreamManager.releaseStreamsForAgent(agentId);
 
+    // End the current session and save to IndexedDB
+    await IterationStore.endSession(agentId);
 
     // -------------------------
 
