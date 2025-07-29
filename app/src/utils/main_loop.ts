@@ -152,62 +152,63 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
 export async function executeAgentIteration(agentId: string): Promise<void> {
   const loopData = activeLoops[agentId];
   if (!loopData?.isRunning) {
+    // This log is outside an iteration, so no ID is needed.
     Logger.debug(agentId, `Skipping execution for stopped agent`);
     return;
   }
 
+  // --- ITERATION START ---
+  const iterationId = `iter_${new Date().toISOString()}_${Math.random().toString(36).substring(2, 9)}`;
+
   try {
-    Logger.debug(agentId, `Starting agent iteration`);
     const agent = await getAgent(agentId);
     const agentCode = await getAgentCode(agentId) || '';
     if (!agent) throw new Error(`Agent ${agentId} not found`);
 
-    // Enhanced logging: Mark iteration start with model info
     Logger.info(agentId, `Iteration started`, { 
       logType: 'iteration-start', 
-      content: { timestamp: Date.now(), model: agent.model_name, interval: agent.loop_interval_seconds }
+      iterationId,
+      content: { model: agent.model_name, interval: agent.loop_interval_seconds }
     });
 
-    const systemPrompt = await preProcess(agentId, agent.system_prompt);
-    Logger.info(agentId, `Prompt`, { logType: 'model-prompt', content: systemPrompt });
+    const systemPrompt = await preProcess(agentId, agent.system_prompt, iterationId);
+    Logger.info(agentId, `Prompt`, { logType: 'model-prompt', iterationId, content: systemPrompt });
 
     let token: string | undefined;
     if (loopData.getToken) {
-        try{
-          Logger.debug(agentId, 'Requesting fresh API token...');
+        try {
+          Logger.debug(agentId, 'Requesting fresh API token...', { iterationId });
           token = await loopData.getToken();
-        }catch (error){
-          Logger.warn(agentId, `Could not retrieve auth token: ${error}. Continuing without it.`);
+        } catch (error) {
+          Logger.warn(agentId, `Could not retrieve auth token: ${error}. Continuing without it.`, { iterationId });
         }
     }
 
-    Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`);
+    Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`, { iterationId });
     const response = await sendPrompt(serverHost, serverPort, agent.model_name, systemPrompt, token);
-    Logger.info(agentId, `Response`, { logType: 'model-response', content: response });
-    Logger.debug(agentId, `Response Received: ${response}`);
+    Logger.info(agentId, `Response`, { logType: 'model-response', iterationId, content: response });
 
     try {
-      // Pass the getToken FUNCTION down to the post-processor
-      await postProcess(agentId, response, agentCode, loopData.getToken); // <-- PASS getToken HERE
-      Logger.debug(agentId, `postProcess completed successfully`);
+      await postProcess(agentId, response, agentCode, iterationId, loopData.getToken);
+      Logger.debug(agentId, `postProcess completed successfully`, { iterationId });
     } catch (postProcessError) {
-      Logger.error(agentId, `Error in postProcess: ${postProcessError}`, postProcessError);
-    } finally{
+      Logger.error(agentId, `Error in postProcess: ${postProcessError}`, { iterationId, error: postProcessError });
+    } finally {
       if (isAgentLoopRunning(agentId)) {
         recordingManager.handleEndOfLoop();
       }
-      // Enhanced logging: Mark iteration end
       Logger.info(agentId, `Iteration completed`, { 
         logType: 'iteration-end', 
-        content: { timestamp: Date.now(), success: true }
+        iterationId,
+        content: { success: true }
       });
     }
 
   } catch (error) {
-    // Enhanced logging: Mark iteration end with error
-    Logger.info(agentId, `Iteration failed`, { 
+    Logger.error(agentId, `Iteration failed`, { 
       logType: 'iteration-end', 
-      content: { timestamp: Date.now(), success: false, error: error instanceof Error ? error.message : String(error) }
+      iterationId,
+      content: { success: false, error: error instanceof Error ? error.message : String(error) }
     });
     
     if (error instanceof UnauthorizedError) {

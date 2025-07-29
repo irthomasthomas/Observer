@@ -31,57 +31,34 @@ export async function getMemory(agentId: string): Promise<string> {
  */
 export async function setMemory(agentId: string, memory: any): Promise<void> {
   await saveAgentMemory(agentId, memory);
-  
-  Logger.info(agentId, `Memory Updated`, {
-    logType: 'memory-update',
-    content: memory
-  });
 }
 
 /**
  * Append to agent's memory value
  */
 export async function appendMemory(agentId: string, content: string, separator: string = '\n'): Promise<void> {
-  try {
-    const currentMemory = await fetchAgentMemory(agentId);
-    const newMemory = currentMemory ? `${currentMemory}${separator}${content}` : content;
-    await saveAgentMemory(agentId, newMemory);
-    
-    Logger.debug('MEMORY', `Appended to agent ${agentId} memory`);
-    Logger.info(agentId, `Memory Appended`, {
-      logType: 'memory-update',
-      content: newMemory,
-      update: {
-        appended: content,
-        separator: separator
-      }
-    });
-  } catch (error) {
-    Logger.error('MEMORY', `Error appending to memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  const currentMemory = await fetchAgentMemory(agentId);
+  const newMemory = currentMemory ? `${currentMemory}${separator}${content}` : content;
+  await saveAgentMemory(agentId, newMemory);
 }
 
 /**
- * Send a notification
+ * Sends a notification
  */
 export function notify(title: string, message: string): void {
-  try {
-    if (!("Notification" in window)) {
-      Logger.error('NOTIFICATION', 'Browser does not support notifications');
-      return;
-    }
-    
-    if (Notification.permission === "granted") {
-      new Notification(title, { body: message });
-    } else if (Notification.permission !== "denied") {
-      Notification.requestPermission().then(permission => {
-        if (permission === "granted") {
-          new Notification(title, { body: message });
-        }
-      });
-    }
-  } catch (error) {
-    Logger.error('NOTIFICATION', `Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  if (!("Notification" in window)) {
+    console.error('Browser does not support notifications');
+    return;
+  }
+  
+  if (Notification.permission === "granted") {
+    new Notification(title, { body: message });
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        new Notification(title, { body: message });
+      }
+    });
   }
 }
 
@@ -189,37 +166,25 @@ export async function sendEmail(message: string, emailAddress: string, authToken
  * Starts a new global clip session.
  */
 export async function startClip(): Promise<void> {
-  try {
-    await recordingManager.startClip();
-  } catch (error) {
-    Logger.error('recordingManager', `Error starting clip session: ${error}`);
-  }
+  await recordingManager.startClip();
 }
 
 /**
  * Stops the currently active global clip session.
  */
 export async function stopClip(): Promise<void> {
-  try {
-    await recordingManager.stopClip();
-  } catch (error) {
-    Logger.error('recordingManager', `Error stopping clip session: ${error}`);
-  }
+  await recordingManager.stopClip();
 }
 
 /**
  * Marks a specific point in time with a label.
  */
 export function markClip(label: string): void {
-  try {
-    if (!label || typeof label !== 'string') {
-      Logger.warn('markClip', 'A valid string label must be provided.');
-      return;
-    }
-    recordingManager.addMarker(label);
-  } catch (error) {
-    Logger.error('markClip', `Error creating marker: ${error}`);
+  if (!label || typeof label !== 'string') {
+    console.warn('A valid string label must be provided.');
+    return;
   }
+  recordingManager.addMarker(label);
 }
 
 /**
@@ -352,30 +317,20 @@ export async function sendGotify(message: string, serverUrl: string, appToken: s
   }
 
   // 3. Perform the fetch request directly to the user's Gotify server
-  try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
 
-    // 4. Handle Response
-    if (!response.ok) {
-      // Try to get a more specific error from Gotify's response body
-      const errorData = await response.json().catch(() => null); // Gracefully handle non-JSON responses
-      const errorMessage = errorData?.error_description || `Request failed with status: ${response.status}`;
-      throw new Error(`Failed to send Gotify notification: ${errorMessage}`);
-    }
-
-    // Log success for the user's agent logs
-    Logger.info('Gotify', `Successfully sent notification.`);
-
-  } catch (error) {
-    // Log the error and rethrow it so the agent's execution log can see it
-    Logger.error('Gotify', `Error sending notification: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    throw error;
+  // 4. Handle Response
+  if (!response.ok) {
+    // Try to get a more specific error from Gotify's response body
+    const errorData = await response.json().catch(() => null); // Gracefully handle non-JSON responses
+    const errorMessage = errorData?.error_description || `Request failed with status: ${response.status}`;
+    throw new Error(`Failed to send Gotify notification: ${errorMessage}`);
   }
 }
 
@@ -387,24 +342,18 @@ export async function sendGotify(message: string, serverUrl: string, appToken: s
  * @returns A promise that resolves to `true` if the user clicks "Yes", and `false` otherwise.
  */
 export async function ask(appUrl: string, title: string, question: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${appUrl}/ask`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, question }),
-    });
+  const response = await fetch(`${appUrl}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, question }),
+  });
 
-    if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.answer;
-  } catch (error) {
-    Logger.error('NATIVE_ASK', `Error showing dialog: ${error}`);
-    // On error, it's safer to assume the answer is "no".
-    return false;
+  if (!response.ok) {
+    throw new Error(`Server responded with status: ${response.status}`);
   }
+
+  const data = await response.json();
+  return data.answer;
 }
 
 /**
@@ -414,20 +363,14 @@ export async function ask(appUrl: string, title: string, question: string): Prom
  * @param message The message to display.
  */
 export async function message(appUrl: string, title: string, message: string): Promise<void> {
-  try {
-    const response = await fetch(`${appUrl}/message`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, message }),
-    });
+  const response = await fetch(`${appUrl}/message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, message }),
+  });
 
-    if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
-    }
-  } catch (error) {
-    Logger.error('NATIVE_MESSAGE', `Error showing message: ${error}`);
-    // We can still throw so the agent execution log shows the failure
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Server responded with status: ${response.status}`);
   }
 }
 
@@ -439,18 +382,13 @@ export async function message(appUrl: string, title: string, message: string): P
  * @param body The main content of the notification.
  */
 export async function system_notify(appUrl: string, title: string, body: string): Promise<void> {
-  try {
-    const response = await fetch(`${appUrl}/notification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body }),
-    });
+  const response = await fetch(`${appUrl}/notification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, body }),
+  });
 
-    if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
-    }
-  } catch (error) {
-    Logger.error('NATIVE_NOTIFICATION', `Error sending notification: ${error}`);
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Server responded with status: ${response.status}`);
   }
 }
