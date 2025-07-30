@@ -67,7 +67,7 @@ const AvailableModels: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Available Models</h2>
         <div className="flex items-center gap-2">
-          {getOllamaServerAddress().host !== 'api.observer-ai.com' && (
+          {!getOllamaServerAddress().host.includes('api.observer-ai.com') && (
             <button
               onClick={() => setShowTerminal(true)}
               className="px-3 py-2 rounded-md bg-green-50 text-green-600 hover:bg-green-100"
