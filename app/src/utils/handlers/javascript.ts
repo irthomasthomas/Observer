@@ -3,7 +3,16 @@
 import * as utils from './utils';
 import { Logger } from '../logging';
 import { startAgentLoop, stopAgentLoop } from '../main_loop';
-import type { TokenProvider } from '../main_loop'; 
+import type { TokenProvider } from '../main_loop';
+
+// Helper function to extract error messages properly
+function extractErrorMessage(error: any): string {
+  if (typeof error === 'string') return error;
+  if (error instanceof Error) return error.message;
+  if (error?.message) return error.message;
+  if (error?.toString && typeof error.toString === 'function') return error.toString();
+  return String(error);
+} 
 
 /**
  * Execute JavaScript handler for processing agent responses
@@ -32,7 +41,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to get memory for ${targetId}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'getMemory', params: { targetId }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'getMemory', params: { targetId }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -60,7 +69,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to set memory`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'setMemory', params: { targetId, value: String(value || targetId).slice(0, 100) }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'setMemory', params: { targetId, value: String(value || targetId).slice(0, 100) }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -88,7 +97,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to append memory`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'appendMemory', params: { targetId, content: String(content || targetId).slice(0, 100), separator }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'appendMemory', params: { targetId, content: String(content || targetId).slice(0, 100), separator }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -105,7 +114,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to send notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'notify', params: { title, message: message.slice(0, 100) }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'notify', params: { title, message: message.slice(0, 100) }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -123,7 +132,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to get current time`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'time', params: {}, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'time', params: {}, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -142,7 +151,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to start agent`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'startAgent', params: { targetAgentId }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'startAgent', params: { targetAgentId }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -160,7 +169,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to stop agent`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'stopAgent', params: { targetAgentId }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'stopAgent', params: { targetAgentId }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -185,7 +194,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to send SMS to ${number}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendSms', params: { message: message.slice(0,100), number }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'sendSms', params: { message: message.slice(0,100), number }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -208,7 +217,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to send WhatsApp to ${number}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -231,7 +240,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to send email to ${emailAddress}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -258,7 +267,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to send Pushover notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -285,7 +294,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to send Discord notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendDiscordBot', params: { message: message.slice(0,100) }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'sendDiscordBot', params: { message: message.slice(0,100) }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -303,7 +312,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to send Gotify notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendGotify', params: { message: message.slice(0,100), title, priority }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'sendGotify', params: { message: message.slice(0,100), title, priority }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -321,7 +330,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to start clip recording`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'startClip', params: {}, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'startClip', params: {}, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -338,7 +347,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to stop clip recording`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'stopClip', params: {}, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'stopClip', params: {}, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -355,7 +364,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to mark clip`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'markClip', params: { label }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'markClip', params: { label }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -379,7 +388,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to ask user question`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'ask', params: { question: question.slice(0,100), title }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'ask', params: { question: question.slice(0,100), title }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -401,7 +410,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to show user message`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'message', params: { message: message.slice(0,100), title }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'message', params: { message: message.slice(0,100), title }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -423,7 +432,7 @@ export async function executeJavaScript(
           Logger.error(agentId, `Failed to send system notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'system_notify', params: { body: body.slice(0,100), title }, error: error instanceof Error ? error.message : String(error) }
+            content: { tool: 'system_notify', params: { body: body.slice(0,100), title }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -451,7 +460,7 @@ export async function executeJavaScript(
     {
       logType: 'tool-error', 
       iterationId,
-      content: { error: error instanceof Error ? error.message : String(error), success: false }
+      content: { error: extractErrorMessage(error), success: false }
     });
     return false;
   }

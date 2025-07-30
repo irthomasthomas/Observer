@@ -5,7 +5,7 @@ import {
   Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle,
   ScanText, Bell, Mail, Send, MessageSquare, MessageSquarePlus, 
   MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass,
-  ArrowRight
+  ArrowRight, Clock
 } from 'lucide-react';
 import { IterationStore, IterationData, SensorData, ToolCall, AgentSession } from '../../utils/IterationStore';
 
@@ -132,6 +132,8 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   const [historicalSessions, setHistoricalSessions] = useState<AgentSession[]>([]);
   const [hoveredTool, setHoveredTool] = useState<{ index: string; name: string; status: string } | null>(null);
   const [, setLoadedImages] = useState<Set<string>>(new Set());
+  const [selectedIteration, setSelectedIteration] = useState<IterationData | null>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   useEffect(() => {
     // Get initial data
@@ -172,13 +174,13 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
         const imageData = hasImage ? modelImages[imageIndex] : null;
         
         allPreviews.push(
-          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 w-fit">
             <SensorIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
             {imageData ? (
               <LazyImage 
                 src={`data:image/png;base64,${imageData}`}
                 alt={`${sensor.type} ${imageIndex + 1}`}
-                className="w-full h-16 rounded border border-gray-200 object-cover"
+                className="w-20 h-20 rounded border border-gray-200 object-cover"
                 fallbackSrc={`data:image/jpeg;base64,${imageData}`}
                 imageId={`${iterationId}-${sensor.type}-${imageIndex}`}
                 setLoadedImages={setLoadedImages}
@@ -195,7 +197,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
           ? sensor.content.slice(0, 30) + (sensor.content.length > 30 ? '...' : '')
           : 'text';
         allPreviews.push(
-          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 w-fit">
             <SensorIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
             <span className="text-gray-700 text-sm truncate">{preview}</span>
           </div>
@@ -205,14 +207,14 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
         const preview = transcript.slice(0, 30) + (transcript.length > 30 ? '...' : '');
         const source = sensor.source ? `(${sensor.source})` : '';
         allPreviews.push(
-          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 w-fit">
             <SensorIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
             <span className="text-gray-700 text-sm truncate">{preview} {source}</span>
           </div>
         );
       } else {
         allPreviews.push(
-          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 w-fit">
             <SensorIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
             <span className="text-sm text-gray-600 capitalize font-medium">{sensor.type}</span>
           </div>
@@ -230,7 +232,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     }
 
     return (
-      <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
         {allPreviews}
       </div>
     );
@@ -312,6 +314,24 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     );
   };
 
+  // Handle card click
+  const handleCardClick = (iteration: IterationData, scrollContainer: HTMLElement) => {
+    setScrollPosition(scrollContainer.scrollTop);
+    setSelectedIteration(iteration);
+  };
+
+  // Handle back to list
+  const handleBackToList = () => {
+    setSelectedIteration(null);
+    // Restore scroll position after component updates
+    setTimeout(() => {
+      const scrollContainer = document.querySelector('[data-scroll-container]') as HTMLElement;
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollPosition;
+      }
+    }, 0);
+  };
+
   // Helper function to render iterations
   const renderIterations = (iterations: IterationData[], sessionLabel?: string) => {
     return iterations.map((iteration) => {
@@ -320,9 +340,13 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
       return (
         <div 
           key={iteration.id} 
-          className={`border rounded-lg p-4 transition-all duration-200 shadow-sm ${
-            iteration.hasError ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'
+          className={`border rounded-lg p-4 transition-all duration-200 shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.01] ${
+            iteration.hasError ? 'border-red-200 bg-red-50 hover:bg-red-100' : 'border-gray-200 bg-white hover:bg-gray-50'
           }`}
+          onClick={(e) => {
+            const scrollContainer = e.currentTarget.closest('[data-scroll-container]') as HTMLElement;
+            handleCardClick(iteration, scrollContainer);
+          }}
         >
           {/* Information Flow: Inputs → Response/Actions */}
           <div className="flex gap-6">
@@ -347,7 +371,15 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
             </div>
             
             {/* Flow Arrow */}
-            <div className="flex items-center justify-center pt-8">
+            <div className="flex flex-col items-center justify-center pt-8">
+              {iteration.duration && (
+                <>
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <div className="text-xs text-gray-500 mb-2">
+                    {iteration.duration.toFixed(2)}s
+                  </div>
+                </>
+              )}
               <ArrowRight className="w-5 h-5 text-gray-400" />
             </div>
             
@@ -382,10 +414,124 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     );
   }
 
+  // If an iteration is selected, show detailed view
+  if (selectedIteration) {
+    return (
+      <div className="h-full flex flex-col">
+        {/* Back button at very top left */}
+        <div className="px-6 pt-2 pb-1">
+          <button
+            onClick={handleBackToList}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm"
+          >
+            <ArrowRight className="w-4 h-4 rotate-180" />
+            Back
+          </button>
+        </div>
+
+        {/* Detailed content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* Prompt */}
+            <div>
+              <h2 className="text-xl font-medium text-gray-900 mb-4">Prompt</h2>
+              
+              {selectedIteration.modelPrompt && (
+                <div className="bg-gray-50 border rounded-lg p-4 mb-6">
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {selectedIteration.modelPrompt}
+                  </pre>
+                </div>
+              )}
+              
+              {selectedIteration.modelImages && selectedIteration.modelImages.length > 0 && (
+                <div className="space-y-4">
+                  {selectedIteration.modelImages.map((image, index) => (
+                    <img 
+                      key={index}
+                      src={`data:image/png;base64,${image}`}
+                      alt={`Image ${index + 1}`}
+                      className="w-full rounded border object-contain"
+                      onError={(e) => {
+                        const imgElement = e.target as HTMLImageElement;
+                        imgElement.src = `data:image/jpeg;base64,${image}`;
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Response */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-medium text-gray-900">Response</h2>
+                {selectedIteration.duration && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <Clock className="w-4 h-4" />
+                    {selectedIteration.duration.toFixed(2)}s
+                  </div>
+                )}
+              </div>
+              <div className="bg-gray-50 border rounded-lg p-4">
+                {selectedIteration.modelResponse ? (
+                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {selectedIteration.modelResponse}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 italic">No response available</div>
+                )}
+              </div>
+            </div>
+
+            {/* Tools */}
+            <div>
+              <h2 className="text-xl font-medium text-gray-900 mb-4">Tools</h2>
+              {selectedIteration.tools.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedIteration.tools.map((tool, index) => {
+                    const isSuccess = tool.status === 'success';
+                    const ToolIcon = getToolIcon(tool.name);
+                    
+                    return (
+                      <div key={index} className="bg-gray-50 border rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <ToolIcon className={`w-4 h-4 ${
+                            isSuccess ? 'text-green-600' : 'text-red-600'
+                          }`} />
+                          <span className="font-medium text-gray-900">{tool.name}</span>
+                          {isSuccess ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-600" />
+                          )}
+                        </div>
+                        
+                        {tool.error && (
+                          <div className="text-sm text-red-600 mt-2">
+                            {tool.error}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-gray-50 border rounded-lg p-4">
+                  <div className="text-sm text-gray-500 italic">No tools used</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-
       <div
+        data-scroll-container
         className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
         style={{ maxHeight }}
       >

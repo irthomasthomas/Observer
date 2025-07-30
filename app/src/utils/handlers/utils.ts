@@ -87,9 +87,16 @@ export async function sendSms(message: string, number: string, authToken: string
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.detail || 'Failed to send SMS due to a server error.';
-      throw new Error(errorMessage);
+      try {
+        const errorData = await response.json();
+        const errorMessage = typeof errorData.detail === 'string' 
+          ? errorData.detail 
+          : `Failed to send SMS: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If JSON parsing fails, use the HTTP status
+        throw new Error(`Failed to send SMS: ${response.status} ${response.statusText}`);
+      }
     }
   } catch (error) {
     throw error;
@@ -120,9 +127,16 @@ export async function sendWhatsapp(message: string, number:string, authToken: st
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.detail || 'Failed to send WhatsApp message due to a server error.';
-      throw new Error(errorMessage);
+      try {
+        const errorData = await response.json();
+        const errorMessage = typeof errorData.detail === 'string' 
+          ? errorData.detail 
+          : `Failed to send WhatsApp message: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If JSON parsing fails, use the HTTP status
+        throw new Error(`Failed to send WhatsApp message: ${response.status} ${response.statusText}`);
+      }
     }
   } catch (error) {
     throw error;
@@ -153,9 +167,16 @@ export async function sendEmail(message: string, emailAddress: string, authToken
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.detail || 'Failed to send email due to a server error.';
-      throw new Error(errorMessage);
+      try {
+        const errorData = await response.json();
+        const errorMessage = typeof errorData.detail === 'string' 
+          ? errorData.detail 
+          : `Failed to send email: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If JSON parsing fails, use the HTTP status
+        throw new Error(`Failed to send email: ${response.status} ${response.statusText}`);
+      }
     }
   } catch (error) {
     throw error;
@@ -220,9 +241,16 @@ export async function sendPushover(message: string, userKey: string, authToken: 
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.detail || 'Failed to send Pushover notification due to a server error.';
-      throw new Error(errorMessage);
+      try {
+        const errorData = await response.json();
+        const errorMessage = typeof errorData.detail === 'string' 
+          ? errorData.detail 
+          : `Failed to send Pushover notification: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If JSON parsing fails, use the HTTP status
+        throw new Error(`Failed to send Pushover notification: ${response.status} ${response.statusText}`);
+      }
     }
   } catch (error) {
     // Rethrow the error so the agent's execution log can catch it
@@ -273,9 +301,16 @@ export async function sendDiscordBot(message: string, webhookUrl: string, authTo
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.detail || 'Failed to send Discord notification due to a server error.';
-      throw new Error(errorMessage);
+      try {
+        const errorData = await response.json();
+        const errorMessage = typeof errorData.detail === 'string' 
+          ? errorData.detail 
+          : `Failed to send Discord notification: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If JSON parsing fails, use the HTTP status
+        throw new Error(`Failed to send Discord notification: ${response.status} ${response.statusText}`);
+      }
     }
   } catch (error) {
     // Rethrow the error so the agent's execution log can see it
