@@ -238,37 +238,37 @@ What would you like to create today?`
 
   return (
     <>
-      <div className="flex flex-col h-[450px] bg-white rounded-b-xl border-x border-b border-indigo-200 shadow-md">
+      <div className="flex flex-col h-[350px] md:h-[450px] bg-gray-50 rounded-lg border border-gray-200">
         {/* Chat Messages Area */}
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+        <div className="flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               {msg.sender === 'system' ? (
-                <div className="w-full bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
+                <div className="w-full bg-indigo-50 border border-indigo-200 rounded-lg p-3 md:p-4 text-center">
                   <p className="text-indigo-800 font-medium mb-3">I've generated your agent blueprint!</p>
-                  <button onClick={() => handleConfigureAndSave(msg.text)} className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 font-medium transition-colors flex items-center mx-auto"><Save className="h-4 w-4 mr-2" />Configure & Save Agent</button>
+                  <button onClick={() => handleConfigureAndSave(msg.text)} className="px-3 py-2 md:px-4 text-sm md:text-base bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 font-medium transition-colors flex items-center mx-auto"><Save className="h-4 w-4 mr-2" />Configure & Save Agent</button>
                 </div>
               ) : (
                 // --- MODIFIED: Added whitespace-pre-wrap to render newlines ---
-                <div className={`max-w-md p-3 rounded-lg whitespace-pre-wrap ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                <div className={`max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base whitespace-pre-wrap ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
                   {msg.text}
                 </div>
               )}
             </div>
           ))}
-          {isLoading && ( <div className="flex justify-start"><div className="bg-gray-200 text-gray-800 p-3 rounded-lg inline-flex items-center"><Loader2 className="h-5 w-5 animate-spin"/></div></div>)}
+          {isLoading && ( <div className="flex justify-start"><div className="bg-gray-200 text-gray-800 p-2 md:p-3 rounded-lg text-sm md:text-base inline-flex items-center"><Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin"/></div></div>)}
           <div ref={chatEndRef} />
         </div>
 
         {/* Dynamic Input Area */}
-        <div className="p-3 border-t border-gray-200 bg-gray-50">
+        <div className="p-3 md:p-5 border-t border-gray-200 bg-white rounded-b-lg">
           <form onSubmit={handleSubmit} className="flex items-center space-x-2">
             <input
               type="text"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               placeholder={getPlaceholderText()}
-              className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 p-2 md:p-3 border border-gray-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
               disabled={isInputDisabled}
             />
             
@@ -285,11 +285,11 @@ What would you like to create today?`
 
             <button
               type="submit"
-              className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 transition-colors flex items-center"
+              className="p-2 md:p-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:bg-gray-300 transition-colors flex items-center"
               disabled={isSendDisabled}
               title="Send"
             >
-              <Send className="h-5 w-5" />
+              <Send className="h-4 w-4" />
             </button>
           </form>
         </div>
