@@ -8,6 +8,7 @@ interface StartupDialogProps {
   setUseObServer?: (value: boolean) => void;
   isAuthenticated: boolean;
   hostingContext: 'official-web' | 'self-hosted' | 'tauri';
+  initialView?: 'initial' | 'local-warning' | 'no-models';
 }
 
 const LOCAL_STORAGE_KEY = 'observer_local_server_address';
@@ -18,9 +19,10 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
   onLogin,
   setUseObServer,
   isAuthenticated,
-  hostingContext
+  hostingContext,
+  initialView = 'initial'
 }) => {
-  const [view, setView] = useState<'initial' | 'local-warning' | 'no-models'>('initial');
+  const [view, setView] = useState<'initial' | 'local-warning' | 'no-models'>(initialView);
   const [hasNoModels, setHasNoModels] = useState(false);
   const [isCheckingModels, setIsCheckingModels] = useState(true);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);

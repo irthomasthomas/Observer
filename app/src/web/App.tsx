@@ -498,6 +498,7 @@ function AppContent() {
           setError={setError}
           isUsingObServer={isUsingObServer}
           setIsUsingObServer={setIsUsingObServer}
+          hostingContext={hostingContext}
           authState={{
             isLoading,
             isAuthenticated,

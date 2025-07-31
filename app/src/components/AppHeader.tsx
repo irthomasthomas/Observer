@@ -6,6 +6,7 @@ import { setOllamaServerAddress } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import ConnectionSettingsModal from './ConnectionSettingsModal';
+import StartupDialogs from './StartupDialogs';
 import type { TokenProvider } from '@utils/main_loop';
 
 // --- NEW HELPER FUNCTION ---
@@ -62,6 +63,7 @@ interface AppHeaderProps {
   shouldHighlightMenu?: boolean;
   isUsingObServer?: boolean;
   setIsUsingObServer?: (value: boolean) => void;
+  hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
   getToken: TokenProvider;
 }
 
@@ -76,6 +78,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   authState,
   isUsingObServer: externalIsUsingObServer,
   setIsUsingObServer: externalSetIsUsingObServer,
+  hostingContext = 'self-hosted',
   getToken,
 }) => {
   // --- MODIFIED --- Default to the full, desired URL for the proxy.
@@ -92,6 +95,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   // --- NEW --- State to control the visibility of the new settings modal
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isStartupDialogOpen, setIsStartupDialogOpen] = useState(false);
 
   const isUsingObServer = externalIsUsingObServer !== undefined
     ? externalIsUsingObServer
@@ -158,6 +162,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       Logger.warn('AUTH', 'User attempted to enable Ob-Server while not authenticated.');
       setShowLoginMessage(true);
       setTimeout(() => setShowLoginMessage(false), 3000);
+      return;
+    }
+
+    // If switching FROM Ob-Server TO local on official web app, show warning
+    if (!newValue && hostingContext === 'official-web') {
+      setIsStartupDialogOpen(true);
       return;
     }
 
@@ -557,6 +567,23 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           getServerUrl
         }}
       />
+
+      {isStartupDialogOpen && (
+        <StartupDialogs
+          onDismiss={() => setIsStartupDialogOpen(false)}
+          setUseObServer={(value) => {
+            setIsStartupDialogOpen(false);
+            if (externalSetIsUsingObServer) {
+              externalSetIsUsingObServer(value);
+            } else {
+              setInternalIsUsingObServer(value);
+            }
+          }}
+          isAuthenticated={isAuthenticated}
+          hostingContext={hostingContext}
+          initialView="local-warning"
+        />
+      )}
     </>
   );
 };
