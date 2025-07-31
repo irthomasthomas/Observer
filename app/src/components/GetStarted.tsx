@@ -12,6 +12,8 @@ interface GetStartedProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
+  onSignIn?: () => void;
+  onSwitchToObServer?: () => void;
 }
 
 const GetStarted: React.FC<GetStartedProps> = ({
@@ -20,7 +22,9 @@ const GetStarted: React.FC<GetStartedProps> = ({
   onAgentGenerated,
   getToken,
   isAuthenticated,
-  isUsingObServer
+  isUsingObServer,
+  onSignIn,
+  onSwitchToObServer
 }) => {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-6">
@@ -49,6 +53,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
                 getToken={getToken}
                 isAuthenticated={isAuthenticated}
                 isUsingObServer={isUsingObServer}
+                onSignIn={onSignIn}
+                onSwitchToObServer={onSwitchToObServer}
               />
             </div>
           </div>

@@ -575,6 +575,8 @@ function AppContent() {
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
+                  onSignIn={loginWithRedirect}
+                  onSwitchToObServer={() => setIsUsingObServer(true)}
                 />
               }
             </div>
@@ -610,6 +612,8 @@ function AppContent() {
           getToken={getToken}
           isAuthenticated={isAuthenticated}
           isUsingObServer={isUsingObServer}
+          onSignIn={loginWithRedirect}
+          onSwitchToObServer={() => setIsUsingObServer(true)}
         />
 
       {isEditModalOpen && (

@@ -1,5 +1,5 @@
 // src/components/ConversationalGeneratorModal.tsx
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { X, Sparkles } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';
 import { CompleteAgent } from '@utils/agent_database';
@@ -12,6 +12,8 @@ interface ConversationalGeneratorModalProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
+  onSignIn?: () => void;
+  onSwitchToObServer?: () => void;
 }
 
 const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> = ({
@@ -20,16 +22,28 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   onAgentGenerated,
   getToken,
   isAuthenticated,
-  isUsingObServer
+  isUsingObServer,
+  onSignIn,
+  onSwitchToObServer
 }) => {
   if (!isOpen) return null;
 
   // This function handles the final step: it passes the generated agent
   // up to the App component and then closes this modal.
-  const handleAgentReady = (agent: CompleteAgent, code: string) => {
+  const handleAgentReady = useCallback((agent: CompleteAgent, code: string) => {
     onAgentGenerated(agent, code);
     onClose();
-  };
+  }, [onAgentGenerated, onClose]);
+
+  // Memoize the props to ensure they're stable across renders
+  const conversationalProps = useMemo(() => ({
+    onAgentGenerated: handleAgentReady,
+    getToken,
+    isAuthenticated,
+    isUsingObServer,
+    onSignIn,
+    onSwitchToObServer
+  }), [handleAgentReady, getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
@@ -52,10 +66,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
         {/* The Conversational Component is placed inside the modal body */}
         <div className="flex-1 bg-gray-50">
           <ConversationalGenerator 
-          onAgentGenerated={handleAgentReady}
-          getToken={getToken}
-          isAuthenticated={isAuthenticated}
-          isUsingObServer={isUsingObServer}
+            {...conversationalProps}
           />
         </div>
       </div>

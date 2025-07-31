@@ -18,9 +18,12 @@ interface LocalModelSelectionModalProps {
   onClose: () => void;
   currentModel: string;
   onSelectModel: (modelName: string) => void;
+  onSignIn?: () => void;
+  onSwitchToObServer?: () => void;
+  isAuthenticated: boolean;
 }
 
-const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isOpen, onClose, currentModel, onSelectModel }) => {
+const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isOpen, onClose, currentModel, onSelectModel, onSignIn, onSwitchToObServer, isAuthenticated }) => {
   const [localModels, setLocalModels] = useState<Model[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [localModelError, setLocalModelError] = useState<string | null>(null);
@@ -59,6 +62,15 @@ const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isO
     });
   };
 
+  const handleTryObServer = () => {
+    if (!isAuthenticated) {
+      onSignIn?.();
+    } else {
+      onSwitchToObServer?.();
+      onClose();
+    }
+  };
+
   const handleSelectAndClose = (modelName: string) => {
     onSelectModel(modelName);
     onClose();
@@ -95,6 +107,26 @@ const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isO
               </div>
             </div>
           </div>
+          
+          {/* Recommended: Turn on Ob-Server Section */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <span className="text-2xl">💡</span>
+              <div className="flex-1">
+                <p className="font-semibold text-blue-800 mb-1">Recommended:</p>
+                <p className="text-sm text-blue-700 mb-3">
+                  Turn on Ob-Server for this feature only. Provides instant access to large, capable models without local hardware requirements.
+                </p>
+                <button 
+                  onClick={handleTryObServer}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Turn on Ob-Server for this feature only
+                </button>
+              </div>
+            </div>
+          </div>
+          
           <div>
             <label htmlFor="model-select" className="block text-sm font-medium text-gray-700 mb-2">
               Select a model to power the generator:
@@ -145,9 +177,12 @@ interface ConversationalGeneratorProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
+  onSignIn?: () => void;
+  onSwitchToObServer?: () => void;
 }
 
-const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAgentGenerated, getToken, isAuthenticated, isUsingObServer }) => {
+const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({ onAgentGenerated, getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer }) => {
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -301,6 +336,9 @@ What would you like to create today?`
         onClose={() => setIsLocalModalOpen(false)}
         currentModel={selectedLocalModel}
         onSelectModel={setSelectedLocalModel}
+        onSignIn={onSignIn}
+        onSwitchToObServer={onSwitchToObServer}
+        isAuthenticated={isAuthenticated}
       />
     </>
   );
