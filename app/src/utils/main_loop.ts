@@ -8,12 +8,14 @@ import { postProcess } from './post-processor';
 import { StreamManager, PseudoStreamType } from './streamManager'; // Import the new manager
 import { recordingManager } from './recordingManager';
 import { IterationStore } from './IterationStore';
+import { timerEventManager } from './TimerEventManager';
 
 export type TokenProvider = () => Promise<string | undefined>;
 
 const activeLoops: Record<string, {
   intervalId: number | null,
   isRunning: boolean,
+  isExecuting: boolean,
   serverHost: string,
   serverPort: string,
   getToken?: TokenProvider;
@@ -72,30 +74,47 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
     activeLoops[agentId] = { 
         intervalId: null, 
         isRunning: true, 
+        isExecuting: false,
         serverHost, 
         serverPort,
         getToken 
     };
+    
+    // Start timer events (separate concern)
+    timerEventManager.startTimer(agentId, agent.loop_interval_seconds);
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
         detail: { agentId, status: 'running' },
       })
     );
 
-    // first iteration immediately
-    await executeAgentIteration(agentId);
-
-    // then schedule
-    const intervalMs = agent.loop_interval_seconds * 1000;
-    activeLoops[agentId].intervalId = window.setInterval(async () => {
-      if (activeLoops[agentId]?.isRunning) {
-        try {
-          await executeAgentIteration(agentId);
-        } catch (e) {
-          Logger.error(agentId, `Error in interval: ${e}`, e);
+    // Unified execution function
+    const executeIteration = async () => {
+      if (!activeLoops[agentId]?.isRunning) return;
+      
+      // Check with timer manager if execution should proceed
+      if (!timerEventManager.handleTimerTick(agentId)) return;
+      
+      if (activeLoops[agentId].isExecuting) return; // Skip if busy
+      
+      activeLoops[agentId].isExecuting = true;
+      try {
+        await timerEventManager.wrapExecution(agentId, () => executeAgentIteration(agentId));
+      } catch (e) {
+        Logger.error(agentId, `Error in interval: ${e}`, e);
+      } finally {
+        if (activeLoops[agentId]) {
+          activeLoops[agentId].isExecuting = false;
         }
       }
-    }, intervalMs);
+    };
+
+    // Fixed-rhythm metronome timer
+    const intervalMs = agent.loop_interval_seconds * 1000;
+    activeLoops[agentId].intervalId = window.setInterval(executeIteration, intervalMs);
+    
+    // Start first execution immediately
+    executeIteration();
   } catch (error) {
 
     let displayError = error;
@@ -130,6 +149,9 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
     Logger.debug(agentId, "Releasing all potential streams for stopping agent.");
 
     StreamManager.releaseStreamsForAgent(agentId);
+
+    // Stop timer events (separate concern)
+    timerEventManager.stopTimer(agentId);
 
     // End the current session and save to IndexedDB
     await IterationStore.endSession(agentId);
