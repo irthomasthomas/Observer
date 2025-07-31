@@ -29,26 +29,26 @@ const AgentImportHandler = ({
               <RotateCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
             <p className="text-sm font-medium">
-              <span className="hidden sm:inline">Active: </span>
-              {activeAgentCount} / <span className="hidden sm:inline">Total: </span>{agentCount}
+              <span className="hidden md:inline">Active: </span>
+              {activeAgentCount} / <span className="hidden md:inline">Total: </span>{agentCount}
             </p>
           </div>
           
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-2 md:space-x-3">
             <button
               onClick={onGenerateAgent}
-              className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600"
+              className="flex items-center space-x-2 px-3 md:px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600"
             >
               <Sparkles className="h-5 w-5" />
-              <span className="hidden sm:inline">Generate Agent</span>
+              <span className="hidden md:inline">Generate Agent</span>
             </button>
 
             <button
               onClick={onAddAgent}
-              className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              className="flex items-center space-x-2 px-3 md:px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
             >
               <PlusCircle className="h-5 w-5" />
-              <span className="hidden sm:inline">Create Agent</span>
+              <span className="hidden md:inline">Create Agent</span>
             </button>
           </div>
         </div>
