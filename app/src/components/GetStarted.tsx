@@ -1,6 +1,6 @@
 // src/components/GetStarted.tsx
 import React from 'react';
-import { Plus, Users, MessageCircle, Code } from 'lucide-react';
+import { Users, MessageCircle, Code } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';
 import { CompleteAgent } from '@utils/agent_database';
 import type { TokenProvider } from '@utils/main_loop';
