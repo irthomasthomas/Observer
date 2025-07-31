@@ -13,21 +13,26 @@ export async function postProcess(
     agentId: string, 
     response: string, 
     code: string, 
+    iterationId: string, // <-- New parameter
     getToken?: TokenProvider 
 ): Promise<boolean> {
   try {
-    Logger.debug(agentId, 'Starting response post-processing');
+    Logger.debug(agentId, 'Starting response post-processing', { iterationId });
     
     if (code.trim().startsWith('#python')) {
-      Logger.debug(agentId, 'Detected Python code, using Python handler');
+      Logger.debug(agentId, 'Detected Python code, using Python handler', { iterationId });
+      // Python handler doesn't support iterationId yet
       return await executePython(response, agentId, code);
     } else {
-      Logger.debug(agentId, 'Using JavaScript handler');
-      // Pass the getToken function down to the JavaScript handler
-      return await executeJavaScript(response, agentId, code, getToken);
+      Logger.debug(agentId, 'Using JavaScript handler', { iterationId });
+      // Pass iterationId and getToken to JavaScript handler
+      return await executeJavaScript(response, agentId, code, iterationId, getToken);
     }
   } catch (error) {
-    Logger.error(agentId, `Error in post-processing: ${error instanceof Error ? error.message : String(error)}`);
+    Logger.error(agentId, `Error in post-processing: ${error instanceof Error ? error.message : String(error)}`, { 
+      iterationId, 
+      error: error instanceof Error ? error.message : String(error) 
+    });
     return false;
   }
 }

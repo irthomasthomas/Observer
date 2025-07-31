@@ -5,6 +5,7 @@ import { CompleteAgent } from '@utils/agent_database';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 import { listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
+import { AGENT_ITERATION_START_EVENT, AGENT_WAITING_START_EVENT, AGENT_ITERATION_SKIPPED_EVENT } from '@utils/TimerEventManager';
 import { Logger, LogEntry } from '@utils/logging';
 import { StreamManager, StreamState } from '@utils/streamManager';
 
@@ -64,6 +65,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [lastResponse, setLastResponse] = useState<string>('...');
   const [responseKey, setResponseKey] = useState(0);
   const [loopProgress, setLoopProgress] = useState(0);
+  const [lastProgressUpdate, setLastProgressUpdate] = useState(0);
   const [currentModel, setCurrentModel] = useState(agent.model_name);
   const initialModelRef = useRef(agent.model_name);
 
@@ -103,7 +105,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
         return;
     }
     if (isRunning) {
-      if (liveStatus === 'STARTING' || liveStatus === 'IDLE') setLiveStatus('CAPTURING');
+      if (liveStatus === 'STARTING' || liveStatus === 'IDLE') {
+        setLiveStatus('CAPTURING');
+        // Reset progress when agent starts
+        setLoopProgress(0);
+        setLastProgressUpdate(0);
+      }
       const handleNewLog = (log: LogEntry) => {
         if (log.source !== agent.id) return;
         if (log.details?.logType === 'model-prompt') setLiveStatus('THINKING');
@@ -121,22 +128,54 @@ const AgentCard: React.FC<AgentCardProps> = ({
   }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError]);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isRunning && liveStatus === 'WAITING' && !hasQuotaError) {
-      timer = setInterval(() => {
-        setLoopProgress(prev => {
-          const newProgress = prev + (100 / (agent.loop_interval_seconds * 10));
-          if (newProgress >= 100) {
-            clearInterval(timer!);
-            setLiveStatus('CAPTURING');
-            return 0;
-          }
-          return newProgress;
-        });
-      }, 100);
+    let progressTimer: NodeJS.Timeout | null = null;
+    let nextIterationTime = 0;
+    let intervalMs = 0;
+
+    const handleWaitingStart = (event: CustomEvent) => {
+      if (event.detail.agentId !== agent.id) return;
+      nextIterationTime = event.detail.nextIterationTime;
+      intervalMs = event.detail.intervalMs;
+      
+      // Start progress timer
+      progressTimer = setInterval(() => {
+        const now = Date.now();
+        const elapsed = now - (nextIterationTime - intervalMs);
+        const progress = Math.min(100, Math.max(0, (elapsed / intervalMs) * 100));
+        setLoopProgress(progress);
+        setLastProgressUpdate(now);
+      }, 50); // Update more frequently for smoothness
+    };
+
+    const handleIterationStart = (event: CustomEvent) => {
+      if (event.detail.agentId !== agent.id) return;
+      if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+      }
+      setLoopProgress(0);
+    };
+
+    const handleIterationSkipped = (event: CustomEvent) => {
+      if (event.detail.agentId !== agent.id) return;
+      nextIterationTime = event.detail.nextIterationTime;
+      intervalMs = event.detail.intervalMs;
+      // Continue showing progress for next possible iteration
+    };
+
+    if (isRunning && !hasQuotaError) {
+      window.addEventListener(AGENT_WAITING_START_EVENT as any, handleWaitingStart);
+      window.addEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
+      window.addEventListener(AGENT_ITERATION_SKIPPED_EVENT as any, handleIterationSkipped);
     }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isRunning, liveStatus, agent.loop_interval_seconds, hasQuotaError]);
+
+    return () => {
+      if (progressTimer) clearInterval(progressTimer);
+      window.removeEventListener(AGENT_WAITING_START_EVENT as any, handleWaitingStart);
+      window.removeEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
+      window.removeEventListener(AGENT_ITERATION_SKIPPED_EVENT as any, handleIterationSkipped);
+    };
+  }, [isRunning, hasQuotaError, agent.id]);
 
   const handleToggle = async () => {
     if (isRunning) {
@@ -181,7 +220,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
   return (
     <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 flex flex-col">
-      {isRunning && liveStatus === 'WAITING' && (
+      {isRunning && (liveStatus === 'WAITING' || liveStatus === 'THINKING') && 
+       (Date.now() - lastProgressUpdate < 5000) && ( // Hide if progress hasn't updated in 5 seconds
         <div className="absolute top-0 left-0 right-0 h-1 z-10">
           <div className="h-full bg-green-500" style={{ width: `${loopProgress}%`, transition: 'width 0.1s linear' }} />
         </div>

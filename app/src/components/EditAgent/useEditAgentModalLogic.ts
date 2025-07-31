@@ -282,7 +282,7 @@ export const useEditAgentModalLogic = ({
       buf.push(`[${LogLevel[e.level].toUpperCase()}] ${e.message}`);
     Logger.addListener(listener);
     try {
-      await postProcess(agentId || 'test-agent', testResponse, agentCode);
+      await postProcess(agentId || 'test-agent', testResponse, agentCode, 'test-iteration');
       setTestOutput(
         (p) =>
           buf.join('\\n') +

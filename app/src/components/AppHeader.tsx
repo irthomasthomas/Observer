@@ -92,6 +92,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [showLoginMessage, setShowLoginMessage] = useState(false);
   const [isSessionExpired, setIsSessionExpired] = useState(false);
+  const [isQuotaHovered, setIsQuotaHovered] = useState(false);
 
   // --- NEW --- State to control the visibility of the new settings modal
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -352,13 +353,22 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             </span>
           );
         }
+        
+        // Show "Limited Use" that changes to credit count on hover
         return (
-          <span className={`font-medium ${
-            quotaInfo.remaining <= 10 ? 'text-orange-500'
-            : 'text-green-600'
-          }`}>
-            {`${quotaInfo.remaining} / ${quotaInfo.limit} credits left`}
-          </span>
+          <div
+            className={`font-medium cursor-help ${
+              quotaInfo.remaining <= 10 ? 'text-orange-500'
+              : 'text-green-600'
+            }`}
+            onMouseEnter={() => setIsQuotaHovered(true)}
+            onMouseLeave={() => setIsQuotaHovered(false)}
+          >
+            {isQuotaHovered 
+              ? `${quotaInfo.remaining} / ${quotaInfo.limit} Credits left`
+              : 'Limited Use'
+            }
+          </div>
         );
       }
     }

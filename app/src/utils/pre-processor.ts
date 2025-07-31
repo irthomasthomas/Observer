@@ -14,7 +14,7 @@ export interface PreProcessorResult {
 }
 
 // Map of processor functions
-type ProcessorFunction = (agentId: string, prompt: string, match: RegExpExecArray) => Promise<{
+type ProcessorFunction = (agentId: string, prompt: string, match: RegExpExecArray, iterationId?: string) => Promise<{
   replacementText?: string;
   images?: string[];
 }>;
@@ -24,7 +24,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
   // Screen OCR processor
   'SCREEN_OCR': {
     regex: /\$SCREEN_OCR/g,
-    handler: async (agentId: string) => {
+    handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
 
         const { screenVideoStream } = StreamManager.getCurrentState();
@@ -37,6 +37,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
           // Enhanced logging: Log the OCR text separately for better debugging
           Logger.info(agentId, `Screen OCR detected: ${ocrResult.text.length} characters`, { 
             logType: 'sensor-ocr', 
+            iterationId,
             content: ocrResult.text 
           });
           return { replacementText: ocrResult.text };
@@ -67,7 +68,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
   'SCREEN_64': {
     regex: /\$SCREEN_64/g,
-    handler: async (agentId: string) => {
+    handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
 
         const { screenVideoStream } = StreamManager.getCurrentState();
@@ -88,6 +89,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
           // Enhanced logging: Log screenshot capture separately
           Logger.info(agentId, `Screenshot captured (${Math.round(base64Image.length/1024)}KB)`, { 
             logType: 'sensor-screenshot', 
+            iterationId,
             content: { size: base64Image.length, timestamp: Date.now() }
           });
           return { replacementText: '', images: [base64Image] };
@@ -104,7 +106,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
   'CLIPBOARD': {
     regex: /\$CLIPBOARD/g,
-    handler: async (agentId: string) => {
+    handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
         if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
           const clipboardText = await navigator.clipboard.readText();
@@ -112,6 +114,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
           // Enhanced logging: Log clipboard content separately
           Logger.info(agentId, `Clipboard accessed (${clipboardText.length} characters)`, { 
             logType: 'sensor-clipboard', 
+            iterationId,
             content: clipboardText 
           });
           return { replacementText: clipboardText };
@@ -131,13 +134,14 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
   '$MICROPHONE': {
     regex: /\$MICROPHONE/g,
-    handler: async (agentId: string) => {
+    handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
         const transcript = StreamManager.getTranscript('microphone');
         Logger.debug(agentId, `Retrieved microphone transcript via StreamManager: "${transcript}"`);
         // Enhanced logging: Log audio transcript separately
         Logger.info(agentId, `Microphone transcript (${transcript.length} characters)`, { 
           logType: 'sensor-audio', 
+          iterationId,
           content: { source: 'microphone', transcript: transcript }
         });
         return { replacementText: transcript };
@@ -151,7 +155,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
   'CAMERA': {
     regex: /\$CAMERA/g,
-    handler: async (agentId: string) => {
+    handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
         const { cameraStream } = StreamManager.getCurrentState();
         if (!cameraStream) throw new Error('Camera stream not available for image capture.');
@@ -165,6 +169,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
           // Enhanced logging: Log camera capture separately
           Logger.info(agentId, `Camera image captured (${Math.round(base64Image.length/1024)}KB)`, { 
             logType: 'sensor-camera', 
+            iterationId,
             content: { size: base64Image.length, timestamp: Date.now() }
           });
           // Return an empty string to remove the placeholder, and provide the image data
@@ -183,13 +188,14 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
   'SCREEN_AUDIO': {
     regex: /\$SCREEN_AUDIO/g,
-    handler: async (agentId: string) => {
+    handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
         const transcript = StreamManager.getTranscript('screenAudio');
         Logger.debug(agentId, `Retrieved system audio transcript via StreamManager: "${transcript}"`);
         // Enhanced logging: Log audio transcript separately
         Logger.info(agentId, `Screen audio transcript (${transcript.length} characters)`, { 
           logType: 'sensor-audio', 
+          iterationId,
           content: { source: 'screenAudio', transcript: transcript }
         });
         return { replacementText: transcript };
@@ -203,13 +209,14 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
   // NEW: Handler for the combined audio stream
   'ALL_AUDIO': {
     regex: /\$ALL_AUDIO/g,
-    handler: async (agentId: string) => {
+    handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
         const transcript = StreamManager.getTranscript('allAudio');
         Logger.debug(agentId, `Retrieved combined audio transcript via StreamManager: "${transcript}"`);
         // Enhanced logging: Log audio transcript separately
         Logger.info(agentId, `Combined audio transcript (${transcript.length} characters)`, { 
           logType: 'sensor-audio', 
+          iterationId,
           content: { source: 'allAudio', transcript: transcript }
         });
         return { replacementText: transcript };
@@ -222,7 +229,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
 };
 
-export async function preProcess(agentId: string, systemPrompt: string): Promise<PreProcessorResult> {
+export async function preProcess(agentId: string, systemPrompt: string, iterationId?: string): Promise<PreProcessorResult> {
   let modifiedPrompt = systemPrompt;
   const result: PreProcessorResult = {
     modifiedPrompt,
@@ -262,7 +269,7 @@ export async function preProcess(agentId: string, systemPrompt: string): Promise
         tempPrompt += modifiedPrompt.substring(currentSearchIndex, matchIndex);
         
         Logger.debug(agentId, `Processing placeholder: ${placeholder} (at index ${matchIndex} using ${key})`);
-        const processorResult = await processor.handler(agentId, modifiedPrompt, match);
+        const processorResult = await processor.handler(agentId, modifiedPrompt, match, iterationId);
         
         let replacement = placeholder; // Default to keeping the placeholder if no replacementText
         if (processorResult.replacementText !== undefined) {

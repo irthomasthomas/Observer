@@ -36,7 +36,7 @@ import SettingsTab from '@components/SettingsTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming this path is correct
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
-import AgentActivityModal from '@components/AgentActivityModal';
+import AgentActivityModal from '@components/AgentCard/AgentActivityModal';
 
 
 function AppContent() {
@@ -576,6 +576,8 @@ function AppContent() {
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
+                  onSignIn={loginWithRedirect}
+                  onSwitchToObServer={() => setIsUsingObServer(true)}
                 />
               }
             </div>
@@ -611,6 +613,8 @@ function AppContent() {
           getToken={getToken}
           isAuthenticated={isAuthenticated}
           isUsingObServer={isUsingObServer}
+          onSignIn={loginWithRedirect}
+          onSwitchToObServer={() => setIsUsingObServer(true)}
         />
 
       {isEditModalOpen && (
