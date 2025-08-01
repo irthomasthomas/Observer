@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ThumbsUp, ThumbsDown, Send, FileText, X, AlertCircle } from 'lucide-react';
 import { generateFeedbackReportMarkdown } from '../utils/feedbackReporter';
 import { sendEmail } from '../utils/handlers/utils';
+import { IterationStore, IterationData } from '../utils/IterationStore';
 
 // The component's contract: it requires the real authentication state and a function to get the token.
 interface FeedbackBubbleProps {
@@ -22,6 +23,7 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId, getToken, isAu
   const [previewData, setPreviewData] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [latestIteration, setLatestIteration] = useState<IterationData | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
 
 
@@ -40,7 +42,12 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId, getToken, isAu
 
   const handlePreview = async () => {
     const markdownReport = await generateFeedbackReportMarkdown(
-      { agentId, includeAgentConfig: includeConfig, includeLogs: includeLogs },
+      { 
+        agentId, 
+        includeAgentConfig: includeConfig, 
+        includeLogs: includeLogs,
+        latestIteration: latestIteration || undefined
+      },
       { sentiment: sentiment || 'like', comment }
     );
     setPreviewData(markdownReport);
@@ -63,7 +70,12 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId, getToken, isAu
 
       // 2. Generate the feedback report.
       const markdownReport = await generateFeedbackReportMarkdown(
-        { agentId, includeAgentConfig: includeConfig, includeLogs: includeLogs },
+        { 
+          agentId, 
+          includeAgentConfig: includeConfig, 
+          includeLogs: includeLogs,
+          latestIteration: latestIteration || undefined
+        },
         { sentiment, comment }
       );
 
@@ -84,6 +96,25 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId, getToken, isAu
       setIsSubmitting(false);
     }
   };
+
+  // Effect to get the latest iteration data
+  useEffect(() => {
+    const updateLatestIteration = () => {
+      const iterations = IterationStore.getIterationsForAgent(agentId);
+      const latest = iterations.length > 0 ? iterations[iterations.length - 1] : null;
+      setLatestIteration(latest);
+    };
+
+    // Get initial data
+    updateLatestIteration();
+
+    // Subscribe to iteration updates
+    const unsubscribe = IterationStore.subscribe(() => {
+      updateLatestIteration();
+    });
+
+    return unsubscribe;
+  }, [agentId]);
 
   // Effect to close the bubble when clicking outside of it.
   useEffect(() => {

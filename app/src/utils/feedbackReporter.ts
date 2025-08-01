@@ -1,7 +1,7 @@
 // src/utils/feedbackReporter.ts
 
 import { getAgent, getAgentCode } from './agent_database';
-import { Logger, LogLevel } from './logging';
+import { IterationStore, IterationData } from './IterationStore';
 import yaml from 'js-yaml';
 
 interface FeedbackDetails {
@@ -13,6 +13,7 @@ interface ReportOptions {
   agentId: string;
   includeAgentConfig: boolean;
   includeLogs: boolean;
+  latestIteration?: IterationData; // Pass the latest iteration data directly
 }
 
 /**
@@ -25,7 +26,7 @@ export async function generateFeedbackReportMarkdown(
   options: ReportOptions,
   feedback: FeedbackDetails
 ): Promise<string> {
-  const { agentId, includeAgentConfig, includeLogs } = options;
+  const { agentId, includeAgentConfig, includeLogs, latestIteration } = options;
   const { sentiment, comment } = feedback;
 
   const reportParts: string[] = [];
@@ -74,33 +75,65 @@ export async function generateFeedbackReportMarkdown(
     reportParts.push('---');
   }
 
-  // --- Included Logs ---
+  // --- Latest Run Data ---
   if (includeLogs) {
-    reportParts.push('## Included Logs');
+    reportParts.push('## Latest Run Data');
     try {
-      const logs = Logger.getFilteredLogs({ source: agentId, level: LogLevel.INFO })
-        .filter(log => ['model-prompt', 'model-response'].includes(log.details?.logType || ''));
+      // Use the passed iteration data if available, otherwise get latest from store
+      const iteration = latestIteration || IterationStore.getIterationsForAgent(agentId).slice(-1)[0];
       
-      if (logs.length > 0) {
-        logs.forEach(log => {
-          const logType = log.details?.logType === 'model-prompt' ? 'Model Prompt' : 'Model Response';
-          const timestamp = new Date(log.timestamp).toLocaleTimeString();
-          let content = log.details?.content;
+      if (iteration) {
+        reportParts.push(`**Session:** ${iteration.sessionId}`);
+        reportParts.push(`**Iteration:** ${iteration.sessionIterationNumber}`);
+        reportParts.push(`**Start Time:** ${new Date(iteration.startTime).toLocaleString()}`);
+        reportParts.push(`**Duration:** ${iteration.duration ? `${iteration.duration}s` : 'N/A'}`);
+        reportParts.push(`**Has Error:** ${iteration.hasError ? 'Yes' : 'No'}`);
+        reportParts.push('');
 
-          // For prompts, extract the text part
-          if (typeof content === 'object' && content?.modifiedPrompt) {
-              content = content.modifiedPrompt;
-          }
+        // Include sensor data summary
+        if (iteration.sensors.length > 0) {
+          reportParts.push('### Sensors Used');
+          const sensorTypes = iteration.sensors.map(s => s.type).join(', ');
+          reportParts.push(`- **Types:** ${sensorTypes}`);
+          reportParts.push('');
+        }
 
-          reportParts.push(`**[${logType}]** - _${timestamp}_`);
-          reportParts.push(`> ${String(content).replace(/\n/g, '\n> ')}`);
-        });
+        // Include model prompt and response
+        if (iteration.modelPrompt) {
+          reportParts.push('### Model Prompt');
+          reportParts.push('```');
+          reportParts.push(iteration.modelPrompt);
+          reportParts.push('```');
+          reportParts.push('');
+        }
+
+        if (iteration.modelResponse) {
+          reportParts.push('### Model Response');
+          reportParts.push('```');
+          reportParts.push(iteration.modelResponse);
+          reportParts.push('```');
+          reportParts.push('');
+        }
+
+        // Include tool calls
+        if (iteration.tools.length > 0) {
+          reportParts.push('### Tool Calls');
+          iteration.tools.forEach((tool, index) => {
+            reportParts.push(`**${index + 1}. ${tool.name}** (${tool.status})`);
+            if (tool.error) {
+              reportParts.push(`- Error: ${tool.error}`);
+            }
+            if (tool.params) {
+              reportParts.push(`- Params: ${JSON.stringify(tool.params, null, 2)}`);
+            }
+          });
+        }
       } else {
-        reportParts.push('No prompt/response logs were found for this agent.');
+        reportParts.push('No recent run data found for this agent.');
       }
     } catch (error) {
-      console.error("Error gathering logs for feedback:", error);
-      reportParts.push('Error: Could not retrieve logs.');
+      console.error("Error gathering iteration data for feedback:", error);
+      reportParts.push('Error: Could not retrieve latest run data.');
     }
   }
 
