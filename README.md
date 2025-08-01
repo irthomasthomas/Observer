@@ -6,8 +6,7 @@ Local Open-source micro-agents that observe, log and react, all while keeping yo
 
 ## [Try Observer App Online](https://app.observer-ai.com/)
 
-## [Download Official App](https://github.com/Roy3838/Observer/releases/tag/v1.1.0)
-
+## [Download Official App](https://github.com/Roy3838/Observer/releases/latest/)
 
 - [Support me and the project!](https://buymeacoffee.com/roy3838)
 
@@ -124,8 +123,6 @@ To use Python agents:
 
 # 🚀 Getting Started with Local Inference
 
-## Download the [Official App](https://github.com/Roy3838/Observer/releases/tag/v1.1.0)
-
 https://github.com/user-attachments/assets/c5af311f-7e10-4fde-9321-bb98ceebc271
 
 
@@ -134,8 +131,16 @@ https://github.com/user-attachments/assets/c5af311f-7e10-4fde-9321-bb98ceebc271
 
 There are a few ways to get Observer up and running with local inference. I recommend using Docker for the simplest setup.
 
+## Option 1: Just Install the Desktop App with any OpenAI compatible endpoint (Ollama, llama.cpp, vLLM)
 
-## Option 1: Full Docker Setup (Recommended)
+## [Download Official App](https://github.com/Roy3838/Observer/releases/latest/)
+
+Download Ollama for the best compatibility. 
+
+Observer can connect directly to any server that provides a `v1/chat/completions` endpoint.
+Set the `Custom Model Server URL` on the App (not the browser) to vLLM, llama.cpp or any OpenAI compatible endpoint if not using Ollama.
+
+## Option 2: Full Docker Setup (Recommended)
 
 This method uses Docker Compose to run everything you need in containers: the Observer WebApp, the `observer-ollama` translator, and a local Ollama instance. This is the easiest way to get a 100% private, local-first setup.
 
@@ -193,36 +198,6 @@ docker-compose down
 ### ⚙️ Configuration (Docker)
 
 To customize your setup (e.g., enable SSL to access from `app.observer-ai.com`, disabling docker exec feature), simply edit the `environment:` section in your `docker-compose.yml` file. All options are explained with comments directly in the file.
-
-## Option 2: Just host the webapp with any OpenAI compatible endpoint (Ollama, llama.cpp, vLLM)
-
-Observer can connect directly to any server that provides a `v1/chat/completions` endpoint.
-
-**Prerequisites:**
-*   [Node.js v18+](https://nodejs.org/) (which includes npm).
-*   An already running OpenAI-compatible model server.
-
-1.  **Self-host the WebApp:** with run script
-    ```
-    git clone https://github.com/Roy3838/Observer
-    cd Observer
-    chmod +x run.sh
-    ./run.sh
-    ```
-2.  **Run your Llama.cpp server:**
-    ```bash
-    # Example command
-    ./server -m your-model.gguf -c 4096 --host 0.0.0.0 --port 8001
-    ```
-3.  **Connect Observer:** In the Observer app (`http://localhost:8080`), set the Model Server Address to your Llama.cpp server's address (e.g., `http://127.0.0.1:8001`).
-
-### Accessing from Your Phone or Laptop (vite)
-
-Same as docker, just change the disable auth variable on run.sh to true:
-```
-# To disable auth
-export VITE_DISABLE_AUTH=true 
-```
 
 
 ## Deploy & Share
