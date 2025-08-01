@@ -3,7 +3,7 @@
 import React from 'react';
 import { 
   Loader2, Zap, ExternalLink, Heart, HeartCrack,
-  Check, X, HardDrive, Server, Sparkles, AlertTriangle
+  Check, HardDrive, Server, Sparkles, AlertTriangle
 } from 'lucide-react';
 
 // Define the props this component will accept
