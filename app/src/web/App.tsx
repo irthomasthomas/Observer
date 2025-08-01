@@ -606,6 +606,7 @@ function AppContent() {
           onClose={() => setIsSimpleCreatorOpen(false)}
           onNext={handleSimpleCreatorNext}
           isAuthenticated={isAuthenticated}
+          hostingContext={hostingContext}
         />
         <ConversationalGeneratorModal
           isOpen={isConversationalModalOpen}

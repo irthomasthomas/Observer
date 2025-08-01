@@ -5,7 +5,7 @@ import { Model, listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
-  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag      
+  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle
 } from 'lucide-react';
 
 
@@ -93,9 +93,9 @@ const ToolWarning = ({ icon: Icon, message, colorClass }: { icon: React.ElementT
 
 // --- MAIN WIZARD COMPONENT ---
 interface SimpleCreatorModalProps {
-  isOpen: boolean; onClose: () => void; onNext: (config: any) => void; isAuthenticated: boolean;
+  isOpen: boolean; onClose: () => void; onNext: (config: any) => void; isAuthenticated: boolean; hostingContext?: 'official-web' | 'self-hosted';
 }
-const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose, onNext, isAuthenticated }) => {
+const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose, onNext, isAuthenticated, hostingContext }) => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [agentId, setAgentId] = useState('');
@@ -377,7 +377,22 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                   </div>
                 </div>
 
-                {/* Section 3: Other Notifications */}
+                {/* Section 3: App Specific Utils (Only for Self-Hosted) */}
+                {hostingContext === 'self-hosted' && (
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-semibold text-gray-700">App Specific Utils</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* Ask Tool */}
+                      <button type="button" onClick={() => toggleTool('ask')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('ask') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}><HelpCircle className={`h-8 w-8 transition-colors ${selectedTools.has('ask') ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Ask User</h3><p className="text-sm text-gray-500">Shows a dialog asking for user confirmation.</p></div></button>
+                      {/* System Notify Tool */}
+                      <button type="button" onClick={() => toggleTool('system_notify')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('system_notify') ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'}`}><Bell className={`h-8 w-8 transition-colors ${selectedTools.has('system_notify') ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">System Notification</h3><p className="text-sm text-gray-500">Shows a native system notification.</p></div></button>
+                      {/* Message Tool */}
+                      <button type="button" onClick={() => toggleTool('message')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('message') ? 'border-purple-500 bg-purple-50' : 'border-gray-300 hover:border-gray-400'}`}><MessageCircle className={`h-8 w-8 transition-colors ${selectedTools.has('message') ? 'text-purple-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Show Message</h3><p className="text-sm text-gray-500">Shows a dialog message to the user.</p></div></button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Section 4: Other Notifications */}
                 <div className="space-y-4">
                   <h4 className="text-lg font-semibold text-gray-700">Other Notifications</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
