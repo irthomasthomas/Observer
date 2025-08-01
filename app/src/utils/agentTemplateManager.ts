@@ -2,7 +2,7 @@
 
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord';
+export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'ask' | 'system_notify' | 'message';
 
 export interface ToolData {
   smsPhoneNumber?: string;
@@ -76,6 +76,21 @@ startClip();
 // Adds the model's response as a label to an active recording.
 // Prompt your model to output just the desired label text.
 markClip(response);
+`,
+  ask: () => `
+// --- ASK USER TOOL ---
+// Shows a dialog asking for user confirmation.
+ask(response);
+`,
+  system_notify: () => `
+// --- SYSTEM NOTIFICATION TOOL ---
+// Shows a native system notification.
+systemNotify(response);
+`,
+  message: () => `
+// --- MESSAGE TOOL ---
+// Shows a dialog message to the user.
+message(response);
 `,
 };
 
