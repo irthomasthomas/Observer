@@ -507,6 +507,7 @@ function AppContent() {
             logout
           }}
           getToken={getToken}
+          onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
 
         <PersistentSidebar

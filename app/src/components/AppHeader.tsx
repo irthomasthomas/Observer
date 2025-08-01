@@ -65,6 +65,7 @@ interface AppHeaderProps {
   setIsUsingObServer?: (value: boolean) => void;
   hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
   getToken: TokenProvider;
+  onUpgradeClick?: () => void;
 }
 
 
@@ -80,6 +81,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   setIsUsingObServer: externalSetIsUsingObServer,
   hostingContext = 'self-hosted',
   getToken,
+  onUpgradeClick,
 }) => {
   // --- MODIFIED --- Default to the full, desired URL for the proxy.
   const [serverAddress, setServerAddress] = useState(() => {
@@ -93,6 +95,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [showLoginMessage, setShowLoginMessage] = useState(false);
   const [isSessionExpired, setIsSessionExpired] = useState(false);
   const [isQuotaHovered, setIsQuotaHovered] = useState(false);
+  const [has70PercentWarningBeenShown, setHas70PercentWarningBeenShown] = useState(false);
 
   // --- NEW --- State to control the visibility of the new settings modal
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -132,6 +135,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         setIsSessionExpired(false);
         if (data && typeof data.remaining === 'number') {
           localStorage.setItem('observer-quota-remaining', data.remaining.toString());
+          
+          // Trigger upgrade modal at 50% usage for non-pro users
+          if (!data.pro_status && typeof data.limit === 'number' && data.limit > 0) {
+            const usagePercentage = ((data.limit - data.remaining) / data.limit) * 100;
+            console.log(`Usage: ${usagePercentage.toFixed(1)}%, Remaining: ${data.remaining}/${data.limit}, Warning shown: ${has70PercentWarningBeenShown}`);
+            if (usagePercentage >= 50 && !has70PercentWarningBeenShown && onUpgradeClick) {
+              console.log('Triggering upgrade modal at 50% usage');
+              setHas70PercentWarningBeenShown(true);
+              onUpgradeClick();
+            }
+          }
         } else {
           localStorage.removeItem('observer-quota-remaining');
         }
@@ -155,6 +169,24 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       setIsLoadingQuota(false);
     }
   };
+
+  // Check for 50% usage threshold whenever quotaInfo updates
+  useEffect(() => {
+    if (!quotaInfo || quotaInfo.pro_status || has70PercentWarningBeenShown || !onUpgradeClick) {
+      return;
+    }
+    
+    if (typeof quotaInfo.remaining === 'number' && typeof quotaInfo.limit === 'number' && quotaInfo.limit > 0) {
+      const usagePercentage = ((quotaInfo.limit - quotaInfo.remaining) / quotaInfo.limit) * 100;
+      console.log(`Real-time usage check: ${usagePercentage.toFixed(1)}%, Remaining: ${quotaInfo.remaining}/${quotaInfo.limit}`);
+      
+      if (usagePercentage >= 50) {
+        console.log('Triggering upgrade modal at 50% usage (real-time)');
+        setHas70PercentWarningBeenShown(true);
+        onUpgradeClick();
+      }
+    }
+  }, [quotaInfo, has70PercentWarningBeenShown, onUpgradeClick]);
 
   const handleToggleObServer = () => {
     const newValue = !isUsingObServer;
