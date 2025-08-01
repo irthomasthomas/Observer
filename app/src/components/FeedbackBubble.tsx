@@ -99,10 +99,28 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId, getToken, isAu
 
   // Effect to get the latest iteration data
   useEffect(() => {
-    const updateLatestIteration = () => {
-      const iterations = IterationStore.getIterationsForAgent(agentId);
-      const latest = iterations.length > 0 ? iterations[iterations.length - 1] : null;
-      setLatestIteration(latest);
+    const updateLatestIteration = async () => {
+      // First check current session iterations
+      const currentIterations = IterationStore.getIterationsForAgent(agentId);
+      
+      if (currentIterations.length > 0) {
+        // Use the latest from current session
+        const latest = currentIterations[currentIterations.length - 1];
+        setLatestIteration(latest);
+      } else {
+        // No current session iterations, check historical sessions
+        const historicalSessions = await IterationStore.getHistoricalSessions(agentId);
+        if (historicalSessions.length > 0) {
+          // Get the latest iteration from the most recent session
+          const mostRecentSession = historicalSessions[0]; // Already sorted by most recent
+          const latestIteration = mostRecentSession.iterations.length > 0 
+            ? mostRecentSession.iterations[mostRecentSession.iterations.length - 1]
+            : null;
+          setLatestIteration(latestIteration);
+        } else {
+          setLatestIteration(null);
+        }
+      }
     };
 
     // Get initial data
