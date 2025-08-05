@@ -18,7 +18,7 @@ An open-source platform for running local AI agents that observe your screen whi
 
 # 🚀 Take a quick look:
 
-https://github.com/user-attachments/assets/27b2d8e5-59c0-438a-999c-fc54b8c2cb95
+https://github.com/user-attachments/assets/9e63da4f-08f9-4c71-9ea2-908f1ccfbdeb
 
 # 🏗️ Building Your Own Agent
 
