@@ -1,5 +1,5 @@
 import { pipeline, env, PipelineType } from '@huggingface/transformers';
-import { ModelSize, LanguageType } from './types';
+import { WhisperModelConfig } from './types';
 
 env.allowLocalModels = false;
 
@@ -8,29 +8,30 @@ const TASK: PipelineType = 'automatic-speech-recognition';
 class WhisperPipelineFactory {
   static task: PipelineType = TASK;
   static model: string | null = null;
-  static language: LanguageType | null = null;
-  static quantized: boolean = true;
+  static config: WhisperModelConfig | null = null;
   static instance: any = null;
 
-  static configure(modelSize: ModelSize, language: LanguageType, quantized: boolean) {
-    const modelId = language === 'en' 
-      ? `Xenova/whisper-${modelSize}.en`
-      : `Xenova/whisper-${modelSize}`;
-
-    this.model = modelId;
-    this.language = language;
-    this.quantized = quantized;
+  static configure(config: WhisperModelConfig) {
+    this.model = config.modelId;
+    this.config = config;
     this.instance = null;
   }
 
   static async getInstance(progress_callback?: (data: any) => void) {
-    if (this.instance === null && this.model) {
+    if (this.instance === null && this.model && this.config) {
       try {
-        this.instance = await pipeline(this.task, this.model, {
+        const pipelineOptions: any = {
           progress_callback,
           device: 'wasm',
-          dtype: this.quantized ? 'q8' : undefined
-        });
+          dtype: this.config.quantized ? 'q8' : undefined
+        };
+
+        // For medium models, use no_attentions revision to avoid memory issues
+        if (this.model.includes('whisper-medium')) {
+          pipelineOptions.revision = 'no_attentions';
+        }
+
+        this.instance = await pipeline(this.task, this.model, pipelineOptions);
         return this.instance;
       } catch (error) {
         this.instance = null;
@@ -43,7 +44,7 @@ class WhisperPipelineFactory {
   static reset() {
     this.instance = null;
     this.model = null;
-    this.language = null;
+    this.config = null;
   }
 }
 
@@ -53,8 +54,8 @@ self.onmessage = async (event) => {
   try {
     switch (type) {
       case 'configure':
-        const { modelSize, language, quantized } = data;
-        WhisperPipelineFactory.configure(modelSize, language, quantized);
+        const config = data as WhisperModelConfig;
+        WhisperPipelineFactory.configure(config);
         
         await WhisperPipelineFactory.getInstance((progress) => {
           self.postMessage({
@@ -70,11 +71,35 @@ self.onmessage = async (event) => {
         const { audio, chunkId } = data;
         
         const instance = await WhisperPipelineFactory.getInstance();
-        if (!instance) {
+        const currentConfig = WhisperPipelineFactory.config;
+        
+        if (!instance || !currentConfig) {
           throw new Error('Pipeline not initialized');
         }
 
-        const output = await instance(audio);
+        // Build transcription options - only for multilingual models
+        const isEnglishOnlyModel = currentConfig.modelId.endsWith('.en');
+        const transcribeOptions: any = {};
+        
+        if (!isEnglishOnlyModel) {
+          // Only add parameters for multilingual models
+          if (currentConfig.task) {
+            transcribeOptions.task = currentConfig.task;
+          }
+          
+          if (currentConfig.language && currentConfig.language !== 'auto') {
+            transcribeOptions.language = currentConfig.language;
+          }
+          
+          // Set default chunking for different model types
+          const isDistilWhisper = currentConfig.modelId.startsWith('distil-whisper/');
+          transcribeOptions.chunk_length_s = isDistilWhisper ? 20 : 30;
+          transcribeOptions.stride_length_s = isDistilWhisper ? 3 : 5;
+        }
+
+        const output = Object.keys(transcribeOptions).length > 0 
+          ? await instance(audio, transcribeOptions)
+          : await instance(audio);
         const newText = (output.text as string).trim();
 
         if (newText) {

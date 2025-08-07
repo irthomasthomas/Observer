@@ -1,7 +1,8 @@
 // src/utils/settings.ts
 
 // NOTE: No imports are needed from your config files anymore.
-import { WhisperSettings, ModelSize, LanguageType } from './whisper/types';
+import { WhisperSettings } from './whisper/types';
+import { getDefaultWhisperSettings } from '../config/whisper-models';
 
 class SettingsManager {
     // --- PRIVATE CONSTANTS FOR LOCALSTORAGE KEYS ---
@@ -21,12 +22,7 @@ class SettingsManager {
         ocrLangPath: 'https://tessdata.projectnaptha.com/4.0.0',
         ocrCorePath: 'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
         ocrLanguage: 'eng',
-        whisperSettings: {
-            modelSize: 'tiny' as ModelSize,
-            language: 'en' as LanguageType,
-            quantized: true,
-            chunkDurationMs: 15000
-        } as WhisperSettings
+        whisperSettings: getDefaultWhisperSettings()
     };
 
     // --- GETTER AND SETTER FUNCTIONS ---
@@ -70,6 +66,10 @@ class SettingsManager {
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
+                // Migrate old settings format if needed
+                if (parsed.modelSize && parsed.language && !parsed.modelId) {
+                    return this.migrateOldWhisperSettings(parsed);
+                }
                 return { ...this.DEFAULTS.whisperSettings, ...parsed };
             } catch (error) {
                 console.warn('Failed to parse whisper settings, using defaults:', error);
@@ -79,19 +79,58 @@ class SettingsManager {
         return this.DEFAULTS.whisperSettings;
     }
 
+    private migrateOldWhisperSettings(oldSettings: any): WhisperSettings {
+        // Migrate old format to new direct configuration
+        const isEnglishOnly = oldSettings.language === 'en';
+        const modelId = isEnglishOnly 
+            ? `Xenova/whisper-${oldSettings.modelSize}.en`
+            : `Xenova/whisper-${oldSettings.modelSize}`;
+        
+        const newSettings: WhisperSettings = {
+            modelId,
+            quantized: oldSettings.quantized || true,
+            chunkDurationMs: oldSettings.chunkDurationMs || 15000
+        };
+        
+        // Add task/language for multilingual models
+        if (!isEnglishOnly) {
+            newSettings.task = 'transcribe';
+        }
+        
+        // Save migrated settings
+        this.setWhisperSettings(newSettings);
+        console.info('Migrated old whisper settings to new format:', modelId);
+        
+        return newSettings;
+    }
+
     public setWhisperSettings(settings: WhisperSettings): void {
         localStorage.setItem(this.WHISPER_SETTINGS_KEY, JSON.stringify(settings));
     }
 
-    public setWhisperModelSize(modelSize: ModelSize): void {
+    public setWhisperModelId(modelId: string): void {
         const settings = this.getWhisperSettings();
-        settings.modelSize = modelSize;
+        settings.modelId = modelId;
         this.setWhisperSettings(settings);
     }
 
-    public setWhisperLanguage(language: LanguageType): void {
+    public setWhisperTask(task?: 'transcribe' | 'translate'): void {
         const settings = this.getWhisperSettings();
-        settings.language = language;
+        if (task) {
+            settings.task = task;
+        } else {
+            delete settings.task;
+        }
+        this.setWhisperSettings(settings);
+    }
+
+    public setWhisperLanguage(language?: string): void {
+        const settings = this.getWhisperSettings();
+        if (language) {
+            settings.language = language;
+        } else {
+            delete settings.language;
+        }
         this.setWhisperSettings(settings);
     }
 
@@ -100,6 +139,7 @@ class SettingsManager {
         settings.quantized = quantized;
         this.setWhisperSettings(settings);
     }
+
 
     public setWhisperChunkDuration(durationMs: number): void {
         if (durationMs < 5000 || durationMs > 60000) {

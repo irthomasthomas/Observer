@@ -1,9 +1,9 @@
 import { 
   WhisperModelState, 
   ProgressItem, 
-  PendingTranscription
+  PendingTranscription,
+  WhisperModelConfig
 } from './types';
-import { createModelConfig } from '../../config/whisper-models';
 import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
 
@@ -16,6 +16,7 @@ export class WhisperModelManager {
     progress: [],
     error: null
   };
+  private currentConfig: WhisperModelConfig | null = null;
   private stateChangeListeners: Array<(state: WhisperModelState) => void> = [];
   private pendingTranscriptions = new Map<number, PendingTranscription>();
 
@@ -52,16 +53,31 @@ export class WhisperModelManager {
 
     try {
       const settings = SensorSettings.getWhisperSettings();
-      const config = createModelConfig(settings.modelSize, settings.language, settings.quantized);
+      const config: WhisperModelConfig = {
+        modelId: settings.modelId,
+        task: settings.task,
+        language: settings.language,
+        quantized: settings.quantized
+      };
+
+      this.currentConfig = config;
+
+      // Create legacy config object for backward compatibility with state
+      const legacyConfig: any = {
+        modelSize: this.extractModelSize(config.modelId),
+        language: config.language || 'auto',
+        quantized: config.quantized,
+        modelId: config.modelId
+      };
 
       this.setState({
         status: 'loading',
-        config,
+        config: legacyConfig,
         progress: [],
         error: null
       });
 
-      Logger.info('WhisperModelManager', `Loading model: ${config.modelId}`);
+      Logger.info('WhisperModelManager', `Loading model: ${config.modelId} (${config.task || 'default'}, language: ${config.language || 'auto'})`);
 
       this.worker = new Worker(new URL('./whisper.worker.ts', import.meta.url), {
         type: 'module'
@@ -72,11 +88,7 @@ export class WhisperModelManager {
 
       this.worker.postMessage({
         type: 'configure',
-        data: {
-          modelSize: config.modelSize,
-          language: config.language,
-          quantized: config.quantized
-        }
+        data: config
       });
 
     } catch (error) {
@@ -107,6 +119,8 @@ export class WhisperModelManager {
       this.worker.terminate();
       this.worker = null;
     }
+
+    this.currentConfig = null;
 
     this.setState({
       status: 'unloaded',
@@ -263,5 +277,14 @@ export class WhisperModelManager {
 
   public getError(): string | null {
     return this.state.error;
+  }
+
+  public getCurrentConfig(): WhisperModelConfig | null {
+    return this.currentConfig;
+  }
+
+  private extractModelSize(modelId: string): string {
+    const match = modelId.match(/whisper-([^.]+)/);
+    return match ? match[1] : 'unknown';
   }
 }

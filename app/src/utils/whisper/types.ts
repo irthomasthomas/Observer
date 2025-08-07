@@ -1,17 +1,27 @@
-export type ModelSize = 'tiny' | 'base' | 'small' | 'medium';
-export type LanguageType = 'en' | 'multilingual';
+export type ModelSize = 'tiny' | 'base' | 'small' | 'medium' | 'large' | 'large-v2' | 'large-v3';
+export type WhisperTask = 'transcribe' | 'translate';
 export type ModelState = 'unloaded' | 'loading' | 'loaded' | 'error';
+export type LanguageCode = 'en' | 'zh' | 'de' | 'es' | 'ru' | 'ko' | 'fr' | 'ja' | 'pt' | 'tr' | 'pl' | 'ca' | 'nl' | 'ar' | 'sv' | 'it' | 'id' | 'hi' | 'fi' | 'vi' | 'he' | 'uk' | 'el' | 'ms' | 'cs' | 'ro' | 'da' | 'hu' | 'ta' | 'no' | 'th' | 'ur' | 'hr' | 'bg' | 'lt' | 'la' | 'mi' | 'ml' | 'cy' | 'sk' | 'te' | 'fa' | 'lv' | 'bn' | 'sr' | 'az' | 'sl' | 'kn' | 'et' | 'mk' | 'br' | 'eu' | 'is' | 'hy' | 'ne' | 'mn' | 'bs' | 'kk' | 'sq' | 'sw' | 'gl' | 'mr' | 'pa' | 'si' | 'km' | 'sn' | 'yo' | 'so' | 'af' | 'oc' | 'ka' | 'be' | 'tg' | 'sd' | 'gu' | 'am' | 'yi' | 'lo' | 'uz' | 'fo' | 'ht' | 'ps' | 'tk' | 'nn' | 'mt' | 'sa' | 'lb' | 'my' | 'bo' | 'tl' | 'mg' | 'as' | 'tt' | 'haw' | 'ln' | 'ha' | 'ba' | 'jw' | 'su';
+
+export interface WhisperModelConfig {
+  modelId: string;
+  task?: WhisperTask;
+  language?: LanguageCode | string;
+  quantized: boolean;
+}
 
 export interface WhisperSettings {
-  modelSize: ModelSize;
-  language: LanguageType;
+  modelId: string;
+  task?: WhisperTask;
+  language?: LanguageCode | string;
   quantized: boolean;
   chunkDurationMs: number;
 }
 
+// Legacy interface for backward compatibility
 export interface ModelConfig {
   modelSize: ModelSize;
-  language: LanguageType;
+  language: string;
   quantized: boolean;
   modelId: string;
 }
@@ -45,11 +55,7 @@ export interface WorkerMessage {
 
 export interface WorkerConfigureMessage extends WorkerMessage {
   type: 'configure';
-  data: {
-    modelSize: ModelSize;
-    language: LanguageType;
-    quantized: boolean;
-  };
+  data: WhisperModelConfig;
 }
 
 export interface WorkerTranscribeMessage extends WorkerMessage {

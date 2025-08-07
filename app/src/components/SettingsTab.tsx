@@ -5,8 +5,8 @@ import { SensorSettings } from '../utils/settings';
 // New Whisper imports
 import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
 import { WhisperTranscriptionService } from '../utils/whisper/WhisperTranscriptionService';
-import { TranscriptionChunk, WhisperModelState, ModelSize, LanguageType } from '../utils/whisper/types';
-import { AVAILABLE_MODELS, AVAILABLE_LANGUAGES, getModelInfo } from '../config/whisper-models';
+import { TranscriptionChunk, WhisperModelState } from '../utils/whisper/types';
+import { SUGGESTED_MODELS, LANGUAGE_NAMES } from '../config/whisper-models';
 import { StreamManager } from '../utils/streamManager';
 
 import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
@@ -68,20 +68,32 @@ const SettingsTab = () => {
   }, [modelManager]);
 
 
-  // --- NEW WHISPER HANDLERS ---
+  // --- SIMPLE WHISPER HANDLERS ---
 
-  const handleModelSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSize = e.target.value as ModelSize;
-    const newSettings = { ...whisperSettings, modelSize: newSize };
+  const handleModelIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSettings = { ...whisperSettings, modelId: e.target.value };
     setWhisperSettings(newSettings);
-    SensorSettings.setWhisperModelSize(newSize);
+    SensorSettings.setWhisperModelId(e.target.value);
+  };
+
+  const handleTaskChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const task = e.target.value || undefined;
+    const newSettings = { ...whisperSettings, task: task as any };
+    setWhisperSettings(newSettings);
+    SensorSettings.setWhisperTask(task as any);
   };
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLanguage = e.target.value as LanguageType;
-    const newSettings = { ...whisperSettings, language: newLanguage };
+    const language = e.target.value || undefined;
+    const newSettings = { ...whisperSettings, language };
     setWhisperSettings(newSettings);
-    SensorSettings.setWhisperLanguage(newLanguage);
+    SensorSettings.setWhisperLanguage(language);
+  };
+
+  const handleQuantizedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSettings = { ...whisperSettings, quantized: e.target.checked };
+    setWhisperSettings(newSettings);
+    SensorSettings.setWhisperQuantized(e.target.checked);
   };
 
   const handleChunkDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,49 +206,82 @@ const SettingsTab = () => {
       <SettingsCard title="Whisper Speech Recognition">
         <div className="space-y-6">
           {/* Model Configuration */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="model-size" className="block text-sm font-medium text-gray-700 mb-2">
-                Model Size
-              </label>
-              <select
-                id="model-size"
-                value={whisperSettings.modelSize}
-                onChange={handleModelSizeChange}
-                disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
-                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
-              >
-                {AVAILABLE_MODELS.map(model => (
-                  <option key={model.size} value={model.size}>
-                    {model.size.charAt(0).toUpperCase() + model.size.slice(1)} - {model.approximateSize} ({model.speed})
-                  </option>
-                ))}
-              </select>
-              {whisperSettings.modelSize && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {getModelInfo(whisperSettings.modelSize).description}
-                </p>
-              )}
+          <div>
+            <label htmlFor="model-id" className="block text-sm font-medium text-gray-700 mb-2">
+              Model ID
+            </label>
+            <input
+              type="text"
+              id="model-id"
+              value={whisperSettings.modelId}
+              onChange={handleModelIdChange}
+              placeholder="Enter any HuggingFace model ID"
+              list="model-suggestions"
+              disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
+              className="block w-full px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
+            />
+            <datalist id="model-suggestions">
+              {SUGGESTED_MODELS.map(model => (
+                <option key={model} value={model} />
+              ))}
+            </datalist>
+            <p className="text-xs text-gray-500 mt-1">
+              Examples: Xenova/whisper-small.en (English only), Xenova/whisper-small (multilingual)
+            </p>
+          </div>
+
+          {/* Responsive Options - Only show for multilingual models */}
+          {!whisperSettings.modelId.endsWith('.en') && (
+            <div className="bg-gray-50 p-4 rounded-lg border">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Multilingual Options</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="task" className="block text-xs font-medium text-gray-700 mb-1">
+                    Task
+                  </label>
+                  <select
+                    id="task"
+                    value={whisperSettings.task || ''}
+                    onChange={handleTaskChange}
+                    className="block w-full px-3 py-2 text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Default (transcribe)</option>
+                    <option value="transcribe">Transcribe</option>
+                    <option value="translate">Translate to English</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="language" className="block text-xs font-medium text-gray-700 mb-1">
+                    Language
+                  </label>
+                  <select
+                    id="language"
+                    value={whisperSettings.language || ''}
+                    onChange={handleLanguageChange}
+                    className="block w-full px-3 py-2 text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Auto-detect</option>
+                    {Object.entries(LANGUAGE_NAMES).map(([code, name]) => (
+                      <option key={code} value={code}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            
-            <div>
-              <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-2">
-                Language
-              </label>
-              <select
-                id="language"
-                value={whisperSettings.language}
-                onChange={handleLanguageChange}
-                disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
-                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
-              >
-                {AVAILABLE_LANGUAGES.map(lang => (
-                  <option key={lang.type} value={lang.type}>
-                    {lang.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          )}
+
+          {/* Quantized Option */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="quantized"
+              checked={whisperSettings.quantized}
+              onChange={handleQuantizedChange}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="quantized" className="ml-2 text-sm font-medium text-gray-700">
+              Quantized (smaller file sizes, faster loading)
+            </label>
           </div>
 
           {/* Chunk Duration */}
