@@ -127,23 +127,20 @@ const SettingsTab = () => {
     }
 
     try {
-      await StreamManager.requestStreamsForAgent('system-whisper-test', ['microphone']);
-      const state = StreamManager.getCurrentState();
+      // For testing, directly get microphone stream without using StreamManager
+      // to avoid creating duplicate transcription services
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      if (state.microphoneStream) {
-        setAuditTrail([]);
-        const newService = new WhisperTranscriptionService();
-        
-        const onChunkProcessedCallback = (chunk: TranscriptionChunk) => {
-          setAuditTrail(prev => [...prev, chunk].sort((a, b) => a.id - b.id));
-        };
+      setAuditTrail([]);
+      const newService = new WhisperTranscriptionService();
+      
+      const onChunkProcessedCallback = (chunk: TranscriptionChunk) => {
+        setAuditTrail(prev => [...prev, chunk].sort((a, b) => a.id - b.id));
+      };
 
-        await newService.start(state.microphoneStream, onChunkProcessedCallback);
-        setTranscriptionService(newService);
-        setIsTestRunning(true);
-      } else {
-        alert('Could not get microphone stream. Please ensure microphone permissions are granted.');
-      }
+      await newService.start(micStream, onChunkProcessedCallback);
+      setTranscriptionService(newService);
+      setIsTestRunning(true);
     } catch (error) {
       console.error('Failed to start transcription test:', error);
       alert(`Failed to start test: ${error}`);
@@ -154,7 +151,6 @@ const SettingsTab = () => {
     transcriptionService?.stop();
     setTranscriptionService(null);
     setIsTestRunning(false);
-    StreamManager.releaseStreamsForAgent('system-whisper-test');
   };
 
   // Handler to play an audio chunk from the audit trail

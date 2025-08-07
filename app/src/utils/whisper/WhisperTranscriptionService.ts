@@ -15,6 +15,9 @@ export class WhisperTranscriptionService {
   private chunkDurationMs = 15000;
   private recentChunkTexts: string[] = [];
   private readonly MAX_CHUNKS_TO_KEEP = 20;
+  
+  // NEW: Map to store audio blobs by their chunk ID until transcription is complete
+  private pendingChunks = new Map<number, Blob>();
 
   public async start(stream: MediaStream, onChunkProcessed?: (chunk: TranscriptionChunk) => void): Promise<void> {
     if (this.isRunning) {
@@ -33,6 +36,7 @@ export class WhisperTranscriptionService {
     this.onChunkProcessed = onChunkProcessed || null;
     this.chunkCounter = 0;
     this.recentChunkTexts = [];
+    this.pendingChunks.clear();
     
     const settings = SensorSettings.getWhisperSettings();
     this.chunkDurationMs = settings.chunkDurationMs;
@@ -50,6 +54,7 @@ export class WhisperTranscriptionService {
     this.currentStream = null;
     this.onChunkProcessed = null;
     this.recentChunkTexts = [];
+    this.pendingChunks.clear();
   }
 
   public getTranscript(): string {
@@ -70,35 +75,52 @@ export class WhisperTranscriptionService {
         
         if (!this.isRunning) break;
 
+        // Store the blob with its ID for later retrieval
+        this.pendingChunks.set(currentChunkId, audioBlob);
+
         Logger.debug('WhisperTranscriptionService', `Processing chunk ${currentChunkId}`);
 
-        try {
-          const result = await WhisperModelManager.getInstance()
-            .transcribe(await audioBlob.arrayBuffer(), currentChunkId);
-
-          if (result?.text && this.isRunning) {
-            this.recentChunkTexts.push(result.text);
-            this.recentChunkTexts = this.recentChunkTexts.slice(-this.MAX_CHUNKS_TO_KEEP);
-
-            Logger.debug('WhisperTranscriptionService', `Chunk ${currentChunkId}: "${result.text}"`);
-
-            if (this.onChunkProcessed) {
-              this.onChunkProcessed({
-                id: currentChunkId,
-                blob: audioBlob,
-                text: result.text
-              });
-            }
-          }
-        } catch (transcriptionError) {
-          if (this.isRunning) {
-            Logger.error('WhisperTranscriptionService', `Transcription failed for chunk ${currentChunkId}: ${transcriptionError}`);
-          }
-        }
+        // Send to worker without awaiting - decoupled!
+        this.transcribeChunkAsync(audioBlob, currentChunkId);
+        
       } catch (error) {
         if (this.isRunning) {
           Logger.error('WhisperTranscriptionService', `Error in transcription loop: ${error}`);
         }
+      }
+    }
+  }
+
+  private async transcribeChunkAsync(audioBlob: Blob, chunkId: number): Promise<void> {
+    try {
+      const result = await WhisperModelManager.getInstance()
+        .transcribe(await audioBlob.arrayBuffer(), chunkId);
+
+      if (result?.text && this.isRunning) {
+        this.recentChunkTexts.push(result.text);
+        this.recentChunkTexts = this.recentChunkTexts.slice(-this.MAX_CHUNKS_TO_KEEP);
+
+        Logger.debug('WhisperTranscriptionService', `Chunk ${chunkId}: "${result.text}"`);
+
+        // Retrieve the stored blob
+        const storedBlob = this.pendingChunks.get(chunkId);
+        
+        if (this.onChunkProcessed && storedBlob) {
+          this.onChunkProcessed({
+            id: chunkId,
+            blob: storedBlob,
+            text: result.text
+          });
+        }
+        
+        // Clean up the stored blob
+        this.pendingChunks.delete(chunkId);
+      }
+    } catch (transcriptionError) {
+      if (this.isRunning) {
+        Logger.error('WhisperTranscriptionService', `Transcription failed for chunk ${chunkId}: ${transcriptionError}`);
+        // Clean up on error too
+        this.pendingChunks.delete(chunkId);
       }
     }
   }
@@ -109,6 +131,7 @@ export class WhisperTranscriptionService {
         return reject(new Error('No active audio stream to record'));
       }
 
+      // Create a NEW MediaRecorder instance for each chunk
       const mediaRecorder = new MediaRecorder(stream);
       const chunks: BlobPart[] = [];
 
@@ -121,6 +144,7 @@ export class WhisperTranscriptionService {
       mediaRecorder.onstop = () => {
         if (chunks.length > 0) {
           resolve(new Blob(chunks, { type: mediaRecorder.mimeType }));
+          Logger.debug('WhisperTranscriptionService', `resolved new chunk and now on queue: ${chunks.length}`);
         } else {
           Logger.warn('WhisperTranscriptionService', 'No audio data recorded for chunk');
           resolve(new Blob([]));
