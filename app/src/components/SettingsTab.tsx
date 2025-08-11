@@ -7,7 +7,6 @@ import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
 import { WhisperTranscriptionService } from '../utils/whisper/WhisperTranscriptionService';
 import { TranscriptionChunk, WhisperModelState } from '../utils/whisper/types';
 import { SUGGESTED_MODELS, LANGUAGE_NAMES } from '../config/whisper-models';
-import { StreamManager } from '../utils/streamManager';
 
 import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
 
