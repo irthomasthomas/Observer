@@ -438,6 +438,29 @@ export async function executeJavaScript(
         }
       },
 
+      translucent: async (body: string): Promise<void> => {
+        try {
+          const appUrl = "http://localhost:3838";
+
+          if (!appUrl) throw new Error("Could not determine the local app server address.");
+
+          await utils.translucent(appUrl, body);
+          Logger.info(agentId, `Translucent message sent`, { 
+            logType: 'tool-success', 
+            iterationId,
+            content: { tool: 'translucent', params: { body: body.slice(0,100)}, success: true }
+          });
+        } catch (error) {
+          Logger.error(agentId, `Failed to send translucent message`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'system_notify', params: { body: body.slice(0,100)}, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
+
+
     };
 
     const wrappedCode = `

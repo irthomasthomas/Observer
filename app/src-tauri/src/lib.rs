@@ -3,6 +3,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod notifications;
+mod overlay;
 
 // ---- Final, Corrected Imports ----
 use axum::{
@@ -20,7 +21,7 @@ use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Manager, State,
+    AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder,
 };
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_updater::UpdaterExt;
@@ -31,6 +32,17 @@ use tower_http::{
 
 struct AppSettings {
     ollama_url: Mutex<Option<String>>,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct OverlayMessage {
+    id: String,
+    content: String,
+    timestamp: u64,
+}
+
+struct OverlayState {
+    messages: Mutex<Vec<OverlayMessage>>,
 }
 
 #[tauri::command]
@@ -102,6 +114,20 @@ async fn check_ollama_servers(urls: Vec<String>) -> Result<Vec<String>, String> 
     log::info!("Found running servers at: {:?}", successful_urls);
 
     Ok(successful_urls)
+}
+
+#[tauri::command]
+async fn get_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<Vec<OverlayMessage>, String> {
+    log::info!("Getting overlay messages");
+    let messages = overlay_state.messages.lock().unwrap().clone();
+    Ok(messages)
+}
+
+#[tauri::command]
+async fn clear_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<(), String> {
+    log::info!("Clearing overlay messages");
+    overlay_state.messages.lock().unwrap().clear();
+    Ok(())
 }
 
 // Shared state for our application
@@ -224,6 +250,7 @@ fn start_static_server(app_handle: tauri::AppHandle) {
             )
             .route("/message", axum::routing::post(notifications::message_handler))
             .route("/notification", axum::routing::post(notifications::notification_handler))
+            .route("/overlay", axum::routing::post(overlay::overlay_handler))
             .fallback_service(ServeDir::new(resource_path))
             .with_state(state)
             .layer(cors);
@@ -257,6 +284,9 @@ pub fn run() {
         .manage(Mutex::new(ServerUrl("".to_string())))
         .manage(AppSettings {
             ollama_url: Mutex::new(None),
+        })
+        .manage(OverlayState {
+            messages: Mutex::new(Vec::new()),
         })
         .setup(|app| {
             // We use the handle to call updater and restart
@@ -353,6 +383,132 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            // Create the overlay window synchronously to avoid race conditions
+            match WebviewWindowBuilder::new(
+                app,
+                "overlay",
+                WebviewUrl::App("/overlay".into()),
+            )
+            .title("Observer Overlay")
+            .inner_size(300.0, 200.0)
+            .position(50.0, 50.0)
+            .decorations(false)
+            .transparent(true)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .visible(true)
+            .resizable(true)
+            .build() {
+                Ok(window) => {
+                    log::info!("Overlay window created successfully");
+                    // Make the window draggable by setting it as focusable
+                    if let Err(e) = window.set_focus() {
+                        log::warn!("Could not focus overlay window: {}", e);
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to create overlay window: {}", e);
+                    // Don't panic, just log the error
+                }
+            }
+
+            // Register global shortcut for overlay toggle (Cmd+B)
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+                let cmd_b_shortcut = Shortcut::new(Some(Modifiers::SUPER), Code::KeyB);
+                let cmd_up_shortcut = Shortcut::new(Some(Modifiers::SUPER), Code::ArrowUp);
+                let cmd_down_shortcut = Shortcut::new(Some(Modifiers::SUPER), Code::ArrowDown);
+                let cmd_left_shortcut = Shortcut::new(Some(Modifiers::SUPER), Code::ArrowLeft);
+                let cmd_right_shortcut = Shortcut::new(Some(Modifiers::SUPER), Code::ArrowRight);
+                let shortcut_handle = app.handle().clone();
+                
+                app.handle().plugin(
+                    tauri_plugin_global_shortcut::Builder::new().with_handler(move |_app, shortcut, event| {
+                        if event.state() != ShortcutState::Pressed {
+                            return;
+                        }
+
+                        match shortcut_handle.get_webview_window("overlay") {
+                            Some(window) => {
+                                if shortcut == &cmd_b_shortcut {
+                                    // Toggle visibility
+                                    match window.is_visible() {
+                                        Ok(visible) => {
+                                            let result = if visible {
+                                                window.hide()
+                                            } else {
+                                                window.show()
+                                            };
+                                            
+                                            match result {
+                                                Ok(_) => {
+                                                    log::info!("Overlay {} via Cmd+B shortcut", if visible { "hidden" } else { "shown" });
+                                                }
+                                                Err(e) => {
+                                                    log::error!("Failed to {} overlay: {}", if visible { "hide" } else { "show" }, e);
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            log::error!("Failed to check overlay visibility: {}", e);
+                                        }
+                                    }
+                                } else if shortcut == &cmd_up_shortcut || shortcut == &cmd_down_shortcut || 
+                                         shortcut == &cmd_left_shortcut || shortcut == &cmd_right_shortcut {
+                                    // Move window
+                                    match window.outer_position() {
+                                        Ok(current_pos) => {
+                                            let (dx, dy) = if shortcut == &cmd_up_shortcut {
+                                                (0, -50)
+                                            } else if shortcut == &cmd_down_shortcut {
+                                                (0, 50)
+                                            } else if shortcut == &cmd_left_shortcut {
+                                                (-50, 0)
+                                            } else { // right
+                                                (50, 0)
+                                            };
+                                            
+                                            let new_x = current_pos.x + dx;
+                                            let new_y = current_pos.y + dy;
+                                            
+                                            match window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: new_x, y: new_y })) {
+                                                Ok(_) => {
+                                                    log::info!("Overlay moved to ({}, {})", new_x, new_y);
+                                                }
+                                                Err(e) => {
+                                                    log::error!("Failed to move overlay: {}", e);
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            log::error!("Failed to get overlay position: {}", e);
+                                        }
+                                    }
+                                }
+                            }
+                            None => {
+                                log::warn!("Overlay window not found for shortcut - it may not be created yet");
+                            }
+                        }
+                    })
+                    .build(),
+                )?;
+
+                app.global_shortcut().register(cmd_b_shortcut)?;
+                app.global_shortcut().register(cmd_up_shortcut)?;
+                app.global_shortcut().register(cmd_down_shortcut)?;
+                app.global_shortcut().register(cmd_left_shortcut)?;
+                app.global_shortcut().register(cmd_right_shortcut)?;
+                log::info!("Global shortcuts registered: Cmd+B (toggle), Cmd+Arrows (move)");
+            }
+            
+            #[cfg(not(desktop))]
+            {
+                log::info!("Global shortcuts not available on this platform");
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| match event {
@@ -367,7 +523,9 @@ pub fn run() {
             get_server_url,
             set_ollama_url,
             get_ollama_url,
-            check_ollama_servers
+            check_ollama_servers,
+            get_overlay_messages,
+            clear_overlay_messages
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

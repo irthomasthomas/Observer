@@ -23,7 +23,8 @@
       "csp": null,
       "capabilities": ["default"]
     },
-    "withGlobalTauri": true
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,

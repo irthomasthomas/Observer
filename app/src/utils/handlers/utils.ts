@@ -427,3 +427,21 @@ export async function system_notify(appUrl: string, title: string, body: string)
     throw new Error(`Server responded with status: ${response.status}`);
   }
 }
+
+/**
+ * Displays a message in the translucent overlay window.
+ * The overlay appears on top of all other windows and shows agent messages.
+ * @param appUrl The base URL of the local Tauri server.
+ * @param message The message to display in the overlay (supports basic markdown).
+ */
+export async function translucent(appUrl: string, message: string): Promise<void> {
+  const response = await fetch(`${appUrl}/overlay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Server responded with status: ${response.status}`);
+  }
+}
