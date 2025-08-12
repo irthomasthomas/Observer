@@ -4,6 +4,10 @@
 
 mod notifications;
 mod overlay;
+mod shortcuts;
+
+// Import shortcut types
+use shortcuts::{AppShortcutState, ShortcutConfig};
 
 // ---- Final, Corrected Imports ----
 use axum::{
@@ -41,48 +45,8 @@ pub struct OverlayMessage {
     timestamp: u64,
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
-pub struct ShortcutConfig {
-    toggle: Option<String>,
-    move_up: Option<String>,
-    move_down: Option<String>,
-    move_left: Option<String>,
-    move_right: Option<String>,
-}
-
-impl Default for ShortcutConfig {
-    fn default() -> Self {
-        // Platform-specific defaults
-        #[cfg(target_os = "windows")]
-        {
-            Self {
-                toggle: Some("Alt+B".to_string()),
-                move_up: Some("Alt+ArrowUp".to_string()),
-                move_down: Some("Alt+ArrowDown".to_string()),
-                move_left: Some("Alt+ArrowLeft".to_string()),
-                move_right: Some("Alt+ArrowRight".to_string()),
-            }
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            Self {
-                toggle: Some("Cmd+B".to_string()),
-                move_up: Some("Cmd+ArrowUp".to_string()),
-                move_down: Some("Cmd+ArrowDown".to_string()),
-                move_left: Some("Cmd+ArrowLeft".to_string()),
-                move_right: Some("Cmd+ArrowRight".to_string()),
-            }
-        }
-    }
-}
-
 struct OverlayState {
     messages: Mutex<Vec<OverlayMessage>>,
-}
-
-struct AppShortcutState {
-    config: Mutex<ShortcutConfig>,
-    active_shortcuts: Mutex<Vec<String>>,
 }
 
 #[tauri::command]
@@ -170,66 +134,9 @@ async fn clear_overlay_messages(overlay_state: State<'_, OverlayState>) -> Resul
     Ok(())
 }
 
-#[tauri::command]
-async fn get_shortcut_config(shortcut_state: State<'_, AppShortcutState>) -> Result<ShortcutConfig, String> {
-    log::info!("Getting shortcut config");
-    let config = shortcut_state.config.lock().unwrap().clone();
-    Ok(config)
-}
+// Shortcut commands moved to shortcuts module
 
-#[tauri::command]
-async fn get_active_shortcuts(shortcut_state: State<'_, AppShortcutState>) -> Result<Vec<String>, String> {
-    log::info!("Getting active shortcuts");
-    let active = shortcut_state.active_shortcuts.lock().unwrap().clone();
-    Ok(active)
-}
-
-#[tauri::command]
-async fn set_shortcut_config(
-    config: ShortcutConfig,
-    shortcut_state: State<'_, AppShortcutState>,
-    _app_handle: tauri::AppHandle,
-) -> Result<(), String> {
-    log::info!("Setting shortcut config: {:?}", config);
-    
-    // Update the config
-    *shortcut_state.config.lock().unwrap() = config;
-    
-    // Note: In a production app, you'd want to unregister old shortcuts
-    // and re-register new ones here. For now, we'll require a restart.
-    log::info!("Shortcut config updated. Application restart required for changes to take effect.");
-    
-    Ok(())
-}
-
-#[cfg(desktop)]
-fn parse_shortcut_string(shortcut_str: &str) -> Option<tauri_plugin_global_shortcut::Shortcut> {
-    use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
-    
-    let parts: Vec<&str> = shortcut_str.split('+').map(|s| s.trim()).collect();
-    if parts.len() != 2 {
-        return None;
-    }
-    
-    let modifier = match parts[0] {
-        "Cmd" | "Super" => Some(Modifiers::SUPER),
-        "Alt" => Some(Modifiers::ALT),
-        "Ctrl" => Some(Modifiers::CONTROL),
-        "Shift" => Some(Modifiers::SHIFT),
-        _ => return None,
-    };
-    
-    let key = match parts[1] {
-        "B" => Code::KeyB,
-        "ArrowUp" => Code::ArrowUp,
-        "ArrowDown" => Code::ArrowDown,
-        "ArrowLeft" => Code::ArrowLeft,
-        "ArrowRight" => Code::ArrowRight,
-        _ => return None,
-    };
-    
-    Some(Shortcut::new(modifier, key))
-}
+// Shortcut helper functions moved to shortcuts module
 
 // Shared state for our application
 #[derive(Clone)]
@@ -376,145 +283,7 @@ fn start_static_server(app_handle: tauri::AppHandle) {
     });
 }
 
-#[cfg(desktop)]
-fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-    
-    // Get or create shortcut state
-    let shortcut_state = app.state::<AppShortcutState>();
-    let config = shortcut_state.config.lock().unwrap().clone();
-    
-    // Collect shortcuts to register
-    let mut shortcuts_to_register = Vec::new();
-    
-    if let Some(toggle) = &config.toggle {
-        if let Some(shortcut) = parse_shortcut_string(toggle) {
-            shortcuts_to_register.push((shortcut, toggle.clone(), "toggle"));
-        }
-    }
-    
-    if let Some(move_up) = &config.move_up {
-        if let Some(shortcut) = parse_shortcut_string(move_up) {
-            shortcuts_to_register.push((shortcut, move_up.clone(), "move up"));
-        }
-    }
-    
-    if let Some(move_down) = &config.move_down {
-        if let Some(shortcut) = parse_shortcut_string(move_down) {
-            shortcuts_to_register.push((shortcut, move_down.clone(), "move down"));
-        }
-    }
-    
-    if let Some(move_left) = &config.move_left {
-        if let Some(shortcut) = parse_shortcut_string(move_left) {
-            shortcuts_to_register.push((shortcut, move_left.clone(), "move left"));
-        }
-    }
-    
-    if let Some(move_right) = &config.move_right {
-        if let Some(shortcut) = parse_shortcut_string(move_right) {
-            shortcuts_to_register.push((shortcut, move_right.clone(), "move right"));
-        }
-    }
-    
-    // Store references for the handler
-    let registered_shortcuts = shortcuts_to_register.iter().map(|(s, _, _)| s.clone()).collect::<Vec<_>>();
-    let shortcut_handle = app.handle().clone();
-    
-    // Register the global shortcut handler
-    app.handle().plugin(
-        tauri_plugin_global_shortcut::Builder::new().with_handler(move |_app, shortcut, event| {
-            if event.state() != ShortcutState::Pressed {
-                return;
-            }
-            
-            match shortcut_handle.get_webview_window("overlay") {
-                Some(window) => {
-                    // Find which shortcut was pressed
-                    let shortcut_idx = registered_shortcuts.iter().position(|s| s == shortcut);
-                    if let Some(idx) = shortcut_idx {
-                        if idx == 0 {
-                            // Toggle visibility
-                            match window.is_visible() {
-                                Ok(visible) => {
-                                    let result = if visible {
-                                        window.hide()
-                                    } else {
-                                        window.show()
-                                    };
-                                    
-                                    match result {
-                                        Ok(_) => {
-                                            log::info!("Overlay {} via shortcut", if visible { "hidden" } else { "shown" });
-                                        }
-                                        Err(e) => {
-                                            log::error!("Failed to {} overlay: {}", if visible { "hide" } else { "show" }, e);
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    log::error!("Failed to check overlay visibility: {}", e);
-                                }
-                            }
-                        } else {
-                            // Move window
-                            match window.outer_position() {
-                                Ok(current_pos) => {
-                                    let (dx, dy) = match idx {
-                                        1 => (0, -50),  // move up
-                                        2 => (0, 50),   // move down  
-                                        3 => (-50, 0),  // move left
-                                        4 => (50, 0),   // move right
-                                        _ => (0, 0),
-                                    };
-                                    
-                                    let new_x = current_pos.x + dx;
-                                    let new_y = current_pos.y + dy;
-                                    
-                                    match window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: new_x, y: new_y })) {
-                                        Ok(_) => {
-                                            log::info!("Overlay moved to ({}, {})", new_x, new_y);
-                                        }
-                                        Err(e) => {
-                                            log::error!("Failed to move overlay: {}", e);
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    log::error!("Failed to get overlay position: {}", e);
-                                }
-                            }
-                        }
-                    }
-                }
-                None => {
-                    log::warn!("Overlay window not found for shortcut - it may not be created yet");
-                }
-            }
-        })
-        .build(),
-    )?;
-    
-    // Register shortcuts with graceful error handling
-    let mut active_shortcuts = Vec::new();
-    
-    for (shortcut, description, action) in shortcuts_to_register {
-        match app.global_shortcut().register(shortcut) {
-            Ok(_) => {
-                log::info!("✓ Registered shortcut '{}' for {}", description, action);
-                active_shortcuts.push(description);
-            }
-            Err(e) => {
-                log::warn!("✗ Failed to register shortcut '{}' for {}: {}", description, action, e);
-            }
-        }
-    }
-    
-    // Update the active shortcuts state
-    *shortcut_state.active_shortcuts.lock().unwrap() = active_shortcuts;
-    
-    Ok(())
-}
+// register_global_shortcuts function moved to shortcuts module
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -676,7 +445,11 @@ pub fn run() {
             // Register global shortcuts with graceful error handling
             #[cfg(desktop)]
             {
-                register_global_shortcuts(app)?;
+                // Load config from disk and register shortcuts
+                let loaded_config = shortcuts::load_shortcut_config_from_disk(app.handle());
+                let shortcut_state = app.state::<AppShortcutState>();
+                *shortcut_state.config.lock().unwrap() = loaded_config;
+                shortcuts::register_global_shortcuts(app)?;
             }
             
             #[cfg(not(desktop))]
@@ -701,9 +474,9 @@ pub fn run() {
             check_ollama_servers,
             get_overlay_messages,
             clear_overlay_messages,
-            get_shortcut_config,
-            get_active_shortcuts,
-            set_shortcut_config
+            shortcuts::get_shortcut_config,
+            shortcuts::get_active_shortcuts,
+            shortcuts::set_shortcut_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
