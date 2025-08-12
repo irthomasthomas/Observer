@@ -33,6 +33,7 @@ function formatTime(timestamp: number): string {
 export default function OverlayWindow() {
   const [messages, setMessages] = useState<OverlayMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeShortcuts, setActiveShortcuts] = useState<string[]>([]);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -53,6 +54,15 @@ export default function OverlayWindow() {
       console.error('Failed to clear overlay messages:', error);
     }
   }, []);
+  
+  const fetchActiveShortcuts = useCallback(async () => {
+    try {
+      const shortcuts = await invoke<string[]>('get_active_shortcuts');
+      setActiveShortcuts(shortcuts);
+    } catch (error) {
+      console.error('Failed to fetch active shortcuts:', error);
+    }
+  }, []);
 
   // Poll for messages every 500ms
   useInterval(fetchMessages, 500);
@@ -60,7 +70,8 @@ export default function OverlayWindow() {
   // Initial fetch
   useEffect(() => {
     fetchMessages();
-  }, [fetchMessages]);
+    fetchActiveShortcuts();
+  }, [fetchMessages, fetchActiveShortcuts]);
 
   return (
     <div 
@@ -143,10 +154,28 @@ export default function OverlayWindow() {
         </div>
       </div>
       
-      {/* Minimal footer hint */}
+      {/* Dynamic footer hint */}
       <div className="absolute bottom-2 right-2">
         <div className="text-white/20 text-xs bg-black/20 backdrop-blur-sm rounded px-2 py-1 border border-white/5">
-          ⌘B • ⌘←→↑↓
+          {activeShortcuts.length > 0 ? (
+            activeShortcuts
+              .slice(0, 2) // Show first 2 shortcuts
+              .map(shortcut => 
+                shortcut
+                  .replace('Cmd+', '⌘')
+                  .replace('Alt+', '⌥')
+                  .replace('Ctrl+', '^')
+                  .replace('Arrow', '')
+                  .replace('Up', '↑')
+                  .replace('Down', '↓')
+                  .replace('Left', '←')
+                  .replace('Right', '→')
+              )
+              .join(' • ')
+            + (activeShortcuts.length > 2 ? ` • +${activeShortcuts.length - 2}` : '')
+          ) : (
+            'No shortcuts'
+          )}
         </div>
       </div>
     </div>
