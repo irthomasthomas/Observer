@@ -293,8 +293,14 @@ pub fn run() {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 // Notice we use the handle to get the updater
-                match handle.updater().unwrap().check().await {
-                    Ok(Some(update)) => {
+                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    handle.updater()
+                })) {
+                    Ok(updater_result) => {
+                        match updater_result {
+                            Ok(updater) => {
+                                match updater.check().await {
+                                    Ok(Some(update)) => {
                         log::info!("Update {} is available!", update.version);
 
                         // ---- V2 UPDATER DIALOG LOGIC ----
@@ -328,11 +334,21 @@ pub fn run() {
                             });
 
                     }
-                    Ok(None) => {
-                        log::info!("You are running the latest version!");
+                                    Ok(None) => {
+                                        log::info!("You are running the latest version!");
+                                    }
+                                    Err(e) => {
+                                        log::error!("Updater check failed: {}", e);
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                log::error!("Failed to get updater: {}", e);
+                            }
+                        }
                     }
-                    Err(e) => {
-                        log::error!("Updater check failed: {}", e);
+                    Err(_) => {
+                        log::error!("Updater panicked - continuing without update check");
                     }
                 }
             });
