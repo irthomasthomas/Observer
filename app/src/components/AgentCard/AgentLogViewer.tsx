@@ -136,6 +136,10 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   const [selectedIteration, setSelectedIteration] = useState<IterationData | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('json');
+  const [exportSessionType, setExportSessionType] = useState<'current' | 'historical' | 'all'>('all');
+  const [exportSessionId, setExportSessionId] = useState<string>('');
+  const [includeImages, setIncludeImages] = useState(true);
 
   useEffect(() => {
     // Get initial data
@@ -335,14 +339,14 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   };
 
   // Handle export
-  const handleExport = async (format: ExportFormat, sessionType: 'current' | 'historical' | 'all', includeImages: boolean = true, sessionId?: string) => {
+  const handleExport = async () => {
     try {
       await exportData(currentIterations, historicalSessions, {
-        format,
+        format: exportFormat,
         includeImages,
         agentId,
-        sessionType,
-        sessionId
+        sessionType: exportSessionType,
+        sessionId: exportSessionType === 'historical' ? exportSessionId : undefined
       });
       setShowExportDropdown(false);
     } catch (error) {
@@ -350,6 +354,15 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
       // Could add a toast notification here
     }
   };
+
+  // Reset session ID when session type changes
+  useEffect(() => {
+    if (exportSessionType !== 'historical') {
+      setExportSessionId('');
+    } else if (historicalSessions.length > 0 && !exportSessionId) {
+      setExportSessionId(historicalSessions[0].sessionId);
+    }
+  }, [exportSessionType, historicalSessions, exportSessionId]);
 
   // Helper function to render iterations
   const renderIterations = (iterations: IterationData[], sessionLabel?: string) => {
@@ -563,91 +576,130 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
           
           {/* Export Dropdown */}
           {showExportDropdown && (
-            <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+            <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
               <div className="p-4">
-                <div className="text-sm font-medium text-gray-900 mb-3">Export Options</div>
+                <div className="text-sm font-medium text-gray-900 mb-4">Export Configuration</div>
                 
                 {/* Format Selection */}
                 <div className="mb-4">
-                  <div className="text-xs font-medium text-gray-700 mb-2">Format</div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => handleExport('json', 'all', true)}
-                      className="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded border text-center"
-                    >
-                      JSON
-                    </button>
-                    <button
-                      onClick={() => handleExport('html', 'all', true)}
-                      className="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded border text-center"
-                    >
-                      HTML
-                    </button>
-                    <button
-                      onClick={() => handleExport('markdown', 'all', true)}
-                      className="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded border text-center"
-                    >
-                      Markdown
-                    </button>
-                  </div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Format</label>
+                  <select
+                    value={exportFormat}
+                    onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="json">📄 JSON - Structured data</option>
+                    <option value="html">🌐 HTML - Formatted report</option>
+                    <option value="markdown">📝 Markdown - Documentation</option>
+                  </select>
                 </div>
                 
                 {/* Session Selection */}
                 <div className="mb-4">
-                  <div className="text-xs font-medium text-gray-700 mb-2">Data to Export</div>
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => handleExport('json', 'all', true)}
-                      className="w-full px-3 py-2 text-xs bg-green-50 hover:bg-green-100 rounded border border-green-200 text-left"
-                    >
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Data to Export</label>
+                  <select
+                    value={exportSessionType}
+                    onChange={(e) => setExportSessionType(e.target.value as 'current' | 'historical' | 'all')}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">
                       📊 All Sessions ({currentIterations.length + historicalSessions.reduce((sum, s) => sum + s.iterations.length, 0)} total)
-                    </button>
-                    
+                    </option>
                     {currentIterations.length > 0 && (
-                      <button
-                        onClick={() => handleExport('json', 'current', true)}
-                        className="w-full px-3 py-2 text-xs bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 text-left"
-                      >
+                      <option value="current">
                         🟢 Current Session ({currentIterations.length} iterations)
-                      </button>
+                      </option>
                     )}
-                    
-                    {historicalSessions.slice(0, 3).map((session, index) => {
-                      const sessionDate = new Date(session.startTime).toLocaleDateString();
-                      const relativeLabel = index === 0 ? 'Last session' : 
-                                           index === 1 ? 'Two sessions ago' : 
-                                           'Three sessions ago';
-                      
-                      return (
-                        <button
-                          key={session.sessionId}
-                          onClick={() => handleExport('json', 'historical', true, session.sessionId)}
-                          className="w-full px-3 py-2 text-xs bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-left"
-                        >
-                          📁 {relativeLabel} - {sessionDate} ({session.iterations.length})
-                        </button>
-                      );
-                    })}
+                    {historicalSessions.length > 0 && (
+                      <option value="historical">
+                        📁 Historical Session
+                      </option>
+                    )}
+                  </select>
+                </div>
+                
+                {/* Historical Session Selector */}
+                {exportSessionType === 'historical' && historicalSessions.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Select Historical Session</label>
+                    <select
+                      value={exportSessionId}
+                      onChange={(e) => setExportSessionId(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {historicalSessions.map((session, index) => {
+                        const sessionDate = new Date(session.startTime).toLocaleDateString();
+                        const sessionTime = new Date(session.startTime).toLocaleTimeString();
+                        const relativeLabel = index === 0 ? 'Last session' : 
+                                             index === 1 ? 'Two sessions ago' : 
+                                             index === 2 ? 'Three sessions ago' : 
+                                             `${index + 1} sessions ago`;
+                        
+                        return (
+                          <option key={session.sessionId} value={session.sessionId}>
+                            {relativeLabel} - {sessionDate} {sessionTime} ({session.iterations.length} iterations)
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+                
+                {/* Include Images Toggle */}
+                <div className="mb-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={includeImages}
+                      onChange={(e) => setIncludeImages(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">Include images in export</span>
+                  </label>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {includeImages ? 
+                      '📸 Images will be embedded (larger file size)' : 
+                      '🚫 Images excluded (smaller file size)'
+                    }
                   </div>
                 </div>
                 
-                {/* Quick Actions */}
-                <div className="border-t pt-3">
-                  <div className="text-xs font-medium text-gray-700 mb-2">Quick Actions</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleExport('json', 'all', false)}
-                      className="px-3 py-2 text-xs bg-orange-50 hover:bg-orange-100 rounded border border-orange-200 text-center"
-                    >
-                      JSON (No Images)
-                    </button>
-                    <button
-                      onClick={() => handleExport('html', 'all', true)}
-                      className="px-3 py-2 text-xs bg-purple-50 hover:bg-purple-100 rounded border border-purple-200 text-center"
-                    >
-                      HTML Report
-                    </button>
+                {/* Export Summary */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                  <div className="text-xs font-medium text-gray-700 mb-1">Export Summary</div>
+                  <div className="text-xs text-gray-600">
+                    <div>Format: <span className="font-medium">{exportFormat.toUpperCase()}</span></div>
+                    <div>
+                      Data: <span className="font-medium">
+                        {exportSessionType === 'all' && `All sessions (${currentIterations.length + historicalSessions.reduce((sum, s) => sum + s.iterations.length, 0)} iterations)`}
+                        {exportSessionType === 'current' && `Current session (${currentIterations.length} iterations)`}
+                        {exportSessionType === 'historical' && exportSessionId && 
+                          (() => {
+                            const session = historicalSessions.find(s => s.sessionId === exportSessionId);
+                            return session ? `Historical session (${session.iterations.length} iterations)` : 'Historical session';
+                          })()
+                        }
+                      </span>
+                    </div>
+                    <div>Images: <span className="font-medium">{includeImages ? 'Included' : 'Excluded'}</span></div>
                   </div>
+                </div>
+                
+                {/* Export Action */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowExportDropdown(false)}
+                    className="flex-1 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleExport}
+                    className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
                 </div>
               </div>
             </div>
