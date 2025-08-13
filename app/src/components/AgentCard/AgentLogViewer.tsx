@@ -5,9 +5,10 @@ import {
   Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle,
   ScanText, Bell, Mail, Send, MessageSquare, MessageSquarePlus, 
   MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass,
-  ArrowRight, Clock
+  ArrowRight, Clock, Download, ChevronDown
 } from 'lucide-react';
 import { IterationStore, IterationData, SensorData, ToolCall, AgentSession } from '../../utils/IterationStore';
+import { exportData, ExportFormat } from '../../utils/exportUtils';
 
 // Lazy Image Loading Component
 interface LazyImageProps {
@@ -134,6 +135,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   const [, setLoadedImages] = useState<Set<string>>(new Set());
   const [selectedIteration, setSelectedIteration] = useState<IterationData | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   useEffect(() => {
     // Get initial data
@@ -330,6 +332,23 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
         scrollContainer.scrollTop = scrollPosition;
       }
     }, 0);
+  };
+
+  // Handle export
+  const handleExport = async (format: ExportFormat, sessionType: 'current' | 'historical' | 'all', includeImages: boolean = true, sessionId?: string) => {
+    try {
+      await exportData(currentIterations, historicalSessions, {
+        format,
+        includeImages,
+        agentId,
+        sessionType,
+        sessionId
+      });
+      setShowExportDropdown(false);
+    } catch (error) {
+      console.error('Export failed:', error);
+      // Could add a toast notification here
+    }
   };
 
   // Helper function to render iterations
@@ -530,10 +549,117 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 
   return (
     <div>
+      {/* Export Button - Only show when there's data */}
+      {(currentIterations.length > 0 || historicalSessions.length > 0) && (
+        <div className="flex justify-end mb-4 relative">
+          <button
+            onClick={() => setShowExportDropdown(!showExportDropdown)}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export
+            <ChevronDown className={`w-4 h-4 transition-transform ${showExportDropdown ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {/* Export Dropdown */}
+          {showExportDropdown && (
+            <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+              <div className="p-4">
+                <div className="text-sm font-medium text-gray-900 mb-3">Export Options</div>
+                
+                {/* Format Selection */}
+                <div className="mb-4">
+                  <div className="text-xs font-medium text-gray-700 mb-2">Format</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => handleExport('json', 'all', true)}
+                      className="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded border text-center"
+                    >
+                      JSON
+                    </button>
+                    <button
+                      onClick={() => handleExport('html', 'all', true)}
+                      className="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded border text-center"
+                    >
+                      HTML
+                    </button>
+                    <button
+                      onClick={() => handleExport('markdown', 'all', true)}
+                      className="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded border text-center"
+                    >
+                      Markdown
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Session Selection */}
+                <div className="mb-4">
+                  <div className="text-xs font-medium text-gray-700 mb-2">Data to Export</div>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => handleExport('json', 'all', true)}
+                      className="w-full px-3 py-2 text-xs bg-green-50 hover:bg-green-100 rounded border border-green-200 text-left"
+                    >
+                      📊 All Sessions ({currentIterations.length + historicalSessions.reduce((sum, s) => sum + s.iterations.length, 0)} total)
+                    </button>
+                    
+                    {currentIterations.length > 0 && (
+                      <button
+                        onClick={() => handleExport('json', 'current', true)}
+                        className="w-full px-3 py-2 text-xs bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 text-left"
+                      >
+                        🟢 Current Session ({currentIterations.length} iterations)
+                      </button>
+                    )}
+                    
+                    {historicalSessions.slice(0, 3).map((session, index) => {
+                      const sessionDate = new Date(session.startTime).toLocaleDateString();
+                      const relativeLabel = index === 0 ? 'Last session' : 
+                                           index === 1 ? 'Two sessions ago' : 
+                                           'Three sessions ago';
+                      
+                      return (
+                        <button
+                          key={session.sessionId}
+                          onClick={() => handleExport('json', 'historical', true, session.sessionId)}
+                          className="w-full px-3 py-2 text-xs bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-left"
+                        >
+                          📁 {relativeLabel} - {sessionDate} ({session.iterations.length})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                {/* Quick Actions */}
+                <div className="border-t pt-3">
+                  <div className="text-xs font-medium text-gray-700 mb-2">Quick Actions</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleExport('json', 'all', false)}
+                      className="px-3 py-2 text-xs bg-orange-50 hover:bg-orange-100 rounded border border-orange-200 text-center"
+                    >
+                      JSON (No Images)
+                    </button>
+                    <button
+                      onClick={() => handleExport('html', 'all', true)}
+                      className="px-3 py-2 text-xs bg-purple-50 hover:bg-purple-100 rounded border border-purple-200 text-center"
+                    >
+                      HTML Report
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
       <div
         data-scroll-container
         className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
         style={{ maxHeight }}
+        onClick={() => setShowExportDropdown(false)}
       >
         <div className="space-y-4 p-2">
           {/* Current Session */}
