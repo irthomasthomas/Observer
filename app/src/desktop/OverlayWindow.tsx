@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 interface OverlayMessage {
   id: string;
@@ -67,10 +68,22 @@ export default function OverlayWindow() {
   // Poll for messages every 500ms
   useInterval(fetchMessages, 500);
 
-  // Initial fetch
+  // Initial fetch and content protection setup
   useEffect(() => {
     fetchMessages();
     fetchActiveShortcuts();
+    
+    // Enable content protection on the overlay window
+    const setupContentProtection = async () => {
+      try {
+        await getCurrentWindow().setContentProtected(true);
+        console.log('Content protection enabled on overlay window');
+      } catch (error) {
+        console.warn('Failed to enable content protection:', error);
+      }
+    };
+    
+    setupContentProtection();
   }, [fetchMessages, fetchActiveShortcuts]);
 
   return (
@@ -84,21 +97,21 @@ export default function OverlayWindow() {
     >
       <div className="h-full w-full flex items-start justify-start p-4">
         {/* Compact Messages Container */}
-        <div className="min-w-0 max-w-sm">
+        <div className="min-w-0 max-w-md">
           {isLoading ? (
-            <div className="bg-black/70 backdrop-blur-xl rounded-lg px-3 py-2 border border-white/10 shadow-xl">
-              <div className="text-white/70 text-xs">Loading...</div>
+            <div className="bg-black/70 backdrop-blur-xl rounded-lg px-4 py-3 border border-white/20 shadow-xl">
+              <div className="text-white/70 text-sm">Loading...</div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="bg-black/70 backdrop-blur-xl rounded-lg px-3 py-2 border border-white/10 shadow-xl">
-              <div className="text-white/60 text-xs text-center">
-                <span className="text-sm mr-1">👋</span> Ready for agent messages
+            <div className="bg-black/70 backdrop-blur-xl rounded-lg px-4 py-3 border border-white/20 shadow-xl">
+              <div className="text-white/60 text-sm text-center font-medium">
+                Observer Overlay
               </div>
             </div>
           ) : (
             <div className="space-y-2">
               {/* Latest message (largest) */}
-              <div className="bg-black/70 backdrop-blur-xl rounded-lg px-3 py-2 border border-white/10 shadow-xl animate-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-black/70 backdrop-blur-xl rounded-lg px-4 py-3 border border-white/20 shadow-xl animate-in slide-in-from-bottom-2 duration-300">
                 <div className="flex items-start justify-between mb-1">
                   <div className="text-white/40 text-xs font-mono">
                     {formatTime(messages[messages.length - 1].timestamp)}

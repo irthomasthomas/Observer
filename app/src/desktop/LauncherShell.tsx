@@ -53,17 +53,47 @@ function LauncherShell() {
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [saveFeedback, setSaveFeedback] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   
-  // --- SHORTCUT STATE VARIABLES ---
+  // --- UNIFIED SHORTCUTS STATE VARIABLES ---
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [shortcutConfig, setShortcutConfig] = useState({
+  const [overlayShortcuts, setOverlayShortcuts] = useState({
     toggle: '',
     move_up: '',
     move_down: '',
     move_left: '',
     move_right: ''
   });
+  const [availableAgents, setAvailableAgents] = useState<Array<{id: string, name: string}>>([]);
+  const [agentShortcuts, setAgentShortcuts] = useState<Record<string, string>>({});
   const [activeShortcuts, setActiveShortcuts] = useState<string[]>([]);
   const [shortcutFeedback, setShortcutFeedback] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const [capturingFor, setCapturingFor] = useState<string | null>(null);
+
+  // --- KEY CAPTURE UTILITIES ---
+  const buildKeyCombo = (event: KeyboardEvent): string => {
+    const modifiers = [];
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    
+    if (event.metaKey) modifiers.push(isMac ? 'Cmd' : 'Super');
+    if (event.ctrlKey) modifiers.push('Ctrl');
+    if (event.altKey) modifiers.push('Alt');
+    if (event.shiftKey) modifiers.push('Shift');
+    
+    // Map common keys
+    let key = event.key;
+    if (key === ' ') key = 'Space';
+    if (key === 'ArrowUp') key = 'ArrowUp';
+    if (key === 'ArrowDown') key = 'ArrowDown';
+    if (key === 'ArrowLeft') key = 'ArrowLeft';
+    if (key === 'ArrowRight') key = 'ArrowRight';
+    if (key.length === 1) key = key.toUpperCase();
+    
+    // Don't allow modifier-only combos
+    if (['Meta', 'Control', 'Alt', 'Shift'].includes(event.key)) {
+      return '';
+    }
+    
+    return modifiers.length > 0 ? `${modifiers.join('+')}+${key}` : key;
+  };
 
   const runServerChecks = useCallback(async () => {
     setIsChecking(true);
@@ -160,54 +190,111 @@ function LauncherShell() {
     }
   }, [customUrlInput, runServerChecks]);
   
-  // --- NEW: Functions to handle shortcut configuration ---
-  const loadShortcutConfig = useCallback(async () => {
+  // --- UNIFIED SHORTCUT LOADING AND SAVING ---
+  const loadAllShortcuts = useCallback(async () => {
     try {
-      const [config, active] = await Promise.all([
+      const [overlayConfig, agentsData, agentShortcuts, activeShortcuts] = await Promise.all([
         invoke<any>('get_shortcut_config'),
+        fetch('http://127.0.0.1:3838/agents').then(r => r.json()).catch(() => ({ agents: [] })),
+        invoke<Record<string, string>>('get_agent_shortcuts'),
         invoke<string[]>('get_active_shortcuts')
       ]);
       
-      setShortcutConfig({
-        toggle: config.toggle || '',
-        move_up: config.move_up || '',
-        move_down: config.move_down || '',
-        move_left: config.move_left || '',
-        move_right: config.move_right || ''
+      // Set overlay shortcuts
+      setOverlayShortcuts({
+        toggle: overlayConfig.toggle || '',
+        move_up: overlayConfig.move_up || '',
+        move_down: overlayConfig.move_down || '',
+        move_left: overlayConfig.move_left || '',
+        move_right: overlayConfig.move_right || ''
       });
       
-      setActiveShortcuts(active);
+      // Set available agents and their shortcuts
+      const agents = agentsData.agents || [];
+      setAvailableAgents(agents);
+      setAgentShortcuts(agentShortcuts || {});
+      
+      // Set active shortcuts
+      setActiveShortcuts(activeShortcuts);
     } catch (error) {
-      console.error('Failed to load shortcut config:', error);
+      console.error('Failed to load shortcuts:', error);
     }
   }, []);
   
-  const handleSaveShortcuts = useCallback(async () => {
+  const validateAllShortcuts = (): string | null => {
+    const usedShortcuts = new Set<string>();
+    const conflicts: string[] = [];
+    
+    // Check overlay shortcuts
+    for (const [_, shortcut] of Object.entries(overlayShortcuts)) {
+      if (shortcut && shortcut.trim()) {
+        if (usedShortcuts.has(shortcut)) {
+          conflicts.push(shortcut);
+        } else {
+          usedShortcuts.add(shortcut);
+        }
+      }
+    }
+    
+    // Check agent shortcuts
+    for (const [_, shortcut] of Object.entries(agentShortcuts)) {
+      if (shortcut && shortcut.trim()) {
+        if (usedShortcuts.has(shortcut)) {
+          conflicts.push(shortcut);
+        } else {
+          usedShortcuts.add(shortcut);
+        }
+      }
+    }
+    
+    if (conflicts.length > 0) {
+      return `Duplicate shortcuts detected: ${conflicts.join(', ')}`;
+    }
+    
+    return null;
+  };
+
+  const handleSaveAllShortcuts = useCallback(async () => {
+    // Validate all shortcuts for conflicts
+    const validationError = validateAllShortcuts();
+    if (validationError) {
+      setShortcutFeedback({ 
+        message: validationError, 
+        type: 'error' 
+      });
+      return;
+    }
+    
     try {
-      const configToSave = {
-        toggle: shortcutConfig.toggle.trim() || null,
-        move_up: shortcutConfig.move_up.trim() || null,
-        move_down: shortcutConfig.move_down.trim() || null,
-        move_left: shortcutConfig.move_left.trim() || null,
-        move_right: shortcutConfig.move_right.trim() || null
+      // Save overlay shortcuts (requires app restart)
+      const overlayConfigToSave = {
+        toggle: overlayShortcuts.toggle.trim() || null,
+        move_up: overlayShortcuts.move_up.trim() || null,
+        move_down: overlayShortcuts.move_down.trim() || null,
+        move_left: overlayShortcuts.move_left.trim() || null,
+        move_right: overlayShortcuts.move_right.trim() || null
       };
       
-      await invoke('set_shortcut_config', { config: configToSave });
+      await invoke('set_shortcut_config', { config: overlayConfigToSave });
+      
+      // Save agent shortcuts (works immediately, but skip dynamic update to avoid error)
+      await invoke('set_agent_shortcuts', { shortcuts: agentShortcuts });
+      
       setShortcutFeedback({ 
-        message: 'Shortcut settings saved! Restart the app to apply changes.', 
+        message: 'All shortcuts saved! Restart the app to activate all shortcuts.', 
         type: 'success' 
       });
       
-      // Reload to show current config
-      loadShortcutConfig();
+      // Clear feedback after 4 seconds
+      setTimeout(() => setShortcutFeedback(null), 4000);
     } catch (error) {
-      console.error('Failed to save shortcut config:', error);
+      console.error('Failed to save shortcuts:', error);
       setShortcutFeedback({ 
-        message: 'Error saving shortcut settings.', 
+        message: `Error saving shortcuts: ${error}`, 
         type: 'error' 
       });
     }
-  }, [shortcutConfig, loadShortcutConfig]);
+  }, [overlayShortcuts, agentShortcuts]);
 
   // --- EFFECT HOOKS ---
 
@@ -234,10 +321,54 @@ function LauncherShell() {
     runServerChecks();
   }, [runServerChecks]);
   
-  // 4. Load shortcut configuration on startup
+  // 4. Load all shortcuts configuration on startup
   useEffect(() => {
-    loadShortcutConfig();
-  }, [loadShortcutConfig]);
+    loadAllShortcuts();
+    // Also reload when shortcuts section is opened
+    const interval = showShortcuts ? setInterval(loadAllShortcuts, 5000) : null;
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [loadAllShortcuts, showShortcuts]);
+  
+  // 6. Key capture effect
+  useEffect(() => {
+    if (!capturingFor) return;
+    
+    const handleKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Escape cancels capture
+      if (event.key === 'Escape') {
+        setCapturingFor(null);
+        return;
+      }
+      
+      const combo = buildKeyCombo(event);
+      if (combo) {
+        // Check if we're setting an overlay shortcut or agent shortcut
+        if (capturingFor.startsWith('overlay_')) {
+          const overlayKey = capturingFor.replace('overlay_', '');
+          setOverlayShortcuts(prev => ({
+            ...prev,
+            [overlayKey]: combo
+          }));
+        } else {
+          // Agent shortcut
+          setAgentShortcuts(prev => ({
+            ...prev,
+            [capturingFor]: combo
+          }));
+        }
+        setCapturingFor(null);
+      }
+    };
+    
+    // Capture keys globally
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [capturingFor, buildKeyCombo]);
 
   // --- Handlers (unchanged) ---
   const handleOpenApp = () => serverUrl && open(serverUrl);
@@ -356,14 +487,14 @@ function LauncherShell() {
           )}
         </div>
         
-        {/* --- NEW: Shortcut Configuration Section --- */}
+        {/* --- UNIFIED: All Shortcuts Configuration Section --- */}
         <div className="mt-4 border-t pt-4">
           <button onClick={() => {
             setShowShortcuts(!showShortcuts);
             setShortcutFeedback(null);
           }} className="text-sm text-slate-600 hover:text-blue-700 font-medium flex items-center justify-center w-full">
             <Keyboard className={`h-4 w-4 mr-2 transition-transform ${showShortcuts ? 'rotate-90' : ''}`} />
-            Shortcut Configuration
+            All Shortcuts ({Object.values(overlayShortcuts).filter(s => s.trim()).length + Object.values(agentShortcuts).filter(s => s.trim()).length} shortcuts)
           </button>
           
           {showShortcuts && (
@@ -382,73 +513,231 @@ function LauncherShell() {
                 </div>
               )}
               
-              {/* Shortcut Input Fields */}
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Toggle Overlay</label>
-                  <input
-                    type="text"
-                    value={shortcutConfig.toggle}
-                    onChange={(e) => setShortcutConfig({...shortcutConfig, toggle: e.target.value})}
-                    placeholder="e.g. Cmd+B or Alt+B"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Move Up</label>
-                    <input
-                      type="text"
-                      value={shortcutConfig.move_up}
-                      onChange={(e) => setShortcutConfig({...shortcutConfig, move_up: e.target.value})}
-                      placeholder="e.g. Cmd+ArrowUp"
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
-                    />
+              {/* Overlay Shortcuts Section */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-slate-800 mb-3">Overlay Controls</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-slate-700 font-medium">Toggle Overlay</label>
+                    <button
+                      onClick={() => setCapturingFor('overlay_toggle')}
+                      disabled={capturingFor === 'overlay_toggle'}
+                      className={`
+                        px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[120px] text-center
+                        ${capturingFor === 'overlay_toggle' 
+                          ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                          : overlayShortcuts.toggle 
+                          ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                          : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                        }
+                      `}
+                    >
+                      {capturingFor === 'overlay_toggle' 
+                        ? "Press any key..." 
+                        : overlayShortcuts.toggle || "Click to set"
+                      }
+                    </button>
+                    {overlayShortcuts.toggle && capturingFor !== 'overlay_toggle' && (
+                      <button
+                        onClick={() => setOverlayShortcuts(prev => ({ ...prev, toggle: '' }))}
+                        className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                        title="Clear shortcut"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Move Down</label>
-                    <input
-                      type="text"
-                      value={shortcutConfig.move_down}
-                      onChange={(e) => setShortcutConfig({...shortcutConfig, move_down: e.target.value})}
-                      placeholder="e.g. Cmd+ArrowDown"
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
-                    />
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-slate-700 font-medium">Move Up</label>
+                      <button
+                        onClick={() => setCapturingFor('overlay_move_up')}
+                        disabled={capturingFor === 'overlay_move_up'}
+                        className={`
+                          px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[100px] text-center
+                          ${capturingFor === 'overlay_move_up' 
+                            ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                            : overlayShortcuts.move_up 
+                            ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                            : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                          }
+                        `}
+                      >
+                        {capturingFor === 'overlay_move_up' 
+                          ? "Press..." 
+                          : overlayShortcuts.move_up || "Set"
+                        }
+                      </button>
+                      {overlayShortcuts.move_up && capturingFor !== 'overlay_move_up' && (
+                        <button
+                          onClick={() => setOverlayShortcuts(prev => ({ ...prev, move_up: '' }))}
+                          className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-slate-700 font-medium">Move Down</label>
+                      <button
+                        onClick={() => setCapturingFor('overlay_move_down')}
+                        disabled={capturingFor === 'overlay_move_down'}
+                        className={`
+                          px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[100px] text-center
+                          ${capturingFor === 'overlay_move_down' 
+                            ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                            : overlayShortcuts.move_down 
+                            ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                            : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                          }
+                        `}
+                      >
+                        {capturingFor === 'overlay_move_down' 
+                          ? "Press..." 
+                          : overlayShortcuts.move_down || "Set"
+                        }
+                      </button>
+                      {overlayShortcuts.move_down && capturingFor !== 'overlay_move_down' && (
+                        <button
+                          onClick={() => setOverlayShortcuts(prev => ({ ...prev, move_down: '' }))}
+                          className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Move Left</label>
-                    <input
-                      type="text"
-                      value={shortcutConfig.move_left}
-                      onChange={(e) => setShortcutConfig({...shortcutConfig, move_left: e.target.value})}
-                      placeholder="e.g. Cmd+ArrowLeft"
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Move Right</label>
-                    <input
-                      type="text"
-                      value={shortcutConfig.move_right}
-                      onChange={(e) => setShortcutConfig({...shortcutConfig, move_right: e.target.value})}
-                      placeholder="e.g. Cmd+ArrowRight"
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
-                    />
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-slate-700 font-medium">Move Left</label>
+                      <button
+                        onClick={() => setCapturingFor('overlay_move_left')}
+                        disabled={capturingFor === 'overlay_move_left'}
+                        className={`
+                          px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[100px] text-center
+                          ${capturingFor === 'overlay_move_left' 
+                            ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                            : overlayShortcuts.move_left 
+                            ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                            : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                          }
+                        `}
+                      >
+                        {capturingFor === 'overlay_move_left' 
+                          ? "Press..." 
+                          : overlayShortcuts.move_left || "Set"
+                        }
+                      </button>
+                      {overlayShortcuts.move_left && capturingFor !== 'overlay_move_left' && (
+                        <button
+                          onClick={() => setOverlayShortcuts(prev => ({ ...prev, move_left: '' }))}
+                          className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-slate-700 font-medium">Move Right</label>
+                      <button
+                        onClick={() => setCapturingFor('overlay_move_right')}
+                        disabled={capturingFor === 'overlay_move_right'}
+                        className={`
+                          px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[100px] text-center
+                          ${capturingFor === 'overlay_move_right' 
+                            ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                            : overlayShortcuts.move_right 
+                            ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                            : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                          }
+                        `}
+                      >
+                        {capturingFor === 'overlay_move_right' 
+                          ? "Press..." 
+                          : overlayShortcuts.move_right || "Set"
+                        }
+                      </button>
+                      {overlayShortcuts.move_right && capturingFor !== 'overlay_move_right' && (
+                        <button
+                          onClick={() => setOverlayShortcuts(prev => ({ ...prev, move_right: '' }))}
+                          className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
               
-              {/* Save Button */}
+              {/* Agent Shortcuts Section */}
+              {availableAgents.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3">Agent Controls ({availableAgents.length} agents)</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {availableAgents.map((agent) => {
+                      const shortcut = agentShortcuts[agent.id];
+                      const isDuplicate = shortcut && Object.entries(agentShortcuts)
+                        .filter(([id, s]) => id !== agent.id && s === shortcut).length > 0;
+                      
+                      return (
+                        <div key={agent.id} className="flex items-center justify-between">
+                          <span className="text-sm text-slate-700 font-medium flex-1">{agent.name}</span>
+                          <button
+                            onClick={() => setCapturingFor(agent.id)}
+                            disabled={capturingFor === agent.id}
+                            className={`
+                              px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[120px] text-center
+                              ${capturingFor === agent.id 
+                                ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                                : isDuplicate
+                                ? 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
+                                : agentShortcuts[agent.id] 
+                                ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                                : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                              }
+                            `}
+                          >
+                            {capturingFor === agent.id 
+                              ? "Press any key..." 
+                              : agentShortcuts[agent.id] || "Click to set"
+                            }
+                            {isDuplicate && " ⚠️"}
+                          </button>
+                          {agentShortcuts[agent.id] && capturingFor !== agent.id && (
+                            <button
+                              onClick={() => setAgentShortcuts(prev => ({ ...prev, [agent.id]: '' }))}
+                              className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                              title="Clear shortcut"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {availableAgents.length === 0 && (
+                <div className="mb-6 text-center py-4">
+                  <p className="text-sm text-slate-500 mb-2">No agents discovered yet.</p>
+                  <p className="text-xs text-slate-400">Open the main Observer app to see your agents here.</p>
+                </div>
+              )}
+              
+              {/* Save All Button */}
               <div className="flex justify-end">
                 <button
-                  onClick={handleSaveShortcuts}
+                  onClick={handleSaveAllShortcuts}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-sm"
                 >
-                  Save Shortcuts
+                  Save All Shortcuts
                 </button>
               </div>
               
@@ -462,13 +751,15 @@ function LauncherShell() {
               
               {/* Help Text */}
               <div className="text-xs text-slate-500 bg-slate-100 p-2 rounded">
-                <strong>Format:</strong> Modifier+Key (e.g., Cmd+B, Alt+ArrowUp, Ctrl+Shift+X)<br/>
-                <strong>Windows users:</strong> Try Alt+ instead of Cmd+ if shortcuts conflict with system shortcuts<br/>
-                <strong>Note:</strong> Application restart required for changes to take effect
+                <strong>How it works:</strong> Click buttons to capture key combinations instantly • Press Escape to cancel<br/>
+                <strong>Examples:</strong> Cmd+B, Alt+ArrowUp, Ctrl+Shift+X, F1, Space, etc.<br/>
+                <strong>Tips:</strong> Use ✕ to clear shortcuts • Overlay shortcuts need app restart, agent shortcuts work immediately<br/>
+                <strong>Windows users:</strong> Try Alt+ instead of Cmd+ if shortcuts conflict with system shortcuts
               </div>
             </div>
           )}
         </div>
+        
 
         <p className="text-xs text-gray-400 mt-6">
           <Power className="h-3 w-3 inline-block mr-1.5" />

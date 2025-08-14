@@ -37,6 +37,7 @@ import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming th
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import AgentActivityModal from '@components/AgentCard/AgentActivityModal';
+import { startCommandPolling, stopCommandPolling } from '@utils/commandPolling';
 
 
 function AppContent() {
@@ -433,6 +434,15 @@ function AppContent() {
       window.removeEventListener('error', handleWindowError);
     };
   }, [isAuthenticated, isLoading, user]);
+
+  // Start command polling for hotkey support in self-hosted environments
+  useEffect(() => {
+    startCommandPolling(hostingContext);
+    
+    return () => {
+      stopCommandPolling();
+    };
+  }, [hostingContext]);
 
   useEffect(() => {
     if (!isLoading) {

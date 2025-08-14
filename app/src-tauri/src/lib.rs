@@ -5,6 +5,7 @@
 mod notifications;
 mod overlay;
 mod shortcuts;
+mod commands;
 
 // Import shortcut types
 use shortcuts::{AppShortcutState, ShortcutConfig};
@@ -47,6 +48,21 @@ pub struct OverlayMessage {
 
 struct OverlayState {
     messages: Mutex<Vec<OverlayMessage>>,
+}
+
+struct CommandState {
+    pending_commands: Mutex<std::collections::HashMap<String, String>>,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct AgentInfo {
+    id: String,
+    name: String,
+}
+
+struct AgentDiscoveryState {
+    available_agents: Mutex<Vec<AgentInfo>>,
+    agent_shortcuts: Mutex<std::collections::HashMap<String, String>>,
 }
 
 #[tauri::command]
@@ -131,6 +147,43 @@ async fn get_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<
 async fn clear_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<(), String> {
     log::info!("Clearing overlay messages");
     overlay_state.messages.lock().unwrap().clear();
+    Ok(())
+}
+
+#[tauri::command]
+async fn trigger_agent_toggle(
+    agent_id: String,
+    command_state: State<'_, CommandState>,
+) -> Result<(), String> {
+    log::info!("Triggering toggle for agent '{}'", agent_id);
+    commands::add_toggle_command(&command_state, agent_id);
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_agent_shortcuts(agent_state: State<'_, AgentDiscoveryState>) -> Result<std::collections::HashMap<String, String>, String> {
+    log::info!("Getting agent shortcuts");
+    let shortcuts = agent_state.agent_shortcuts.lock().unwrap().clone();
+    Ok(shortcuts)
+}
+
+#[tauri::command]
+async fn set_agent_shortcuts(
+    shortcuts: std::collections::HashMap<String, String>,
+    agent_state: State<'_, AgentDiscoveryState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    log::info!("Setting agent shortcuts: {:?}", shortcuts);
+    
+    // Save to disk first
+    #[cfg(desktop)]
+    {
+        shortcuts::save_agent_shortcuts_to_disk(&app_handle, &shortcuts)?;
+    }
+    
+    // Update in-memory state (skip dynamic registration to avoid plugin error)
+    *agent_state.agent_shortcuts.lock().unwrap() = shortcuts;
+    
     Ok(())
 }
 
@@ -259,6 +312,10 @@ fn start_static_server(app_handle: tauri::AppHandle) {
             .route("/message", axum::routing::post(notifications::message_handler))
             .route("/notification", axum::routing::post(notifications::notification_handler))
             .route("/overlay", axum::routing::post(overlay::overlay_handler))
+            .route("/commands", axum::routing::get(commands::get_commands_handler))
+            .route("/commands", axum::routing::post(commands::post_commands_handler))
+            .route("/agents", axum::routing::get(commands::get_agents_handler))
+            .route("/agents", axum::routing::post(commands::update_agents_handler))
             .fallback_service(ServeDir::new(resource_path))
             .with_state(state)
             .layer(cors);
@@ -297,6 +354,13 @@ pub fn run() {
         })
         .manage(OverlayState {
             messages: Mutex::new(Vec::new()),
+        })
+        .manage(CommandState {
+            pending_commands: Mutex::new(std::collections::HashMap::new()),
+        })
+        .manage(AgentDiscoveryState {
+            available_agents: Mutex::new(Vec::new()),
+            agent_shortcuts: Mutex::new(std::collections::HashMap::new()),
         })
         .manage(AppShortcutState {
             config: Mutex::new(ShortcutConfig::default()),
@@ -428,9 +492,18 @@ pub fn run() {
             .skip_taskbar(true)
             .visible(true)
             .resizable(true)
+            .content_protected(true)
             .build() {
                 Ok(window) => {
-                    log::info!("Overlay window created successfully");
+                    log::info!("Overlay window created successfully with content protection");
+                    
+                    // Explicitly set content protection after window creation
+                    if let Err(e) = window.set_content_protected(true) {
+                        log::warn!("Could not set content protection on overlay window: {}", e);
+                    } else {
+                        log::info!("Content protection explicitly enabled on overlay window");
+                    }
+                    
                     // Make the window draggable by setting it as focusable
                     if let Err(e) = window.set_focus() {
                         log::warn!("Could not focus overlay window: {}", e);
@@ -445,10 +518,16 @@ pub fn run() {
             // Register global shortcuts with graceful error handling
             #[cfg(desktop)]
             {
-                // Load config from disk and register shortcuts
+                // Load overlay shortcuts config from disk
                 let loaded_config = shortcuts::load_shortcut_config_from_disk(app.handle());
                 let shortcut_state = app.state::<AppShortcutState>();
                 *shortcut_state.config.lock().unwrap() = loaded_config;
+                
+                // Load agent shortcuts from disk
+                let loaded_agent_shortcuts = shortcuts::load_agent_shortcuts_from_disk(app.handle());
+                let agent_state = app.state::<AgentDiscoveryState>();
+                *agent_state.agent_shortcuts.lock().unwrap() = loaded_agent_shortcuts;
+                
                 shortcuts::register_global_shortcuts(app)?;
             }
             
@@ -474,6 +553,9 @@ pub fn run() {
             check_ollama_servers,
             get_overlay_messages,
             clear_overlay_messages,
+            trigger_agent_toggle,
+            get_agent_shortcuts,
+            set_agent_shortcuts,
             shortcuts::get_shortcut_config,
             shortcuts::get_active_shortcuts,
             shortcuts::set_shortcut_config

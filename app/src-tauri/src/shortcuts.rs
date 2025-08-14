@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
+use crate::{AgentDiscoveryState, CommandState};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ShortcutConfig {
@@ -86,6 +87,13 @@ fn get_shortcuts_config_path(app_handle: &AppHandle) -> Result<std::path::PathBu
 }
 
 #[cfg(desktop)]
+fn get_agent_shortcuts_config_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let app_data_dir = app_handle.path().app_data_dir()?;
+    std::fs::create_dir_all(&app_data_dir)?;
+    Ok(app_data_dir.join("agent_shortcuts.json"))
+}
+
+#[cfg(desktop)]
 pub fn load_shortcut_config_from_disk(app_handle: &AppHandle) -> ShortcutConfig {
     match get_shortcuts_config_path(app_handle) {
         Ok(config_path) => {
@@ -152,32 +160,141 @@ fn save_shortcut_config_to_disk(app_handle: &AppHandle, config: &ShortcutConfig)
 }
 
 #[cfg(desktop)]
+pub fn load_agent_shortcuts_from_disk(app_handle: &AppHandle) -> std::collections::HashMap<String, String> {
+    match get_agent_shortcuts_config_path(app_handle) {
+        Ok(config_path) => {
+            if config_path.exists() {
+                match std::fs::read_to_string(&config_path) {
+                    Ok(content) => {
+                        match serde_json::from_str::<std::collections::HashMap<String, String>>(&content) {
+                            Ok(shortcuts) => {
+                                log::info!("Loaded agent shortcuts from {:?}", config_path);
+                                return shortcuts;
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to parse agent shortcuts config: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to read agent shortcuts config file: {}", e);
+                    }
+                }
+            } else {
+                log::info!("No existing agent shortcuts config found, using empty map");
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to get agent shortcuts config path: {}", e);
+        }
+    }
+    
+    std::collections::HashMap::new()
+}
+
+#[cfg(desktop)]
+pub fn save_agent_shortcuts_to_disk(app_handle: &AppHandle, shortcuts: &std::collections::HashMap<String, String>) -> Result<(), String> {
+    match get_agent_shortcuts_config_path(app_handle) {
+        Ok(config_path) => {
+            match serde_json::to_string_pretty(shortcuts) {
+                Ok(json_content) => {
+                    match std::fs::write(&config_path, json_content) {
+                        Ok(_) => {
+                            log::info!("Saved agent shortcuts to {:?}", config_path);
+                            Ok(())
+                        }
+                        Err(e) => {
+                            let error_msg = format!("Failed to write agent shortcuts config: {}", e);
+                            log::error!("{}", error_msg);
+                            Err(error_msg)
+                        }
+                    }
+                }
+                Err(e) => {
+                    let error_msg = format!("Failed to serialize agent shortcuts config: {}", e);
+                    log::error!("{}", error_msg);
+                    Err(error_msg)
+                }
+            }
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to get agent shortcuts config path: {}", e);
+            log::error!("{}", error_msg);
+            Err(error_msg)
+        }
+    }
+}
+
+#[cfg(desktop)]
 fn parse_shortcut_string(shortcut_str: &str) -> Option<tauri_plugin_global_shortcut::Shortcut> {
     use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
     
     let parts: Vec<&str> = shortcut_str.split('+').map(|s| s.trim()).collect();
-    if parts.len() != 2 {
+    if parts.len() < 1 {
         return None;
     }
     
-    let modifier = match parts[0] {
-        "Cmd" | "Super" => Some(Modifiers::SUPER),
-        "Alt" => Some(Modifiers::ALT),
-        "Ctrl" => Some(Modifiers::CONTROL),
-        "Shift" => Some(Modifiers::SHIFT),
-        _ => return None,
+    // Handle multiple modifiers or no modifiers
+    let mut modifiers = Modifiers::empty();
+    let key_part = if parts.len() == 1 {
+        // No modifiers, just a key
+        parts[0]
+    } else {
+        // Parse modifiers
+        for i in 0..parts.len() - 1 {
+            match parts[i] {
+                "Cmd" | "Super" => modifiers |= Modifiers::SUPER,
+                "Alt" => modifiers |= Modifiers::ALT,
+                "Ctrl" => modifiers |= Modifiers::CONTROL,
+                "Shift" => modifiers |= Modifiers::SHIFT,
+                _ => return None,
+            }
+        }
+        parts[parts.len() - 1] // Last part is the key
     };
     
-    let key = match parts[1] {
-        "B" => Code::KeyB,
+    let key = match key_part {
+        // Letters
+        "A" => Code::KeyA, "B" => Code::KeyB, "C" => Code::KeyC, "D" => Code::KeyD,
+        "E" => Code::KeyE, "F" => Code::KeyF, "G" => Code::KeyG, "H" => Code::KeyH,
+        "I" => Code::KeyI, "J" => Code::KeyJ, "K" => Code::KeyK, "L" => Code::KeyL,
+        "M" => Code::KeyM, "N" => Code::KeyN, "O" => Code::KeyO, "P" => Code::KeyP,
+        "Q" => Code::KeyQ, "R" => Code::KeyR, "S" => Code::KeyS, "T" => Code::KeyT,
+        "U" => Code::KeyU, "V" => Code::KeyV, "W" => Code::KeyW, "X" => Code::KeyX,
+        "Y" => Code::KeyY, "Z" => Code::KeyZ,
+        
+        // Numbers
+        "0" => Code::Digit0, "1" => Code::Digit1, "2" => Code::Digit2, "3" => Code::Digit3,
+        "4" => Code::Digit4, "5" => Code::Digit5, "6" => Code::Digit6, "7" => Code::Digit7,
+        "8" => Code::Digit8, "9" => Code::Digit9,
+        
+        // Function keys
+        "F1" => Code::F1, "F2" => Code::F2, "F3" => Code::F3, "F4" => Code::F4,
+        "F5" => Code::F5, "F6" => Code::F6, "F7" => Code::F7, "F8" => Code::F8,
+        "F9" => Code::F9, "F10" => Code::F10, "F11" => Code::F11, "F12" => Code::F12,
+        
+        // Arrow keys
         "ArrowUp" => Code::ArrowUp,
         "ArrowDown" => Code::ArrowDown,
         "ArrowLeft" => Code::ArrowLeft,
         "ArrowRight" => Code::ArrowRight,
+        
+        // Special keys
+        "Space" => Code::Space,
+        "Enter" => Code::Enter,
+        "Tab" => Code::Tab,
+        "Escape" => Code::Escape,
+        "Backspace" => Code::Backspace,
+        "Delete" => Code::Delete,
+        "Home" => Code::Home,
+        "End" => Code::End,
+        "PageUp" => Code::PageUp,
+        "PageDown" => Code::PageDown,
+        
         _ => return None,
     };
     
-    Some(Shortcut::new(modifier, key))
+    Some(Shortcut::new(Some(modifiers), key))
 }
 
 #[cfg(desktop)]
@@ -188,47 +305,69 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
     let shortcut_state = app.state::<AppShortcutState>();
     let config = shortcut_state.config.lock().unwrap().clone();
     
+    // Get agent shortcuts
+    let agent_state = app.state::<AgentDiscoveryState>();
+    let agent_shortcuts = agent_state.agent_shortcuts.lock().unwrap().clone();
+    
     // Collect shortcuts to register with their original indices preserved
-    let mut shortcuts_to_register = Vec::new();
+    let mut shortcuts_to_register: Vec<(tauri_plugin_global_shortcut::Shortcut, String, String)> = Vec::new();
     let mut shortcut_actions = Vec::new(); // Maps array index to action type
+    let mut agent_ids = Vec::new(); // Maps array index to agent_id for agent shortcuts
     
     // Toggle (action_id = 0)
     if let Some(toggle) = &config.toggle {
         if let Some(shortcut) = parse_shortcut_string(toggle) {
-            shortcuts_to_register.push((shortcut, toggle.clone(), "toggle"));
+            shortcuts_to_register.push((shortcut, toggle.clone(), "toggle".to_string()));
             shortcut_actions.push(0); // toggle action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
         }
     }
     
     // Move up (action_id = 1)
     if let Some(move_up) = &config.move_up {
         if let Some(shortcut) = parse_shortcut_string(move_up) {
-            shortcuts_to_register.push((shortcut, move_up.clone(), "move up"));
+            shortcuts_to_register.push((shortcut, move_up.clone(), "move up".to_string()));
             shortcut_actions.push(1); // move up action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
         }
     }
     
     // Move down (action_id = 2)
     if let Some(move_down) = &config.move_down {
         if let Some(shortcut) = parse_shortcut_string(move_down) {
-            shortcuts_to_register.push((shortcut, move_down.clone(), "move down"));
+            shortcuts_to_register.push((shortcut, move_down.clone(), "move down".to_string()));
             shortcut_actions.push(2); // move down action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
         }
     }
     
     // Move left (action_id = 3)
     if let Some(move_left) = &config.move_left {
         if let Some(shortcut) = parse_shortcut_string(move_left) {
-            shortcuts_to_register.push((shortcut, move_left.clone(), "move left"));
+            shortcuts_to_register.push((shortcut, move_left.clone(), "move left".to_string()));
             shortcut_actions.push(3); // move left action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
         }
     }
     
     // Move right (action_id = 4)
     if let Some(move_right) = &config.move_right {
         if let Some(shortcut) = parse_shortcut_string(move_right) {
-            shortcuts_to_register.push((shortcut, move_right.clone(), "move right"));
+            shortcuts_to_register.push((shortcut, move_right.clone(), "move right".to_string()));
             shortcut_actions.push(4); // move right action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
+        }
+    }
+    
+    // Agent shortcuts (action_id = 5+)
+    for (agent_id, shortcut_str) in &agent_shortcuts {
+        if !shortcut_str.is_empty() {
+            if let Some(shortcut) = parse_shortcut_string(shortcut_str) {
+                let description = format!("toggle agent {}", agent_id);
+                shortcuts_to_register.push((shortcut, shortcut_str.clone(), description));
+                shortcut_actions.push(5); // agent toggle action
+                agent_ids.push(agent_id.clone());
+            }
         }
     }
     
@@ -238,7 +377,7 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
     
     // Register the global shortcut handler
     app.handle().plugin(
-        tauri_plugin_global_shortcut::Builder::new().with_handler(move |_app, shortcut, event| {
+        tauri_plugin_global_shortcut::Builder::new().with_handler(move |app_handle, shortcut, event| {
             if event.state() != ShortcutState::Pressed {
                 return;
             }
@@ -312,6 +451,15 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
                                     }
                                 }
                             }
+                            5 => {
+                                // Agent toggle
+                                let agent_id = &agent_ids[array_idx];
+                                if !agent_id.is_empty() {
+                                    log::info!("Agent hotkey pressed for agent: {}", agent_id);
+                                    let command_state = app_handle.state::<CommandState>();
+                                    crate::commands::add_toggle_command(&command_state, agent_id.clone());
+                                }
+                            }
                             _ => {
                                 log::warn!("Unknown action_id: {}", action_id);
                             }
@@ -342,6 +490,185 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
     }
     
     // Update the active shortcuts state
+    *shortcut_state.active_shortcuts.lock().unwrap() = active_shortcuts;
+    
+    Ok(())
+}
+
+#[cfg(desktop)]
+pub fn update_agent_shortcuts(app_handle: &AppHandle, new_shortcuts: std::collections::HashMap<String, String>) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    
+    log::info!("Updating agent shortcuts dynamically");
+    
+    // Update the stored shortcuts
+    let agent_state = app_handle.state::<AgentDiscoveryState>();
+    *agent_state.agent_shortcuts.lock().unwrap() = new_shortcuts.clone();
+    
+    // Unregister all existing shortcuts
+    match app_handle.global_shortcut().unregister_all() {
+        Ok(_) => log::info!("Unregistered all existing shortcuts"),
+        Err(e) => log::warn!("Failed to unregister shortcuts: {}", e),
+    }
+    
+    // Re-register all shortcuts (overlay + agent)
+    register_shortcuts_internal(app_handle)?;
+    
+    Ok(())
+}
+
+#[cfg(desktop)]
+fn register_shortcuts_internal(app_handle: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+    
+    // Get shortcut configurations
+    let shortcut_state = app_handle.state::<AppShortcutState>();
+    let config = shortcut_state.config.lock().unwrap().clone();
+    
+    let agent_state = app_handle.state::<AgentDiscoveryState>();
+    let agent_shortcuts = agent_state.agent_shortcuts.lock().unwrap().clone();
+    
+    // Collect shortcuts to register
+    let mut shortcuts_to_register: Vec<(tauri_plugin_global_shortcut::Shortcut, String, String)> = Vec::new();
+    let mut shortcut_actions = Vec::new();
+    let mut agent_ids = Vec::new();
+    
+    // Add overlay shortcuts
+    if let Some(toggle) = &config.toggle {
+        if let Some(shortcut) = parse_shortcut_string(toggle) {
+            shortcuts_to_register.push((shortcut, toggle.clone(), "toggle".to_string()));
+            shortcut_actions.push(0);
+            agent_ids.push(String::new());
+        }
+    }
+    
+    if let Some(move_up) = &config.move_up {
+        if let Some(shortcut) = parse_shortcut_string(move_up) {
+            shortcuts_to_register.push((shortcut, move_up.clone(), "move up".to_string()));
+            shortcut_actions.push(1);
+            agent_ids.push(String::new());
+        }
+    }
+    
+    if let Some(move_down) = &config.move_down {
+        if let Some(shortcut) = parse_shortcut_string(move_down) {
+            shortcuts_to_register.push((shortcut, move_down.clone(), "move down".to_string()));
+            shortcut_actions.push(2);
+            agent_ids.push(String::new());
+        }
+    }
+    
+    if let Some(move_left) = &config.move_left {
+        if let Some(shortcut) = parse_shortcut_string(move_left) {
+            shortcuts_to_register.push((shortcut, move_left.clone(), "move left".to_string()));
+            shortcut_actions.push(3);
+            agent_ids.push(String::new());
+        }
+    }
+    
+    if let Some(move_right) = &config.move_right {
+        if let Some(shortcut) = parse_shortcut_string(move_right) {
+            shortcuts_to_register.push((shortcut, move_right.clone(), "move right".to_string()));
+            shortcut_actions.push(4);
+            agent_ids.push(String::new());
+        }
+    }
+    
+    // Add agent shortcuts
+    for (agent_id, shortcut_str) in &agent_shortcuts {
+        if !shortcut_str.is_empty() {
+            if let Some(shortcut) = parse_shortcut_string(shortcut_str) {
+                let description = format!("toggle agent {}", agent_id);
+                shortcuts_to_register.push((shortcut, shortcut_str.clone(), description));
+                shortcut_actions.push(5);
+                agent_ids.push(agent_id.clone());
+            }
+        }
+    }
+    
+    // Store shortcuts for the handler
+    let registered_shortcuts = shortcuts_to_register.iter().map(|(s, _, _)| s.clone()).collect::<Vec<_>>();
+    let shortcut_handle = app_handle.clone();
+    
+    // Register the global shortcut handler
+    app_handle.plugin(
+        tauri_plugin_global_shortcut::Builder::new().with_handler(move |app_handle, shortcut, event| {
+            if event.state() != ShortcutState::Pressed {
+                return;
+            }
+            
+            match shortcut_handle.get_webview_window("overlay") {
+                Some(window) => {
+                    let shortcut_idx = registered_shortcuts.iter().position(|s| s == shortcut);
+                    if let Some(array_idx) = shortcut_idx {
+                        let action_id = shortcut_actions[array_idx];
+                        
+                        match action_id {
+                            0 => {
+                                // Toggle overlay visibility
+                                match window.is_visible() {
+                                    Ok(visible) => {
+                                        let result = if visible { window.hide() } else { window.show() };
+                                        match result {
+                                            Ok(_) => log::info!("Overlay {} via toggle shortcut", if visible { "hidden" } else { "shown" }),
+                                            Err(e) => log::error!("Failed to {} overlay: {}", if visible { "hide" } else { "show" }, e),
+                                        }
+                                    }
+                                    Err(e) => log::error!("Failed to check overlay visibility: {}", e),
+                                }
+                            }
+                            1 | 2 | 3 | 4 => {
+                                // Move overlay window
+                                match window.outer_position() {
+                                    Ok(current_pos) => {
+                                        let (dx, dy) = match action_id {
+                                            1 => (0, -50), 2 => (0, 50), 3 => (-50, 0), 4 => (50, 0), _ => (0, 0),
+                                        };
+                                        let new_x = current_pos.x + dx;
+                                        let new_y = current_pos.y + dy;
+                                        match window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: new_x, y: new_y })) {
+                                            Ok(_) => {
+                                                let direction = match action_id { 1 => "up", 2 => "down", 3 => "left", 4 => "right", _ => "unknown" };
+                                                log::info!("Overlay moved {} to ({}, {})", direction, new_x, new_y);
+                                            }
+                                            Err(e) => log::error!("Failed to move overlay: {}", e),
+                                        }
+                                    }
+                                    Err(e) => log::error!("Failed to get overlay position: {}", e),
+                                }
+                            }
+                            5 => {
+                                // Agent toggle
+                                let agent_id = &agent_ids[array_idx];
+                                if !agent_id.is_empty() {
+                                    log::info!("Agent hotkey pressed for agent: {}", agent_id);
+                                    let command_state = app_handle.state::<CommandState>();
+                                    crate::commands::add_toggle_command(&command_state, agent_id.clone());
+                                }
+                            }
+                            _ => log::warn!("Unknown action_id: {}", action_id),
+                        }
+                    }
+                }
+                None => log::warn!("Overlay window not found for shortcut"),
+            }
+        })
+        .build(),
+    )?;
+    
+    // Register shortcuts
+    let mut active_shortcuts = Vec::new();
+    for (shortcut, description, action) in shortcuts_to_register {
+        match app_handle.global_shortcut().register(shortcut) {
+            Ok(_) => {
+                log::info!("✓ Registered shortcut '{}' for {}", description, action);
+                active_shortcuts.push(description);
+            }
+            Err(e) => log::warn!("✗ Failed to register shortcut '{}' for {}: {}", description, action, e),
+        }
+    }
+    
+    // Update active shortcuts state
     *shortcut_state.active_shortcuts.lock().unwrap() = active_shortcuts;
     
     Ok(())
