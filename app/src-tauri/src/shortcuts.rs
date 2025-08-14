@@ -1,6 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
+
+// Helper function to ensure overlay always ignores cursor events
+fn ensure_overlay_click_through(window: &tauri::WebviewWindow) {
+    if let Err(e) = window.set_ignore_cursor_events(true) {
+        log::warn!("Failed to re-enable click-through on overlay: {}", e);
+    } else {
+        log::debug!("Click-through re-enabled on overlay window");
+    }
+}
 use crate::{AgentDiscoveryState, CommandState};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -440,6 +449,8 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
                                                     _ => "unknown",
                                                 };
                                                 log::info!("Overlay moved {} to ({}, {})", direction, new_x, new_y);
+                                                // Re-enforce click-through after position change
+                                                ensure_overlay_click_through(&window);
                                             }
                                             Err(e) => {
                                                 log::error!("Failed to move overlay: {}", e);
@@ -630,6 +641,8 @@ fn register_shortcuts_internal(app_handle: &AppHandle) -> Result<(), Box<dyn std
                                             Ok(_) => {
                                                 let direction = match action_id { 1 => "up", 2 => "down", 3 => "left", 4 => "right", _ => "unknown" };
                                                 log::info!("Overlay moved {} to ({}, {})", direction, new_x, new_y);
+                                                // Re-enforce click-through after position change
+                                                ensure_overlay_click_through(&window);
                                             }
                                             Err(e) => log::error!("Failed to move overlay: {}", e),
                                         }

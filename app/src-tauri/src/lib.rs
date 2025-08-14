@@ -26,7 +26,7 @@ use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder,
 };
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_updater::UpdaterExt;
@@ -144,9 +144,21 @@ async fn get_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<
 }
 
 #[tauri::command]
-async fn clear_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<(), String> {
+async fn clear_overlay_messages(
+    overlay_state: State<'_, OverlayState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
     log::info!("Clearing overlay messages");
     overlay_state.messages.lock().unwrap().clear();
+    
+    // Emit event to notify frontend of cleared messages
+    let empty_messages: Vec<OverlayMessage> = vec![];
+    if let Err(e) = app_handle.emit("overlay-messages-updated", &empty_messages) {
+        log::warn!("Failed to emit overlay-messages-updated event after clear: {}", e);
+    } else {
+        log::debug!("Emitted overlay-messages-updated event with 0 messages after clear");
+    }
+    
     Ok(())
 }
 
@@ -484,14 +496,14 @@ pub fn run() {
                 WebviewUrl::App("/overlay".into()),
             )
             .title("Observer Overlay")
-            .inner_size(300.0, 200.0)
+            .inner_size(500.0, 500.0)
             .position(50.0, 50.0)
             .decorations(false)
             .transparent(true)
             .always_on_top(true)
             .skip_taskbar(true)
             .visible(true)
-            .resizable(true)
+            .resizable(false)
             .content_protected(true)
             .build() {
                 Ok(window) => {

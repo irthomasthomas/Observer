@@ -2,7 +2,7 @@
 
 use axum::{extract::State as AxumState, http::StatusCode, response::Json};
 use serde::Deserialize;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use crate::{AppState, OverlayMessage, OverlayState};
 
 #[derive(Deserialize)]
@@ -31,6 +31,14 @@ pub async fn overlay_handler(
 
     // Add the message to the overlay state
     overlay_state.messages.lock().unwrap().push(overlay_message);
+
+    // Emit event to notify frontend of message update
+    let messages = overlay_state.messages.lock().unwrap().clone();
+    if let Err(e) = state.app_handle.emit("overlay-messages-updated", &messages) {
+        log::warn!("Failed to emit overlay-messages-updated event: {}", e);
+    } else {
+        log::debug!("Emitted overlay-messages-updated event with {} messages", messages.len());
+    }
 
     StatusCode::OK
 }

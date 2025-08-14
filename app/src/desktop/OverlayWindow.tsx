@@ -1,20 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 
 interface OverlayMessage {
   id: string;
   content: string;
   timestamp: number;
-}
-
-// Custom hook for interval polling
-function useInterval(callback: () => void, delay: number | null) {
-  useEffect(() => {
-    if (delay === null) return;
-    const interval = setInterval(callback, delay);
-    return () => clearInterval(interval);
-  }, [callback, delay]);
 }
 
 // Simple markdown renderer for basic formatting
@@ -47,14 +39,6 @@ export default function OverlayWindow() {
     }
   }, []);
 
-  const clearMessages = useCallback(async () => {
-    try {
-      await invoke('clear_overlay_messages');
-      setMessages([]);
-    } catch (error) {
-      console.error('Failed to clear overlay messages:', error);
-    }
-  }, []);
   
   const fetchActiveShortcuts = useCallback(async () => {
     try {
@@ -65,34 +49,68 @@ export default function OverlayWindow() {
     }
   }, []);
 
-  // Poll for messages every 500ms
-  useInterval(fetchMessages, 500);
+  // Note: Message polling replaced with event listener below
+  // Note: Click-through polling removed - now only enforced after window operations
 
-  // Initial fetch and content protection setup
+  // Initial setup and event listeners
   useEffect(() => {
+    // Initial data fetch
     fetchMessages();
     fetchActiveShortcuts();
     
-    // Enable content protection on the overlay window
-    const setupContentProtection = async () => {
+    const setupOverlayFeatures = async () => {
       try {
+        // Enable content protection on the overlay window
         await getCurrentWindow().setContentProtected(true);
         console.log('Content protection enabled on overlay window');
+        
+        // Always enable click-through (ignore cursor events)
+        await getCurrentWindow().setIgnoreCursorEvents(true);
+        console.log('Always click-through enabled on overlay window');
       } catch (error) {
-        console.warn('Failed to enable content protection:', error);
+        console.warn('Failed to setup overlay features:', error);
       }
     };
     
-    setupContentProtection();
-  }, [fetchMessages, fetchActiveShortcuts]);
+    // Set up event listener for real-time message updates
+    const setupMessageListener = async () => {
+      try {
+        const unlisten = await listen<OverlayMessage[]>('overlay-messages-updated', (event) => {
+          console.log('Received overlay messages update:', event.payload);
+          setMessages(event.payload);
+          setIsLoading(false);
+        });
+        
+        // Return cleanup function
+        return unlisten;
+      } catch (error) {
+        console.warn('Failed to setup message listener:', error);
+        return () => {};
+      }
+    };
+    
+    setupOverlayFeatures();
+    
+    // Setup message listener and store cleanup function
+    let messageUnlisten: (() => void) | null = null;
+    setupMessageListener().then(unlisten => {
+      messageUnlisten = unlisten;
+    });
+    
+    // Cleanup function
+    return () => {
+      if (messageUnlisten) {
+        messageUnlisten();
+      }
+    };
+  }, []); // Remove dependencies - only run once on mount
 
   return (
     <div 
-      className="fixed inset-0"
-      data-tauri-drag-region
+      className="fixed inset-0 pointer-events-none"
       style={{ 
         backgroundColor: 'rgba(0, 0, 0, 0)',
-        WebkitAppRegion: 'drag' 
+        WebkitAppRegion: 'no-drag' 
       } as React.CSSProperties}
     >
       <div className="h-full w-full flex items-start justify-start p-4">
@@ -122,13 +140,6 @@ export default function OverlayWindow() {
                         {messages.length}
                       </div>
                     )}
-                    <button
-                      onClick={clearMessages}
-                      className="text-white/40 hover:text-white/70 text-xs transition-colors"
-                      title="Clear messages"
-                    >
-                      ✕
-                    </button>
                   </div>
                 </div>
                 <div 
