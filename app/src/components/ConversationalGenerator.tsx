@@ -229,7 +229,8 @@ What would you like to create today?`
         // --- CLOUD PATH ---
         const token = await getToken();
         if (!token) throw new Error("Authentication failed.");
-        responseText = await sendPrompt('https://api.observer-ai.com', '443', 'gemini-2.0-flash-lite', { modifiedPrompt: fullPrompt, images: [] }, token);
+        // if you think of spamming this model somehow te voy a jalar las patas en la noche >:(
+        responseText = await sendPrompt('https://api.observer-ai.com', '443', 'gemini-2.0-flash-lite-free', { modifiedPrompt: fullPrompt, images: [] }, token);
       } else {
         // --- LOCAL PATH ---
         const { host, port } = getOllamaServerAddress();
