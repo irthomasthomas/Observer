@@ -41,29 +41,36 @@ Creating your own Observer AI agent is simple, and consist of three things:
    * **Screen Audio**\* ($SCREEN_AUDIO) Captures the audio transcription of screen sharing a tab.
    * **All audio**\* ($ALL_AUDIO) Mixes the microphone and screen audio and provides a complete transcription of both (used for meetings).
 
-\* Uses a whisper model with transformers.js (only supports whisper-tiny english for now)
+\* Uses a whisper model with transformers.js
 
-4. Decide what tools do with your models `response` in the Code Tab:
-  * `notify(title, options)` – Send notifications  
-  * `getMemory(agentId)*` – Retrieve stored memory (defaults to current agent)  
+Agent Tools:
+  * `getMemory(agentId)*` – Retrieve stored memory 
   * `setMemory(agentId, content)*` – Replace stored memory  
   * `appendMemory(agentId, content)*` – Add to existing memory  
   * `startAgent(agentId)*` – Starts an agent  
   * `stopAgent(agentId)*` – Stops an agent
   * `time()` - Gets current time
+
+Notification Tools:
   * `sendEmail(content, email)` - Sends an email
   * `sendPushover(message, user_token)` - Sends a pushover notification.
   * `sendDiscordBot(message,discord_webhook)`Sends a discord message to a server.
+  * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
   * `sendWhatsapp(content, phone_number)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number.
   * `sendSms(content, phone_number)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
+
+Video Recording Tools: 
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
   * `stopClip()` - Stops an active recording
   * `markClip(label)` - Adds a label to any active recording that will be displayed in the recording Tab.
 
-IN BETA (App Only):
+App Tools:
   * `ask(question, title="Confirmation")` - Pops up a system confirmation dialog 
   * `message(message, title="Agent Message")` - Pops up a system message
   * `system_notify(body, title="Observer AI")` - Sends a system notification
+  * `translucent(body)` - Pushes a message to the translucent overlay
+
+
 
 ## Code Tab
 
