@@ -119,7 +119,7 @@ const CommunityTab: React.FC = () => {
       }
       
       const data = await response.json();
-      setAgents(data);
+      setAgents(data.reverse());
       
       Logger.info('COMMUNITY', `Fetched ${data.length} agents from marketplace`);
     } catch (err) {
