@@ -5,7 +5,7 @@ import { CompleteAgent } from '@utils/agent_database';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 import { listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
-import { AGENT_ITERATION_START_EVENT, AGENT_WAITING_START_EVENT, AGENT_ITERATION_SKIPPED_EVENT } from '@utils/TimerEventManager';
+import { AGENT_ITERATION_START_EVENT, AGENT_WAITING_START_EVENT } from '@utils/main_loop';
 import { Logger, LogEntry } from '@utils/logging';
 import { StreamManager, StreamState } from '@utils/streamManager';
 
@@ -156,24 +156,15 @@ const AgentCard: React.FC<AgentCardProps> = ({
       setLoopProgress(0);
     };
 
-    const handleIterationSkipped = (event: CustomEvent) => {
-      if (event.detail.agentId !== agent.id) return;
-      nextIterationTime = event.detail.nextIterationTime;
-      intervalMs = event.detail.intervalMs;
-      // Continue showing progress for next possible iteration
-    };
-
     if (isRunning && !hasQuotaError) {
       window.addEventListener(AGENT_WAITING_START_EVENT as any, handleWaitingStart);
       window.addEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
-      window.addEventListener(AGENT_ITERATION_SKIPPED_EVENT as any, handleIterationSkipped);
     }
 
     return () => {
       if (progressTimer) clearInterval(progressTimer);
       window.removeEventListener(AGENT_WAITING_START_EVENT as any, handleWaitingStart);
       window.removeEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
-      window.removeEventListener(AGENT_ITERATION_SKIPPED_EVENT as any, handleIterationSkipped);
     };
   }, [isRunning, hasQuotaError, agent.id]);
 
