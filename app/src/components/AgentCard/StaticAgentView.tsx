@@ -96,11 +96,11 @@ const NoToolsNotice: React.FC = () => (
 );
 
 
-const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName: string) => void;}> = ({ currentModel, onModelChange }) => {
+const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName: string) => void; isProUser?: boolean; }> = ({ currentModel, onModelChange, isProUser = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [availableModels, setAvailableModels] = useState<{ name: string; multimodal?: boolean }[]>([]);
+    const [availableModels, setAvailableModels] = useState<{ name: string; multimodal?: boolean; pro?: boolean; }[]>([]);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const fetchModels = async () => {
@@ -144,10 +144,27 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
                         {isLoading && <div className="px-3 py-1.5 text-xs text-gray-500">Loading...</div>}
                         {error && <div className="px-3 py-1.5 text-xs text-red-600">{error}</div>}
                         {!isLoading && !error && availableModels.map((model) => (
-                            <button key={model.name} onClick={() => { onModelChange(model.name); setIsOpen(false); }} className={`${model.name === currentModel ? 'bg-gray-100' : ''} block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100`}>
+                            <button 
+                                key={model.name} 
+                                onClick={() => { 
+                                    if (model.pro && !isProUser) return; // Prevent selection of pro models for non-pro users
+                                    onModelChange(model.name); 
+                                    setIsOpen(false); 
+                                }} 
+                                disabled={model.pro && !isProUser}
+                                className={`${model.name === currentModel ? 'bg-gray-100' : ''} block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 ${model.pro && !isProUser ? 'opacity-50 select-none cursor-not-allowed' : ''}`}>
                                 <div className="flex items-center justify-between">
-                                  <span className="truncate">{model.name}</span>
-                                  {model.multimodal && <Eye className="h-4 w-4 text-purple-600" />}
+                                  <div className="flex items-center">
+                                    <span className="truncate">{model.name}</span>
+                                    {model.pro && !isProUser && (
+                                      <span className="ml-2 text-xs font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full">
+                                        PRO
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    {model.multimodal && <Eye className="h-4 w-4 text-purple-600" />}
+                                  </div>
                                 </div>
                             </button>
                         ))}
@@ -168,6 +185,7 @@ interface StaticAgentViewProps {
     currentModel: string;
     onModelChange: (modelName: string) => void;
     startWarning: string | null;
+    isProUser?: boolean;
 }
 
 
@@ -178,6 +196,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     currentModel,
     onModelChange,
     startWarning,
+    isProUser = false,
 }) => {
     // --- FINAL FIX: Consolidate all detection logic into a single useMemo hook ---
     const { detectedSensors, detectedTools } = useMemo(() => {
@@ -246,7 +265,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPythonAgent ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                     {isPythonAgent ? 'Python' : 'JavaScript'}
                 </div>
-                <div className="inline-flex items-center"><Cpu className="w-4 h-4 mr-1.5" /><ModelDropdown currentModel={currentModel} onModelChange={onModelChange} /></div>
+                <div className="inline-flex items-center"><Cpu className="w-4 h-4 mr-1.5" /><ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} /></div>
                 <div className="inline-flex items-center"><Clock className="w-4 h-4 mr-1.5" />{agent.loop_interval_seconds}s</div>
             </div>
 

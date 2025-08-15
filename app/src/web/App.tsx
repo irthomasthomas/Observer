@@ -97,6 +97,17 @@ function AppContent() {
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalAgentId, setActivityModalAgentId] = useState<string | null>(null);
 
+  // --- STATE FOR QUOTA INFO ---
+  const [quotaInfo, setQuotaInfo] = useState<{
+    used: number;
+    remaining: number | 'unlimited';
+    limit: number | 'unlimited';
+    pro_status: boolean;
+  } | null>(null);
+
+  // --- DERIVED STATE ---
+  const isProUser = quotaInfo?.pro_status === true;
+
   const fetchAgents = useCallback(async () => {
     try {
       setIsRefreshing(true);
@@ -518,6 +529,8 @@ function AppContent() {
           }}
           getToken={getToken}
           onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+          quotaInfo={quotaInfo}
+          setQuotaInfo={setQuotaInfo}
         />
 
         <PersistentSidebar
@@ -576,6 +589,7 @@ function AppContent() {
                       hasQuotaError={agentsWithQuotaError.has(agent.id)}
                       onUpgradeClick={() => setIsUpgradeModalOpen(true)}
                       onSave={handleSaveAgent}
+                      isProUser={isProUser}
                     />
                   </div>
                 );
@@ -597,7 +611,7 @@ function AppContent() {
           ) : activeTab === 'community' ? (
             <CommunityTab />
           ) : activeTab === 'models' ? (
-            <AvailableModels />
+            <AvailableModels isProUser={isProUser} />
           ) : activeTab === 'recordings' ? (
             <RecordingsViewer />
           ) : activeTab === 'settings' ? (
@@ -643,6 +657,7 @@ function AppContent() {
           onImportComplete={fetchAgents}
           setError={setError}
           getToken={getToken}
+          isProUser={isProUser}
         />
       )}
 

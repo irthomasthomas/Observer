@@ -7,7 +7,11 @@ import TerminalModal from '@components/TerminalModal';
 
 // No need to redefine Model interface here if imported correctly
 
-const AvailableModels: React.FC = () => {
+interface AvailableModelsProps {
+  isProUser?: boolean;
+}
+
+const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) => {
   const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,12 +115,21 @@ const AvailableModels: React.FC = () => {
           {models.map((model) => (
             <div
               key={model.name}
-              className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow"
+              className={`bg-white border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow ${
+                model.pro && !isProUser ? 'opacity-50 grayscale select-none' : ''
+              }`}
             >
               <div className="flex items-start mb-2">
                 <Cpu className="h-5 w-5 text-blue-500 mr-2 mt-1 flex-shrink-0" />
                 <div className="flex-grow">
-                  <h3 className="font-medium text-gray-900 break-words">{model.name}</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-medium text-gray-900 break-words">{model.name}</h3>
+                    {model.pro && !isProUser && (
+                      <span className="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
+                        PRO
+                      </span>
+                    )}
+                  </div>
                   {/* Container for parameter size and multimodal icon */}
                   <div className="flex items-center flex-wrap mt-1">
                     {model.parameterSize && model.parameterSize !== "N/A" && (

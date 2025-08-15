@@ -48,6 +48,7 @@ interface EditAgentModalProps {
   onImportComplete?: () => Promise<void>;
   setError?: (message: string | null) => void;
   getToken: TokenProvider;
+  isProUser?: boolean;
 }
 
 // --- HELPER COMPONENTS (Unchanged) ---
@@ -135,16 +136,17 @@ interface ConfigContentProps {
   loadingModels: boolean;
   modelsError: string | null;
   // FIX: Changed `multimodal: boolean | undefined` to `multimodal?: boolean` to make it optional
-  availableModels: { name: string; multimodal?: boolean }[];
+  availableModels: { name: string; multimodal?: boolean; pro?: boolean }[];
   loopInterval: number;
   setLoopInterval: (interval: number) => void;
   description: string;
   setDescription: (desc: string) => void;
+  isProUser?: boolean;
 }
 const ConfigContent: React.FC<ConfigContentProps> = ({
   name, setName, agentId, setAgentId, createMode, currentModel, setCurrentModel,
   isModelDropdownOpen, setIsModelDropdownOpen, loadingModels, modelsError,
-  availableModels, loopInterval, setLoopInterval, description, setDescription,
+  availableModels, loopInterval, setLoopInterval, description, setDescription, isProUser = false,
 }) => (
   <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
     <h3 className="text-lg font-semibold text-indigo-700 mb-4 md:hidden">Agent Configuration</h3>
@@ -173,16 +175,25 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
                   <button
                     key={m.name}
                     onClick={() => {
+                      if (m.pro && !isProUser) return; // Prevent selection of pro models for non-pro users
                       setCurrentModel(m.name);
                       setIsModelDropdownOpen(false);
                     }}
+                    disabled={m.pro && !isProUser}
                     className={`w-full text-left px-3 py-2 text-xs flex justify-between items-center ${
                       currentModel === m.name
                         ? 'bg-indigo-500 text-white'
                         : 'hover:bg-gray-100'
-                    }`}
+                    } ${m.pro && !isProUser ? 'opacity-50 select-none cursor-not-allowed' : ''}`}
                   >
-                    <span className="truncate pr-2">{m.name}</span>
+                    <div className="flex items-center truncate pr-2">
+                      <span className="truncate">{m.name}</span>
+                      {m.pro && !isProUser && (
+                        <span className="ml-2 text-xs font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full">
+                          PRO
+                        </span>
+                      )}
+                    </div>
                     {m.multimodal && (
                       <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-purple-600 bg-purple-100'}`}>
                         <Eye className="h-3.5 w-3.5 mr-1" />
@@ -358,6 +369,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
   onImportComplete,
   setError,
   getToken,
+  isProUser = false,
 }) => {
   const logic = useEditAgentModalLogic({
     isOpen, onClose, createMode, agent, code: existingCode, onSave, getToken
@@ -485,6 +497,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                     availableModels={logic.availableModels}
                     loopInterval={logic.loopInterval} setLoopInterval={logic.setLoopInterval}
                     description={logic.description} setDescription={logic.setDescription}
+                    isProUser={isProUser}
                   />
                 </Accordion>
               </div>
@@ -542,6 +555,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                 availableModels={logic.availableModels}
                 loopInterval={logic.loopInterval} setLoopInterval={logic.setLoopInterval}
                 description={logic.description} setDescription={logic.setDescription}
+                isProUser={isProUser}
               />
             }
 

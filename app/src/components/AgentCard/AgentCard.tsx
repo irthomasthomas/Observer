@@ -51,12 +51,13 @@ interface AgentCardProps {
   hasQuotaError: boolean;
   onUpgradeClick: () => void;
   onSave: (agent: CompleteAgent, code: string) => Promise<void>;
+  isProUser?: boolean;
 }
 
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent, code, isRunning, isStarting, isMemoryFlashing, onEdit, onDelete, onToggle,
-  onMemory, onActivity, onShowJupyterModal, hasQuotaError, onUpgradeClick, onSave
+  onMemory, onActivity, onShowJupyterModal, hasQuotaError, onUpgradeClick, onSave, isProUser = false
 }) => {
   const [isPythonAgent, setIsPythonAgent] = useState(false);
   const [startWarning, setStartWarning] = useState<string | null>(null);
@@ -247,6 +248,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               currentModel={currentModel}
               onModelChange={setCurrentModel}
               startWarning={startWarning}
+              isProUser={isProUser}
               // REMOVED: communicationWarnings prop is gone
             />
           )}

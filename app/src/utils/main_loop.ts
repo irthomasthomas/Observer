@@ -266,6 +266,9 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       Logger.error(agentId, `Error in agent iteration: ${errorMessage}`, error);
     }
+    
+    // Re-throw error so executeIteration() can handle stopping the agent
+    throw error;
   }
 }
 

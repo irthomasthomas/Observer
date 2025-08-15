@@ -66,6 +66,8 @@ interface AppHeaderProps {
   hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
   getToken: TokenProvider;
   onUpgradeClick?: () => void;
+  quotaInfo: QuotaInfo;
+  setQuotaInfo: React.Dispatch<React.SetStateAction<QuotaInfo>>;
 }
 
 
@@ -82,6 +84,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   hostingContext = 'self-hosted',
   getToken,
   onUpgradeClick,
+  quotaInfo,
+  setQuotaInfo,
 }) => {
   // --- MODIFIED --- Default to the full, desired URL for the proxy.
   const [serverAddress, setServerAddress] = useState(() => {
@@ -89,7 +93,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 });
 
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
-  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [showLoginMessage, setShowLoginMessage] = useState(false);

@@ -8,6 +8,7 @@ export interface Model {
   name: string;
   parameterSize?: string;
   multimodal?: boolean;
+  pro?: boolean;
 }
 
 interface ModelsResponse {
@@ -66,7 +67,8 @@ export async function listModels(host: string, port: string): Promise<ModelsResp
       return {
         name: model.id,
         parameterSize: model.parameter_size,
-        multimodal: model.multimodal ?? false
+        multimodal: model.multimodal ?? false,
+        pro: model.pro ?? false
       };
     });
 
