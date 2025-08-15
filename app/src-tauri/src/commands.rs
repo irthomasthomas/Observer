@@ -1,10 +1,16 @@
 // In src-tauri/src/commands.rs
 
-use axum::{extract::State as AxumState, http::StatusCode, response::Json};
+use axum::{
+    extract::State as AxumState, 
+    http::StatusCode, 
+    response::{Json, Sse, sse::Event},
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tauri::{Manager, State};
-use crate::{AppState, CommandState, AgentDiscoveryState, AgentInfo};
+use tauri::Manager;
+use tokio_stream::{wrappers::BroadcastStream, StreamExt};
+use futures::stream::Stream;
+use crate::{AppState, CommandState, AgentDiscoveryState, AgentInfo, CommandMessage};
 
 #[derive(Serialize, Deserialize)]
 pub struct CommandsResponse {
@@ -48,11 +54,61 @@ pub async fn post_commands_handler(
     StatusCode::OK
 }
 
-/// Internal function to add a toggle command (called by shortcut system)
+/// SSE endpoint for real-time command streaming
+pub async fn commands_stream_handler(
+    AxumState(state): AxumState<AppState>,
+) -> Sse<impl Stream<Item = Result<Event, Box<dyn std::error::Error + Send + Sync>>>> {
+    log::info!("New SSE client connected to commands stream");
+    
+    let command_state = state.app_handle.state::<CommandState>();
+    let rx = command_state.command_broadcaster.subscribe();
+    
+    let stream = BroadcastStream::new(rx)
+        .map(|result| {
+            match result {
+                Ok(command_msg) => {
+                    log::debug!("Broadcasting command via SSE: {:?}", command_msg);
+                    match serde_json::to_string(&command_msg) {
+                        Ok(json) => Ok(Event::default().data(json)),
+                        Err(e) => {
+                            log::error!("Failed to serialize command message: {}", e);
+                            Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::warn!("SSE broadcast error: {}", e);
+                    Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+                }
+            }
+        });
+    
+    Sse::new(stream)
+}
+
+/// Internal function to broadcast a command via SSE (called by shortcut system)
+pub fn broadcast_command(command_state: &CommandState, agent_id: String, action: String) {
+    log::info!("Broadcasting {} command for agent '{}'", action, agent_id);
+    
+    let command_msg = CommandMessage {
+        message_type: "command".to_string(),
+        agent_id,
+        action,
+    };
+    
+    if let Err(e) = command_state.command_broadcaster.send(command_msg) {
+        log::warn!("Failed to broadcast command (no active SSE clients): {}", e);
+    }
+}
+
+/// Internal function to add a toggle command (legacy - for HTTP polling compatibility)
 pub fn add_toggle_command(command_state: &CommandState, agent_id: String) {
     log::info!("Adding toggle command for agent '{}'", agent_id);
     let mut commands = command_state.pending_commands.lock().unwrap();
-    commands.insert(agent_id, "toggle".to_string());
+    commands.insert(agent_id.clone(), "toggle".to_string());
+    
+    // Also broadcast via SSE for real-time delivery
+    broadcast_command(command_state, agent_id, "toggle".to_string());
 }
 
 #[derive(Serialize)]

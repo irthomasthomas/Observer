@@ -178,14 +178,19 @@ export default function OverlayWindow() {
         </div>
       </div>
       
-      {/* Dynamic footer hint */}
-      <div className="absolute bottom-2 right-2">
-        <div className="text-white/20 text-xs bg-black/20 backdrop-blur-sm rounded px-2 py-1 border border-white/5">
+      {/* Shortcuts list in top right */}
+      <div className="absolute top-4 right-4">
+        <div className="bg-black/70 backdrop-blur-xl rounded-lg px-3 py-2 border border-white/20 shadow-xl">
           {activeShortcuts.length > 0 ? (
-            activeShortcuts
-              .slice(0, 2) // Show first 2 shortcuts
-              .map(shortcut => 
-                shortcut
+            <div className="space-y-2">
+              {(() => {
+                // Group shortcuts by category
+                const overlayShortcuts = activeShortcuts.filter(s => s.includes('toggle') && !s.includes('agent'));
+                const moveShortcuts = activeShortcuts.filter(s => s.includes('move'));
+                const resizeShortcuts = activeShortcuts.filter(s => s.includes('resize'));
+                const agentShortcuts = activeShortcuts.filter(s => s.includes('toggle agent'));
+                
+                const formatKey = (keyPart: string) => keyPart
                   .replace('Cmd+', '⌘')
                   .replace('Alt+', '⌥')
                   .replace('Ctrl+', '^')
@@ -194,11 +199,55 @@ export default function OverlayWindow() {
                   .replace('Down', '↓')
                   .replace('Left', '←')
                   .replace('Right', '→')
-              )
-              .join(' • ')
-            + (activeShortcuts.length > 2 ? ` • +${activeShortcuts.length - 2}` : '')
+                  .replace('Shift+', '⇧');
+                
+                const renderGroup = (shortcuts: string[], groupName: string) => {
+                  if (shortcuts.length === 0) return null;
+                  
+                  if (groupName === 'Move' || groupName === 'Resize') {
+                    // Show grouped format for move/resize
+                    const baseKey = shortcuts[0]?.split(' ')[0]?.replace(/Arrow(Up|Down|Left|Right)/, '') || '';
+                    const formattedBase = formatKey(baseKey);
+                    return (
+                      <div className="text-white/70 text-xs font-mono">
+                        <span className="text-white/90 font-semibold">{formattedBase}↑↓←→</span>
+                        <span className="text-white/60 ml-1 font-normal">{groupName}</span>
+                      </div>
+                    );
+                  } else {
+                    // Show individual shortcuts for toggle and agents
+                    return shortcuts.map((shortcut, index) => {
+                      const parts = shortcut.split(' ');
+                      const keyPart = parts[0] || '';
+                      const descriptionPart = parts.slice(1).join(' ') || '';
+                      const formattedKey = formatKey(keyPart);
+                      
+                      return (
+                        <div key={index} className="text-white/70 text-xs font-mono">
+                          <span className="text-white/90 font-semibold">{formattedKey}</span>
+                          {descriptionPart && !descriptionPart.includes('agent') && (
+                            <span className="text-white/60 ml-1 font-normal capitalize">
+                              {descriptionPart}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    });
+                  }
+                };
+                
+                return (
+                  <>
+                    {renderGroup(overlayShortcuts, 'Toggle')}
+                    {renderGroup(moveShortcuts, 'Move')}
+                    {renderGroup(resizeShortcuts, 'Resize')}
+                    {renderGroup(agentShortcuts, 'Agents')}
+                  </>
+                );
+              })()}
+            </div>
           ) : (
-            'No shortcuts'
+            <div className="text-white/40 text-xs">No shortcuts</div>
           )}
         </div>
       </div>

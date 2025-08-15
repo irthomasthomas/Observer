@@ -4,33 +4,36 @@ import { isAgentLoopRunning, startAgentLoop, stopAgentLoop } from './main_loop';
 import { Logger } from './logging';
 import { listAgents } from './agent_database';
 
-let isPollingActive = false;
-let pollInterval: number | null = null;
-let agentSyncInterval: number | null = null;
+let isSSEActive = false;
+let eventSource: EventSource | null = null;
+let reconnectTimeout: number | null = null;
+
+export type TokenProvider = () => Promise<string | undefined>;
 
 /**
- * Starts command polling - only works in self-hosted environments
+ * Starts SSE command streaming - only works in self-hosted environments
  * @param hostingContext - The hosting context from App.tsx ('official-web' | 'self-hosted')
+ * @param getToken - Token provider function for Ob-Server authentication
  */
-export function startCommandPolling(hostingContext: 'official-web' | 'self-hosted') {
-  // Only enable command polling for self-hosted environments
+export function startCommandPolling(hostingContext: 'official-web' | 'self-hosted', getToken?: TokenProvider) {
+  // Only enable SSE for self-hosted environments
   if (hostingContext !== 'self-hosted') {
-    Logger.info('Commands', 'Command polling disabled - not in self-hosted environment');
+    Logger.info('Commands', 'SSE command streaming disabled - not in self-hosted environment');
     return;
   }
 
-  if (isPollingActive) {
-    Logger.warn('Commands', 'Command polling already active');
+  if (isSSEActive) {
+    Logger.warn('Commands', 'SSE command streaming already active');
     return;
   }
 
   const serverUrl = 'http://127.0.0.1:3838'; // Tauri server URL
-  isPollingActive = true;
+  isSSEActive = true;
 
-  Logger.info('Commands', 'Starting command polling for agent hotkeys');
+  Logger.info('Commands', 'Starting SSE command streaming for agent hotkeys');
 
-  // Start agent discovery sync (every 30 seconds)
-  const syncAgents = async () => {
+  // Register agents with Tauri (one-time on startup)
+  const registerAgents = async () => {
     try {
       const agents = await listAgents();
       const agentList = agents.map(agent => ({
@@ -38,99 +41,113 @@ export function startCommandPolling(hostingContext: 'official-web' | 'self-hoste
         name: agent.name
       }));
       
-      await fetch(`${serverUrl}/agents`, {
+      await fetch(`${serverUrl}/register-agents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agents: agentList })
       });
       
-      Logger.debug('Commands', `Synced ${agentList.length} agents to Tauri`);
+      Logger.info('Commands', `Registered ${agentList.length} agents with Tauri`);
     } catch (error) {
-      Logger.debug('Commands', `Agent sync error: ${error}`);
+      Logger.error('Commands', `Agent registration error: ${error}`);
     }
   };
 
-  // Initial sync and then every 30 seconds
-  syncAgents();
-  agentSyncInterval = window.setInterval(syncAgents, 30000);
-
-  pollInterval = window.setInterval(async () => {
+  // Connect to SSE command stream
+  const connectSSE = () => {
     try {
-      // Get pending toggle commands
-      const response = await fetch(`${serverUrl}/commands`);
+      eventSource = new EventSource(`${serverUrl}/commands-stream`);
       
-      if (!response.ok) {
-        // Server might not be ready yet, fail silently
-        return;
-      }
-
-      const data = await response.json();
-      
-      if (!data.commands || Object.keys(data.commands).length === 0) {
-        return;
-      }
-      
-      const completedCommands: string[] = [];
-      
-      // Process each toggle command
-      for (const [agentId, command] of Object.entries(data.commands)) {
-        if (command === 'toggle') {
-          const isRunning = isAgentLoopRunning(agentId);
-          
-          if (isRunning) {
-            Logger.info('Commands', `🔴 Stopping agent ${agentId} via hotkey`);
-            await stopAgentLoop(agentId);
-          } else {
-            Logger.info('Commands', `🟢 Starting agent ${agentId} via hotkey`);
-            await startAgentLoop(agentId);
-          }
-          
-          completedCommands.push(agentId);
+      eventSource.onopen = () => {
+        Logger.info('Commands', 'SSE connection established');
+        // Clear any pending reconnect timeout
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+          reconnectTimeout = null;
         }
-      }
+      };
       
-      // Mark commands as completed
-      if (completedCommands.length > 0) {
-        await fetch(`${serverUrl}/commands`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ completed: completedCommands })
-        });
-      }
+      eventSource.onmessage = async (event) => {
+        try {
+          const commandData = JSON.parse(event.data);
+          Logger.debug('Commands', 'Received SSE command:', commandData);
+          
+          if (commandData.type === 'command') {
+            const { agentId, action } = commandData;
+            
+            if (action === 'toggle') {
+              const isRunning = isAgentLoopRunning(agentId);
+              
+              if (isRunning) {
+                Logger.info('Commands', `🔴 Stopping agent ${agentId} via hotkey`);
+                await stopAgentLoop(agentId);
+              } else {
+                Logger.info('Commands', `🟢 Starting agent ${agentId} via hotkey`);
+                await startAgentLoop(agentId, getToken);
+              }
+            } else if (action === 'start') {
+              Logger.info('Commands', `🟢 Starting agent ${agentId} via hotkey`);
+              await startAgentLoop(agentId, getToken);
+            } else if (action === 'stop') {
+              Logger.info('Commands', `🔴 Stopping agent ${agentId} via hotkey`);
+              await stopAgentLoop(agentId);
+            }
+          }
+        } catch (error) {
+          Logger.error('Commands', `Failed to process SSE command: ${error}`);
+        }
+      };
+      
+      eventSource.onerror = (_) => {
+        Logger.warn('Commands', 'SSE connection error, will reconnect in 5s');
+        eventSource?.close();
+        
+        // Auto-reconnect after 5 seconds
+        if (isSSEActive) {
+          reconnectTimeout = window.setTimeout(() => {
+            Logger.info('Commands', 'Attempting SSE reconnection...');
+            connectSSE();
+          }, 5000);
+        }
+      };
       
     } catch (error) {
-      // Fail silently - server might not be available
-      Logger.debug('Commands', `Command polling error: ${error}`);
+      Logger.error('Commands', `Failed to establish SSE connection: ${error}`);
     }
-  }, 500); // Same interval as overlay polling for consistency
+  };
+
+  // Register agents first, then connect to SSE stream
+  registerAgents().then(() => {
+    connectSSE();
+  });
 }
 
 /**
- * Stops command polling
+ * Stops SSE command streaming
  */
 export function stopCommandPolling() {
-  if (!isPollingActive) {
+  if (!isSSEActive) {
     return;
   }
 
-  Logger.info('Commands', 'Stopping command polling');
+  Logger.info('Commands', 'Stopping SSE command streaming');
   
-  if (pollInterval !== null) {
-    window.clearInterval(pollInterval);
-    pollInterval = null;
+  isSSEActive = false;
+  
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
   }
   
-  if (agentSyncInterval !== null) {
-    window.clearInterval(agentSyncInterval);
-    agentSyncInterval = null;
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
   }
-  
-  isPollingActive = false;
 }
 
 /**
- * Get current polling status
+ * Get current SSE streaming status
  */
 export function isCommandPollingActive(): boolean {
-  return isPollingActive;
+  return isSSEActive;
 }

@@ -19,6 +19,10 @@ pub struct ShortcutConfig {
     pub move_down: Option<String>,
     pub move_left: Option<String>,
     pub move_right: Option<String>,
+    pub resize_up: Option<String>,
+    pub resize_down: Option<String>,
+    pub resize_left: Option<String>,
+    pub resize_right: Option<String>,
 }
 
 impl Default for ShortcutConfig {
@@ -32,6 +36,10 @@ impl Default for ShortcutConfig {
                 move_down: Some("Alt+ArrowDown".to_string()),
                 move_left: Some("Alt+ArrowLeft".to_string()),
                 move_right: Some("Alt+ArrowRight".to_string()),
+                resize_up: Some("Alt+Shift+ArrowUp".to_string()),
+                resize_down: Some("Alt+Shift+ArrowDown".to_string()),
+                resize_left: Some("Alt+Shift+ArrowLeft".to_string()),
+                resize_right: Some("Alt+Shift+ArrowRight".to_string()),
             }
         }
         #[cfg(not(target_os = "windows"))]
@@ -42,6 +50,10 @@ impl Default for ShortcutConfig {
                 move_down: Some("Cmd+ArrowDown".to_string()),
                 move_left: Some("Cmd+ArrowLeft".to_string()),
                 move_right: Some("Cmd+ArrowRight".to_string()),
+                resize_up: Some("Cmd+Shift+ArrowUp".to_string()),
+                resize_down: Some("Cmd+Shift+ArrowDown".to_string()),
+                resize_left: Some("Cmd+Shift+ArrowLeft".to_string()),
+                resize_right: Some("Cmd+Shift+ArrowRight".to_string()),
             }
         }
     }
@@ -368,13 +380,49 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
         }
     }
     
-    // Agent shortcuts (action_id = 5+)
+    // Resize up (action_id = 5)
+    if let Some(resize_up) = &config.resize_up {
+        if let Some(shortcut) = parse_shortcut_string(resize_up) {
+            shortcuts_to_register.push((shortcut, resize_up.clone(), "resize up".to_string()));
+            shortcut_actions.push(5); // resize up action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
+        }
+    }
+    
+    // Resize down (action_id = 6)
+    if let Some(resize_down) = &config.resize_down {
+        if let Some(shortcut) = parse_shortcut_string(resize_down) {
+            shortcuts_to_register.push((shortcut, resize_down.clone(), "resize down".to_string()));
+            shortcut_actions.push(6); // resize down action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
+        }
+    }
+    
+    // Resize left (action_id = 7)
+    if let Some(resize_left) = &config.resize_left {
+        if let Some(shortcut) = parse_shortcut_string(resize_left) {
+            shortcuts_to_register.push((shortcut, resize_left.clone(), "resize left".to_string()));
+            shortcut_actions.push(7); // resize left action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
+        }
+    }
+    
+    // Resize right (action_id = 8)
+    if let Some(resize_right) = &config.resize_right {
+        if let Some(shortcut) = parse_shortcut_string(resize_right) {
+            shortcuts_to_register.push((shortcut, resize_right.clone(), "resize right".to_string()));
+            shortcut_actions.push(8); // resize right action
+            agent_ids.push(String::new()); // No agent for overlay shortcuts
+        }
+    }
+    
+    // Agent shortcuts (action_id = 9+)
     for (agent_id, shortcut_str) in &agent_shortcuts {
         if !shortcut_str.is_empty() {
             if let Some(shortcut) = parse_shortcut_string(shortcut_str) {
                 let description = format!("toggle agent {}", agent_id);
                 shortcuts_to_register.push((shortcut, shortcut_str.clone(), description));
-                shortcut_actions.push(5); // agent toggle action
+                shortcut_actions.push(9); // agent toggle action
                 agent_ids.push(agent_id.clone());
             }
         }
@@ -462,13 +510,68 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
                                     }
                                 }
                             }
-                            5 => {
+                            5 | 6 | 7 | 8 => {
+                                // Resize window directionally
+                                match window.inner_size() {
+                                    Ok(current_size) => {
+                                        let size_delta = 50.0; // Resize increment in pixels
+                                        let (new_width, new_height) = match action_id {
+                                            5 => {
+                                                // Resize up (increase height)
+                                                let new_h = (current_size.height as f64 + size_delta).max(200.0);
+                                                (current_size.width as f64, new_h)
+                                            }
+                                            6 => {
+                                                // Resize down (decrease height)
+                                                let new_h = (current_size.height as f64 - size_delta).max(200.0);
+                                                (current_size.width as f64, new_h)
+                                            }
+                                            7 => {
+                                                // Resize left (decrease width)
+                                                let new_w = (current_size.width as f64 - size_delta).max(200.0);
+                                                (new_w, current_size.height as f64)
+                                            }
+                                            8 => {
+                                                // Resize right (increase width)
+                                                let new_w = (current_size.width as f64 + size_delta).max(200.0);
+                                                (new_w, current_size.height as f64)
+                                            }
+                                            _ => (current_size.width as f64, current_size.height as f64),
+                                        };
+                                        
+                                        match window.set_size(tauri::Size::Physical(tauri::PhysicalSize { 
+                                            width: new_width as u32, 
+                                            height: new_height as u32 
+                                        })) {
+                                            Ok(_) => {
+                                                let direction = match action_id {
+                                                    5 => "up",
+                                                    6 => "down",
+                                                    7 => "left", 
+                                                    8 => "right",
+                                                    _ => "unknown",
+                                                };
+                                                log::info!("Overlay resized {} to {}x{}", direction, new_width, new_height);
+                                                // Re-enforce click-through after size change
+                                                ensure_overlay_click_through(&window);
+                                            }
+                                            Err(e) => {
+                                                log::error!("Failed to resize overlay: {}", e);
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        log::error!("Failed to get overlay size: {}", e);
+                                    }
+                                }
+                            }
+                            9 => {
                                 // Agent toggle
                                 let agent_id = &agent_ids[array_idx];
                                 if !agent_id.is_empty() {
                                     log::info!("Agent hotkey pressed for agent: {}", agent_id);
                                     let command_state = app_handle.state::<CommandState>();
-                                    crate::commands::add_toggle_command(&command_state, agent_id.clone());
+                                    crate::commands::broadcast_command(&command_state, agent_id.clone(), "toggle".to_string());
                                 }
                             }
                             _ => {
@@ -492,7 +595,8 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
         match app.global_shortcut().register(shortcut) {
             Ok(_) => {
                 log::info!("✓ Registered shortcut '{}' for {}", description, action);
-                active_shortcuts.push(description);
+                let formatted_shortcut = format!("{} {}", description, action);
+                active_shortcuts.push(formatted_shortcut);
             }
             Err(e) => {
                 log::warn!("✗ Failed to register shortcut '{}' for {}: {}", description, action, e);
@@ -585,13 +689,45 @@ fn register_shortcuts_internal(app_handle: &AppHandle) -> Result<(), Box<dyn std
         }
     }
     
+    if let Some(resize_up) = &config.resize_up {
+        if let Some(shortcut) = parse_shortcut_string(resize_up) {
+            shortcuts_to_register.push((shortcut, resize_up.clone(), "resize up".to_string()));
+            shortcut_actions.push(5);
+            agent_ids.push(String::new());
+        }
+    }
+    
+    if let Some(resize_down) = &config.resize_down {
+        if let Some(shortcut) = parse_shortcut_string(resize_down) {
+            shortcuts_to_register.push((shortcut, resize_down.clone(), "resize down".to_string()));
+            shortcut_actions.push(6);
+            agent_ids.push(String::new());
+        }
+    }
+    
+    if let Some(resize_left) = &config.resize_left {
+        if let Some(shortcut) = parse_shortcut_string(resize_left) {
+            shortcuts_to_register.push((shortcut, resize_left.clone(), "resize left".to_string()));
+            shortcut_actions.push(7);
+            agent_ids.push(String::new());
+        }
+    }
+    
+    if let Some(resize_right) = &config.resize_right {
+        if let Some(shortcut) = parse_shortcut_string(resize_right) {
+            shortcuts_to_register.push((shortcut, resize_right.clone(), "resize right".to_string()));
+            shortcut_actions.push(8);
+            agent_ids.push(String::new());
+        }
+    }
+    
     // Add agent shortcuts
     for (agent_id, shortcut_str) in &agent_shortcuts {
         if !shortcut_str.is_empty() {
             if let Some(shortcut) = parse_shortcut_string(shortcut_str) {
                 let description = format!("toggle agent {}", agent_id);
                 shortcuts_to_register.push((shortcut, shortcut_str.clone(), description));
-                shortcut_actions.push(5);
+                shortcut_actions.push(9);
                 agent_ids.push(agent_id.clone());
             }
         }
@@ -650,13 +786,56 @@ fn register_shortcuts_internal(app_handle: &AppHandle) -> Result<(), Box<dyn std
                                     Err(e) => log::error!("Failed to get overlay position: {}", e),
                                 }
                             }
-                            5 => {
+                            5 | 6 | 7 | 8 => {
+                                // Resize overlay window directionally
+                                match window.inner_size() {
+                                    Ok(current_size) => {
+                                        let size_delta = 50.0;
+                                        let (new_width, new_height) = match action_id {
+                                            5 => {
+                                                // Resize up (increase height)
+                                                let new_h = (current_size.height as f64 + size_delta).max(200.0);
+                                                (current_size.width as f64, new_h)
+                                            }
+                                            6 => {
+                                                // Resize down (decrease height)
+                                                let new_h = (current_size.height as f64 - size_delta).max(200.0);
+                                                (current_size.width as f64, new_h)
+                                            }
+                                            7 => {
+                                                // Resize left (decrease width)
+                                                let new_w = (current_size.width as f64 - size_delta).max(200.0);
+                                                (new_w, current_size.height as f64)
+                                            }
+                                            8 => {
+                                                // Resize right (increase width)
+                                                let new_w = (current_size.width as f64 + size_delta).max(200.0);
+                                                (new_w, current_size.height as f64)
+                                            }
+                                            _ => (current_size.width as f64, current_size.height as f64),
+                                        };
+                                        match window.set_size(tauri::Size::Physical(tauri::PhysicalSize { 
+                                            width: new_width as u32, 
+                                            height: new_height as u32 
+                                        })) {
+                                            Ok(_) => {
+                                                let direction = match action_id { 5 => "up", 6 => "down", 7 => "left", 8 => "right", _ => "unknown" };
+                                                log::info!("Overlay resized {} to {}x{}", direction, new_width, new_height);
+                                                ensure_overlay_click_through(&window);
+                                            }
+                                            Err(e) => log::error!("Failed to resize overlay: {}", e),
+                                        }
+                                    }
+                                    Err(e) => log::error!("Failed to get overlay size: {}", e),
+                                }
+                            }
+                            9 => {
                                 // Agent toggle
                                 let agent_id = &agent_ids[array_idx];
                                 if !agent_id.is_empty() {
                                     log::info!("Agent hotkey pressed for agent: {}", agent_id);
                                     let command_state = app_handle.state::<CommandState>();
-                                    crate::commands::add_toggle_command(&command_state, agent_id.clone());
+                                    crate::commands::broadcast_command(&command_state, agent_id.clone(), "toggle".to_string());
                                 }
                             }
                             _ => log::warn!("Unknown action_id: {}", action_id),
@@ -675,7 +854,8 @@ fn register_shortcuts_internal(app_handle: &AppHandle) -> Result<(), Box<dyn std
         match app_handle.global_shortcut().register(shortcut) {
             Ok(_) => {
                 log::info!("✓ Registered shortcut '{}' for {}", description, action);
-                active_shortcuts.push(description);
+                let formatted_shortcut = format!("{} {}", description, action);
+                active_shortcuts.push(formatted_shortcut);
             }
             Err(e) => log::warn!("✗ Failed to register shortcut '{}' for {}: {}", description, action, e),
         }

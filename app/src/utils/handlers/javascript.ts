@@ -141,7 +141,7 @@ export async function executeJavaScript(
       startAgent: async (targetAgentId?: string) => {
         try {
           const idToStart = targetAgentId === undefined ? agentId : targetAgentId;
-          await startAgentLoop(idToStart);
+          await startAgentLoop(idToStart, getToken);
           Logger.info(agentId, `Agent started: ${idToStart}`, {
             logType: 'tool-success',
             iterationId,

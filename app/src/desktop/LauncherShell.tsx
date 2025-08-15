@@ -60,7 +60,11 @@ function LauncherShell() {
     move_up: '',
     move_down: '',
     move_left: '',
-    move_right: ''
+    move_right: '',
+    resize_up: '',
+    resize_down: '',
+    resize_left: '',
+    resize_right: ''
   });
   const [availableAgents, setAvailableAgents] = useState<Array<{id: string, name: string}>>([]);
   const [agentShortcuts, setAgentShortcuts] = useState<Record<string, string>>({});
@@ -206,7 +210,11 @@ function LauncherShell() {
         move_up: overlayConfig.move_up || '',
         move_down: overlayConfig.move_down || '',
         move_left: overlayConfig.move_left || '',
-        move_right: overlayConfig.move_right || ''
+        move_right: overlayConfig.move_right || '',
+        resize_up: overlayConfig.resize_up || '',
+        resize_down: overlayConfig.resize_down || '',
+        resize_left: overlayConfig.resize_left || '',
+        resize_right: overlayConfig.resize_right || ''
       });
       
       // Set available agents and their shortcuts
@@ -272,7 +280,11 @@ function LauncherShell() {
         move_up: overlayShortcuts.move_up.trim() || null,
         move_down: overlayShortcuts.move_down.trim() || null,
         move_left: overlayShortcuts.move_left.trim() || null,
-        move_right: overlayShortcuts.move_right.trim() || null
+        move_right: overlayShortcuts.move_right.trim() || null,
+        resize_up: overlayShortcuts.resize_up.trim() || null,
+        resize_down: overlayShortcuts.resize_down.trim() || null,
+        resize_left: overlayShortcuts.resize_left.trim() || null,
+        resize_right: overlayShortcuts.resize_right.trim() || null
       };
       
       await invoke('set_shortcut_config', { config: overlayConfigToSave });
@@ -669,6 +681,132 @@ function LauncherShell() {
                           ✕
                         </button>
                       )}
+                    </div>
+                  </div>
+                  
+                  {/* Resize Shortcuts */}
+                  <div className="mt-4">
+                    <label className="text-sm text-slate-700 font-medium mb-2 block">Resize Shortcuts</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm text-slate-700">Resize Up</label>
+                        <button
+                          onClick={() => setCapturingFor('overlay_resize_up')}
+                          disabled={capturingFor === 'overlay_resize_up'}
+                          className={`
+                            px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[100px] text-center
+                            ${capturingFor === 'overlay_resize_up' 
+                              ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                              : overlayShortcuts.resize_up 
+                              ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                              : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                            }
+                          `}
+                        >
+                          {capturingFor === 'overlay_resize_up' 
+                            ? "Press..." 
+                            : overlayShortcuts.resize_up || "Set"
+                          }
+                        </button>
+                        {overlayShortcuts.resize_up && capturingFor !== 'overlay_resize_up' && (
+                          <button
+                            onClick={() => setOverlayShortcuts(prev => ({ ...prev, resize_up: '' }))}
+                            className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm text-slate-700">Resize Down</label>
+                        <button
+                          onClick={() => setCapturingFor('overlay_resize_down')}
+                          disabled={capturingFor === 'overlay_resize_down'}
+                          className={`
+                            px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[100px] text-center
+                            ${capturingFor === 'overlay_resize_down' 
+                              ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                              : overlayShortcuts.resize_down 
+                              ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                              : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                            }
+                          `}
+                        >
+                          {capturingFor === 'overlay_resize_down' 
+                            ? "Press..." 
+                            : overlayShortcuts.resize_down || "Set"
+                          }
+                        </button>
+                        {overlayShortcuts.resize_down && capturingFor !== 'overlay_resize_down' && (
+                          <button
+                            onClick={() => setOverlayShortcuts(prev => ({ ...prev, resize_down: '' }))}
+                            className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm text-slate-700">Resize Left</label>
+                        <button
+                          onClick={() => setCapturingFor('overlay_resize_left')}
+                          disabled={capturingFor === 'overlay_resize_left'}
+                          className={`
+                            px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[100px] text-center
+                            ${capturingFor === 'overlay_resize_left' 
+                              ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                              : overlayShortcuts.resize_left 
+                              ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                              : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                            }
+                          `}
+                        >
+                          {capturingFor === 'overlay_resize_left' 
+                            ? "Press..." 
+                            : overlayShortcuts.resize_left || "Set"
+                          }
+                        </button>
+                        {overlayShortcuts.resize_left && capturingFor !== 'overlay_resize_left' && (
+                          <button
+                            onClick={() => setOverlayShortcuts(prev => ({ ...prev, resize_left: '' }))}
+                            className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm text-slate-700">Resize Right</label>
+                        <button
+                          onClick={() => setCapturingFor('overlay_resize_right')}
+                          disabled={capturingFor === 'overlay_resize_right'}
+                          className={`
+                            px-3 py-2 text-xs rounded-md font-mono transition-all min-w-[100px] text-center
+                            ${capturingFor === 'overlay_resize_right' 
+                              ? 'bg-orange-100 text-orange-700 border-2 border-orange-300 animate-pulse' 
+                              : overlayShortcuts.resize_right 
+                              ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                              : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                            }
+                          `}
+                        >
+                          {capturingFor === 'overlay_resize_right' 
+                            ? "Press..." 
+                            : overlayShortcuts.resize_right || "Set"
+                          }
+                        </button>
+                        {overlayShortcuts.resize_right && capturingFor !== 'overlay_resize_right' && (
+                          <button
+                            onClick={() => setOverlayShortcuts(prev => ({ ...prev, resize_right: '' }))}
+                            className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

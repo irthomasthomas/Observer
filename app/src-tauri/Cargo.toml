@@ -36,6 +36,7 @@ tauri-plugin-shell = "2"
 # Web server Dependencies
 # We can be more specific with tokio features now
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio-stream = { version = "0.1.17", features = ["sync"] }
 axum = { version = "0.7", features = ["json"] } # "macros" feature is not used by your current code
 tower-http = { version = "0.5.0", features = ["fs", "cors"] }
 futures = "0.3"

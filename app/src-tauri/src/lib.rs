@@ -50,8 +50,21 @@ struct OverlayState {
     messages: Mutex<Vec<OverlayMessage>>,
 }
 
+use tokio::sync::broadcast;
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub struct CommandMessage {
+    #[serde(rename = "type")]
+    pub message_type: String,
+    #[serde(rename = "agentId")]
+    pub agent_id: String,
+    pub action: String,
+}
+
 struct CommandState {
     pending_commands: Mutex<std::collections::HashMap<String, String>>,
+    // SSE broadcast channel for real-time commands
+    command_broadcaster: broadcast::Sender<CommandMessage>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -324,10 +337,12 @@ fn start_static_server(app_handle: tauri::AppHandle) {
             .route("/message", axum::routing::post(notifications::message_handler))
             .route("/notification", axum::routing::post(notifications::notification_handler))
             .route("/overlay", axum::routing::post(overlay::overlay_handler))
+            .route("/commands-stream", axum::routing::get(commands::commands_stream_handler))
+            .route("/register-agents", axum::routing::post(commands::update_agents_handler))
+            // Legacy HTTP endpoints (for backward compatibility during migration)
             .route("/commands", axum::routing::get(commands::get_commands_handler))
             .route("/commands", axum::routing::post(commands::post_commands_handler))
             .route("/agents", axum::routing::get(commands::get_agents_handler))
-            .route("/agents", axum::routing::post(commands::update_agents_handler))
             .fallback_service(ServeDir::new(resource_path))
             .with_state(state)
             .layer(cors);
@@ -367,8 +382,12 @@ pub fn run() {
         .manage(OverlayState {
             messages: Mutex::new(Vec::new()),
         })
-        .manage(CommandState {
-            pending_commands: Mutex::new(std::collections::HashMap::new()),
+        .manage({
+            let (tx, _rx) = broadcast::channel(100); // Buffer up to 100 commands
+            CommandState {
+                pending_commands: Mutex::new(std::collections::HashMap::new()),
+                command_broadcaster: tx,
+            }
         })
         .manage(AgentDiscoveryState {
             available_agents: Mutex::new(Vec::new()),

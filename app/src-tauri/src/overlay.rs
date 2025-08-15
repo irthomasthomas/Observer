@@ -2,7 +2,7 @@
 
 use axum::{extract::State as AxumState, http::StatusCode, response::Json};
 use serde::Deserialize;
-use tauri::{Emitter, Manager, State};
+use tauri::{Emitter, Manager};
 use crate::{AppState, OverlayMessage, OverlayState};
 
 #[derive(Deserialize)]

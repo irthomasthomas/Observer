@@ -437,12 +437,12 @@ function AppContent() {
 
   // Start command polling for hotkey support in self-hosted environments
   useEffect(() => {
-    startCommandPolling(hostingContext);
+    startCommandPolling(hostingContext, getToken);
     
     return () => {
       stopCommandPolling();
     };
-  }, [hostingContext]);
+  }, [hostingContext, getToken]);
 
   useEffect(() => {
     if (!isLoading) {
