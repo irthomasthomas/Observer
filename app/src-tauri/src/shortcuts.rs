@@ -477,10 +477,10 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
                                 match window.outer_position() {
                                     Ok(current_pos) => {
                                         let (dx, dy) = match action_id {
-                                            1 => (0, -50),  // move up
-                                            2 => (0, 50),   // move down
-                                            3 => (-50, 0),  // move left
-                                            4 => (50, 0),   // move right
+                                            1 => (0, -100),  // move up
+                                            2 => (0, 100),   // move down
+                                            3 => (-100, 0),  // move left
+                                            4 => (100, 0),   // move right
                                             _ => (0, 0),
                                         };
                                         
@@ -517,13 +517,13 @@ pub fn register_global_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std
                                         let size_delta = 50.0; // Resize increment in pixels
                                         let (new_width, new_height) = match action_id {
                                             5 => {
-                                                // Resize up (increase height)
-                                                let new_h = (current_size.height as f64 + size_delta).max(200.0);
+                                                // Resize up (reduce bottom)
+                                                let new_h = (current_size.height as f64 - size_delta).max(200.0);
                                                 (current_size.width as f64, new_h)
                                             }
                                             6 => {
-                                                // Resize down (decrease height)
-                                                let new_h = (current_size.height as f64 - size_delta).max(200.0);
+                                                // Resize down (increase bottom)
+                                                let new_h = (current_size.height as f64 + size_delta).max(200.0);
                                                 (current_size.width as f64, new_h)
                                             }
                                             7 => {

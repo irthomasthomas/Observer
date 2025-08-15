@@ -391,7 +391,7 @@ function LauncherShell() {
 
   return (
     <div className="fixed inset-0 bg-gray-100 flex items-center justify-center p-4 font-sans">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 sm:p-10 max-w-2xl w-full text-center transition-all">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 sm:p-10 max-w-2xl w-full text-center transition-all max-h-screen overflow-y-auto">
 
         {/* Header (unchanged) */}
         <div className="mb-8">
