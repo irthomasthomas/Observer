@@ -184,17 +184,109 @@ export default function OverlayWindow() {
           WebkitAppRegion: 'no-drag' 
         } as React.CSSProperties}
       >
-      <div className="h-full w-full flex items-start justify-start p-4">
+        {/* Compact Observer title box at top center - only show when there are messages */}
+        {messages.length > 0 && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
+            <div className="bg-black/70 backdrop-blur-xl rounded-md px-2 py-1 border border-white/20 shadow-xl">
+              <div className="text-white/70 text-xs font-mono font-medium">
+                [Observer]
+              </div>
+            </div>
+          </div>
+        )}
+
+      <div className="h-full w-full flex items-start justify-start p-4 pt-16">
         {/* Compact Messages Container */}
-        <div className="min-w-0 w-full max-w-[calc(100vw-2rem)]">
+        <div className="min-w-0 w-full max-w-[calc(100vw-8rem)]">
           {isLoading ? (
             <div className="bg-black/70 backdrop-blur-xl rounded-lg px-4 py-3 border border-white/20 shadow-xl">
               <div className="text-white/70 text-sm">Loading...</div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="bg-black/70 backdrop-blur-xl rounded-lg px-4 py-3 border border-white/20 shadow-xl">
-              <div className="text-white/60 text-sm text-center font-medium">
-                Observer Overlay
+            // Welcome state - clean design with transparent black background
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-8 z-10">
+              <div className="text-center max-w-4xl w-full">
+                {/* Big title */}
+                <div className="mb-12">
+                  <h1 className="text-6xl font-bold text-white tracking-tight mb-4">Observer Overlay</h1>
+                  <p className="text-xl text-white/70 max-w-md mx-auto">
+                    Your AI agents will display messages here
+                  </p>
+                </div>
+
+                {/* Commands section */}
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-white mb-8">Available Commands</h2>
+                    {activeShortcuts.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+                        {(() => {
+                          // Group shortcuts by category
+                          const overlayShortcuts = activeShortcuts.filter(s => s.includes('toggle') && !s.includes('agent'));
+                          const moveShortcuts = activeShortcuts.filter(s => s.includes('move'));
+                          const resizeShortcuts = activeShortcuts.filter(s => s.includes('resize'));
+                          const agentShortcuts = activeShortcuts.filter(s => s.includes('toggle agent'));
+                          
+                          const formatKey = (keyPart: string) => keyPart
+                            .replace('Cmd+', '⌘')
+                            .replace('Alt+', '⌥')
+                            .replace('Ctrl+', '^')
+                            .replace('Arrow', '')
+                            .replace('Up', '↑')
+                            .replace('Down', '↓')
+                            .replace('Left', '←')
+                            .replace('Right', '→')
+                            .replace('Shift+', '⇧');
+                          
+                          const renderWelcomeGroup = (shortcuts: string[], groupName: string) => {
+                            if (shortcuts.length === 0) return null;
+                            
+                            if (groupName === 'Move' || groupName === 'Resize') {
+                              // Show grouped format for move/resize
+                              const baseKey = shortcuts[0]?.split(' ')[0]?.replace(/Arrow(Up|Down|Left|Right)/, '') || '';
+                              const formattedBase = formatKey(baseKey);
+                              return (
+                                <div className="text-center p-6 bg-black/30 rounded-lg">
+                                  <div className="text-white text-2xl font-mono font-bold mb-3">{formattedBase}↑↓←→</div>
+                                  <div className="text-white/80 text-base font-medium">{groupName} Overlay</div>
+                                </div>
+                              );
+                            } else {
+                              // Show individual shortcuts for toggle and agents
+                              return shortcuts.map((shortcut, index) => {
+                                const parts = shortcut.split(' ');
+                                const keyPart = parts[0] || '';
+                                const descriptionPart = parts.slice(1).join(' ') || '';
+                                const formattedKey = formatKey(keyPart);
+                                
+                                return (
+                                  <div key={index} className="text-center p-6 bg-black/30 rounded-lg">
+                                    <div className="text-white text-2xl font-mono font-bold mb-3">{formattedKey}</div>
+                                    <div className="text-white/80 text-base font-medium capitalize">
+                                      {descriptionPart.replace('toggle ', '').replace('toggle', 'Show/Hide')}
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            }
+                          };
+                          
+                          return (
+                            <>
+                              {renderWelcomeGroup(overlayShortcuts, 'Toggle')}
+                              {renderWelcomeGroup(moveShortcuts, 'Move')}
+                              {renderWelcomeGroup(resizeShortcuts, 'Resize')}
+                              {renderWelcomeGroup(agentShortcuts, 'Agents')}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="text-white/50 text-lg">Loading commands...</div>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
           ) : (
@@ -243,79 +335,81 @@ export default function OverlayWindow() {
         </div>
       </div>
       
-      {/* Shortcuts list in top right */}
-      <div className="absolute top-4 right-4">
-        <div className="bg-black/70 backdrop-blur-xl rounded-lg px-3 py-2 border border-white/20 shadow-xl">
-          {activeShortcuts.length > 0 ? (
-            <div className="space-y-2">
-              {(() => {
-                // Group shortcuts by category
-                const overlayShortcuts = activeShortcuts.filter(s => s.includes('toggle') && !s.includes('agent'));
-                const moveShortcuts = activeShortcuts.filter(s => s.includes('move'));
-                const resizeShortcuts = activeShortcuts.filter(s => s.includes('resize'));
-                const agentShortcuts = activeShortcuts.filter(s => s.includes('toggle agent'));
-                
-                const formatKey = (keyPart: string) => keyPart
-                  .replace('Cmd+', '⌘')
-                  .replace('Alt+', '⌥')
-                  .replace('Ctrl+', '^')
-                  .replace('Arrow', '')
-                  .replace('Up', '↑')
-                  .replace('Down', '↓')
-                  .replace('Left', '←')
-                  .replace('Right', '→')
-                  .replace('Shift+', '⇧');
-                
-                const renderGroup = (shortcuts: string[], groupName: string) => {
-                  if (shortcuts.length === 0) return null;
+      {/* Shortcuts list in top right - only show when there are messages */}
+      {messages.length > 0 && (
+        <div className="absolute top-4 right-4">
+          <div className="bg-black/70 backdrop-blur-xl rounded-lg px-3 py-2 border border-white/20 shadow-xl">
+            {activeShortcuts.length > 0 ? (
+              <div className="space-y-2">
+                {(() => {
+                  // Group shortcuts by category
+                  const overlayShortcuts = activeShortcuts.filter(s => s.includes('toggle') && !s.includes('agent'));
+                  const moveShortcuts = activeShortcuts.filter(s => s.includes('move'));
+                  const resizeShortcuts = activeShortcuts.filter(s => s.includes('resize'));
+                  const agentShortcuts = activeShortcuts.filter(s => s.includes('toggle agent'));
                   
-                  if (groupName === 'Move' || groupName === 'Resize') {
-                    // Show grouped format for move/resize
-                    const baseKey = shortcuts[0]?.split(' ')[0]?.replace(/Arrow(Up|Down|Left|Right)/, '') || '';
-                    const formattedBase = formatKey(baseKey);
-                    return (
-                      <div className="text-white/70 text-xs font-mono">
-                        <span className="text-white/90 font-semibold">{formattedBase}↑↓←→</span>
-                        <span className="text-white/60 ml-1 font-normal">{groupName}</span>
-                      </div>
-                    );
-                  } else {
-                    // Show individual shortcuts for toggle and agents
-                    return shortcuts.map((shortcut, index) => {
-                      const parts = shortcut.split(' ');
-                      const keyPart = parts[0] || '';
-                      const descriptionPart = parts.slice(1).join(' ') || '';
-                      const formattedKey = formatKey(keyPart);
-                      
+                  const formatKey = (keyPart: string) => keyPart
+                    .replace('Cmd+', '⌘')
+                    .replace('Alt+', '⌥')
+                    .replace('Ctrl+', '^')
+                    .replace('Arrow', '')
+                    .replace('Up', '↑')
+                    .replace('Down', '↓')
+                    .replace('Left', '←')
+                    .replace('Right', '→')
+                    .replace('Shift+', '⇧');
+                  
+                  const renderGroup = (shortcuts: string[], groupName: string) => {
+                    if (shortcuts.length === 0) return null;
+                    
+                    if (groupName === 'Move' || groupName === 'Resize') {
+                      // Show grouped format for move/resize
+                      const baseKey = shortcuts[0]?.split(' ')[0]?.replace(/Arrow(Up|Down|Left|Right)/, '') || '';
+                      const formattedBase = formatKey(baseKey);
                       return (
-                        <div key={index} className="text-white/70 text-xs font-mono">
-                          <span className="text-white/90 font-semibold">{formattedKey}</span>
-                          {descriptionPart && !descriptionPart.includes('agent') && (
-                            <span className="text-white/60 ml-1 font-normal capitalize">
-                              {descriptionPart}
-                            </span>
-                          )}
+                        <div className="text-white/70 text-xs font-mono">
+                          <span className="text-white/90 font-semibold">{formattedBase}↑↓←→</span>
+                          <span className="text-white/60 ml-1 font-normal">{groupName}</span>
                         </div>
                       );
-                    });
-                  }
-                };
-                
-                return (
-                  <>
-                    {renderGroup(overlayShortcuts, 'Toggle')}
-                    {renderGroup(moveShortcuts, 'Move')}
-                    {renderGroup(resizeShortcuts, 'Resize')}
-                    {renderGroup(agentShortcuts, 'Agents')}
-                  </>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="text-white/40 text-xs">No shortcuts</div>
-          )}
+                    } else {
+                      // Show individual shortcuts for toggle and agents
+                      return shortcuts.map((shortcut, index) => {
+                        const parts = shortcut.split(' ');
+                        const keyPart = parts[0] || '';
+                        const descriptionPart = parts.slice(1).join(' ') || '';
+                        const formattedKey = formatKey(keyPart);
+                        
+                        return (
+                          <div key={index} className="text-white/70 text-xs font-mono">
+                            <span className="text-white/90 font-semibold">{formattedKey}</span>
+                            {descriptionPart && !descriptionPart.includes('agent') && (
+                              <span className="text-white/60 ml-1 font-normal capitalize">
+                                {descriptionPart}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      });
+                    }
+                  };
+                  
+                  return (
+                    <>
+                      {renderGroup(overlayShortcuts, 'Toggle')}
+                      {renderGroup(moveShortcuts, 'Move')}
+                      {renderGroup(resizeShortcuts, 'Resize')}
+                      {renderGroup(agentShortcuts, 'Agents')}
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              <div className="text-white/40 text-xs">No shortcuts</div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       </div>
     </>
   );

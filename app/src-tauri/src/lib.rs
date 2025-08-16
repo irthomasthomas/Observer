@@ -515,7 +515,7 @@ pub fn run() {
                 WebviewUrl::App("/overlay".into()),
             )
             .title("Observer Overlay")
-            .inner_size(500.0, 500.0)
+            .inner_size(700.0, 700.0)
             .position(50.0, 50.0)
             .decorations(false)
             .transparent(true)
