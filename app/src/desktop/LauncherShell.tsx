@@ -197,33 +197,32 @@ function LauncherShell() {
   // --- UNIFIED SHORTCUT LOADING AND SAVING ---
   const loadAllShortcuts = useCallback(async () => {
     try {
-      const [overlayConfig, agentsData, agentShortcuts, activeShortcuts] = await Promise.all([
+      const [unifiedConfig, agentsData, registeredShortcuts] = await Promise.all([
         invoke<any>('get_shortcut_config'),
         fetch('http://127.0.0.1:3838/agents').then(r => r.json()).catch(() => ({ agents: [] })),
-        invoke<Record<string, string>>('get_agent_shortcuts'),
-        invoke<string[]>('get_active_shortcuts')
+        invoke<string[]>('get_registered_shortcuts')
       ]);
       
-      // Set overlay shortcuts
+      // Set overlay shortcuts from unified config
       setOverlayShortcuts({
-        toggle: overlayConfig.toggle || '',
-        move_up: overlayConfig.move_up || '',
-        move_down: overlayConfig.move_down || '',
-        move_left: overlayConfig.move_left || '',
-        move_right: overlayConfig.move_right || '',
-        resize_up: overlayConfig.resize_up || '',
-        resize_down: overlayConfig.resize_down || '',
-        resize_left: overlayConfig.resize_left || '',
-        resize_right: overlayConfig.resize_right || ''
+        toggle: unifiedConfig.overlay_toggle || '',
+        move_up: unifiedConfig.overlay_move_up || '',
+        move_down: unifiedConfig.overlay_move_down || '',
+        move_left: unifiedConfig.overlay_move_left || '',
+        move_right: unifiedConfig.overlay_move_right || '',
+        resize_up: unifiedConfig.overlay_resize_up || '',
+        resize_down: unifiedConfig.overlay_resize_down || '',
+        resize_left: unifiedConfig.overlay_resize_left || '',
+        resize_right: unifiedConfig.overlay_resize_right || ''
       });
       
-      // Set available agents and their shortcuts
+      // Set available agents and their shortcuts from unified config
       const agents = agentsData.agents || [];
       setAvailableAgents(agents);
-      setAgentShortcuts(agentShortcuts || {});
+      setAgentShortcuts(unifiedConfig.agent_shortcuts || {});
       
-      // Set active shortcuts
-      setActiveShortcuts(activeShortcuts);
+      // Set registered shortcuts
+      setActiveShortcuts(registeredShortcuts);
     } catch (error) {
       console.error('Failed to load shortcuts:', error);
     }
@@ -274,23 +273,21 @@ function LauncherShell() {
     }
     
     try {
-      // Save overlay shortcuts (requires app restart)
-      const overlayConfigToSave = {
-        toggle: overlayShortcuts.toggle.trim() || null,
-        move_up: overlayShortcuts.move_up.trim() || null,
-        move_down: overlayShortcuts.move_down.trim() || null,
-        move_left: overlayShortcuts.move_left.trim() || null,
-        move_right: overlayShortcuts.move_right.trim() || null,
-        resize_up: overlayShortcuts.resize_up.trim() || null,
-        resize_down: overlayShortcuts.resize_down.trim() || null,
-        resize_left: overlayShortcuts.resize_left.trim() || null,
-        resize_right: overlayShortcuts.resize_right.trim() || null
+      // Save unified config with both overlay and agent shortcuts
+      const unifiedConfigToSave = {
+        overlay_toggle: overlayShortcuts.toggle.trim() || null,
+        overlay_move_up: overlayShortcuts.move_up.trim() || null,
+        overlay_move_down: overlayShortcuts.move_down.trim() || null,
+        overlay_move_left: overlayShortcuts.move_left.trim() || null,
+        overlay_move_right: overlayShortcuts.move_right.trim() || null,
+        overlay_resize_up: overlayShortcuts.resize_up.trim() || null,
+        overlay_resize_down: overlayShortcuts.resize_down.trim() || null,
+        overlay_resize_left: overlayShortcuts.resize_left.trim() || null,
+        overlay_resize_right: overlayShortcuts.resize_right.trim() || null,
+        agent_shortcuts: agentShortcuts
       };
       
-      await invoke('set_shortcut_config', { config: overlayConfigToSave });
-      
-      // Save agent shortcuts (works immediately, but skip dynamic update to avoid error)
-      await invoke('set_agent_shortcuts', { shortcuts: agentShortcuts });
+      await invoke('set_shortcut_config', { config: unifiedConfigToSave });
       
       setShortcutFeedback({ 
         message: 'All shortcuts saved! Restart the app to activate all shortcuts.', 

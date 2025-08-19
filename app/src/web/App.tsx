@@ -37,7 +37,7 @@ import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming th
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import AgentActivityModal from '@components/AgentCard/AgentActivityModal';
-import { startCommandPolling, stopCommandPolling } from '@utils/commandPolling';
+import { startCommandSSE, updateCommandSSEToken } from '@utils/commandSSE';
 
 
 function AppContent() {
@@ -446,14 +446,19 @@ function AppContent() {
     };
   }, [isAuthenticated, isLoading, user]);
 
-  // Start command polling for hotkey support in self-hosted environments
+  // Start command SSE once for hotkey support in self-hosted environments
   useEffect(() => {
-    startCommandPolling(hostingContext, getToken);
-    
-    return () => {
-      stopCommandPolling();
-    };
-  }, [hostingContext, getToken]);
+    if (hostingContext === 'self-hosted') {
+      startCommandSSE(getToken);
+    }
+  }, [hostingContext]); // Only restart if hosting context changes
+  
+  // Update token when it changes (without restarting SSE)
+  useEffect(() => {
+    if (hostingContext === 'self-hosted') {
+      updateCommandSSEToken(getToken);
+    }
+  }, [getToken, hostingContext]);
 
   useEffect(() => {
     if (!isLoading) {

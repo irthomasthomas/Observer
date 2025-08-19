@@ -84,6 +84,7 @@ export default function OverlayWindow() {
   const [messages, setMessages] = useState<OverlayMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeShortcuts, setActiveShortcuts] = useState<string[]>([]);
+  const [pulsingShortcut, setPulsingShortcut] = useState<string | null>(null);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -99,10 +100,10 @@ export default function OverlayWindow() {
   
   const fetchActiveShortcuts = useCallback(async () => {
     try {
-      const shortcuts = await invoke<string[]>('get_active_shortcuts');
+      const shortcuts = await invoke<string[]>('get_registered_shortcuts');
       setActiveShortcuts(shortcuts);
     } catch (error) {
-      console.error('Failed to fetch active shortcuts:', error);
+      console.error('Failed to fetch registered shortcuts:', error);
     }
   }, []);
 
@@ -154,13 +155,52 @@ export default function OverlayWindow() {
       messageUnlisten = unlisten;
     });
     
+    // Setup shortcut pressed event listener
+    const setupShortcutListener = async () => {
+      try {
+        const unlisten = await listen<string>('shortcut-pressed', (event) => {
+          console.log('Shortcut pressed:', event.payload);
+          setPulsingShortcut(event.payload);
+          // Clear the pulse after 250ms
+          setTimeout(() => setPulsingShortcut(null), 250);
+        });
+        return unlisten;
+      } catch (error) {
+        console.warn('Failed to setup shortcut listener:', error);
+        return () => {};
+      }
+    };
+    
+    let shortcutUnlisten: (() => void) | null = null;
+    setupShortcutListener().then(unlisten => {
+      shortcutUnlisten = unlisten;
+    });
+    
     // Cleanup function
     return () => {
       if (messageUnlisten) {
         messageUnlisten();
       }
+      if (shortcutUnlisten) {
+        shortcutUnlisten();
+      }
     };
   }, []); // Remove dependencies - only run once on mount
+
+  // Helper function to check if a shortcut should pulse
+  const shouldPulse = (shortcutKey: string) => {
+    if (!pulsingShortcut) return false;
+    // Match the raw shortcut key with the pulsing one
+    return shortcutKey === pulsingShortcut;
+  };
+
+  // Helper function to get pulse classes
+  const getPulseClasses = (shortcutKey: string, baseClasses: string) => {
+    const isPulsing = shouldPulse(shortcutKey);
+    return isPulsing 
+      ? `${baseClasses} scale-110 shadow-lg shadow-white/50 border-white/60 transition-all duration-200 ease-out`
+      : `${baseClasses} transition-all duration-200 ease-out`;
+  };
 
   return (
     <>
@@ -242,11 +282,17 @@ export default function OverlayWindow() {
                             if (shortcuts.length === 0) return null;
                             
                             if (groupName === 'Move' || groupName === 'Resize') {
-                              // Show grouped format for move/resize
+                              // Show grouped format for move/resize - check if any of the group shortcuts are pulsing
                               const baseKey = shortcuts[0]?.split(' ')[0]?.replace(/Arrow(Up|Down|Left|Right)/, '') || '';
                               const formattedBase = formatKey(baseKey);
+                              const isGroupPulsing = shortcuts.some(s => shouldPulse(s.split(' ')[0]));
+                              const groupClasses = getPulseClasses(
+                                shortcuts[0]?.split(' ')[0] || '', 
+                                "text-center p-6 bg-black/30 rounded-lg border border-transparent"
+                              );
+                              
                               return (
-                                <div className="text-center p-6 bg-black/30 rounded-lg">
+                                <div className={isGroupPulsing ? groupClasses : "text-center p-6 bg-black/30 rounded-lg border border-transparent transition-all duration-200 ease-out"}>
                                   <div className="text-white text-2xl font-mono font-bold mb-3">{formattedBase}↑↓←→</div>
                                   <div className="text-white/80 text-base font-medium">{groupName} Overlay</div>
                                 </div>
@@ -258,9 +304,10 @@ export default function OverlayWindow() {
                                 const keyPart = parts[0] || '';
                                 const descriptionPart = parts.slice(1).join(' ') || '';
                                 const formattedKey = formatKey(keyPart);
+                                const cardClasses = getPulseClasses(keyPart, "text-center p-6 bg-black/30 rounded-lg border border-transparent");
                                 
                                 return (
-                                  <div key={index} className="text-center p-6 bg-black/30 rounded-lg">
+                                  <div key={index} className={cardClasses}>
                                     <div className="text-white text-2xl font-mono font-bold mb-3">{formattedKey}</div>
                                     <div className="text-white/80 text-base font-medium capitalize">
                                       {descriptionPart.replace('toggle ', '').replace('toggle', 'Show/Hide')}
@@ -366,8 +413,13 @@ export default function OverlayWindow() {
                       // Show grouped format for move/resize
                       const baseKey = shortcuts[0]?.split(' ')[0]?.replace(/Arrow(Up|Down|Left|Right)/, '') || '';
                       const formattedBase = formatKey(baseKey);
+                      const isGroupPulsing = shortcuts.some(s => shouldPulse(s.split(' ')[0]));
+                      const groupClasses = isGroupPulsing 
+                        ? "text-white/70 text-xs font-mono px-1 py-0.5 rounded scale-110 bg-white/10 transition-all duration-200 ease-out"
+                        : "text-white/70 text-xs font-mono px-1 py-0.5 rounded transition-all duration-200 ease-out";
+                      
                       return (
-                        <div className="text-white/70 text-xs font-mono">
+                        <div className={groupClasses}>
                           <span className="text-white/90 font-semibold">{formattedBase}↑↓←→</span>
                           <span className="text-white/60 ml-1 font-normal">{groupName}</span>
                         </div>
@@ -379,9 +431,13 @@ export default function OverlayWindow() {
                         const keyPart = parts[0] || '';
                         const descriptionPart = parts.slice(1).join(' ') || '';
                         const formattedKey = formatKey(keyPart);
+                        const isPulsing = shouldPulse(keyPart);
+                        const itemClasses = isPulsing
+                          ? "text-white/70 text-xs font-mono px-1 py-0.5 rounded scale-110 bg-white/10 transition-all duration-200 ease-out"
+                          : "text-white/70 text-xs font-mono px-1 py-0.5 rounded transition-all duration-200 ease-out";
                         
                         return (
-                          <div key={index} className="text-white/70 text-xs font-mono">
+                          <div key={index} className={itemClasses}>
                             <span className="text-white/90 font-semibold">{formattedKey}</span>
                             {descriptionPart && !descriptionPart.includes('agent') && (
                               <span className="text-white/60 ml-1 font-normal capitalize">

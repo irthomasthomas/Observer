@@ -7,8 +7,8 @@ mod overlay;
 mod shortcuts;
 mod commands;
 
-// Import shortcut types
-use shortcuts::{AppShortcutState, ShortcutConfig};
+// Import unified shortcut types
+use shortcuts::{UnifiedShortcutState, UnifiedShortcutConfig};
 
 // ---- Final, Corrected Imports ----
 use axum::{
@@ -196,17 +196,11 @@ async fn get_agent_shortcuts(agent_state: State<'_, AgentDiscoveryState>) -> Res
 async fn set_agent_shortcuts(
     shortcuts: std::collections::HashMap<String, String>,
     agent_state: State<'_, AgentDiscoveryState>,
-    app_handle: AppHandle,
+    _app_handle: AppHandle,
 ) -> Result<(), String> {
     log::info!("Setting agent shortcuts: {:?}", shortcuts);
     
-    // Save to disk first
-    #[cfg(desktop)]
-    {
-        shortcuts::save_agent_shortcuts_to_disk(&app_handle, &shortcuts)?;
-    }
-    
-    // Update in-memory state (skip dynamic registration to avoid plugin error)
+    // Update in-memory state (restart required for shortcuts to take effect)
     *agent_state.agent_shortcuts.lock().unwrap() = shortcuts;
     
     Ok(())
@@ -393,9 +387,9 @@ pub fn run() {
             available_agents: Mutex::new(Vec::new()),
             agent_shortcuts: Mutex::new(std::collections::HashMap::new()),
         })
-        .manage(AppShortcutState {
-            config: Mutex::new(ShortcutConfig::default()),
-            active_shortcuts: Mutex::new(Vec::new()),
+        .manage(UnifiedShortcutState {
+            config: Mutex::new(UnifiedShortcutConfig::default()),
+            registered_shortcuts: Mutex::new(Vec::new()),
         })
         .setup(|app| {
             // We use the handle to call updater and restart
@@ -546,20 +540,14 @@ pub fn run() {
                 }
             }
 
-            // Register global shortcuts with graceful error handling
+            // Load unified shortcuts config and register (startup only)
             #[cfg(desktop)]
             {
-                // Load overlay shortcuts config from disk
-                let loaded_config = shortcuts::load_shortcut_config_from_disk(app.handle());
-                let shortcut_state = app.state::<AppShortcutState>();
+                let loaded_config = shortcuts::load_config_from_disk(app.handle());
+                let shortcut_state = app.state::<UnifiedShortcutState>();
                 *shortcut_state.config.lock().unwrap() = loaded_config;
                 
-                // Load agent shortcuts from disk
-                let loaded_agent_shortcuts = shortcuts::load_agent_shortcuts_from_disk(app.handle());
-                let agent_state = app.state::<AgentDiscoveryState>();
-                *agent_state.agent_shortcuts.lock().unwrap() = loaded_agent_shortcuts;
-                
-                shortcuts::register_global_shortcuts(app)?;
+                shortcuts::register_shortcuts_on_startup(app)?;
             }
             
             #[cfg(not(desktop))]
@@ -588,7 +576,7 @@ pub fn run() {
             get_agent_shortcuts,
             set_agent_shortcuts,
             shortcuts::get_shortcut_config,
-            shortcuts::get_active_shortcuts,
+            shortcuts::get_registered_shortcuts,
             shortcuts::set_shortcut_config
         ])
         .run(tauri::generate_context!())
