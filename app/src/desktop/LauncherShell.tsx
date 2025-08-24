@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
   ExternalLink, Loader, CheckCircle2, XCircle, Power,
-  Download, Settings, RotateCw, Check, AlertTriangle, Keyboard
+  Download, Settings, RotateCw, Check, AlertTriangle, Keyboard,
+  Eye, EyeOff
 } from 'lucide-react';
 
 // --- Helper Component for the Status Display (MODIFIED) ---
@@ -379,6 +381,29 @@ function LauncherShell() {
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [capturingFor, buildKeyCombo]);
 
+  // --- Overlay Control Handlers ---
+  const handleShowOverlay = useCallback(async () => {
+    try {
+      const overlayWindow = await WebviewWindow.getByLabel('overlay');
+      if (overlayWindow) {
+        await overlayWindow.show();
+      }
+    } catch (error) {
+      console.error('Failed to show overlay:', error);
+    }
+  }, []);
+
+  const handleHideOverlay = useCallback(async () => {
+    try {
+      const overlayWindow = await WebviewWindow.getByLabel('overlay');
+      if (overlayWindow) {
+        await overlayWindow.hide();
+      }
+    } catch (error) {
+      console.error('Failed to hide overlay:', error);
+    }
+  }, []);
+
   // --- Handlers (unchanged) ---
   const handleOpenApp = () => serverUrl && open(serverUrl);
   const handleDownloadOllama = () => open('https://ollama.com');
@@ -494,6 +519,29 @@ function LauncherShell() {
               )}
             </div>
           )}
+        </div>
+        
+        {/* --- Overlay Controls Section --- */}
+        <div className="mt-4 border-t pt-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold text-slate-800 mb-3">Overlay Controls</h3>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleShowOverlay}
+                className="flex-1 px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Show Overlay
+              </button>
+              <button
+                onClick={handleHideOverlay}
+                className="flex-1 px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+              >
+                <EyeOff className="h-4 w-4 mr-2" />
+                Hide Overlay
+              </button>
+            </div>
+          </div>
         </div>
         
         {/* --- UNIFIED: All Shortcuts Configuration Section --- */}

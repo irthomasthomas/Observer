@@ -16,6 +16,8 @@
     "core:tray:default",
     "core:window:allow-set-title",
     "core:window:allow-set-ignore-cursor-events",
+    "core:window:allow-show",
+    "core:window:allow-hide",
     "shell:default",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
