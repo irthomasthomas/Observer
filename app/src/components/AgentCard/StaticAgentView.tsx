@@ -231,6 +231,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
             ask: { label: 'Ask Dialog', icon: MessageSquareQuote, regex: /ask\s*\(/g },
             message: { label: 'Message Dialog', icon: MessageSquare, regex: /message\s*\(/g },
             system_notify: { label: 'Sys Notify', icon: Bell, regex: /system_notify\s*\(/g },
+            overlay: { label: 'Overlay', icon: Monitor, regex: /overlay\s*\(/g },
         };
 
         // --- Sensor Detection Logic ---

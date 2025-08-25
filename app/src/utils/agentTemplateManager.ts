@@ -2,7 +2,7 @@
 
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'ask' | 'system_notify' | 'message';
+export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'ask' | 'system_notify' | 'message' | 'overlay';
 
 export interface ToolData {
   smsPhoneNumber?: string;
@@ -91,6 +91,11 @@ systemNotify(response);
 // --- MESSAGE TOOL ---
 // Shows a dialog message to the user.
 message(response);
+`,
+  overlay: () => `
+// --- OVERLAY TOOL ---
+// Displays a message in the translucent overlay window.
+overlay(response);
 `,
 };
 
