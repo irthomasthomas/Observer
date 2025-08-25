@@ -429,12 +429,12 @@ export async function system_notify(appUrl: string, title: string, body: string)
 }
 
 /**
- * Displays a message in the translucent overlay window.
+ * Displays a message in the overlay window.
  * The overlay appears on top of all other windows and shows agent messages.
  * @param appUrl The base URL of the local Tauri server.
  * @param message The message to display in the overlay (supports basic markdown).
  */
-export async function translucent(appUrl: string, message: string): Promise<void> {
+export async function overlay(appUrl: string, message: string): Promise<void> {
   const response = await fetch(`${appUrl}/overlay`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

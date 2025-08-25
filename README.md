@@ -68,7 +68,7 @@ App Tools:
   * `ask(question, title="Confirmation")` - Pops up a system confirmation dialog 
   * `message(message, title="Agent Message")` - Pops up a system message
   * `system_notify(body, title="Observer AI")` - Sends a system notification
-  * `translucent(body)` - Pushes a message to the translucent overlay
+  * `overlay(body)` - Pushes a message to the overlay
 
 
 
