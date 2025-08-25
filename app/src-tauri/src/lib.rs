@@ -515,7 +515,7 @@ pub fn run() {
             .transparent(true)
             .always_on_top(true)
             .skip_taskbar(true)
-            .visible(true)
+            .visible(false)
             .resizable(false)
             .content_protected(true)
             .build() {

@@ -286,13 +286,11 @@ export default function OverlayWindow() {
                               const baseKey = shortcuts[0]?.split(' ')[0]?.replace(/Arrow(Up|Down|Left|Right)/, '') || '';
                               const formattedBase = formatKey(baseKey);
                               const isGroupPulsing = shortcuts.some(s => shouldPulse(s.split(' ')[0]));
-                              const groupClasses = getPulseClasses(
-                                shortcuts[0]?.split(' ')[0] || '', 
-                                "text-center p-6 bg-black/30 rounded-lg border border-transparent"
-                              );
                               
                               return (
-                                <div className={isGroupPulsing ? groupClasses : "text-center p-6 bg-black/30 rounded-lg border border-transparent transition-all duration-200 ease-out"}>
+                                <div className={isGroupPulsing 
+                                  ? "text-center p-6 bg-black/30 rounded-lg border border-transparent scale-110 shadow-lg shadow-white/50 border-white/60 transition-all duration-200 ease-out"
+                                  : "text-center p-6 bg-black/30 rounded-lg border border-transparent transition-all duration-200 ease-out"}>
                                   <div className="text-white text-2xl font-mono font-bold mb-3">{formattedBase}↑↓←→</div>
                                   <div className="text-white/80 text-base font-medium">{groupName} Overlay</div>
                                 </div>

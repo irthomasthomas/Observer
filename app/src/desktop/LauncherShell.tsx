@@ -5,7 +5,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
   ExternalLink, Loader, CheckCircle2, XCircle, Power,
   Download, Settings, RotateCw, Check, AlertTriangle, Keyboard,
-  Eye, EyeOff
+  Eye, EyeOff, Trash2
 } from 'lucide-react';
 
 // --- Helper Component for the Status Display (MODIFIED) ---
@@ -57,6 +57,7 @@ function LauncherShell() {
   
   // --- UNIFIED SHORTCUTS STATE VARIABLES ---
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showOverlayControls, setShowOverlayControls] = useState(false);
   const [overlayShortcuts, setOverlayShortcuts] = useState({
     toggle: '',
     move_up: '',
@@ -404,6 +405,14 @@ function LauncherShell() {
     }
   }, []);
 
+  const handleClearOverlay = useCallback(async () => {
+    try {
+      await invoke('clear_overlay_messages');
+    } catch (error) {
+      console.error('Failed to clear overlay messages:', error);
+    }
+  }, []);
+
   // --- Handlers (unchanged) ---
   const handleOpenApp = () => serverUrl && open(serverUrl);
   const handleDownloadOllama = () => open('https://ollama.com');
@@ -521,27 +530,43 @@ function LauncherShell() {
           )}
         </div>
         
-        {/* --- Overlay Controls Section --- */}
+        {/* --- Overlay Controls Section (Collapsible) --- */}
         <div className="mt-4 border-t pt-4">
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Overlay Controls</h3>
-            <div className="flex space-x-3">
+          <button 
+            onClick={() => setShowOverlayControls(!showOverlayControls)} 
+            className="text-sm text-slate-600 hover:text-blue-700 font-medium flex items-center justify-center w-full"
+          >
+            <span className="mr-2">Overlay Controls</span>
+            <Settings className="h-4 w-4" />
+          </button>
+          
+          {showOverlayControls && (
+            <div className="mt-3 space-y-3 animate-fade-in">
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleShowOverlay}
+                  className="flex-1 px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Show Overlay
+                </button>
+                <button
+                  onClick={handleHideOverlay}
+                  className="flex-1 px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+                >
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  Hide Overlay
+                </button>
+              </div>
               <button
-                onClick={handleShowOverlay}
-                className="flex-1 px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+                onClick={handleClearOverlay}
+                className="w-full px-4 py-3 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
               >
-                <Eye className="h-4 w-4 mr-2" />
-                Show Overlay
-              </button>
-              <button
-                onClick={handleHideOverlay}
-                className="flex-1 px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
-              >
-                <EyeOff className="h-4 w-4 mr-2" />
-                Hide Overlay
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear Messages
               </button>
             </div>
-          </div>
+          )}
         </div>
         
         {/* --- UNIFIED: All Shortcuts Configuration Section --- */}
