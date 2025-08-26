@@ -5,7 +5,7 @@ import { CompleteAgent } from '@utils/agent_database';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 import { listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
-import { AGENT_ITERATION_START_EVENT, AGENT_WAITING_START_EVENT } from '@utils/main_loop';
+import { AGENT_ITERATION_START_EVENT } from '@utils/main_loop';
 import { Logger, LogEntry } from '@utils/logging';
 import { StreamManager, StreamState } from '@utils/streamManager';
 
@@ -128,46 +128,40 @@ const AgentCard: React.FC<AgentCardProps> = ({
     }
   }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError]);
 
+  // Set up event listener immediately on mount - separate from state changes
   useEffect(() => {
     let progressTimer: NodeJS.Timeout | null = null;
-    let nextIterationTime = 0;
-    let intervalMs = 0;
-
-    const handleWaitingStart = (event: CustomEvent) => {
-      if (event.detail.agentId !== agent.id) return;
-      nextIterationTime = event.detail.nextIterationTime;
-      intervalMs = event.detail.intervalMs;
-      
-      // Start progress timer
-      progressTimer = setInterval(() => {
-        const now = Date.now();
-        const elapsed = now - (nextIterationTime - intervalMs);
-        const progress = Math.min(100, Math.max(0, (elapsed / intervalMs) * 100));
-        setLoopProgress(progress);
-        setLastProgressUpdate(now);
-      }, 50); // Update more frequently for smoothness
-    };
+    let startTime = 0;
+    let duration = 0;
 
     const handleIterationStart = (event: CustomEvent) => {
       if (event.detail.agentId !== agent.id) return;
-      if (progressTimer) {
-        clearInterval(progressTimer);
-        progressTimer = null;
-      }
+      
+      // Clear any existing timer
+      if (progressTimer) clearInterval(progressTimer);
+      
+      console.log('Event fired!! for agent: ', agent.id);
+      
+      // Capture fixed reference values
+      startTime = event.detail.iterationStartTime;
+      duration = event.detail.intervalMs;
       setLoopProgress(0);
+      
+      // Simple progress timer using fixed references
+      progressTimer = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(100, (elapsed / duration) * 100);
+        setLoopProgress(progress);
+        setLastProgressUpdate(Date.now());
+      }, 50);
     };
 
-    if (isRunning && !hasQuotaError) {
-      window.addEventListener(AGENT_WAITING_START_EVENT as any, handleWaitingStart);
-      window.addEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
-    }
-
+    window.addEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
     return () => {
       if (progressTimer) clearInterval(progressTimer);
-      window.removeEventListener(AGENT_WAITING_START_EVENT as any, handleWaitingStart);
       window.removeEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
     };
-  }, [isRunning, hasQuotaError, agent.id]);
+  }, []); // Empty deps - runs once on mount
 
   const handleToggle = async () => {
     if (isRunning) {
@@ -212,8 +206,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
   return (
     <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 flex flex-col">
-      {isRunning && (liveStatus === 'WAITING' || liveStatus === 'THINKING') && 
-       (Date.now() - lastProgressUpdate < 5000) && ( // Hide if progress hasn't updated in 5 seconds
+      {isRunning && (Date.now() - lastProgressUpdate < 5000) && ( // Show progress when running with fresh data
         <div className="absolute top-0 left-0 right-0 h-1 z-10">
           <div className="h-full bg-green-500" style={{ width: `${loopProgress}%`, transition: 'width 0.1s linear' }} />
         </div>

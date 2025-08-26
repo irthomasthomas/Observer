@@ -96,25 +96,8 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
       
       loop.isExecuting = true;
       
-      // Emit start event - UI shows "Model is thinking..."
-      window.dispatchEvent(
-        new CustomEvent(AGENT_ITERATION_START_EVENT, {
-          detail: { agentId }
-        })
-      );
-      
       try {
         await executeAgentIteration(agentId);
-        
-        // Success - emit waiting event for next iteration
-        window.dispatchEvent(
-          new CustomEvent(AGENT_WAITING_START_EVENT, {
-            detail: { 
-              agentId,
-              intervalMs: loop.intervalMs
-            }
-          })
-        );
         
       } catch (error) {
         // Any error stops the agent cleanly
@@ -205,6 +188,18 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
 
   // --- ITERATION START ---
   const iterationId = `iter_${new Date().toISOString()}_${Math.random().toString(36).substring(2, 9)}`;
+  const iterationStartTime = Date.now();
+
+  // Emit start event with timing info - UI shows "Model is thinking..." and starts progress bar
+  window.dispatchEvent(
+    new CustomEvent(AGENT_ITERATION_START_EVENT, {
+      detail: { 
+        agentId,
+        intervalMs: loopData.intervalMs,
+        iterationStartTime
+      }
+    })
+  );
 
   try {
     const agent = await getAgent(agentId);
