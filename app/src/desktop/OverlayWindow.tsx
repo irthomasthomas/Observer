@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -9,6 +8,55 @@ interface OverlayMessage {
   id: string;
   content: string;
   timestamp: number;
+}
+
+function useOverlaySetup() {
+  const [messages, setMessages] = useState<OverlayMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeShortcuts, setActiveShortcuts] = useState<string[]>([]);
+  const [pulsingShortcut, setPulsingShortcut] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Initial data fetch
+    Promise.all([
+      invoke<OverlayMessage[]>('get_overlay_messages'),
+      invoke<string[]>('get_registered_shortcuts')
+    ]).then(([messages, shortcuts]) => {
+      setMessages(messages);
+      setActiveShortcuts(shortcuts);
+      setIsLoading(false);
+    }).catch(error => {
+      console.error('Failed to fetch initial data:', error);
+      setIsLoading(false);
+    });
+
+    // Set up event listeners
+    const setupListeners = async () => {
+      const messageUnlisten = await listen<OverlayMessage[]>('overlay-messages-updated', (event) => {
+        setMessages(event.payload);
+        setIsLoading(false);
+      });
+      
+      const shortcutUnlisten = await listen<string>('shortcut-pressed', (event) => {
+        setPulsingShortcut(event.payload);
+        setTimeout(() => setPulsingShortcut(null), 250);
+      });
+      
+      return () => {
+        messageUnlisten();
+        shortcutUnlisten();
+      };
+    };
+    
+    let cleanup: (() => void) | null = null;
+    setupListeners().then(cleanupFn => {
+      cleanup = cleanupFn;
+    });
+    
+    return () => cleanup?.();
+  }, []);
+
+  return { messages, isLoading, activeShortcuts, pulsingShortcut };
 }
 
 // Enhanced markdown renderer with proper code block support
@@ -81,111 +129,7 @@ function formatTime(timestamp: number): string {
 }
 
 export default function OverlayWindow() {
-  const [messages, setMessages] = useState<OverlayMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeShortcuts, setActiveShortcuts] = useState<string[]>([]);
-  const [pulsingShortcut, setPulsingShortcut] = useState<string | null>(null);
-
-  const fetchMessages = useCallback(async () => {
-    try {
-      const newMessages = await invoke<OverlayMessage[]>('get_overlay_messages');
-      setMessages(newMessages);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Failed to fetch overlay messages:', error);
-      setIsLoading(false);
-    }
-  }, []);
-
-  
-  const fetchActiveShortcuts = useCallback(async () => {
-    try {
-      const shortcuts = await invoke<string[]>('get_registered_shortcuts');
-      setActiveShortcuts(shortcuts);
-    } catch (error) {
-      console.error('Failed to fetch registered shortcuts:', error);
-    }
-  }, []);
-
-  // Note: Message polling replaced with event listener below
-  // Note: Click-through polling removed - now only enforced after window operations
-
-  // Initial setup and event listeners
-  useEffect(() => {
-    // Initial data fetch
-    fetchMessages();
-    fetchActiveShortcuts();
-    
-    const setupOverlayFeatures = async () => {
-      try {
-        // Enable content protection on the overlay window
-        await getCurrentWindow().setContentProtected(true);
-        console.log('Content protection enabled on overlay window');
-        
-        // Always enable click-through (ignore cursor events)
-        await getCurrentWindow().setIgnoreCursorEvents(true);
-        console.log('Always click-through enabled on overlay window');
-      } catch (error) {
-        console.warn('Failed to setup overlay features:', error);
-      }
-    };
-    
-    // Set up event listener for real-time message updates
-    const setupMessageListener = async () => {
-      try {
-        const unlisten = await listen<OverlayMessage[]>('overlay-messages-updated', (event) => {
-          console.log('Received overlay messages update:', event.payload);
-          setMessages(event.payload);
-          setIsLoading(false);
-        });
-        
-        // Return cleanup function
-        return unlisten;
-      } catch (error) {
-        console.warn('Failed to setup message listener:', error);
-        return () => {};
-      }
-    };
-    
-    setupOverlayFeatures();
-    
-    // Setup message listener and store cleanup function
-    let messageUnlisten: (() => void) | null = null;
-    setupMessageListener().then(unlisten => {
-      messageUnlisten = unlisten;
-    });
-    
-    // Setup shortcut pressed event listener
-    const setupShortcutListener = async () => {
-      try {
-        const unlisten = await listen<string>('shortcut-pressed', (event) => {
-          console.log('Shortcut pressed:', event.payload);
-          setPulsingShortcut(event.payload);
-          // Clear the pulse after 250ms
-          setTimeout(() => setPulsingShortcut(null), 250);
-        });
-        return unlisten;
-      } catch (error) {
-        console.warn('Failed to setup shortcut listener:', error);
-        return () => {};
-      }
-    };
-    
-    let shortcutUnlisten: (() => void) | null = null;
-    setupShortcutListener().then(unlisten => {
-      shortcutUnlisten = unlisten;
-    });
-    
-    // Cleanup function
-    return () => {
-      if (messageUnlisten) {
-        messageUnlisten();
-      }
-      if (shortcutUnlisten) {
-        shortcutUnlisten();
-      }
-    };
-  }, []); // Remove dependencies - only run once on mount
+  const { messages, isLoading, activeShortcuts, pulsingShortcut } = useOverlaySetup();
 
   // Helper function to check if a shortcut should pulse
   const shouldPulse = (shortcutKey: string) => {
