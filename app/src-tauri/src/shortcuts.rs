@@ -410,11 +410,11 @@ pub fn register_shortcuts_on_startup(app: &mut tauri::App) -> Result<(), Box<dyn
                                 let size_delta = 50.0;
                                 let (new_width, new_height) = match action {
                                     ShortcutAction::OverlayResizeUp => {
-                                        let new_h = (current_size.height as f64 + size_delta).max(200.0);
+                                        let new_h = (current_size.height as f64 - size_delta).max(200.0);
                                         (current_size.width as f64, new_h)
                                     }
                                     ShortcutAction::OverlayResizeDown => {
-                                        let new_h = (current_size.height as f64 - size_delta).max(200.0);
+                                        let new_h = (current_size.height as f64 + size_delta).max(200.0);
                                         (current_size.width as f64, new_h)
                                     }
                                     ShortcutAction::OverlayResizeLeft => {
