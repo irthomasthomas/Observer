@@ -240,6 +240,20 @@ function AppContent() {
     };
   }, []);
 
+  // --- USEEFFECT FOR RUNTIME ERROR EVENT LISTENER ---
+  useEffect(() => {
+    const handleAgentRuntimeError = (event: CustomEvent<{ agentId: string; error: string }>) => {
+      const { error } = event.detail;
+      setError(error);
+    };
+
+    window.addEventListener('agentRuntimeError', handleAgentRuntimeError as EventListener);
+
+    return () => {
+      window.removeEventListener('agentRuntimeError', handleAgentRuntimeError as EventListener);
+    };
+  }, []);
+
   const handleEditClick = async (agentId: string) => {
     setSelectedAgent(agentId);
     setIsCreateMode(false);

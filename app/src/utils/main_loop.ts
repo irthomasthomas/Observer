@@ -104,6 +104,12 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
         Logger.error(agentId, `Agent stopped due to error: ${error}`, error);
         await stopAgentLoop(agentId);
         
+        // Surface the error to UI
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        window.dispatchEvent(new CustomEvent('agentRuntimeError', {
+          detail: { agentId, error: errorMessage }
+        }));
+        
       } finally {
         // Always cleanup execution state
         if (activeLoops[agentId]) {
