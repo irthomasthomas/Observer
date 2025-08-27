@@ -102,7 +102,22 @@ export async function sendPrompt(
     if (!response.ok) {
         const errorBody = await response.text(); // Attempt to read error body
         console.error(`API Error Response Body: ${errorBody}`);
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
+        
+        // Try to parse the error body to get a meaningful message
+        let errorMessage = `API error: ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorBody);
+          if (errorData.detail) {
+            errorMessage += ` - ${errorData.detail}`;
+          }
+        } catch {
+          // If we can't parse JSON, just include the raw body if it's reasonably short
+          if (errorBody && errorBody.length < 200) {
+            errorMessage += ` - ${errorBody}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
     }
 
     const data = await response.json();
