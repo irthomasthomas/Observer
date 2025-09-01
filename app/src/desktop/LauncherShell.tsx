@@ -900,13 +900,13 @@ function LauncherShell() {
                 
                 {/* Add New Agent */}
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <label className="text-sm text-slate-700 font-medium block mb-2">Add New Agent</label>
+                  <label className="text-sm text-slate-700 font-medium block mb-2">Add New Shortcut</label>
                   <div className="flex items-center space-x-2">
                     <input
                       type="text"
                       value={newAgentId}
                       onChange={(e) => setNewAgentId(e.target.value)}
-                      placeholder="Agent ID (e.g., claude-chat, copilot)"
+                      placeholder="Agent ID (e.g., activity-monitor, distraction-agent)"
                       className="flex-grow px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       onKeyDown={(e) => e.key === 'Enter' && handleAddAgent()}
                     />
@@ -952,9 +952,19 @@ function LauncherShell() {
                           </button>
                           {agentShortcuts[agent.id] && capturingFor !== agent.id && (
                             <button
-                              onClick={() => setAgentShortcuts(prev => ({ ...prev, [agent.id]: '' }))}
+                              onClick={() => {
+                                // Remove agent completely from both frontend and backend
+                                setAvailableAgents(prev => prev.filter(a => a.id !== agent.id));
+                                setAgentShortcuts(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[agent.id];
+                                  return updated;
+                                });
+                                setShortcutFeedback({ message: `Agent "${agent.id}" removed`, type: 'success' });
+                                setTimeout(() => setShortcutFeedback(null), 2000);
+                              }}
                               className="ml-2 text-red-500 hover:text-red-700 text-xs"
-                              title="Clear shortcut"
+                              title="Remove agent completely"
                             >
                               ✕
                             </button>
