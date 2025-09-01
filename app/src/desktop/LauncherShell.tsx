@@ -336,11 +336,6 @@ function LauncherShell() {
   // 4. Load all shortcuts configuration on startup
   useEffect(() => {
     loadAllShortcuts();
-    // Also reload when shortcuts section is opened
-    const interval = showShortcuts ? setInterval(loadAllShortcuts, 5000) : null;
-    return () => {
-      if (interval) clearInterval(interval);
-    };
   }, [loadAllShortcuts, showShortcuts]);
   
   // 6. Key capture effect
