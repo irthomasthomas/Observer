@@ -3,7 +3,6 @@
 
 import { isAgentLoopRunning, startAgentLoop, stopAgentLoop } from './main_loop';
 import { Logger } from './logging';
-import { listAgents } from './agent_database';
 
 export type TokenProvider = () => Promise<string | undefined>;
 
@@ -35,10 +34,7 @@ class CommandSSE {
     this.tokenProvider = getToken;
     this.isActive = true;
 
-    // Register agents with Tauri first
-    await this.registerAgents();
-    
-    // Then start SSE connection
+    // Start SSE connection directly - no more agent registration needed
     this.connectSSE();
   }
 
@@ -67,25 +63,6 @@ class CommandSSE {
     return this.isActive && this.eventSource !== null;
   }
 
-  private async registerAgents(): Promise<void> {
-    try {
-      const agents = await listAgents();
-      const agentList = agents.map(agent => ({
-        id: agent.id,
-        name: agent.name
-      }));
-
-      await fetch(`${this.serverUrl}/register-agents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agents: agentList })
-      });
-
-      Logger.info('Commands', `Registered ${agentList.length} agents with Tauri`);
-    } catch (error) {
-      Logger.error('Commands', `Agent registration failed: ${error}`);
-    }
-  }
 
   private connectSSE(): void {
     try {

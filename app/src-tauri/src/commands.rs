@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use tauri::Manager;
 use tokio_stream::{wrappers::BroadcastStream, StreamExt};
 use futures::stream::Stream;
-use crate::{AppState, CommandState, AgentDiscoveryState, AgentInfo, CommandMessage};
+use crate::{AppState, CommandState, CommandMessage};
 
 #[derive(Serialize, Deserialize)]
 pub struct CommandsResponse {
@@ -111,40 +111,3 @@ pub fn add_toggle_command(command_state: &CommandState, agent_id: String) {
     broadcast_command(command_state, agent_id, "toggle".to_string());
 }
 
-#[derive(Serialize)]
-pub struct AgentsResponse {
-    agents: Vec<AgentInfo>,
-}
-
-#[derive(Deserialize)]
-pub struct UpdateAgentsRequest {
-    agents: Vec<AgentInfo>,
-}
-
-/// GET /agents - Returns discovered agents from browser
-pub async fn get_agents_handler(
-    AxumState(state): AxumState<AppState>,
-) -> Result<Json<AgentsResponse>, StatusCode> {
-    log::info!("GET /agents - fetching available agents");
-
-    let agent_state = state.app_handle.state::<AgentDiscoveryState>();
-    let agents = agent_state.available_agents.lock().unwrap().clone();
-    
-    log::info!("Returning {} available agents", agents.len());
-    
-    Ok(Json(AgentsResponse { agents }))
-}
-
-/// POST /agents - Updates the list of available agents from browser
-pub async fn update_agents_handler(
-    AxumState(state): AxumState<AppState>,
-    Json(payload): Json<UpdateAgentsRequest>,
-) -> StatusCode {
-    log::info!("POST /agents - updating agent list with {} agents", payload.agents.len());
-
-    let agent_state = state.app_handle.state::<AgentDiscoveryState>();
-    let mut agents = agent_state.available_agents.lock().unwrap();
-    *agents = payload.agents;
-    
-    StatusCode::OK
-}

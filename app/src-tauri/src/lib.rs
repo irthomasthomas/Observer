@@ -67,16 +67,6 @@ struct CommandState {
     command_broadcaster: broadcast::Sender<CommandMessage>,
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct AgentInfo {
-    id: String,
-    name: String,
-}
-
-struct AgentDiscoveryState {
-    available_agents: Mutex<Vec<AgentInfo>>,
-    agent_shortcuts: Mutex<std::collections::HashMap<String, String>>,
-}
 
 #[tauri::command]
 async fn set_ollama_url(
@@ -175,36 +165,7 @@ async fn clear_overlay_messages(
     Ok(())
 }
 
-#[tauri::command]
-async fn trigger_agent_toggle(
-    agent_id: String,
-    command_state: State<'_, CommandState>,
-) -> Result<(), String> {
-    log::info!("Triggering toggle for agent '{}'", agent_id);
-    commands::add_toggle_command(&command_state, agent_id);
-    Ok(())
-}
 
-#[tauri::command]
-async fn get_agent_shortcuts(agent_state: State<'_, AgentDiscoveryState>) -> Result<std::collections::HashMap<String, String>, String> {
-    log::info!("Getting agent shortcuts");
-    let shortcuts = agent_state.agent_shortcuts.lock().unwrap().clone();
-    Ok(shortcuts)
-}
-
-#[tauri::command]
-async fn set_agent_shortcuts(
-    shortcuts: std::collections::HashMap<String, String>,
-    agent_state: State<'_, AgentDiscoveryState>,
-    _app_handle: AppHandle,
-) -> Result<(), String> {
-    log::info!("Setting agent shortcuts: {:?}", shortcuts);
-    
-    // Update in-memory state (restart required for shortcuts to take effect)
-    *agent_state.agent_shortcuts.lock().unwrap() = shortcuts;
-    
-    Ok(())
-}
 
 // Shortcut commands moved to shortcuts module
 
@@ -332,11 +293,9 @@ fn start_static_server(app_handle: tauri::AppHandle) {
             .route("/notification", axum::routing::post(notifications::notification_handler))
             .route("/overlay", axum::routing::post(overlay::overlay_handler))
             .route("/commands-stream", axum::routing::get(commands::commands_stream_handler))
-            .route("/register-agents", axum::routing::post(commands::update_agents_handler))
             // Legacy HTTP endpoints (for backward compatibility during migration)
             .route("/commands", axum::routing::get(commands::get_commands_handler))
             .route("/commands", axum::routing::post(commands::post_commands_handler))
-            .route("/agents", axum::routing::get(commands::get_agents_handler))
             .fallback_service(ServeDir::new(resource_path))
             .with_state(state)
             .layer(cors);
@@ -382,10 +341,6 @@ pub fn run() {
                 pending_commands: Mutex::new(std::collections::HashMap::new()),
                 command_broadcaster: tx,
             }
-        })
-        .manage(AgentDiscoveryState {
-            available_agents: Mutex::new(Vec::new()),
-            agent_shortcuts: Mutex::new(std::collections::HashMap::new()),
         })
         .manage(UnifiedShortcutState {
             config: Mutex::new(UnifiedShortcutConfig::default()),
@@ -572,9 +527,6 @@ pub fn run() {
             check_ollama_servers,
             get_overlay_messages,
             clear_overlay_messages,
-            trigger_agent_toggle,
-            get_agent_shortcuts,
-            set_agent_shortcuts,
             shortcuts::get_shortcut_config,
             shortcuts::get_registered_shortcuts,
             shortcuts::set_shortcut_config

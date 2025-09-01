@@ -74,6 +74,7 @@ function LauncherShell() {
   const [activeShortcuts, setActiveShortcuts] = useState<string[]>([]);
   const [shortcutFeedback, setShortcutFeedback] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [capturingFor, setCapturingFor] = useState<string | null>(null);
+  const [newAgentId, setNewAgentId] = useState('');
 
   // --- KEY CAPTURE UTILITIES ---
   const buildKeyCombo = (event: KeyboardEvent): string => {
@@ -101,6 +102,21 @@ function LauncherShell() {
     
     return modifiers.length > 0 ? `${modifiers.join('+')}+${key}` : key;
   };
+
+  const handleAddAgent = useCallback(() => {
+    if (!newAgentId.trim()) return;
+    
+    const agentId = newAgentId.trim();
+    if (availableAgents.find(a => a.id === agentId)) {
+      setShortcutFeedback({ message: `Agent "${agentId}" already exists`, type: 'error' });
+      return;
+    }
+    
+    setAvailableAgents(prev => [...prev, { id: agentId, name: agentId }]);
+    setNewAgentId('');
+    setShortcutFeedback({ message: `Agent "${agentId}" added`, type: 'success' });
+    setTimeout(() => setShortcutFeedback(null), 2000);
+  }, [newAgentId, availableAgents]);
 
   const runServerChecks = useCallback(async () => {
     setIsChecking(true);
@@ -200,9 +216,8 @@ function LauncherShell() {
   // --- UNIFIED SHORTCUT LOADING AND SAVING ---
   const loadAllShortcuts = useCallback(async () => {
     try {
-      const [unifiedConfig, agentsData, registeredShortcuts] = await Promise.all([
+      const [unifiedConfig, registeredShortcuts] = await Promise.all([
         invoke<any>('get_shortcut_config'),
-        fetch('http://127.0.0.1:3838/agents').then(r => r.json()).catch(() => ({ agents: [] })),
         invoke<string[]>('get_registered_shortcuts')
       ]);
       
@@ -219,10 +234,12 @@ function LauncherShell() {
         resize_right: unifiedConfig.overlay_resize_right || ''
       });
       
-      // Set available agents and their shortcuts from unified config
-      const agents = agentsData.agents || [];
-      setAvailableAgents(agents);
+      // Set agent shortcuts from unified config - no need to fetch agents from backend
       setAgentShortcuts(unifiedConfig.agent_shortcuts || {});
+      // Generate available agents from the shortcuts that are configured
+      const agentIds = Object.keys(unifiedConfig.agent_shortcuts || {});
+      const agents = agentIds.map(id => ({ id, name: id })); // Use ID as name for now
+      setAvailableAgents(agents);
       
       // Set registered shortcuts
       setActiveShortcuts(registeredShortcuts);
@@ -878,9 +895,31 @@ function LauncherShell() {
               </div>
               
               {/* Agent Shortcuts Section */}
-              {availableAgents.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-slate-800 mb-3">Agent Controls ({availableAgents.length} agents)</h3>
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-slate-800 mb-3">Agent Controls ({availableAgents.length} agents)</h3>
+                
+                {/* Add New Agent */}
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <label className="text-sm text-slate-700 font-medium block mb-2">Add New Agent</label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={newAgentId}
+                      onChange={(e) => setNewAgentId(e.target.value)}
+                      placeholder="Agent ID (e.g., claude-chat, copilot)"
+                      className="flex-grow px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddAgent()}
+                    />
+                    <button
+                      onClick={handleAddAgent}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+                
+                {availableAgents.length > 0 && (
                   <div className="grid grid-cols-1 gap-3">
                     {availableAgents.map((agent) => {
                       const shortcut = agentShortcuts[agent.id];
@@ -924,15 +963,15 @@ function LauncherShell() {
                       );
                     })}
                   </div>
-                </div>
-              )}
-              
-              {availableAgents.length === 0 && (
-                <div className="mb-6 text-center py-4">
-                  <p className="text-sm text-slate-500 mb-2">No agents discovered yet.</p>
-                  <p className="text-xs text-slate-400">Open the main Observer app to see your agents here.</p>
-                </div>
-              )}
+                )}
+                
+                {availableAgents.length === 0 && (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-slate-500 mb-2">No agents added yet.</p>
+                    <p className="text-xs text-slate-400">Add agents above to assign shortcuts to them.</p>
+                  </div>
+                )}
+              </div>
               
               {/* Save All Button */}
               <div className="flex justify-end">
