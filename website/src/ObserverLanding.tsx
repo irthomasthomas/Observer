@@ -57,7 +57,7 @@ const ObserverLanding = () => {
       <div className="flex items-end justify-center">
         <div 
           id="eye-container" 
-          className="w-14 h-14 md:w-28 md:h-28 text-white -mt-1 -translate-y-[12px]"
+          className="w-14 h-14 md:w-28 md:h-28 text-white -mt-1 -translate-y-[6px] md:-translate-y-[12px]"
         >
           <EyeLogo mousePosition={mousePosition} />
         </div>
