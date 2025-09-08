@@ -92,7 +92,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) =
         ) : (
           <PricingTable
             headline="You've Reached Your Daily Limit!"
-            subheadline="Upgrade to Observer Pro and support the project!"
+            subheadline="Upgrade to Observer Pro!"
             status={status}
             isButtonLoading={isButtonLoading}
             isAuthenticated={isAuthenticated}

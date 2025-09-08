@@ -35,36 +35,38 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   // Use smaller sizing for non-modal contexts (like ObServerTab)
   const containerClass = isTriggeredByQuotaError 
     ? "w-full max-w-6xl mx-auto p-4 sm:p-6 md:p-8 bg-white rounded-lg"  // Modal - larger
-    : "w-full max-w-4xl mx-auto p-4 sm:p-6 bg-white rounded-lg";         // Tab - smaller
+    : "w-full max-w-2xl mx-auto p-3 sm:p-4 bg-white rounded-lg";         // Tab - 60% smaller
     
   return (
     <div className={containerClass}>
-      <div className="flex items-start gap-6 mb-6">
+      <div className="flex items-start gap-4 mb-4">
         <div className="flex-shrink-0">
-          <Zap className="h-12 w-12 text-purple-500" />
+          <Zap className={isTriggeredByQuotaError ? "h-12 w-12 text-purple-500" : "h-8 w-8 text-purple-500"} />
         </div>
         <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight mb-2">{headline}</h1>
-          <p className="text-base sm:text-lg text-gray-600 mb-3">{subheadline}</p>
-          <div className="flex items-center space-x-3 text-xs text-gray-500">
-            <span>🚀 450+ users</span>
-            <span>•</span>
-            <span>⭐ 900+ GitHub stars</span>
-            <span>•</span>
-            <span>⚡ Processing 100k+ captures daily</span>
-          </div>
+          <h1 className={isTriggeredByQuotaError ? "text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight mb-2" : "text-xl sm:text-2xl font-bold text-gray-800 tracking-tight mb-2"}>{headline}</h1>
+          <p className={isTriggeredByQuotaError ? "text-base sm:text-lg text-gray-600 mb-3" : "text-sm sm:text-base text-gray-600 mb-2"}>{subheadline}</p>
+          {isTriggeredByQuotaError && (
+            <div className="flex items-center space-x-3 text-xs text-gray-500">
+              <span>🚀 600+ users</span>
+              <span>•</span>
+              <span>⭐ 1k+ GitHub stars</span>
+              <span>•</span>
+              <span>⚡ Processing 100k+ captures daily</span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
+      <div className={isTriggeredByQuotaError ? "grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start" : "grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-start"}>
         {/* Column 1: Self-Hosted */}
-        <div className="border rounded-lg p-4 flex flex-col h-full bg-gray-50/50 shadow-sm">
+        <div className={isTriggeredByQuotaError ? "border rounded-lg p-4 flex flex-col h-full bg-gray-50/50 shadow-sm" : "border rounded-lg p-3 flex flex-col h-full bg-gray-50/50 shadow-sm"}>
           <div className="text-center">
-            <HardDrive className="mx-auto h-10 w-10 text-gray-500 mb-3" />
+            <HardDrive className={isTriggeredByQuotaError ? "mx-auto h-10 w-10 text-gray-500 mb-3" : "mx-auto h-8 w-8 text-gray-500 mb-2"} />
             <h2 className="text-xl font-bold text-gray-800">Build Locally</h2>
-            <p className="text-gray-500 min-h-[4rem]">Complete control of your data and infrastructure. Perfect for security-conscious developers.</p>
+            <p className="text-gray-500 min-h-[4rem]">Complete control of your data and infrastructure.</p>
           </div>
-          <ul className="space-y-4 my-8 flex-grow">
+          <ul className="space-y-4 mb-8 flex-grow">
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free (your hardware)</span></li>
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Performance:</strong> As fast as your hardware!</span></li>
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> ∞ Unlimited</span></li>
@@ -86,14 +88,14 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <div className="text-center">
             <Server className="mx-auto h-10 w-10 text-gray-500 mb-3" />
             <h2 className="text-xl font-bold text-gray-800">Quick Start</h2>
-            <p className="text-gray-500 min-h-[4rem]">Get started instantly with cloud hosting. No setup required.</p>
+            <p className="text-gray-500 min-h-[4rem]">No setup required.</p>
           </div>
-          <ul className="space-y-4 my-8 flex-grow">
+          <ul className="space-y-4 mb-8 flex-grow">
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free</span></li>
             {isTriggeredByQuotaError ? (
                 <li className="flex items-start font-semibold text-red-600"><AlertTriangle className="h-6 w-6 text-red-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> Limit Reached</span></li>
             ) : (
-                <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> 30 actions/day</span></li>
+                <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> 15 actions/day</span></li>
             )}
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Setup:</strong> Start building in 30 seconds</span></li>
             <li className="flex items-start"><HeartCrack className="h-6 w-6 text-red-500 mr-3 flex-shrink-0" /><span><strong>Support:</strong> Limited (solo dev!)</span></li>
@@ -109,13 +111,14 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <div className="text-center">
             <Sparkles className="mx-auto h-10 w-10 text-purple-500 mb-3" />
             <h2 className="text-2xl font-bold text-purple-800">Observer Pro</h2>
-            <p className="text-purple-700 min-h-[4rem]">Unlimited screen monitoring and notifications. Perfect for power users.</p>
+            <p className="text-purple-700">Save Time, Build More</p>
           </div>
-          <ul className="space-y-4 my-8 flex-grow">
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> $14.99/month</span></li>
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Performance:</strong> ⚡ Low-Latency Priority</span></li>
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> ∞ Unlimited</span></li>
-            <li className="flex items-start"><Heart className="h-6 w-6 text-pink-500 mr-3 flex-shrink-0" /><span><strong>Support:</strong> You keep the lights on! 🙏</span></li>
+          <ul className="space-y-2 mt-7 mb-8 flex-grow">
+            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited use of models</strong></span></li>
+            <li className="flex items-start"><Sparkles className="h-5 w-5 text-purple-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Access to Pro Models</strong></span></li>
+            <li className="flex items-start"><Zap className="h-5 w-5 text-yellow-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Priority performance & speed</strong></span></li>
+            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited SMS, WhatsApp, Discord & Email</strong></span></li>
+            <li className="flex items-start"><Heart className="h-5 w-5 text-pink-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>$20/month</strong></span></li>
           </ul>
            {status === 'pro' ? (
               <button

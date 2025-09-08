@@ -89,18 +89,21 @@ export const ObServerTab: React.FC = () => {
   // The main render path is now incredibly simple.
   // It renders the reusable table with props tailored for the general "Ob-Server" tab.
   return (
-    <div className="bg-gray-50 -m-4 sm:-m-6 md:-m-8">
-      <PricingTable
-        headline="Choose Your Way to Observe"
-        subheadline="From total privacy on your machine to the convenience of the cloud, there's a path for you."
-        status={status}
-        isButtonLoading={isButtonLoading}
-        isAuthenticated={isAuthenticated}
-        error={error}
-        onCheckout={() => handleApiAction('create-checkout-session')}
-        onManageSubscription={() => handleApiAction('create-customer-portal-session')}
-        onLogin={loginWithRedirect}
-      />
+    <div className="flex justify-center pt-8">
+      <div className="w-full max-w-4xl">
+        <PricingTable
+          headline="Choose Your Way to Observe"
+          subheadline=""
+          status={status}
+          isButtonLoading={isButtonLoading}
+          isAuthenticated={isAuthenticated}
+          error={error}
+          onCheckout={() => handleApiAction('create-checkout-session')}
+          onManageSubscription={() => handleApiAction('create-customer-portal-session')}
+          onLogin={loginWithRedirect}
+          isTriggeredByQuotaError={true}
+        />
+      </div>
     </div>
   );
 };
