@@ -108,6 +108,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const [emailAddress, setEmailAddress] = useState('');
   const [pushoverUserKey, setPushoverUserKey] = useState('');
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
 
   const [conditionEnabled, setConditionEnabled] = useState(false);
   const [conditionKeyword, setConditionKeyword] = useState('');
@@ -134,6 +135,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
     setEmailAddress('');
     setPushoverUserKey('');
     setDiscordWebhookUrl('');
+    setTelegramChatId('');
     setConditionEnabled(false); setConditionKeyword('');
     // --- NEW: Reset warnings on close ---
     setShowDesktopNotifWarning(false);
@@ -227,6 +229,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
             tool === 'email' ? { emailAddress } :
             tool === 'pushover' ? { pushoverUserKey } :
             tool === 'discord' ? { discordWebhookUrl } :
+            tool === 'telegram' ? { telegramChatId } :
             {};
         newMap.set(tool, initialData);
       }
@@ -364,6 +367,8 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                     <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('email')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('email') ? 'border-cyan-500 bg-cyan-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><Mail className={`h-8 w-8 transition-colors ${selectedTools.has('email') ? 'text-cyan-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send an Email</h3><p className="text-sm text-gray-500">Sends response as an email.</p></div></div>{selectedTools.has('email') && (<div className="relative pl-12 pt-2"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="email" value={emailAddress} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newAddress = e.target.value; setEmailAddress(newAddress); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('email', { emailAddress: newAddress }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500" placeholder="recipient@example.com"/></div>)}</button>
                     {/* Pushover Tool */}
                     <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('pushover')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('pushover') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><Smartphone className={`h-8 w-8 transition-colors ${selectedTools.has('pushover') ? 'text-blue-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send to Pushover</h3><p className="text-sm text-gray-500">Sends a push notification.</p></div></div>{selectedTools.has('pushover') && (<div className="relative pl-12 pt-2"><input type="text" value={pushoverUserKey} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newKey = e.target.value; setPushoverUserKey(newKey); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('pushover', { pushoverUserKey: newKey }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Pushover User Key"/></div>)}</button>
+                    {/* Telegram Tool */}
+                    <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('telegram')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('telegram') ? 'border-sky-500 bg-sky-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><MessageCircle className={`h-8 w-8 transition-colors ${selectedTools.has('telegram') ? 'text-sky-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send to Telegram</h3><p className="text-sm text-gray-500">Sends a Telegram message.</p></div></div>{selectedTools.has('telegram') && (<div className="relative pl-12 pt-2"><input type="text" value={telegramChatId} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newChatId = e.target.value; setTelegramChatId(newChatId); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('telegram', { telegramChatId: newChatId }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500" placeholder="Telegram Chat ID"/></div>)}</button>
                   </div>
                 </div>
 

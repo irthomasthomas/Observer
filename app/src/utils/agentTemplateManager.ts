@@ -2,7 +2,7 @@
 
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'ask' | 'system_notify' | 'message' | 'overlay';
+export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'telegram' | 'ask' | 'system_notify' | 'message' | 'overlay';
 
 export interface ToolData {
   smsPhoneNumber?: string;
@@ -10,6 +10,7 @@ export interface ToolData {
   whatsappPhoneNumber?: string;
   pushoverUserKey?: string;
   discordWebhookUrl?: string;
+  telegramChatId?: string;
 }
 
 const TOOL_CODE_SNIPPETS: Record<SimpleTool, (data: ToolData) => string> = {
@@ -63,6 +64,14 @@ sendPushover(response, ${userKey});
 // --- DISCORD TOOL ---
 // Sends the model's response to a Discord channel via a webhook.
 sendDiscordBot(response, ${webhookUrl});
+`;
+  },
+  telegram: (data: ToolData) => {
+    const chatId = data.telegramChatId ? JSON.stringify(data.telegramChatId) : '""';
+    return `
+// --- TELEGRAM TOOL ---
+// Sends the model's response to a Telegram chat.
+sendTelegram(response, ${chatId});
 `;
   },
   start_clip: () => `

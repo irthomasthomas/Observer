@@ -5,7 +5,7 @@ import {
   Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle,
   ScanText, Bell, Mail, Send, MessageSquare, MessageSquarePlus, 
   MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass,
-  ArrowRight, Clock, Download, ChevronDown
+  ArrowRight, Clock, Download, ChevronDown, MessageCircle
 } from 'lucide-react';
 import { IterationStore, IterationData, SensorData, ToolCall, AgentSession } from '../../utils/IterationStore';
 import { exportData, ExportFormat } from '../../utils/exportUtils';
@@ -85,6 +85,7 @@ const getToolIcon = (toolName: string) => {
     sendWhatsapp: () => <MessageSquare className="w-4 h-4" />,
     sendSms: () => <MessageSquarePlus className="w-4 h-4" />,
     sendPushover: () => <Send className="w-4 h-4" />,
+    sendTelegram: MessageCircle,
     sendEmail: Mail,
     notify: Bell,
     system_notify: Bell,

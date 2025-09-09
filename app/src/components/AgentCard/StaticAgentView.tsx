@@ -3,7 +3,7 @@ import {
     Cpu, Clock, Eye, ChevronDown, AlertTriangle,
     ScanText, Camera, Clipboard, Mic, Volume2, Blend, Brain,
     Bell, Mail, PlayCircle, StopCircle, Video, VideoOff, SquarePen,
-    MessageSquare, MessageSquarePlus, MessageSquareQuote, Tag, Hourglass, Send, Monitor
+    MessageSquare, MessageSquarePlus, MessageSquareQuote, Tag, Hourglass, Send, Monitor, MessageCircle
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/ollamaServer';
@@ -225,6 +225,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
             sendDiscordBot: { label: 'Discord Bot', icon: DiscordIcon, regex: /sendDiscordBot\s*\(/g },
             sendWhatsapp: { label: 'WhatsApp', icon: WhatsAppIcon, regex: /sendWhatsapp\s*\(/g, warning: 'To receive messages, you must first message: +1 (555) 783-4727.' },
             sendSms: { label: 'SMS', icon: SmsIcon, regex: /sendSms\s*\(/g, warning: 'Delivery to US/Canada is unreliable. Use email for now.' },
+            sendTelegram: { label: 'Telegram', icon: MessageCircle, regex: /sendTelegram\s*\(/g },
             startClip: { label: 'Start Clip', icon: Video, regex: /startClip\s*\(/g },
             stopClip: { label: 'Stop Clip', icon: VideoOff, regex: /stopClip\s*\(/g },
             markClip: { label: 'Mark Clip', icon: Tag, regex: /markClip\s*\(/g },
