@@ -4,6 +4,7 @@ import { Logger } from './logging';
 import { executeJavaScript } from './handlers/javascript';
 import { executePython } from './handlers/python';
 import type { TokenProvider } from './main_loop'; // Import the type for clarity
+import type { PreProcessorResult } from './pre-processor';
 
 /**
  * Process response using the JavaScript or Python handler
@@ -14,7 +15,8 @@ export async function postProcess(
     response: string, 
     code: string, 
     iterationId: string, // <-- New parameter
-    getToken?: TokenProvider 
+    getToken?: TokenProvider,
+    preprocessResult?: PreProcessorResult
 ): Promise<boolean> {
   try {
     Logger.debug(agentId, 'Starting response post-processing', { iterationId });
@@ -25,8 +27,8 @@ export async function postProcess(
       return await executePython(response, agentId, code);
     } else {
       Logger.debug(agentId, 'Using JavaScript handler', { iterationId });
-      // Pass iterationId and getToken to JavaScript handler
-      return await executeJavaScript(response, agentId, code, iterationId, getToken);
+      // Pass iterationId, getToken, and preprocessResult to JavaScript handler
+      return await executeJavaScript(response, agentId, code, iterationId, getToken, preprocessResult);
     }
   } catch (error) {
     Logger.error(agentId, `Error in post-processing: ${error instanceof Error ? error.message : String(error)}`, { 

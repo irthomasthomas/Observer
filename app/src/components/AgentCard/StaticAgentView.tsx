@@ -3,7 +3,7 @@ import {
     Cpu, Clock, Eye, ChevronDown, AlertTriangle,
     ScanText, Camera, Clipboard, Mic, Volume2, Blend, Brain,
     Bell, Mail, PlayCircle, StopCircle, Video, VideoOff, SquarePen,
-    MessageSquare, MessageSquarePlus, MessageSquareQuote, Tag, Hourglass, Send, Monitor, MessageCircle
+    MessageSquare, MessageSquarePlus, MessageSquareQuote, Tag, Hourglass, Send, Monitor, MessageCircle, Images
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/ollamaServer';
@@ -206,6 +206,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
             SCREEN_64: { label: 'Screen', icon: Monitor },
             CAMERA: { label: 'Camera', icon: Camera },
             MEMORY: { label: 'Memory', icon: Brain },
+            IMEMORY: { label: 'Image Memory', icon: Images },
             CLIPBOARD: { label: 'Clipboard', icon: Clipboard },
             MICROPHONE: { label: 'Microphone', icon: Mic },
             SCREEN_AUDIO: { label: 'Screen Audio', icon: Volume2 },

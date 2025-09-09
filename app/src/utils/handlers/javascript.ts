@@ -4,6 +4,7 @@ import * as utils from './utils';
 import { Logger } from '../logging';
 import { startAgentLoop, stopAgentLoop } from '../main_loop';
 import type { TokenProvider } from '../main_loop';
+import type { PreProcessorResult } from '../pre-processor';
 
 // Helper function to extract error messages properly
 function extractErrorMessage(error: any): string {
@@ -22,12 +23,18 @@ export async function executeJavaScript(
   agentId: string,
   code: string,
   iterationId: string, // <-- New parameter
-  getToken?: TokenProvider 
+  getToken?: TokenProvider,
+  preprocessResult?: PreProcessorResult
 ): Promise<boolean> {
   try {
     const context = {
       response,
       agentId,
+      // Image variables from preprocessing
+      images: preprocessResult?.images || [],
+      screen: preprocessResult?.imageSources?.screen || null,
+      camera: preprocessResult?.imageSources?.camera || null,
+      imemory: preprocessResult?.imageSources?.imemory || [],
       getMemory: async (targetId = agentId) => {
         try {
           const result = await utils.getMemory(targetId);
@@ -98,6 +105,78 @@ export async function executeJavaScript(
             logType: 'tool-error',
             iterationId,
             content: { tool: 'appendMemory', params: { targetId, content: String(content || targetId).slice(0, 100), separator }, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
+      getImageMemory: async (targetId = agentId) => {
+        try {
+          const result = await utils.getImageMemory(targetId);
+          Logger.info(agentId, `Image memory retrieved for ${targetId}`, {
+            logType: 'tool-success',
+            iterationId,
+            content: { tool: 'getImageMemory', params: { targetId }, result: `${result.length} images` }
+          });
+          return result;
+        } catch (error) {
+          Logger.error(agentId, `Failed to get image memory for ${targetId}`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'getImageMemory', params: { targetId }, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
+      setImageMemory: async (targetId: string, images?: string[]) => {
+        try {
+          if (images === undefined) {
+            // If only one parameter provided, treat targetId as images array for current agent
+            await utils.setImageMemory(agentId, targetId as any);
+            Logger.info(agentId, `Image memory set for ${agentId}`, {
+              logType: 'tool-success',
+              iterationId,
+              content: { tool: 'setImageMemory', params: { targetId: agentId, imageCount: (targetId as any).length } }
+            });
+          } else {
+            await utils.setImageMemory(targetId, images);
+            Logger.info(agentId, `Image memory set for ${targetId}`, {
+              logType: 'tool-success',
+              iterationId,
+              content: { tool: 'setImageMemory', params: { targetId, imageCount: images.length } }
+            });
+          }
+        } catch (error) {
+          Logger.error(agentId, `Failed to set image memory`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'setImageMemory', params: { targetId, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
+      appendImageMemory: async (targetId: string, image?: string) => {
+        try {
+          if (image === undefined) {
+            // If only one parameter provided, treat targetId as image for current agent
+            await utils.appendImageMemory(agentId, targetId);
+            Logger.info(agentId, `Image appended to memory for ${agentId}`, {
+              logType: 'tool-success',
+              iterationId,
+              content: { tool: 'appendImageMemory', params: { targetId: agentId, imageSize: targetId.length } }
+            });
+          } else {
+            await utils.appendImageMemory(targetId, image);
+            Logger.info(agentId, `Image appended to memory for ${targetId}`, {
+              logType: 'tool-success',
+              iterationId,
+              content: { tool: 'appendImageMemory', params: { targetId, imageSize: image.length } }
+            });
+          }
+        } catch (error) {
+          Logger.error(agentId, `Failed to append image memory`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'appendImageMemory', params: { targetId, imageSize: image?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }

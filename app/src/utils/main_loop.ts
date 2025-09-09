@@ -218,8 +218,8 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       content: { model: agent.model_name, interval: agent.loop_interval_seconds }
     });
 
-    const systemPrompt = await preProcess(agentId, agent.system_prompt, iterationId);
-    Logger.info(agentId, `Prompt`, { logType: 'model-prompt', iterationId, content: systemPrompt });
+    const preprocessResult = await preProcess(agentId, agent.system_prompt, iterationId);
+    Logger.info(agentId, `Prompt`, { logType: 'model-prompt', iterationId, content: preprocessResult });
 
     let token: string | undefined;
     if (loopData.getToken) {
@@ -232,11 +232,11 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     }
 
     Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`, { iterationId });
-    const response = await sendPrompt(serverHost, serverPort, agent.model_name, systemPrompt, token);
+    const response = await sendPrompt(serverHost, serverPort, agent.model_name, preprocessResult, token);
     Logger.info(agentId, `Response`, { logType: 'model-response', iterationId, content: response });
 
     try {
-      await postProcess(agentId, response, agentCode, iterationId, loopData.getToken);
+      await postProcess(agentId, response, agentCode, iterationId, loopData.getToken, preprocessResult);
       Logger.debug(agentId, `postProcess completed successfully`, { iterationId });
     } catch (postProcessError) {
       Logger.error(agentId, `Error in postProcess: ${postProcessError}`, { iterationId, error: postProcessError });

@@ -5,7 +5,7 @@ import {
   Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle,
   ScanText, Bell, Mail, Send, MessageSquare, MessageSquarePlus, 
   MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass,
-  ArrowRight, Clock, Download, ChevronDown, MessageCircle
+  ArrowRight, Clock, Download, ChevronDown, MessageCircle, Images
 } from 'lucide-react';
 import { IterationStore, IterationData, SensorData, ToolCall, AgentSession } from '../../utils/IterationStore';
 import { exportData, ExportFormat } from '../../utils/exportUtils';
@@ -113,6 +113,7 @@ const getSensorIcon = (sensorType: string) => {
     audio: Mic,
     clipboard: Clipboard,
     memory: Brain,
+    imemory: Images,
   };
   return iconMap[sensorType] || Monitor;
 };
@@ -219,6 +220,43 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
             <span className="text-gray-700 text-sm truncate">{preview} {source}</span>
           </div>
         );
+      } else if (sensor.type === 'imemory') {
+        // Show image previews from memory like screenshot/camera
+        const sourceAgent = sensor.source || 'unknown';
+        const imageCount = sensor.imageCount || 0;
+        
+        // For each image from memory, show a preview
+        for (let i = 0; i < imageCount; i++) {
+          const hasImage = modelImages && imageIndex < modelImages.length;
+          const imageData = hasImage ? modelImages[imageIndex] : null;
+          
+          allPreviews.push(
+            <div key={`${index}-${i}`} className="flex items-center gap-2 bg-purple-50 px-3 py-2 rounded-lg border border-purple-200 w-fit">
+              <SensorIcon className="w-4 h-4 text-purple-600 flex-shrink-0" />
+              {imageData ? (
+                <div className="flex flex-col gap-1">
+                  <LazyImage 
+                    src={`data:image/png;base64,${imageData}`}
+                    alt={`Memory image ${i + 1} from ${sourceAgent}`}
+                    className="w-20 h-20 rounded border border-purple-200 object-cover"
+                    fallbackSrc={`data:image/jpeg;base64,${imageData}`}
+                    imageId={`${iterationId}-imemory-${sourceAgent}-${i}`}
+                    setLoadedImages={setLoadedImages}
+                  />
+                  <span className="text-purple-700 text-xs text-center">
+                    #{i + 1} from {sourceAgent}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-purple-600 text-sm font-medium">
+                  Image #{i + 1} from {sourceAgent}
+                </span>
+              )}
+            </div>
+          );
+          
+          if (hasImage) imageIndex++;
+        }
       } else {
         allPreviews.push(
           <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 w-fit">

@@ -5,7 +5,7 @@ import { Model, listModels } from '@utils/ollamaServer';
 import { getOllamaServerAddress } from '@utils/main_loop';
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
-  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle
+  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images
 } from 'lucide-react';
 
 
@@ -58,7 +58,8 @@ const SENSOR_COLORS: Record<string, string> = {
   CLIPBOARD_TEXT: 'text-slate-500 bg-slate-50',
   MICROPHONE: 'text-slate-500 bg-slate-50', 
   SCREEN_AUDIO: 'text-slate-500 bg-slate-50', 
-  ALL_AUDIO: 'text-slate-500 bg-slate-50', 
+  ALL_AUDIO: 'text-slate-500 bg-slate-50',
+  IMEMORY: 'text-purple-500 bg-purple-50',
 };
 const highlightPrompt = (text: string) => {
   const parts = text.split(/(\$[A-Z0-9_@]+)/g);
@@ -189,7 +190,12 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   }, [systemPrompt, model, availableModels]);
 
   const insertSensor = (tag: string) => {
-    const finalTag = tag === '$MEMORY@agent_id' ? `$MEMORY@${agentId || 'your_agent_id'}` : tag;
+    let finalTag = tag;
+    if (tag === '$MEMORY@agent_id') {
+      finalTag = `$MEMORY@${agentId || 'your_agent_id'}`;
+    } else if (tag === '$IMEMORY@agent_id') {
+      finalTag = `$IMEMORY@${agentId || 'your_agent_id'}`;
+    }
     if (!promptRef.current) return;
     const { selectionStart, selectionEnd, value } = promptRef.current;
     const newPrompt = `${value.substring(0, selectionStart)} ${finalTag} ${value.substring(selectionEnd)}`;
@@ -315,6 +321,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSensor('$SCREEN_AUDIO')} colorClass="text-slate-600" />
               <SensorButton icon={Blend} label="All Audio" onClick={() => insertSensor('$ALL_AUDIO')} colorClass="text-slate-600" />
               <SensorButton icon={Brain} label="Memory" onClick={() => insertSensor('$MEMORY@agent_id')} />
+              <SensorButton icon={Images} label="Image Memory" onClick={() => insertSensor('$IMEMORY@agent_id')} colorClass="text-purple-600" />
             </div>
             {visionValidationError && <div className="mt-2 p-2 bg-yellow-50 rounded-md flex items-center text-xs text-yellow-800"><AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />{visionValidationError}</div>}
             {systemPrompt.includes('$SCREEN_OCR') && <div className="mt-2 p-2 bg-blue-50 rounded-md flex items-center text-xs text-blue-800"><Info className="h-4 w-4 mr-2 flex-shrink-0" />OCR adds ~15s to each agent loop.</div>}

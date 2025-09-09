@@ -24,7 +24,8 @@ import {
   Camera,
   AlertTriangle,
   Volume2,
-  Blend
+  Blend,
+  Images
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import JupyterServerModal from '@components/JupyterServerModal';
@@ -264,6 +265,16 @@ const PromptContent: React.FC<PromptContentProps> = ({
                   label={`Memory: ${agent.name}`}
                   onClick={() => insertSystemPromptText(`$MEMORY@${agent.id}`)}
                   colorClass="text-green-600"
+                />
+            ))}
+            
+            {availableAgentsForBlocks.map(agent => (
+                <SensorButton
+                  key={`imemory-${agent.id}`}
+                  icon={Images}
+                  label={`Image Memory: ${agent.name}`}
+                  onClick={() => insertSystemPromptText(`$IMEMORY@${agent.id}`)}
+                  colorClass="text-purple-600"
                 />
             ))}
         </div>

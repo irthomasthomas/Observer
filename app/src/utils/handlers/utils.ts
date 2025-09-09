@@ -1,7 +1,7 @@
 // src/utils/handlers/utils.ts
 
 import { Logger } from '../logging';
-import { getAgentMemory as fetchAgentMemory, updateAgentMemory as saveAgentMemory } from '../agent_database';
+import { getAgentMemory as fetchAgentMemory, updateAgentMemory as saveAgentMemory, getAgentImageMemory as fetchAgentImageMemory, updateAgentImageMemory as saveAgentImageMemory, appendAgentImageMemory as addAgentImageMemory } from '../agent_database';
 import { recordingManager } from '../recordingManager'; 
 
 /**
@@ -40,6 +40,27 @@ export async function appendMemory(agentId: string, content: string, separator: 
   const currentMemory = await fetchAgentMemory(agentId);
   const newMemory = currentMemory ? `${currentMemory}${separator}${content}` : content;
   await saveAgentMemory(agentId, newMemory);
+}
+
+/**
+ * Get agent's image memory
+ */
+export async function getImageMemory(agentId: string): Promise<string[]> {
+  return await fetchAgentImageMemory(agentId);
+}
+
+/**
+ * Set agent's image memory (replaces entire array)
+ */
+export async function setImageMemory(agentId: string, images: string[]): Promise<void> {
+  await saveAgentImageMemory(agentId, images);
+}
+
+/**
+ * Append image to agent's image memory
+ */
+export async function appendImageMemory(agentId: string, image: string): Promise<void> {
+  await addAgentImageMemory(agentId, image);
 }
 
 /**

@@ -3,11 +3,12 @@
 import { LogEntry, Logger } from './logging';
 
 export interface SensorData {
-  type: 'screenshot' | 'camera' | 'ocr' | 'audio' | 'clipboard' | 'memory';
+  type: 'screenshot' | 'camera' | 'ocr' | 'audio' | 'clipboard' | 'memory' | 'imemory';
   content: any;
   timestamp: string;
   size?: number; // For images
-  source?: string; // For audio (microphone, screenAudio, allAudio)
+  source?: string; // For audio (microphone, screenAudio, allAudio) or imemory (sourceAgent)
+  imageCount?: number; // For imemory sensor
 }
 
 export interface ToolCall {
@@ -178,6 +179,16 @@ class IterationStoreClass {
           type: 'memory',
           content: content,
           timestamp: log.timestamp.toISOString()
+        };
+        break;
+      
+      case 'sensor-imemory':
+        sensorData = {
+          type: 'imemory',
+          content: content,
+          timestamp: log.timestamp.toISOString(),
+          source: content?.sourceAgent,
+          imageCount: content?.imageCount
         };
         break;
     }

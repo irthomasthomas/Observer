@@ -1,7 +1,7 @@
 // src/utils/pre-processor.ts
 
 import { Logger } from './logging'; 
-import { getAgentMemory } from './agent_database'; 
+import { getAgentMemory, getAgentImageMemory } from './agent_database'; 
 import { captureFrameAndOCR, captureScreenImage } from './screenCapture'; 
 import { captureCameraImage } from './cameraCapture'; 
 import { StreamManager } from './streamManager';
@@ -11,6 +11,11 @@ import { StreamManager } from './streamManager';
 export interface PreProcessorResult {
   modifiedPrompt: string;  // The text prompt with placeholders removed
   images?: string[];       // Base64 encoded images for the API
+  imageSources?: {
+    screen?: string;       // Single base64 from $SCREEN_64
+    camera?: string;       // Single base64 from $CAMERA
+    imemory?: string[];    // Array from $IMEMORY@agentid
+  };
 }
 
 // Map of processor functions
@@ -227,13 +232,36 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     }
   },
 
+  // Image memory processor
+  'IMEMORY': {
+    regex: /\$IMEMORY@([a-zA-Z0-9_]+)/g,
+    handler: async (agentId: string, _prompt: string, match: RegExpExecArray, iterationId?: string) => {
+      try {
+        const referencedAgentId = match[1];
+        const imageMemory = await getAgentImageMemory(referencedAgentId);
+        Logger.debug(agentId, `Retrieved image memory for agent ${referencedAgentId}: ${imageMemory.length} images`);
+        // Enhanced logging: Log image memory access separately
+        Logger.info(agentId, `Image memory accessed (${imageMemory.length} images from ${referencedAgentId})`, { 
+          logType: 'sensor-imemory', 
+          iterationId,
+          content: { sourceAgent: referencedAgentId, imageCount: imageMemory.length }
+        });
+        return { replacementText: '', images: imageMemory };
+      } catch (error) {
+        Logger.error(agentId, `Error with image memory retrieval: ${error instanceof Error ? error.message : String(error)}`);
+        return { replacementText: '[Error with image memory retrieval]' };
+      }
+    }
+  },
+
 };
 
 export async function preProcess(agentId: string, systemPrompt: string, iterationId?: string): Promise<PreProcessorResult> {
   let modifiedPrompt = systemPrompt;
   const result: PreProcessorResult = {
     modifiedPrompt,
-    images: []
+    images: [],
+    imageSources: {}
   };
   
   try {
@@ -282,6 +310,15 @@ export async function preProcess(agentId: string, systemPrompt: string, iteratio
 
         if (processorResult.images && processorResult.images.length > 0) {
           result.images = [...(result.images || []), ...processorResult.images];
+          
+          // Track image sources for agent context
+          if (key === 'SCREEN_64' && processorResult.images[0]) {
+            result.imageSources!.screen = processorResult.images[0];
+          } else if (key === 'CAMERA' && processorResult.images[0]) {
+            result.imageSources!.camera = processorResult.images[0];
+          } else if (key === 'IMEMORY') {
+            result.imageSources!.imemory = processorResult.images;
+          }
         }
         
         // Safety break for empty placeholder matches to prevent infinite loops
