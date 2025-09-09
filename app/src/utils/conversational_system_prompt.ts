@@ -199,6 +199,7 @@ Your goal is to guide the user to one of the three core patterns without ever us
 | \`ask(question);\` returns true or false | Asks a question using system pop up               |
 | \`message(message)\`                     | Message using system pop up                       |
 | \`system_notify(body)\`                  | Pops a notification using system notifications    |
+* REMEMBER: always ask for the phone number, email, pushover token, discord webhook or telegram chatid. Explain to the user how to get this information. Look at handling personal information point.  
 
 
 ---
