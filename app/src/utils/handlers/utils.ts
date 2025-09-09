@@ -319,6 +319,49 @@ export async function sendDiscordBot(message: string, webhookUrl: string, authTo
 }
 
 /**
+ * Sends a Telegram message by calling the backend API.
+ * @param message The message content to send.
+ * @param chatId The Telegram chat ID to send the message to.
+ * @param authToken The authentication token for the Observer AI API.
+ */
+export async function sendTelegram(message: string, chatId: string, authToken: string): Promise<void> {
+  const API_HOST = "https://api.observer-ai.com";
+
+  if (!authToken) {
+    throw new Error("Authentication error: Auth token is missing.");
+  }
+
+  try {
+    const response = await fetch(`${API_HOST}/tools/send-telegram`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`, 
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message: message,
+      }),
+    });
+
+    if (!response.ok) {
+      try {
+        const errorData = await response.json();
+        const errorMessage = typeof errorData.detail === 'string' 
+          ? errorData.detail 
+          : `Failed to send Telegram message: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If JSON parsing fails, use the HTTP status
+        throw new Error(`Failed to send Telegram message: ${response.status} ${response.statusText}`);
+      }
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
  * Sends a notification directly to a user's self-hosted Gotify server.
  * This function does NOT use the Observer AI backend API.
  * @param message The main content of the notification.

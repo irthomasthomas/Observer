@@ -300,6 +300,29 @@ export async function executeJavaScript(
         }
       },
 
+      sendTelegram: async (message: string, chatId: string) => {
+        try {
+          if (!getToken) throw new Error("Authentication context not available for sendTelegram.");
+          
+          const token = await getToken();
+          if (!token) throw new Error("Failed to retrieve authentication token for Telegram.");
+
+          await utils.sendTelegram(message, chatId, token);
+          Logger.info(agentId, `Telegram message sent to ${chatId}`, { 
+            logType: 'tool-success', 
+            iterationId,
+            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId }, success: true }
+          });
+        } catch (error) {
+          Logger.error(agentId, `Failed to send Telegram message to ${chatId}`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId }, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
+
       sendGotify: async (message: string, serverUrl: string, appToken: string, title?: string, priority?: number) => {
         try {
           await utils.sendGotify(message, serverUrl, appToken, title, priority);
