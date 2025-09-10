@@ -59,26 +59,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       </div>
 
       <div className={isTriggeredByQuotaError ? "grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start" : "grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-start"}>
-        {/* Column 1: Self-Hosted */}
-        <div className={isTriggeredByQuotaError ? "border rounded-lg p-4 flex flex-col h-full bg-gray-50/50 shadow-sm" : "border rounded-lg p-3 flex flex-col h-full bg-gray-50/50 shadow-sm"}>
-          <div className="text-center">
-            <HardDrive className={isTriggeredByQuotaError ? "mx-auto h-10 w-10 text-gray-500 mb-3" : "mx-auto h-8 w-8 text-gray-500 mb-2"} />
-            <h2 className="text-xl font-bold text-gray-800">Build Locally</h2>
-            <p className="text-gray-500 min-h-[4rem]">Complete control of your data and infrastructure.</p>
-          </div>
-          <ul className="space-y-4 mb-8 flex-grow">
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free (your hardware)</span></li>
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Performance:</strong> As fast as your hardware!</span></li>
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> ∞ Unlimited</span></li>
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Privacy:</strong> 100% local</span></li>
-            <li className="flex items-start"><Heart className="h-6 w-6 text-pink-500 mr-3 flex-shrink-0" /><span><strong>Support:</strong> Community</span></li>
-          </ul>
-          <a href="https://github.com/Roy3838/Observer?tab=readme-ov-file#option-1-full-docker-setup-recommended--easiest" target="_blank" rel="noopener noreferrer" className="w-full text-center mt-auto px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-            Download & Deploy
-          </a>
-        </div>
-
-        {/* Column 2: Observer Cloud (Free Tier) - Now with dynamic state */}
+        {/* Column 1: Observer Cloud (Free Tier) - Now with dynamic state */}
         <div className={`relative border rounded-lg p-4 flex flex-col h-full bg-white shadow-md ${isTriggeredByQuotaError ? 'border-gray-400 border-2' : ''}`}>
            {isTriggeredByQuotaError && (
              <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
@@ -103,7 +84,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
            <div className="mt-auto h-12"></div> {/* Spacer to align buttons */}
         </div>
 
-        {/* Column 3: Observer Pro */}
+        {/* Column 2: Observer Pro */}
         <div className="relative border-2 border-purple-500 rounded-lg p-6 flex flex-col h-full bg-purple-50 shadow-lg">
           <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
             <div className="bg-purple-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1">Recommended</div>
@@ -136,9 +117,28 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                 className="w-full mt-auto inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-colors"
               >
                 {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                {isAuthenticated ? 'Upgrade to Pro' : 'Start Free Trial'}
+                Start Free Trial
               </button>
             )}
+        </div>
+
+        {/* Column 3: Self-Hosted */}
+        <div className={isTriggeredByQuotaError ? "border rounded-lg p-4 flex flex-col h-full bg-gray-50/50 shadow-sm" : "border rounded-lg p-3 flex flex-col h-full bg-gray-50/50 shadow-sm"}>
+          <div className="text-center">
+            <HardDrive className={isTriggeredByQuotaError ? "mx-auto h-10 w-10 text-gray-500 mb-3" : "mx-auto h-8 w-8 text-gray-500 mb-2"} />
+            <h2 className="text-xl font-bold text-gray-800">Build Locally</h2>
+            <p className="text-gray-500 min-h-[4rem]">Complete control of your data and infrastructure.</p>
+          </div>
+          <ul className="space-y-4 mb-8 flex-grow">
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free (your hardware)</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Performance:</strong> As fast as your hardware!</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> ∞ Unlimited</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Privacy:</strong> 100% local</span></li>
+            <li className="flex items-start"><Heart className="h-6 w-6 text-pink-500 mr-3 flex-shrink-0" /><span><strong>Support:</strong> Community</span></li>
+          </ul>
+          <a href="https://github.com/Roy3838/Observer?tab=readme-ov-file#option-1-full-docker-setup-recommended--easiest" target="_blank" rel="noopener noreferrer" className="w-full text-center mt-auto px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+            Download & Deploy
+          </a>
         </div>
       </div>
       {error && (
