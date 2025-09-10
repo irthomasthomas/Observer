@@ -32,8 +32,8 @@ export async function executeJavaScript(
       agentId,
       // Image variables from preprocessing
       images: preprocessResult?.images || [],
-      screen: preprocessResult?.imageSources?.screen || null,
-      camera: preprocessResult?.imageSources?.camera || null,
+      screen: preprocessResult?.imageSources?.screen ? [preprocessResult.imageSources.screen] : [],
+      camera: preprocessResult?.imageSources?.camera ? [preprocessResult.imageSources.camera] : [],
       imemory: preprocessResult?.imageSources?.imemory || [],
       getMemory: async (targetId = agentId) => {
         try {
