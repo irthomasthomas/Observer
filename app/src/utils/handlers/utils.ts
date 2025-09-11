@@ -57,10 +57,10 @@ export async function setImageMemory(agentId: string, images: string[]): Promise
 }
 
 /**
- * Append image to agent's image memory
+ * Append images to agent's image memory
  */
-export async function appendImageMemory(agentId: string, image: string): Promise<void> {
-  await addAgentImageMemory(agentId, image);
+export async function appendImageMemory(agentId: string, images: string[]): Promise<void> {
+  await addAgentImageMemory(agentId, images);
 }
 
 /**

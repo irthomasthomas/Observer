@@ -317,10 +317,10 @@ export async function updateAgentImageMemory(agentId: string, images: string[]):
   dispatchMemoryUpdate(agentId);
 }
 
-// Append image to agent's image memory
-export async function appendAgentImageMemory(agentId: string, image: string): Promise<void> {
+// Append images to agent's image memory
+export async function appendAgentImageMemory(agentId: string, images: string[]): Promise<void> {
   const existingImages = await getAgentImageMemory(agentId);
-  const updatedImages = [...existingImages, image];
+  const updatedImages = [...existingImages, ...images];
   await updateAgentImageMemory(agentId, updatedImages);
 }
 

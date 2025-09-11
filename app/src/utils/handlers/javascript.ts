@@ -154,29 +154,29 @@ export async function executeJavaScript(
           throw error;
         }
       },
-      appendImageMemory: async (targetId: string, image?: string) => {
+      appendImageMemory: async (targetId: string, images?: string[]) => {
         try {
-          if (image === undefined) {
-            // If only one parameter provided, treat targetId as image for current agent
-            await utils.appendImageMemory(agentId, targetId);
-            Logger.info(agentId, `Image appended to memory for ${agentId}`, {
+          if (images === undefined) {
+            // If only one parameter provided, treat targetId as images array for current agent
+            await utils.appendImageMemory(agentId, targetId as any);
+            Logger.info(agentId, `Images appended to memory for ${agentId}`, {
               logType: 'tool-success',
               iterationId,
-              content: { tool: 'appendImageMemory', params: { targetId: agentId, imageSize: targetId.length } }
+              content: { tool: 'appendImageMemory', params: { targetId: agentId, imageCount: (targetId as any).length } }
             });
           } else {
-            await utils.appendImageMemory(targetId, image);
-            Logger.info(agentId, `Image appended to memory for ${targetId}`, {
+            await utils.appendImageMemory(targetId, images);
+            Logger.info(agentId, `Images appended to memory for ${targetId}`, {
               logType: 'tool-success',
               iterationId,
-              content: { tool: 'appendImageMemory', params: { targetId, imageSize: image.length } }
+              content: { tool: 'appendImageMemory', params: { targetId, imageCount: images.length } }
             });
           }
         } catch (error) {
           Logger.error(agentId, `Failed to append image memory`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'appendImageMemory', params: { targetId, imageSize: image?.length || 0 }, error: extractErrorMessage(error) }
+            content: { tool: 'appendImageMemory', params: { targetId, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
