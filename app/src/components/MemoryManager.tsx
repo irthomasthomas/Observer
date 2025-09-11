@@ -180,7 +180,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({
           const base64Data = result.split(',')[1];
           
           // Append to agent's image memory
-          await appendAgentImageMemory(agentId, base64Data);
+          await appendAgentImageMemory(agentId, [base64Data]);
           Logger.info(agentId, `Image uploaded (${Math.round(base64Data.length/1024)}KB)`);
           
           // Clear the file input
