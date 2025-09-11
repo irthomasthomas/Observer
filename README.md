@@ -58,7 +58,7 @@ Notification Tools:
   * `sendTelegram(chat_id, message, images?)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
   * `sendSms(phone_number, message, images?)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
-  * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number.
+  * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number. TEMPORARILY BLOCKED due to spam :c
 
 Video Recording Tools: 
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
