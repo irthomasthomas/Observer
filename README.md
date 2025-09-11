@@ -2,14 +2,11 @@
 
 Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
 
+## [Observer App Online](https://app.observer-ai.com/)
 
-## [Try Observer App Online](https://app.observer-ai.com/)
-
-## [Download Official App](https://github.com/Roy3838/Observer/releases/latest/)
+## [Download App](https://github.com/Roy3838/Observer/releases/latest/)
 
 - [Support me and the project!](https://buymeacoffee.com/roy3838)
-
-An open-source platform for running local AI agents that observe your screen while preserving privacy.
 
 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
@@ -55,13 +52,13 @@ Agent Tools:
   * `time()` - Gets current time
 
 Notification Tools:
-  * `sendEmail(content, email)` - Sends an email
-  * `sendPushover(message, user_token)` - Sends a pushover notification.
-  * `sendDiscordBot(message,discord_webhook)`Sends a discord message to a server.
-  * `sendTelegram(message, chat_id)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
+  * `sendEmail(email, message, images?)` - Sends an email
+  * `sendPushover(user_token, message, images?, title?)` - Sends a pushover notification.
+  * `sendDiscord(discord_webhook, message, images?)`Sends a discord message to a server.
+  * `sendTelegram(chat_id, message, images?)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
-  * `sendWhatsapp(content, phone_number)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number.
-  * `sendSms(content, phone_number)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
+  * `sendSms(phone_number, message, images?)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
+  * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number.
 
 Video Recording Tools: 
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
