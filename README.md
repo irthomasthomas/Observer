@@ -1,6 +1,5 @@
 # Observer AI 🚀! 
 
-## It's not spying... if it's for you 👀
 Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
 
 
@@ -36,6 +35,7 @@ Creating your own Observer AI agent is simple, and consist of three things:
    * **Screen OCR** ($SCREEN_OCR) Captures screen content as text via OCR
    * **Screenshot** ($SCREEN_64) Captures screen as an image for multimodal models
    * **Agent Memory** ($MEMORY@agent_id) Accesses agents' stored information
+   * **Agent Image Memory** ($IMEMORY@agent_id) Accesses agents' stored images
    * **Clipboard** ($CLIPBOARD) It pastes the clipboard contents 
    * **Microphone**\* ($MICROPHONE) Captures the microphone and adds a transcription
    * **Screen Audio**\* ($SCREEN_AUDIO) Captures the audio transcription of screen sharing a tab.
@@ -47,6 +47,9 @@ Agent Tools:
   * `getMemory(agentId)*` – Retrieve stored memory 
   * `setMemory(agentId, content)*` – Replace stored memory  
   * `appendMemory(agentId, content)*` – Add to existing memory  
+  * `getImageMemory(agentId)*` - Retrieve images stored in memory 
+  * `setImageMemory(agentId, images)` - Set images to memory
+  * `appendImageMemory(agentId, images)` - Add images to memory
   * `startAgent(agentId)*` – Starts an agent  
   * `stopAgent(agentId)*` – Stops an agent
   * `time()` - Gets current time
@@ -55,6 +58,7 @@ Notification Tools:
   * `sendEmail(content, email)` - Sends an email
   * `sendPushover(message, user_token)` - Sends a pushover notification.
   * `sendDiscordBot(message,discord_webhook)`Sends a discord message to a server.
+  * `sendTelegram(message, chat_id)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
   * `sendWhatsapp(content, phone_number)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number.
   * `sendSms(content, phone_number)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
@@ -74,9 +78,13 @@ App Tools:
 
 ## Code Tab
 
-The "Code" tab now offers a notebook-style coding experience where you can choose between JavaScript or Python execution:
-
-### JavaScript (Browser-based)
+The "Code" tab receives the following variables as context before running: 
+`response` - The model's response
+`agentId` - The id of the agent running the code
+`screen` - The screen as base64 if captured 
+`camera` - The camera as base64 if captured 
+`imemory` - The agent's current image array
+`images` - All images in context
 
 JavaScript agents run in the browser sandbox, making them ideal for passive monitoring and notifications:
 
@@ -84,51 +92,19 @@ JavaScript agents run in the browser sandbox, making them ideal for passive moni
 // Remove Think tags for deepseek model
 const cleanedResponse = response.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
-// Preserve previous memory
-const prevMemory = await getMemory();
-
 // Get time
 const time = time();
 
 // Update memory with timestamp
 appendMemory(`[${time}] ${cleanedResponse}`);
+
+// Send to Telegram for notekeeping
+sendTelegram(cleanedResponse, "12345678") // Example chat_id
 ```
 
 > **Note:** any function marked with `*` takes an `agentId` argument.  
 > If you omit `agentId`, it defaults to the agent that’s running the code.
 
-### Python (Jupyter Server)
-
-Python agents run on a Jupyter server with system-level access, enabling them to interact directly with your computer:
-
-```python
-#python <-- don't remove this!
-print("Hello World!", response, agentId)
-
-# Example: Analyze screen content and take action
-if "SHUTOFF" in response:
-    # System level commands can be executed here
-    import os
-    # os.system("command")  # Be careful with system commands!
-```
-
-The Python environment receives:
-* `response` - The model's output
-* `agentId` - The current agent's ID
-
-## Jupyter Server Configuration
-
-To use Python agents:
-
-1. Run a Jupyter server on your machine with c.ServerApp.allow_origin = '*'
-2. Configure the connection in the Observer AI interface:
-   * Host: The server address (e.g., 127.0.0.1)
-   * Port: The server port (e.g., 8888)
-   * Token: Your Jupyter server authentication token
-3. Test the connection using the "Test Connection" button
-4. Switch to the Python tab in the code editor to write Python-based agents
-
-# 🚀 Getting Started with Local Inference
 
 https://github.com/user-attachments/assets/c5af311f-7e10-4fde-9321-bb98ceebc271
 
@@ -206,6 +182,35 @@ docker-compose down
 
 To customize your setup (e.g., enable SSL to access from `app.observer-ai.com`, disabling docker exec feature), simply edit the `environment:` section in your `docker-compose.yml` file. All options are explained with comments directly in the file.
 
+
+### Setting Up Python (Jupyter Server)
+
+Python agents run on a Jupyter server with system-level access, enabling them to interact directly with your computer:
+
+```python
+#python <-- don't remove this!
+print("Hello World!", response, agentId)
+
+# Example: Analyze screen content and take action
+if "SHUTOFF" in response:
+    # System level commands can be executed here
+    import os
+    # os.system("command")  # Be careful with system commands!
+```
+
+## Jupyter Server Configuration
+
+To use Python agents:
+
+1. Run a Jupyter server on your machine with c.ServerApp.allow_origin = '*'
+2. Configure the connection in the Observer AI interface:
+   * Host: The server address (e.g., 127.0.0.1)
+   * Port: The server port (e.g., 8888)
+   * Token: Your Jupyter server authentication token
+3. Test the connection using the "Test Connection" button
+4. Switch to the Python tab in the code editor to write Python-based agents
+
+# 🚀 Getting Started with Local Inference
 
 ## Deploy & Share
 
