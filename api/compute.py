@@ -8,7 +8,7 @@ import json
 # --- Local Imports ---
 from auth import AuthUser
 # Import the new, specific functions and the QUOTA_LIMITS dictionary
-from quota_manager import increment_usage, get_usage_for_service, QUOTA_LIMITS
+from quota_manager import increment_usage, get_usage_for_service, check_usage, QUOTA_LIMITS
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -56,27 +56,21 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend LLM handlers are not available.")
 
-    # --- NEW: Quota Bypass Logic ---
-    # 1. Check if user is NOT pro. If they are, we skip all this.
-    if not current_user.is_pro:
-        # Get current usage for the 'chat' service
-        chat_limit = QUOTA_LIMITS["chat"]
-        current_usage = get_usage_for_service(current_user.id, "chat") 
-        
-        # Enforce the limit.
-        if current_usage >= chat_limit:
-            logger.warning(f"Chat credit limit exceeded for user: {current_user.id} (Limit: {chat_limit})")
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"You have used all your {chat_limit} daily chat credits. Please try again tomorrow or upgrade for unlimited access."
-            )
-        
-        # If within limit, increment the 'chat' usage.
-        usage_count = increment_usage(current_user.id, "chat") # <-- Use current_user.id
-        logger.info(f"Processing chat request for free user: {current_user.id} (Daily chat request #{usage_count})")
-    else:
-        # Log for pro user
-        logger.info(f"Processing chat request for PRO user: {current_user.id} (quota bypassed)")
+    # --- NEW: Quota Check Logic ---
+    # Check quota for both pro and free users (pro has higher limit as anti-abuse)
+    if check_usage(current_user.id, "chat", current_user.is_pro):
+        limit_type = "pro" if current_user.is_pro else "free"
+        limit_value = 1000 if current_user.is_pro else QUOTA_LIMITS["chat"]
+        logger.warning(f"Chat credit limit exceeded for {limit_type} user: {current_user.id} (Limit: {limit_value})")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"You have exceeded your daily chat quota. Please try again tomorrow."
+        )
+    
+    # If within limit, increment the 'chat' usage.
+    usage_count = increment_usage(current_user.id, "chat")
+    user_type = "PRO" if current_user.is_pro else "free"
+    logger.info(f"Processing chat request for {user_type} user: {current_user.id} (Daily chat request #{usage_count})")
     # --- END of Quota Logic ---
 
     # 4. Parse Request Data
@@ -95,7 +89,16 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
         logger.warning(f"Request for unsupported model: {model_name}")
         raise HTTPException(status_code=404, detail=f"Model '{model_name}' is not found or supported.")
 
-    # 6. Execute handler logic
+    # 6. Check pro access control
+    model_info = next((m for m in selected_handler.get_models() if m["name"] == model_name), None)
+    if model_info and model_info.get("pro", False) and not current_user.is_pro:
+        logger.warning(f"Non-pro user {current_user.id} attempted to access pro model: {model_name}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Model '{model_name}' requires a pro subscription. Please upgrade to access premium models."
+        )
+
+    # 7. Execute handler logic
     try:
         response_payload = await selected_handler.handle_request(request_data)
         return JSONResponse(content=response_payload)
@@ -112,7 +115,7 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
 async def list_tags_endpoint():
     if not HANDLERS_AVAILABLE:
          raise HTTPException(status_code=503, detail="Backend handlers are not available.")
-    EXCLUDED = {"gemini-2.5-flash-preview-04-17"}
+    EXCLUDED = {"gemini-2.0-flash-lite"}
 
     ollama_models = []
     if api_handlers and api_handlers.API_HANDLERS:
@@ -134,7 +137,8 @@ async def list_tags_endpoint():
                                "quantization_level": model_info.get("quantization", "N/A"),
                                "family": model_info.get("family", handler.name),
                                "format": model_info.get("format", "N/A"),
-                               "multimodal": is_multimodal
+                               "multimodal": is_multimodal,
+                               "pro": model_info.get("pro", False)
                           }
                      }
                      ollama_models.append(model_entry)
@@ -144,3 +148,55 @@ async def list_tags_endpoint():
          logger.warning("/api/tags called but no handlers are loaded.")
 
     return JSONResponse(content={"models": ollama_models})
+
+@compute_router.get("/v1/models", summary="List available models (OpenAI v1 compatible)")
+async def list_models_v1_endpoint():
+    """
+    Provides an OpenAI-compatible /v1/models endpoint.
+
+    This endpoint returns a list of available models in a standardized format,
+    while also including custom 'parameter_size' and 'multimodal' fields
+    that the Observer AI frontend uses for a richer UI.
+    """
+    if not HANDLERS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Backend handlers are not available.")
+
+    EXCLUDED = {"gemini-2.0-flash-lite", "gemini-2.0-flash-lite-free"}
+    
+    # This list will hold the model data in the new format.
+    model_data_list = []
+
+    if api_handlers and api_handlers.API_HANDLERS:
+        for handler in api_handlers.API_HANDLERS.values():
+            try:
+                for model_info in handler.get_models():
+                    name = model_info.get("name", "")
+                    if name in EXCLUDED:
+                        continue
+                    
+                    # Create the new model entry in the OpenAI-compatible format
+                    new_model_entry = {
+                        "id": name, # The standard uses 'id' for the model name
+                        "object": "model",
+                        "created": 0, # Placeholder, as it's not strictly needed by the UI
+                        "owned_by": handler.name,
+
+                        # --- Custom fields needed by the Observer frontend ---
+                        "parameter_size": model_info.get("parameters", "N/A"),
+                        "multimodal": model_info.get("multimodal", False),
+                        "pro": model_info.get("pro", False)
+                    }
+                    model_data_list.append(new_model_entry)
+
+            except Exception as e:
+                logger.error(f"Failed to get v1/models from handler {handler.name}: {e}")
+    else:
+        logger.warning("/v1/models called but no handlers are loaded.")
+
+    # The final response must be a dictionary with 'object' and 'data' keys
+    return JSONResponse(content={
+        "object": "list",
+        "data": model_data_list
+    })
+
+

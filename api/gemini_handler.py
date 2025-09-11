@@ -20,16 +20,46 @@ class GeminiAPIHandler(BaseAPIHandler):
     """
     def __init__(self):
         super().__init__("gemini")
+        
+        # --- Model Mapping (like OpenRouter) ---
+        # Maps display names to actual Gemini model IDs
+        self.model_map = {
+            "gemma-3-4b-it": {
+                "model_id": "gemma-3-4b-it",
+                "parameters": "4B",
+                "multimodal": True,
+                "pro": False
+            },
+            "gemma-3-12b-it": {
+                "model_id": "gemma-3-12b-it", 
+                "parameters": "12B",
+                "multimodal": True,
+                "pro": False
+            },
+            "gemma-3n-e4b-it": {
+                "model_id": "gemma-3n-e4b-it",
+                "parameters": "4B",
+                "multimodal": False,
+                "pro": False
+            },
+            # Hidden model for agent creator (free users)
+            "gemini-2.0-flash-lite-free": {
+                "model_id": "gemini-2.0-flash-lite",  # Maps to actual model
+                "parameters": "N/A",
+                "multimodal": True,
+                "pro": False
+            }
+        }
+        
+        # Define supported models using the display names from the map
         self.models = [
-            {"name": "gemma-3-4b-it", "parameters": "4B", "multimodal": True},
-            {"name": "gemma-3-12b-it", "parameters": "12B", "multimodal": True},
-            {"name": "gemma-3-27b-it", "parameters": "27B", "multimodal": True},
-            {"name": "gemma-3n-e4b-it", "parameters": "4B", "multimodal": False},
-            {"name": "gemini-1.5-flash-8b", "parameters": "8B", "multimodal": True},
-            # {"name": "gemini-1.5-flash", "parameters": "N/A", "multimodal": True}, 
-            # {"name": "gemini-2.0-flash-lite", "parameters": "N/A", "multimodal": True},
-            {"name": "gemini-2.5-flash-preview-04-17", "parameters": "N/A", "multimodal": True}
-            # Add other models if needed, check Gemini docs for current IDs
+            {
+                "name": display_name, 
+                "parameters": model_info.get("parameters", "N/A"),
+                "multimodal": model_info.get("multimodal", False), 
+                "pro": model_info.get("pro", False),
+            }
+            for display_name, model_info in self.model_map.items()
         ]
         self.api_key = os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
@@ -50,9 +80,11 @@ class GeminiAPIHandler(BaseAPIHandler):
         if not model_name:
              raise ValueError("Request data must include a 'model' field.")
 
-        # Map internal model name if needed (e.g., if request uses different alias)
-        # For now, assume request_data['model'] is the correct Gemini model ID
-        target_model = model_name
+        # Map display name to actual Gemini model ID
+        if model_name in self.model_map:
+            target_model = self.model_map[model_name]["model_id"]
+        else:
+            target_model = model_name  # Fallback to direct name
 
         messages = request_data.get("messages", [])
         if not messages:

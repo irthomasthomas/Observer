@@ -32,13 +32,18 @@ class FireworksAPIHandler(BaseAPIHandler):
                 "model_id": "accounts/fireworks/models/llama4-maverick-instruct-basic",
                 "parameters": "400B",
                 "multimodal": True
-            }
+            },
+            "gpt-oss-120b": {
+                "model_id": "accounts/fireworks/models/gpt-oss-120b",
+                "parameters": "120B",
+                "multimodal": False 
+            },
         }
 
         # Define supported models for display using the pretty names from the map
         self.models = [
             {"name": display_name, "parameters": model_info.get("parameters", "N/A"),
-            "multimodal": model_info.get("multimodal", False)}
+            "multimodal": model_info.get("multimodal", False), "pro": True}
             for display_name, model_info in self.model_map.items()
         ]
         # --- End Model Mapping ---

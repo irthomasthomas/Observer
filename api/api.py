@@ -22,6 +22,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger('api-server')
 
+# modelo = randomforest()
+
+# @app.post("/resultados")
+# def enviar_resultados(datos):
+#     resultados = modelo(datos)
+#     return resultados
+
 # Setup FastAPI app
 app = FastAPI()
 

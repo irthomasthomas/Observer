@@ -60,7 +60,7 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         # Define supported models for display using the pretty names from the map
         self.models = [
             {"name": display_name, "parameters": model_info.get("parameters", "N/A"),
-            "multimodal": model_info.get("multimodal", False)}
+            "multimodal": model_info.get("multimodal", False), "pro": False}
             for display_name, model_info in self.model_map.items()
         ]
         # --- End Model Mapping ---

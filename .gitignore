@@ -306,5 +306,14 @@ cython_debug/
 .DS_Store?
 desktop/src-tauri/target/*
 desktop/src-tauri/python/python-bundle
-community/marketplace.db
-community/marketplace.db
+api/start_command.sh
+api/keys.sh
+api/*.db
+api/logs/
+api/certs/
+api/auth.py
+api/auth0_manager.py
+api/payments.py
+api/quota_manager.py
+api/admin_auth.py
+api/tools_router.py
