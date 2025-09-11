@@ -256,76 +256,76 @@ export async function executeJavaScript(
 
       // --- UPDATED FUNCTIONS ---
 
-      sendSms: async (message: string, number: string) => {
+      sendSms: async (number: string, message: string, images?: string[]) => {
         try {
           if (!getToken) throw new Error("Authentication context not available for sendSms.");
           
           const token = await getToken();
           if (!token) throw new Error("Failed to retrieve authentication token for SMS.");
 
-          await utils.sendSms(message, number, token);
-          Logger.info(agentId, `SMS sent to ${number}`, { 
+          await utils.sendSms(message, number, token, images);
+          Logger.info(agentId, `SMS sent to ${number}${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
             logType: 'tool-success', 
             iterationId,
-            content: { tool: 'sendSms', params: { message: message.slice(0,100), number }, success: true }
+            content: { tool: 'sendSms', params: { message: message.slice(0,100), number, imageCount: images?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send SMS to ${number}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendSms', params: { message: message.slice(0,100), number }, error: extractErrorMessage(error) }
+            content: { tool: 'sendSms', params: { message: message.slice(0,100), number, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendWhatsapp: async(message: string, number: string) => {
+      sendWhatsapp: async (number: string, message: string, images?: string[]) => {
         try {
           if (!getToken) throw new Error("Authentication context not available for sendWhatsapp.");
 
           const token = await getToken();
           if (!token) throw new Error("Failed to retrieve authentication token for WhatsApp.");
 
-          await utils.sendWhatsapp(message, number, token);
-          Logger.info(agentId, `WhatsApp sent to ${number}`, { 
+          await utils.sendWhatsapp(message, number, token, images);
+          Logger.info(agentId, `WhatsApp sent to ${number}${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
             logType: 'tool-success', 
             iterationId,
-            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number }, success: true }
+            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number, imageCount: images?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send WhatsApp to ${number}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number }, error: extractErrorMessage(error) }
+            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendEmail: async (message: string, emailAddress: string) => {
+      sendEmail: async (emailAddress: string, message: string, images?: string[]) => {
         try {
           if (!getToken) throw new Error("Authentication context not available for sendEmail.");
           
           const token = await getToken();
           if (!token) throw new Error("Failed to retrieve authentication token for Email.");
 
-          await utils.sendEmail(message, emailAddress, token);
-          Logger.info(agentId, `Email sent to ${emailAddress}`, { 
+          await utils.sendEmail(message, emailAddress, token, images);
+          Logger.info(agentId, `Email sent to ${emailAddress}${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
             logType: 'tool-success', 
             iterationId,
-            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress }, success: true }
+            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress, imageCount: images?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send email to ${emailAddress}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress }, error: extractErrorMessage(error) }
+            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendPushover: async (message: string, userKey: string, title?: string) => {
+      sendPushover: async (userKey: string, message: string, images?: string[], title?: string) => {
         try {
           if (!getToken) {
               throw new Error("Authentication context not available for sendPushover.");
@@ -336,67 +336,67 @@ export async function executeJavaScript(
               throw new Error("Failed to retrieve authentication token for Pushover.");
           }
 
-          await utils.sendPushover(message, userKey, token, title);
-          Logger.info(agentId, `Pushover notification sent`, { 
+          await utils.sendPushover(message, userKey, token, images, title);
+          Logger.info(agentId, `Pushover notification sent${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
             logType: 'tool-success', 
             iterationId,
-            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title }, success: true }
+            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title, imageCount: images?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send Pushover notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title }, error: extractErrorMessage(error) }
+            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendDiscordBot: async (message: string, webhookUrl: string) => {
+      sendDiscord: async (webhookUrl: string, message: string, images?: string[]) => {
         try {
           if (!getToken) {
-              throw new Error("Authentication context not available for sendDiscordBot.");
+              throw new Error("Authentication context not available for sendDiscord.");
           }
 
           const token = await getToken();
           if (!token) {
-              throw new Error("Failed to retrieve authentication token for sendDiscordBot.");
+              throw new Error("Failed to retrieve authentication token for sendDiscord.");
           }
 
-          await utils.sendDiscordBot(message, webhookUrl, token);
-          Logger.info(agentId, `Discord notification sent`, { 
+          await utils.sendDiscord(message, webhookUrl, token, images);
+          Logger.info(agentId, `Discord notification sent${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
             logType: 'tool-success', 
             iterationId,
-            content: { tool: 'sendDiscordBot', params: { message: message.slice(0,100) }, success: true }
+            content: { tool: 'sendDiscord', params: { message: message.slice(0,100), imageCount: images?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send Discord notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendDiscordBot', params: { message: message.slice(0,100) }, error: extractErrorMessage(error) }
+            content: { tool: 'sendDiscord', params: { message: message.slice(0,100), imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendTelegram: async (message: string, chatId: string) => {
+      sendTelegram: async (chatId: string, message: string, images?: string[]) => {
         try {
           if (!getToken) throw new Error("Authentication context not available for sendTelegram.");
           
           const token = await getToken();
           if (!token) throw new Error("Failed to retrieve authentication token for Telegram.");
 
-          await utils.sendTelegram(message, chatId, token);
-          Logger.info(agentId, `Telegram message sent to ${chatId}`, { 
+          await utils.sendTelegram(message, chatId, token, images);
+          Logger.info(agentId, `Telegram message sent to ${chatId}${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
             logType: 'tool-success', 
             iterationId,
-            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId }, success: true }
+            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId, imageCount: images?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send Telegram message to ${chatId}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId }, error: extractErrorMessage(error) }
+            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }

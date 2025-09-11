@@ -86,8 +86,12 @@ export function notify(title: string, message: string): void {
 /**
  * Sends an SMS message by calling the backend API.
  * This is the core utility function.
+ * @param message The SMS message content to send.
+ * @param number The phone number to send to.
+ * @param authToken The authentication token for the Observer AI API.
+ * @param images Optional array of base64-encoded images (without data:image prefix).
  */
-export async function sendSms(message: string, number: string, authToken: string): Promise<void> {
+export async function sendSms(message: string, number: string, authToken: string, images?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -95,16 +99,22 @@ export async function sendSms(message: string, number: string, authToken: string
   }
 
   try {
+    const requestBody: { to_number: string; message: string; images?: string[] } = {
+      to_number: number,
+      message: message,
+    };
+
+    if (images && images.length > 0) {
+      requestBody.images = images;
+    }
+
     const response = await fetch(`${API_HOST}/tools/send-sms`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`, 
       },
-      body: JSON.stringify({
-        to_number: number,
-        message: message,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -126,8 +136,12 @@ export async function sendSms(message: string, number: string, authToken: string
 
 /**
  * Sends a WhatsApp notification using a pre-approved template.
+ * @param message The WhatsApp message content to send.
+ * @param number The phone number to send to.
+ * @param authToken The authentication token for the Observer AI API.
+ * @param images Optional array of base64-encoded images (without data:image prefix).
  */
-export async function sendWhatsapp(message: string, number:string, authToken: string): Promise<void> {
+export async function sendWhatsapp(message: string, number: string, authToken: string, images?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -135,16 +149,22 @@ export async function sendWhatsapp(message: string, number:string, authToken: st
   }
 
   try {
+    const requestBody: { to_number: string; message: string; images?: string[] } = {
+      to_number: number,
+      message: message,
+    };
+
+    if (images && images.length > 0) {
+      requestBody.images = images;
+    }
+
     const response = await fetch(`${API_HOST}/tools/send-whatsapp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`, 
       },
-      body: JSON.stringify({
-        to_number: number,
-        message: message,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -167,7 +187,7 @@ export async function sendWhatsapp(message: string, number:string, authToken: st
 /**
  * Sends an email by calling the backend API.
  */
-export async function sendEmail(message: string, emailAddress: string, authToken: string): Promise<void> {
+export async function sendEmail(message: string, emailAddress: string, authToken: string, images?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -175,16 +195,22 @@ export async function sendEmail(message: string, emailAddress: string, authToken
   }
 
   try {
+    const requestBody: { to_email: string; message: string; images?: string[] } = {
+      to_email: emailAddress,
+      message: message,
+    };
+
+    if (images && images.length > 0) {
+      requestBody.images = images;
+    }
+
     const response = await fetch(`${API_HOST}/tools/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`, 
       },
-      body: JSON.stringify({
-        to_email: emailAddress,
-        message: message,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -234,9 +260,10 @@ export function markClip(label: string): void {
  * @param message The main content of the notification.
  * @param userKey The user's individual Pushover Key.
  * @param authToken The authentication token for the Observer AI API.
+ * @param images Optional array of base64-encoded images (without data:image prefix).
  * @param title An optional title for the notification.
  */
-export async function sendPushover(message: string, userKey: string, authToken: string, title?: string): Promise<void> {
+export async function sendPushover(message: string, userKey: string, authToken: string, images?: string[], title?: string): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -248,17 +275,26 @@ export async function sendPushover(message: string, userKey: string, authToken: 
   }
 
   try {
+    const requestBody: { user_key: string; message: string; title?: string; images?: string[] } = {
+      user_key: userKey, // Note: snake_case to match the Pydantic model on the backend
+      message: message,
+    };
+
+    if (title) {
+      requestBody.title = title;
+    }
+
+    if (images && images.length > 0) {
+      requestBody.images = images;
+    }
+
     const response = await fetch(`${API_HOST}/tools/send-pushover`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`, 
       },
-      body: JSON.stringify({
-        user_key: userKey, // Note: snake_case to match the Pydantic model on the backend
-        message: message,
-        title: title // This will be included if provided, otherwise ignored by the backend
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -284,8 +320,9 @@ export async function sendPushover(message: string, userKey: string, authToken: 
  * @param message The main content of the notification.
  * @param webhookUrl The user's unique Discord Webhook URL.
  * @param authToken The authentication token for the Observer AI API.
+ * @param images Optional array of base64-encoded images (without data:image prefix).
  */
-export async function sendDiscordBot(message: string, webhookUrl: string, authToken: string): Promise<void> {
+export async function sendDiscord(message: string, webhookUrl: string, authToken: string, images?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -309,16 +346,22 @@ export async function sendDiscordBot(message: string, webhookUrl: string, authTo
   }
 
   try {
+    const requestBody: { message: string; webhook_url: string; images?: string[] } = {
+      message: messageToSend,
+      webhook_url: webhookUrl, // snake_case to match the Pydantic model
+    };
+
+    if (images && images.length > 0) {
+      requestBody.images = images;
+    }
+
     const response = await fetch(`${API_HOST}/tools/send-discordbot`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`, 
       },
-      body: JSON.stringify({
-        message: messageToSend,
-        webhook_url: webhookUrl, // snake_case to match the Pydantic model
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -344,8 +387,9 @@ export async function sendDiscordBot(message: string, webhookUrl: string, authTo
  * @param message The message content to send.
  * @param chatId The Telegram chat ID to send the message to.
  * @param authToken The authentication token for the Observer AI API.
+ * @param images Optional array of base64-encoded images (without data:image prefix).
  */
-export async function sendTelegram(message: string, chatId: string, authToken: string): Promise<void> {
+export async function sendTelegram(message: string, chatId: string, authToken: string, images?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -353,16 +397,22 @@ export async function sendTelegram(message: string, chatId: string, authToken: s
   }
 
   try {
+    const requestBody: { chat_id: string; message: string; images?: string[] } = {
+      chat_id: chatId,
+      message: message,
+    };
+
+    if (images && images.length > 0) {
+      requestBody.images = images;
+    }
+
     const response = await fetch(`${API_HOST}/tools/send-telegram`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`, 
       },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message: message,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
