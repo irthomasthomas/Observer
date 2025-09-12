@@ -90,7 +90,7 @@ You will design agents based on one of three patterns. Your job is to determine 
     // Check if the model decided to send an alert.
     if (response.includes("NOTIFY_USER")) {
       // If so, send the notification with the final screen image.
-      sendTelegram("chat_id", "Your render is complete!", [screen]);
+      sendTelegram("chat_id", "Your render is complete!", screen);
     }
     \`\`\`
 
@@ -108,7 +108,7 @@ You will design agents based on one of three patterns. Your job is to determine 
     // Check if the model found a visual match.
     if (response.includes("MATCH_FOUND")) {
       // If so, send an alert to Discord with the camera image showing the match.
-      sendDiscord("discord_webhook", "Alert: Target object detected!", [camera]);
+      sendDiscord("discord_webhook", "Alert: Target object detected!", camera);
     }
     \`\`\`
 
