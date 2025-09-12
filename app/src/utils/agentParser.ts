@@ -13,6 +13,17 @@ export function extractAgentConfig(text: string): string | null {
 }
 
 /**
+ * Extracts the image request text from a string.
+ * @param text The text possibly containing an image request.
+ * @returns The content inside the %%% block, or null if not found.
+ */
+export function extractImageRequest(text: string): string | null {
+  const imageRequestRegex = /%%%\s*\n?([\s\S]*?)\n?%%%/;
+  const match = text.match(imageRequestRegex);
+  return match && match[1] ? match[1].trim() : null;
+}
+
+/**
  * Parses a raw agent configuration string into a structured agent object and code.
  * @param configText The raw agent configuration (content from within $$$).
  * @returns An object containing the agent and code, or null on failure.

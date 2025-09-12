@@ -4,7 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu, X, AlertTriangle, Clipboard } from 'lucide-react';
 import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent } from '@utils/agent_database';
-import { extractAgentConfig, parseAgentResponse } from '@utils/agentParser';
+import { extractAgentConfig, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
+import MediaUploadMessage from './MediaUploadMessage';
 import getConversationalSystemPrompt from '@utils/conversational_system_prompt';
 import type { TokenProvider } from '@utils/main_loop';
 import { getOllamaServerAddress } from '@utils/main_loop';
@@ -169,7 +170,8 @@ const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isO
 interface Message {
   id: number;
   text: string;
-  sender: 'user' | 'ai' | 'system';
+  sender: 'user' | 'ai' | 'system' | 'image-request';
+  imageData?: string; // For displaying uploaded images
 }
 
 interface ConversationalGeneratorProps {
@@ -205,6 +207,70 @@ What would you like to create today?`
   const [isLocalModalOpen, setIsLocalModalOpen] = useState(false);
   const [selectedLocalModel, setSelectedLocalModel] = useState('');
 
+  const sendConversation = async (allMessages: Message[]) => {
+    setIsLoading(true);
+
+    // Build conversation history and collect images
+    const conversationHistory = allMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
+    const fullPrompt = `${getConversationalSystemPrompt()}\n${conversationHistory}\nai:`;
+    
+    // Collect all images from the conversation
+    const images = allMessages
+      .filter(msg => msg.imageData)
+      .map(msg => msg.imageData!);
+
+    try {
+      let responseText: string;
+      if (isUsingObServer) {
+        // --- CLOUD PATH ---
+        const token = await getToken();
+        if (!token) throw new Error("Authentication failed.");
+        // if you think of spamming this model somehow te voy a jalar las patas en la noche >:(
+        responseText = await sendPrompt('https://api.observer-ai.com', '443', 'gemini-2.0-flash-lite-free', { modifiedPrompt: fullPrompt, images }, token);
+      } else {
+        // --- LOCAL PATH ---
+        const { host, port } = getOllamaServerAddress();
+        responseText = await sendPrompt(host, port, selectedLocalModel, { modifiedPrompt: fullPrompt, images });
+      }
+
+      // Check for agent config first (priority)
+      const agentConfig = extractAgentConfig(responseText);
+      if (agentConfig) {
+        const responseMessage: Message = {
+          id: Date.now() + 1,
+          text: agentConfig,
+          sender: 'system',
+        };
+        setMessages(prev => [...prev, responseMessage]);
+      } else {
+        // Check for image request
+        const imageRequest = extractImageRequest(responseText);
+        if (imageRequest) {
+          const responseMessage: Message = {
+            id: Date.now() + 1,
+            text: imageRequest,
+            sender: 'image-request',
+          };
+          setMessages(prev => [...prev, responseMessage]);
+        } else {
+          // Regular AI response
+          const responseMessage: Message = {
+            id: Date.now() + 1,
+            text: responseText,
+            sender: 'ai',
+          };
+          setMessages(prev => [...prev, responseMessage]);
+        }
+      }
+
+    } catch (err) {
+      const errorText = err instanceof Error ? err.message : 'An unknown error occurred.';
+      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: `Sorry, I ran into an error: ${errorText}` }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim() || isLoading) return;
@@ -218,39 +284,9 @@ What would you like to create today?`
     const newUserMessage: Message = { id: Date.now(), sender: 'user', text: userInput };
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
-    setIsLoading(true);
 
-    const conversationHistory = [...messages, newUserMessage].map(msg => `${msg.sender}: ${msg.text}`).join('\n');
-    const fullPrompt = `${getConversationalSystemPrompt()}\n${conversationHistory}\nai:`;
-
-    try {
-      let responseText: string;
-      if (isUsingObServer) {
-        // --- CLOUD PATH ---
-        const token = await getToken();
-        if (!token) throw new Error("Authentication failed.");
-        // if you think of spamming this model somehow te voy a jalar las patas en la noche >:(
-        responseText = await sendPrompt('https://api.observer-ai.com', '443', 'gemini-2.0-flash-lite-free', { modifiedPrompt: fullPrompt, images: [] }, token);
-      } else {
-        // --- LOCAL PATH ---
-        const { host, port } = getOllamaServerAddress();
-        responseText = await sendPrompt(host, port, selectedLocalModel, { modifiedPrompt: fullPrompt, images: [] });
-      }
-
-      const agentConfig = extractAgentConfig(responseText);
-      const responseMessage: Message = {
-        id: Date.now() + 1,
-        text: agentConfig || responseText,
-        sender: agentConfig ? 'system' : 'ai',
-      };
-      setMessages(prev => [...prev, responseMessage]);
-
-    } catch (err) {
-      const errorText = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: `Sorry, I ran into an error: ${errorText}` }]);
-    } finally {
-      setIsLoading(false);
-    }
+    const allMessages = [...messages, newUserMessage];
+    await sendConversation(allMessages);
   };
 
   const handleConfigureAndSave = (configText: string) => {
@@ -260,6 +296,20 @@ What would you like to create today?`
     } else {
       setMessages(prev => [...prev, { id: Date.now(), sender: 'ai', text: "I'm sorry, there was an error parsing that. Could you try describing your agent again?" }]);
     }
+  };
+
+  const handleMediaResponse = async (messageId: number, result: string | { type: 'image', data: string }) => {
+    // Remove the image-request message and add user response
+    const newUserMessage: Message = typeof result === 'string'
+      ? { id: Date.now(), sender: 'user', text: result }
+      : { id: Date.now(), sender: 'user', text: '[Image uploaded]', imageData: result.data };
+    
+    setMessages(prev => [...prev.filter(msg => msg.id !== messageId), newUserMessage]);
+    
+    // Auto-continue: send API request with updated conversation
+    const currentMessages = messages.filter(msg => msg.id !== messageId);
+    const allMessages = [...currentMessages, newUserMessage];
+    await sendConversation(allMessages);
   };
   
   const getPlaceholderText = () => {
@@ -284,10 +334,27 @@ What would you like to create today?`
                   <p className="text-indigo-800 font-medium mb-3">I've generated your agent blueprint!</p>
                   <button onClick={() => handleConfigureAndSave(msg.text)} className="px-3 py-2 md:px-4 text-sm md:text-base bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 font-medium transition-colors flex items-center mx-auto"><Save className="h-4 w-4 mr-2" />Configure & Save Agent</button>
                 </div>
+              ) : msg.sender === 'image-request' ? (
+                <div className="w-full">
+                  <MediaUploadMessage 
+                    requestText={msg.text}
+                    onResponse={(result) => handleMediaResponse(msg.id, result)}
+                  />
+                </div>
               ) : (
-                // --- MODIFIED: Added whitespace-pre-wrap to render newlines ---
                 <div className={`max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base whitespace-pre-wrap ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
-                  {msg.text}
+                  {msg.imageData ? (
+                    <div className="space-y-2">
+                      <p>{msg.text}</p>
+                      <img 
+                        src={`data:image/png;base64,${msg.imageData}`} 
+                        alt="Uploaded image" 
+                        className="max-w-full h-auto rounded-lg"
+                      />
+                    </div>
+                  ) : (
+                    msg.text
+                  )}
                 </div>
               )}
             </div>
