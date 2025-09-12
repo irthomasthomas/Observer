@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu, X, AlertTriangle, Clipboard } from 'lucide-react';
 import { sendPrompt } from '@utils/sendApi';
-import { CompleteAgent } from '@utils/agent_database';
+import { CompleteAgent, updateAgentImageMemory } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
 import MediaUploadMessage from './MediaUploadMessage';
 import getConversationalSystemPrompt from '@utils/conversational_system_prompt';
@@ -203,6 +203,11 @@ What would you like to create today?`
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+  
   // --- STATE FOR MODAL AND LOCAL MODEL SELECTION ---
   const [isLocalModalOpen, setIsLocalModalOpen] = useState(false);
   const [selectedLocalModel, setSelectedLocalModel] = useState('');
@@ -236,22 +241,54 @@ What would you like to create today?`
       // Check for agent config first (priority)
       const agentConfig = extractAgentConfig(responseText);
       if (agentConfig) {
-        const responseMessage: Message = {
-          id: Date.now() + 1,
+        // Extract text outside $$$ blocks
+        const textOutsideBlocks = responseText.replace(/\$\$\$\s*\n?[\s\S]*?\n?\$\$\$/g, '').trim();
+        
+        const newMessages: Message[] = [];
+        
+        // Add regular AI message if there's text outside the $$$ blocks
+        if (textOutsideBlocks) {
+          newMessages.push({
+            id: Date.now() + 1,
+            text: textOutsideBlocks,
+            sender: 'ai',
+          });
+        }
+        
+        // Add system message
+        newMessages.push({
+          id: Date.now() + 2,
           text: agentConfig,
           sender: 'system',
-        };
-        setMessages(prev => [...prev, responseMessage]);
+        });
+        
+        setMessages(prev => [...prev, ...newMessages]);
       } else {
         // Check for image request
         const imageRequest = extractImageRequest(responseText);
         if (imageRequest) {
-          const responseMessage: Message = {
-            id: Date.now() + 1,
+          // Extract text outside %%% blocks
+          const textOutsideBlocks = responseText.replace(/%%%\s*\n?[\s\S]*?\n?%%%/g, '').trim();
+          
+          const newMessages: Message[] = [];
+          
+          // Add regular AI message if there's text outside the %%% blocks
+          if (textOutsideBlocks) {
+            newMessages.push({
+              id: Date.now() + 1,
+              text: textOutsideBlocks,
+              sender: 'ai',
+            });
+          }
+          
+          // Add image request message
+          newMessages.push({
+            id: Date.now() + 2,
             text: imageRequest,
             sender: 'image-request',
-          };
-          setMessages(prev => [...prev, responseMessage]);
+          });
+          
+          setMessages(prev => [...prev, ...newMessages]);
         } else {
           // Regular AI response
           const responseMessage: Message = {
@@ -289,9 +326,18 @@ What would you like to create today?`
     await sendConversation(allMessages);
   };
 
-  const handleConfigureAndSave = (configText: string) => {
+  const handleConfigureAndSave = async (configText: string) => {
     const parsed = parseAgentResponse(configText);
     if (parsed) {
+      // Collect all images from the conversation and store them for the agent
+      const images = messages
+        .filter(msg => msg.imageData)
+        .map(msg => msg.imageData!);
+      
+      if (images.length > 0) {
+        await updateAgentImageMemory(parsed.agent.id, images);
+      }
+      
       onAgentGenerated(parsed.agent, parsed.code);
     } else {
       setMessages(prev => [...prev, { id: Date.now(), sender: 'ai', text: "I'm sorry, there was an error parsing that. Could you try describing your agent again?" }]);
