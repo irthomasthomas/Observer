@@ -223,7 +223,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
             time: { label: 'Get Time', icon: Hourglass, regex: /time\s*\(/g },
             sendEmail: { label: 'Send Email', icon: Mail, regex: /sendEmail\s*\(/g },
             sendPushover: { label: 'Pushover', icon: PushoverIcon, regex: /sendPushover\s*\(/g },
-            sendDiscordBot: { label: 'Discord Bot', icon: DiscordIcon, regex: /sendDiscordBot\s*\(/g },
+            sendDiscordBot: { label: 'Discord Bot', icon: DiscordIcon, regex: /sendDiscord\s*\(/g },
             sendWhatsapp: { label: 'WhatsApp', icon: WhatsAppIcon, regex: /sendWhatsapp\s*\(/g, warning: 'To receive messages, you must first message: +1 (555) 783-4727.' },
             sendSms: { label: 'SMS', icon: SmsIcon, regex: /sendSms\s*\(/g, warning: 'Delivery to US/Canada is unreliable. Use email for now.' },
             sendTelegram: { label: 'Telegram', icon: MessageCircle, regex: /sendTelegram\s*\(/g },
