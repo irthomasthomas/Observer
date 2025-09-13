@@ -30,7 +30,7 @@ appendMemory(agentId, \`\\n[\${timestamp}] \${response}\`);
     return `
 // --- SMS TOOL ---
 // Sends the model's response as an SMS to the specified number.
-sendSms(response, ${phoneNumber});
+sendSms(${phoneNumber}, response);
 `;
   },
   whatsapp: (data: ToolData) => {
@@ -39,7 +39,7 @@ sendSms(response, ${phoneNumber});
 // --- WHATSAPP TOOL ---
 // Sends a pre-approved WhatsApp notification. The content is static for now.
 // IMPORTANT: The 'response' variable is currently ignored for anti-spam reasons.
-sendWhatsapp(response, ${phoneNumber});
+sendWhatsapp(${phoneNumber}, response);
 `;
   },
   email: (data: ToolData) => {
@@ -47,7 +47,7 @@ sendWhatsapp(response, ${phoneNumber});
     return `
 // --- EMAIL TOOL ---
 // Sends the model's response as an email to the specified address.
-sendEmail(response, ${emailAddr});
+sendEmail(${emailAddr}, response);
 `;
   },
   pushover: (data: ToolData) => {
@@ -55,7 +55,7 @@ sendEmail(response, ${emailAddr});
     return `
 // --- PUSHOVER TOOL ---
 // Sends the model's response as a Pushover notification.
-sendPushover(response, ${userKey});
+sendPushover(${userKey}, response);
 `;
   },
   discord: (data: ToolData) => {
@@ -63,7 +63,7 @@ sendPushover(response, ${userKey});
     return `
 // --- DISCORD TOOL ---
 // Sends the model's response to a Discord channel via a webhook.
-sendDiscordBot(response, ${webhookUrl});
+sendDiscord(${webhookUrl}, response);
 `;
   },
   telegram: (data: ToolData) => {
@@ -71,7 +71,7 @@ sendDiscordBot(response, ${webhookUrl});
     return `
 // --- TELEGRAM TOOL ---
 // Sends the model's response to a Telegram chat.
-sendTelegram(response, ${chatId});
+sendTelegram(${chatId}, response);
 `;
   },
   start_clip: () => `
@@ -94,7 +94,7 @@ ask(response);
   system_notify: () => `
 // --- SYSTEM NOTIFICATION TOOL ---
 // Shows a native system notification.
-systemNotify(response);
+system_notify(response, "Observer AI");
 `,
   message: () => `
 // --- MESSAGE TOOL ---
