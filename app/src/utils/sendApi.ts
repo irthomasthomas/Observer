@@ -44,7 +44,7 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
       const { done, value } = await reader.read();
 
       if (done) {
-        console.log('🎯 Stream completed');
+        //console.log('🎯 Stream completed');
         break;
       }
 
@@ -56,7 +56,7 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
           const data = line.slice(6); // Remove 'data: ' prefix
 
           if (data === '[DONE]') {
-            console.log('🏁 Stream finished');
+            //console.log('🏁 Stream finished');
             return fullContent;
           }
 
@@ -65,7 +65,7 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
             const content = parsed.choices?.[0]?.delta?.content;
 
             if (content) {
-              console.log('📝 Token:', content);
+              //console.log('📝 Token:', content);
               fullContent += content;
               // Call the callback with the new content if provided
               if (onStreamChunk) {
@@ -73,7 +73,7 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
               }
             }
           } catch (parseError) {
-            console.warn('Failed to parse streaming chunk:', data);
+            //console.warn('Failed to parse streaming chunk:', data);
           }
         }
       }
