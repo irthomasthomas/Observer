@@ -1,6 +1,6 @@
 // components/AgentActivityModal.tsx
 import React, { useState, useEffect } from 'react';
-import { X, Activity, Database, Trash2, HardDrive } from 'lucide-react';
+import { X, Activity, Database, HardDrive } from 'lucide-react';
 import AgentLogViewer from './AgentLogViewer';
 import IterationStoreDebug from './IterationStoreDebug';
 import FeedbackBubble from '../FeedbackBubble';
