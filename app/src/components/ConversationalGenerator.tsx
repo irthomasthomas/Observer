@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu, X, AlertTriangle, Clipboard } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { sendPrompt } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
@@ -172,6 +173,7 @@ interface Message {
   text: string;
   sender: 'user' | 'ai' | 'system' | 'image-request';
   imageData?: string; // For displaying uploaded images
+  isStreaming?: boolean; // For streaming messages
 }
 
 interface ConversationalGeneratorProps {
@@ -218,11 +220,23 @@ What would you like to create today?`
     // Build conversation history and collect images
     const conversationHistory = allMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
     const fullPrompt = `${getConversationalSystemPrompt()}\n${conversationHistory}\nai:`;
-    
+
     // Collect all images from the conversation
     const images = allMessages
       .filter(msg => msg.imageData)
       .map(msg => msg.imageData!);
+
+    // Create streaming message immediately
+    const streamingMessageId = Date.now() + Math.random();
+    const streamingMessage: Message = {
+      id: streamingMessageId,
+      text: '',
+      sender: 'ai',
+      isStreaming: true
+    };
+    setMessages(prev => [...prev, streamingMessage]);
+
+    let accumulatedResponse = '';
 
     try {
       let responseText: string;
@@ -231,78 +245,93 @@ What would you like to create today?`
         const token = await getToken();
         if (!token) throw new Error("Authentication failed.");
         // if you think of spamming this model somehow te voy a jalar las patas en la noche >:(
-        responseText = await sendPrompt('https://api.observer-ai.com', '443', 'gemini-2.0-flash-lite-free', { modifiedPrompt: fullPrompt, images }, token);
+        responseText = await sendPrompt('https://api.observer-ai.com', '443', 'gemini-2.0-flash-lite-free', { modifiedPrompt: fullPrompt, images }, token, true, (chunk: string) => {
+          accumulatedResponse += chunk;
+          setMessages(prev => prev.map(msg =>
+            msg.id === streamingMessageId
+              ? { ...msg, text: accumulatedResponse }
+              : msg
+          ));
+        });
       } else {
         // --- LOCAL PATH ---
         const { host, port } = getOllamaServerAddress();
-        responseText = await sendPrompt(host, port, selectedLocalModel, { modifiedPrompt: fullPrompt, images });
+        responseText = await sendPrompt(host, port, selectedLocalModel, { modifiedPrompt: fullPrompt, images }, undefined, true, (chunk: string) => {
+          accumulatedResponse += chunk;
+          setMessages(prev => prev.map(msg =>
+            msg.id === streamingMessageId
+              ? { ...msg, text: accumulatedResponse }
+              : msg
+          ));
+        });
       }
+
+      // Convert streaming message to final message
+      setMessages(prev => prev.map(msg =>
+        msg.id === streamingMessageId
+          ? { ...msg, isStreaming: false }
+          : msg
+      ));
 
       // Check for agent config first (priority)
       const agentConfig = extractAgentConfig(responseText);
       if (agentConfig) {
         // Extract text outside $$$ blocks
         const textOutsideBlocks = responseText.replace(/\$\$\$\s*\n?[\s\S]*?\n?\$\$\$/g, '').trim();
-        
-        const newMessages: Message[] = [];
-        
-        // Add regular AI message if there's text outside the $$$ blocks
+
+        // Update the streamed message with just the text outside blocks (if any)
         if (textOutsideBlocks) {
-          newMessages.push({
-            id: Date.now() + 1,
-            text: textOutsideBlocks,
-            sender: 'ai',
-          });
+          setMessages(prev => prev.map(msg =>
+            msg.id === streamingMessageId
+              ? { ...msg, text: textOutsideBlocks }
+              : msg
+          ));
+        } else {
+          // Remove the streaming message if there's no text outside blocks
+          setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
         }
-        
+
         // Add system message
-        newMessages.push({
-          id: Date.now() + 2,
+        setMessages(prev => [...prev, {
+          id: Date.now() + Math.random() * 1000,
           text: agentConfig,
           sender: 'system',
-        });
-        
-        setMessages(prev => [...prev, ...newMessages]);
+        }]);
       } else {
         // Check for image request
         const imageRequest = extractImageRequest(responseText);
         if (imageRequest) {
           // Extract text outside %%% blocks
           const textOutsideBlocks = responseText.replace(/%%%\s*\n?[\s\S]*?\n?%%%/g, '').trim();
-          
-          const newMessages: Message[] = [];
-          
-          // Add regular AI message if there's text outside the %%% blocks
+
+          // Update the streamed message with just the text outside blocks (if any)
           if (textOutsideBlocks) {
-            newMessages.push({
-              id: Date.now() + 1,
-              text: textOutsideBlocks,
-              sender: 'ai',
-            });
+            setMessages(prev => prev.map(msg =>
+              msg.id === streamingMessageId
+                ? { ...msg, text: textOutsideBlocks }
+                : msg
+            ));
+          } else {
+            // Remove the streaming message if there's no text outside blocks
+            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
           }
-          
+
           // Add image request message
-          newMessages.push({
-            id: Date.now() + 2,
+          setMessages(prev => [...prev, {
+            id: Date.now() + Math.random() * 1000,
             text: imageRequest,
             sender: 'image-request',
-          });
-          
-          setMessages(prev => [...prev, ...newMessages]);
-        } else {
-          // Regular AI response
-          const responseMessage: Message = {
-            id: Date.now() + 1,
-            text: responseText,
-            sender: 'ai',
-          };
-          setMessages(prev => [...prev, responseMessage]);
+          }]);
         }
+        // For regular responses, the streaming message already contains the full response
+        // No additional action needed - just keep the converted streaming message
       }
 
     } catch (err) {
+      // Remove streaming message on error
+      setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
       const errorText = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: `Sorry, I ran into an error: ${errorText}` }]);
+      setMessages(prev => [...prev, { id: Date.now() + Math.random() * 1000, sender: 'ai', text: `Sorry, I ran into an error: ${errorText}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -318,7 +347,7 @@ What would you like to create today?`
         return;
     }
 
-    const newUserMessage: Message = { id: Date.now(), sender: 'user', text: userInput };
+    const newUserMessage: Message = { id: Date.now() + Math.random() * 1000, sender: 'user', text: userInput };
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
 
@@ -340,15 +369,15 @@ What would you like to create today?`
       
       onAgentGenerated(parsed.agent, parsed.code);
     } else {
-      setMessages(prev => [...prev, { id: Date.now(), sender: 'ai', text: "I'm sorry, there was an error parsing that. Could you try describing your agent again?" }]);
+      setMessages(prev => [...prev, { id: Date.now() + Math.random() * 1000, sender: 'ai', text: "I'm sorry, there was an error parsing that. Could you try describing your agent again?" }]);
     }
   };
 
   const handleMediaResponse = async (messageId: number, result: string | { type: 'image', data: string }) => {
     // Remove the image-request message and add user response
     const newUserMessage: Message = typeof result === 'string'
-      ? { id: Date.now(), sender: 'user', text: result }
-      : { id: Date.now(), sender: 'user', text: '[Image uploaded]', imageData: result.data };
+      ? { id: Date.now() + Math.random() * 1000, sender: 'user', text: result }
+      : { id: Date.now() + Math.random() * 1000, sender: 'user', text: '[Image uploaded]', imageData: result.data };
     
     setMessages(prev => [...prev.filter(msg => msg.id !== messageId), newUserMessage]);
     
@@ -388,18 +417,44 @@ What would you like to create today?`
                   />
                 </div>
               ) : (
-                <div className={`max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base whitespace-pre-wrap ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                <div className={`max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'} ${msg.isStreaming ? 'animate-pulse' : ''}`}>
                   {msg.imageData ? (
                     <div className="space-y-2">
-                      <p>{msg.text}</p>
-                      <img 
-                        src={`data:image/png;base64,${msg.imageData}`} 
-                        alt="Uploaded image" 
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown
+                          components={{
+                            ul: ({children}) => <ul className="list-disc pl-4 space-y-1 mb-2">{children}</ul>,
+                            ol: ({children}) => <ol className="list-decimal pl-4 space-y-1 mb-2">{children}</ol>,
+                            li: ({children}) => <li className="text-inherit">{children}</li>,
+                            strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                            code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">{children}</code>,
+                            p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </div>
+                      <img
+                        src={`data:image/png;base64,${msg.imageData}`}
+                        alt="Uploaded image"
                         className="max-w-full h-auto rounded-lg"
                       />
                     </div>
                   ) : (
-                    msg.text
+                    <div className="prose prose-sm max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          ul: ({children}) => <ul className="list-disc pl-4 space-y-1 mb-2">{children}</ul>,
+                          ol: ({children}) => <ol className="list-decimal pl-4 space-y-1 mb-2">{children}</ol>,
+                          li: ({children}) => <li className="text-inherit">{children}</li>,
+                          strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                          code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">{children}</code>,
+                          p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>
+                        }}
+                      >
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
                   )}
                 </div>
               )}

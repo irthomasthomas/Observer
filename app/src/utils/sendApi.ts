@@ -24,6 +24,67 @@ const optimisticUpdateQuota = () => {
   }
 };
 
+/**
+ * Handles streaming response from the API
+ * @param response The fetch response object
+ * @param onStreamChunk Optional callback for each chunk
+ * @returns The complete message content
+ */
+async function handleStreamingResponse(response: Response, onStreamChunk?: (chunk: string) => void): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body available for streaming');
+  }
+
+  const decoder = new TextDecoder();
+  let fullContent = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        console.log('🎯 Stream completed');
+        break;
+      }
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6); // Remove 'data: ' prefix
+
+          if (data === '[DONE]') {
+            console.log('🏁 Stream finished');
+            return fullContent;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+
+            if (content) {
+              console.log('📝 Token:', content);
+              fullContent += content;
+              // Call the callback with the new content if provided
+              if (onStreamChunk) {
+                onStreamChunk(content);
+              }
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse streaming chunk:', data);
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return fullContent;
+}
+
 export class UnauthorizedError extends Error {
   constructor(message: string) {
     super(message);
@@ -37,6 +98,9 @@ export class UnauthorizedError extends Error {
  * @param port API server port
  * @param modelName Name of the model to use
  * @param preprocessResult The preprocessed result containing prompt and optional images
+ * @param token Optional authorization token
+ * @param enableStreaming Whether to enable streaming response (default: true)
+ * @param onStreamChunk Optional callback for streaming chunks (only used when streaming is enabled)
  * @returns The model's response text
  */
 export async function sendPrompt(
@@ -44,7 +108,9 @@ export async function sendPrompt(
   port: string,
   modelName: string,
   preprocessResult: PreProcessorResult,
-  token?: string
+  token?: string,
+  enableStreaming: boolean = false,
+  onStreamChunk?: (chunk: string) => void
 ): Promise<string> {
   try {
     const url = `${host}:${port}/v1/chat/completions`;
@@ -86,7 +152,7 @@ export async function sendPrompt(
           content: content // content will be a string or an array of parts
         }
       ],
-      stream: false
+      stream: enableStreaming
     });
 
     const response = await fetch(url, {
@@ -102,7 +168,7 @@ export async function sendPrompt(
     if (!response.ok) {
         const errorBody = await response.text(); // Attempt to read error body
         console.error(`API Error Response Body: ${errorBody}`);
-        
+
         // Try to parse the error body to get a meaningful message
         let errorMessage = `API error: ${response.status}`;
         try {
@@ -116,19 +182,23 @@ export async function sendPrompt(
             errorMessage += ` - ${errorBody}`;
           }
         }
-        
+
         throw new Error(errorMessage);
     }
 
-    const data = await response.json();
+    if (enableStreaming) {
+      return await handleStreamingResponse(response, onStreamChunk);
+    } else {
+      const data = await response.json();
 
-    // Basic check for expected response structure
-    if (!data.choices || !data.choices[0] || !data.choices[0].message || typeof data.choices[0].message.content === 'undefined') {
-        console.error('Unexpected API response structure:', data);
-        throw new Error('Unexpected API response structure');
+      // Basic check for expected response structure
+      if (!data.choices || !data.choices[0] || !data.choices[0].message || typeof data.choices[0].message.content === 'undefined') {
+          console.error('Unexpected API response structure:', data);
+          throw new Error('Unexpected API response structure');
+      }
+
+      return data.choices[0].message.content;
     }
-
-    return data.choices[0].message.content;
 
   } catch (error) {
     console.error('Error calling API:', error);
