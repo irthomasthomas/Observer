@@ -1,9 +1,10 @@
 // components/AgentActivityModal.tsx
-import React, { useState } from 'react';
-import { X, Activity, Database } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Activity, Database, Trash2, HardDrive } from 'lucide-react';
 import AgentLogViewer from './AgentLogViewer';
 import IterationStoreDebug from './IterationStoreDebug';
 import FeedbackBubble from '../FeedbackBubble';
+import { IterationStore } from '../../utils/IterationStore';
 
 interface AgentActivityModalProps {
   isOpen: boolean;
@@ -23,7 +24,21 @@ const AgentActivityModal: React.FC<AgentActivityModalProps> = ({
   isAuthenticated
 }) => {
   const [activeTab, setActiveTab] = useState<'logs' | 'debug'>('logs');
-  
+  const [storageUsage, setStorageUsage] = useState<{ currentSessionMB: number, totalHistoryMB: number }>({ currentSessionMB: 0, totalHistoryMB: 0 });
+
+  // Load storage usage when modal opens
+  useEffect(() => {
+    const loadStorageUsage = async () => {
+      if (isOpen) {
+        const usage = await IterationStore.getStorageUsage(agentId);
+        setStorageUsage(usage);
+      }
+    };
+    loadStorageUsage();
+  }, [isOpen, agentId]);
+
+
+
   if (!isOpen) return null;
 
   // Handle backdrop click to close modal
@@ -63,14 +78,27 @@ const AgentActivityModal: React.FC<AgentActivityModalProps> = ({
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <Activity className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">
-              Agent Activity - "{agentName}"
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Agent Activity - "{agentName}"
+              </h2>
+              {/* Storage Usage Indicator */}
+              <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  <HardDrive className="h-3 w-3" />
+                  <span>Session: {storageUsage.currentSessionMB}MB</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Database className="h-3 w-3" />
+                  <span>Total: {storageUsage.totalHistoryMB}MB</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {/* FeedbackBubble in header */}
             <div className="mr-2">
-              <FeedbackBubble 
+              <FeedbackBubble
                 agentId={agentId}
                 getToken={getToken}
                 isAuthenticated={isAuthenticated}

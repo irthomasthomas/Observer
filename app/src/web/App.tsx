@@ -12,6 +12,7 @@ import {
 import { startAgentLoop, stopAgentLoop, AGENT_STATUS_CHANGED_EVENT } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
+import { IterationStore } from '@utils/IterationStore';
 
 // Imported Components
 import AppHeader from '@components/AppHeader';
@@ -316,6 +317,10 @@ function AppContent() {
           Logger.info(agentId, `Stopping agent before deletion`);
           stopAgentLoop(agentId);
         }
+
+        // Clear all iteration store data for this agent
+        await IterationStore.clearAllHistory(agentId);
+        Logger.info('APP', `Cleared iteration history for agent "${agent.name}"`);
 
         await deleteAgent(agentId);
         Logger.info('APP', `Agent "${agent.name}" deleted successfully`);

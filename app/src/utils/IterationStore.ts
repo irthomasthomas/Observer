@@ -448,6 +448,105 @@ class IterationStoreClass {
     }
   }
 
+  public async clearAllHistory(agentId: string): Promise<void> {
+    try {
+      // Clear current session data
+      const sessionId = this.currentSessions.get(agentId);
+      if (sessionId) {
+        // Remove all iterations for this session from memory
+        const iterationsToRemove = Array.from(this.iterations.values())
+          .filter(iteration => iteration.sessionId === sessionId);
+
+        iterationsToRemove.forEach(iteration => {
+          this.iterations.delete(iteration.id);
+        });
+
+        // Reset session iteration count
+        this.sessionIterationCounts.set(sessionId, 0);
+      }
+
+      // Clear from IndexedDB
+      const db = await this.openIterationDB();
+      const tx = db.transaction('agentSessions', 'readwrite');
+      const store = tx.objectStore('agentSessions');
+
+      await new Promise<void>((resolve, reject) => {
+        const request = store.delete(agentId);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      Logger.info('IterationStore', `Cleared all history for agent ${agentId}`);
+    } catch (error) {
+      Logger.error('IterationStore', `Failed to clear all history for agent ${agentId}`, error);
+    }
+  }
+
+  public async getStorageUsage(agentId: string): Promise<{ currentSessionMB: number, totalHistoryMB: number }> {
+    // Calculate current session size
+    const currentIterations = this.getIterationsForAgent(agentId);
+    let currentSessionBytes = 0;
+
+    currentIterations.forEach(iteration => {
+      // Estimate size of iteration data
+      currentSessionBytes += this.estimateIterationSize(iteration);
+    });
+
+    // Calculate historical data size from IndexedDB
+    let totalHistoryBytes = currentSessionBytes;
+    try {
+      const historicalSessions = await this.getHistoricalSessions(agentId);
+      historicalSessions.forEach(session => {
+        session.iterations.forEach(iteration => {
+          totalHistoryBytes += this.estimateIterationSize(iteration);
+        });
+      });
+    } catch (error) {
+      Logger.error('IterationStore', `Failed to calculate historical storage for agent ${agentId}`, error);
+    }
+
+    return {
+      currentSessionMB: Number((currentSessionBytes / (1024 * 1024)).toFixed(2)),
+      totalHistoryMB: Number((totalHistoryBytes / (1024 * 1024)).toFixed(2))
+    };
+  }
+
+  private estimateIterationSize(iteration: IterationData): number {
+    let size = 0;
+
+    // Base iteration data (rough estimate)
+    size += JSON.stringify({
+      id: iteration.id,
+      agentId: iteration.agentId,
+      sessionId: iteration.sessionId,
+      startTime: iteration.startTime,
+      modelPrompt: iteration.modelPrompt,
+      modelResponse: iteration.modelResponse,
+      tools: iteration.tools
+    }).length;
+
+    // Sensor data (images are the big ones)
+    iteration.sensors.forEach(sensor => {
+      if (sensor.type === 'screenshot' || sensor.type === 'camera') {
+        // Estimate base64 image size - typical screenshot might be 100-500KB
+        size += sensor.size || 300000; // Default 300KB if size not available
+      } else {
+        // Other sensor types are much smaller
+        size += JSON.stringify(sensor.content || '').length;
+      }
+    });
+
+    // Model images
+    if (iteration.modelImages) {
+      iteration.modelImages.forEach(image => {
+        // Base64 images
+        size += image.length * 0.75; // Base64 is ~33% larger than binary
+      });
+    }
+
+    return size;
+  }
+
   // Debug method
   public debug() {
     console.log('IterationStore Debug:', {

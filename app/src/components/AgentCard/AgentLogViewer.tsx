@@ -1,11 +1,11 @@
 // src/components/AgentLogViewer.tsx
 import React, { useState, useEffect } from 'react';
-import { 
-  Brain, HelpCircle, 
+import {
+  Brain, HelpCircle,
   Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle,
-  ScanText, Bell, Mail, Send, MessageSquare, MessageSquarePlus, 
+  ScanText, Bell, Mail, Send, MessageSquare, MessageSquarePlus,
   MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass,
-  ArrowRight, Clock, Download, ChevronDown, MessageCircle, Images
+  ArrowRight, Clock, Download, ChevronDown, MessageCircle, Images, Trash2
 } from 'lucide-react';
 import { IterationStore, IterationData, SensorData, ToolCall, AgentSession } from '../../utils/IterationStore';
 import { exportData, ExportFormat } from '../../utils/exportUtils';
@@ -142,6 +142,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   const [exportSessionType, setExportSessionType] = useState<'current' | 'historical' | 'all'>('all');
   const [exportSessionId, setExportSessionId] = useState<string>('');
   const [includeImages, setIncludeImages] = useState(true);
+  const [isClearing, setIsClearing] = useState(false);
 
   useEffect(() => {
     // Get initial data
@@ -394,6 +395,30 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     }
   };
 
+  // Handle clear all history
+  const handleClearAllHistory = async () => {
+    if (isClearing) return;
+
+    if (!confirm('Clear ALL history for this agent? This will permanently delete all stored sessions and iterations. This action cannot be undone.')) {
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      await IterationStore.clearAllHistory(agentId);
+      // Refresh data after clearing
+      const updatedIterations = IterationStore.getIterationsForAgent(agentId);
+      const updatedHistorical = await IterationStore.getHistoricalSessions(agentId);
+
+      setCurrentIterations(updatedIterations);
+      setHistoricalSessions(updatedHistorical);
+    } catch (error) {
+      console.error('Failed to clear all history:', error);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   // Reset session ID when session type changes
   useEffect(() => {
     if (exportSessionType !== 'historical') {
@@ -601,9 +626,18 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 
   return (
     <div>
-      {/* Export Button - Only show when there's data */}
+      {/* Export and Clear Buttons - Only show when there's data */}
       {(currentIterations.length > 0 || historicalSessions.length > 0) && (
-        <div className="flex justify-end mb-4 relative">
+        <div className="flex justify-end gap-2 mb-4 relative">
+          <button
+            onClick={handleClearAllHistory}
+            disabled={isClearing}
+            className="flex items-center gap-1 px-3 py-2 text-sm bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition-colors disabled:opacity-50"
+            title="Clear all agent history"
+          >
+            <Trash2 className="w-4 h-4" />
+            {isClearing ? 'Clearing...' : 'Clear All'}
+          </button>
           <button
             onClick={() => setShowExportDropdown(!showExportDropdown)}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
