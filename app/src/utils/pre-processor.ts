@@ -35,7 +35,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         const { screenVideoStream } = StreamManager.getCurrentState();
         if (!screenVideoStream) throw new Error('Screen stream not available for OCR.');
 
-        const ocrResult = await captureFrameAndOCR(screenVideoStream); 
+        const ocrResult = await captureFrameAndOCR(screenVideoStream, agentId, 'screen'); 
 
         if (ocrResult.success && ocrResult.text) {
           Logger.debug(agentId, `OCR successful, text injected into prompt`);
@@ -80,7 +80,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         if (!screenVideoStream) throw new Error('Screen stream not available for image capture.');
         
         // Pass the existing stream to the utility
-        const base64Image = await captureScreenImage(screenVideoStream);
+        const base64Image = await captureScreenImage(screenVideoStream, agentId, 'screen');
 
         if (base64Image) {
           // Basic check for data URI prefix, then the base64 part
@@ -166,7 +166,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
         if (!cameraStream) throw new Error('Camera stream not available for image capture.');
         
         // Pass the existing stream to the utility
-        const base64Image = await captureCameraImage(cameraStream);
+        const base64Image = await captureCameraImage(cameraStream, agentId);
 
         if (base64Image) {
           // You can add the same base64 validation as SCREEN_64 if you like

@@ -6,6 +6,7 @@ import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
 import { StreamManager, PseudoStreamType } from './streamManager'; // Import the new manager
+import { removeAgentCrops } from './screenCapture';
 import { recordingManager } from './recordingManager';
 import { IterationStore } from './IterationStore';
 
@@ -135,6 +136,7 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
     Logger.error(agentId, `Failed to start agent loop: ${displayError instanceof Error ? displayError.message : String(displayError)}`, error);
     // On startup failure, ensure we release any streams that might have been requested
     StreamManager.releaseStreamsForAgent(agentId);
+    // Note: Crop configs are preserved even on startup failure
     // Dispatch "stopped" so UI can recover
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
@@ -157,6 +159,8 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
     Logger.debug(agentId, "Releasing all potential streams for stopping agent.");
 
     StreamManager.releaseStreamsForAgent(agentId);
+
+    // Note: Agent crop configurations are preserved across stop/start cycles
 
 
     // End the current session and save to IndexedDB

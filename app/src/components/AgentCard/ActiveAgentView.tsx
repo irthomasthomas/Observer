@@ -1,9 +1,148 @@
 // components/AgentCard/ActiveAgentView.tsx
 import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
-import { Eye, Clock, Power, Activity, VideoOff, Mic, Volume2 } from 'lucide-react';
+import { Eye, Clock, Power, Activity, VideoOff, Mic, Volume2, Crop, RotateCcw } from 'lucide-react';
 import { StreamState, AudioStreamType } from '@utils/streamManager';
+import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 
 type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'IDLE';
+
+// --- Crop Overlay Component ---
+
+interface CropOverlayProps {
+  isActive: boolean;
+  onCropSelect: (crop: CropConfig) => void;
+  existingCrop?: CropConfig | null;
+  videoElement: HTMLVideoElement | null;
+}
+
+const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, existingCrop, videoElement }) => {
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [currentCrop, setCurrentCrop] = useState<CropConfig | null>(existingCrop || null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCurrentCrop(existingCrop || null);
+  }, [existingCrop]);
+
+  const getVideoScale = () => {
+    if (!videoElement || !overlayRef.current) return { scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 };
+
+    const video = videoElement;
+    const overlay = overlayRef.current;
+    const videoRatio = video.videoWidth / video.videoHeight;
+    const containerRatio = overlay.offsetWidth / overlay.offsetHeight;
+
+    let scaleX, scaleY, offsetX = 0, offsetY = 0;
+
+    if (videoRatio > containerRatio) {
+      // Video is wider - fit to width
+      scaleX = video.videoWidth / overlay.offsetWidth;
+      scaleY = scaleX;
+      offsetY = (overlay.offsetHeight - video.videoHeight / scaleY) / 2;
+    } else {
+      // Video is taller - fit to height
+      scaleY = video.videoHeight / overlay.offsetHeight;
+      scaleX = scaleY;
+      offsetX = (overlay.offsetWidth - video.videoWidth / scaleX) / 2;
+    }
+
+    return { scaleX, scaleY, offsetX, offsetY };
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isActive || !overlayRef.current) return;
+
+    const rect = overlayRef.current.getBoundingClientRect();
+    const { offsetX, offsetY } = getVideoScale();
+
+    const x = e.clientX - rect.left - offsetX;
+    const y = e.clientY - rect.top - offsetY;
+
+    setStartPos({ x, y });
+    setIsSelecting(true);
+    setCurrentCrop(null);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isSelecting || !overlayRef.current) return;
+
+    const rect = overlayRef.current.getBoundingClientRect();
+    const { scaleX, scaleY, offsetX, offsetY } = getVideoScale();
+
+    const currentX = e.clientX - rect.left - offsetX;
+    const currentY = e.clientY - rect.top - offsetY;
+
+    const x = Math.min(startPos.x, currentX);
+    const y = Math.min(startPos.y, currentY);
+    const width = Math.abs(currentX - startPos.x);
+    const height = Math.abs(currentY - startPos.y);
+
+    // Convert to video coordinates
+    const videoCrop = {
+      x: Math.max(0, Math.round(x * scaleX)),
+      y: Math.max(0, Math.round(y * scaleY)),
+      width: Math.round(width * scaleX),
+      height: Math.round(height * scaleY)
+    };
+
+    setCurrentCrop(videoCrop);
+  };
+
+  const handleMouseUp = () => {
+    if (!isSelecting || !currentCrop) return;
+
+    setIsSelecting(false);
+    if (currentCrop.width > 10 && currentCrop.height > 10) {
+      onCropSelect(currentCrop);
+    }
+  };
+
+  const renderCropRect = () => {
+    if (!currentCrop || !overlayRef.current) return null;
+
+    const { scaleX, scaleY, offsetX, offsetY } = getVideoScale();
+
+    const style = {
+      left: `${currentCrop.x / scaleX + offsetX}px`,
+      top: `${currentCrop.y / scaleY + offsetY}px`,
+      width: `${currentCrop.width / scaleX}px`,
+      height: `${currentCrop.height / scaleY}px`,
+    };
+
+    return (
+      <div
+        className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-20"
+        style={style}
+      >
+        <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 rounded">
+          {currentCrop.width}×{currentCrop.height}
+        </div>
+      </div>
+    );
+  };
+
+  // Show overlay if actively cropping OR if there's an existing crop to display
+  if (!isActive && !existingCrop) return null;
+
+  return (
+    <div
+      ref={overlayRef}
+      className={`absolute inset-0 z-10 ${isActive ? 'cursor-crosshair' : 'pointer-events-none'}`}
+      onMouseDown={isActive ? handleMouseDown : undefined}
+      onMouseMove={isActive ? handleMouseMove : undefined}
+      onMouseUp={isActive ? handleMouseUp : undefined}
+      onMouseLeave={isActive ? () => setIsSelecting(false) : undefined}
+    >
+      {renderCropRect()}
+      {isActive && (
+        <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+          Drag to select crop area
+        </div>
+      )}
+    </div>
+  );
+};
 
 // --- Helper Functions & Components specific to the Active View ---
 
@@ -67,14 +206,75 @@ const AudioWaveform: React.FC<{ stream: MediaStream, title: string, icon: React.
   );
 };
 
-const VideoStream: React.FC<{ stream: MediaStream }> = ({ stream }) => {
-  const videoRef = React.useRef<HTMLVideoElement>(null);
+const VideoStream: React.FC<{
+  stream: MediaStream;
+  streamType: 'camera' | 'screen';
+  agentId: string;
+}> = ({ stream, streamType, agentId }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isCropMode, setIsCropMode] = useState(false);
+  const [currentCrop, setCurrentCrop] = useState<CropConfig | null>(null);
+
+  // Load existing crop config
+  useEffect(() => {
+    const existingCrop = getAgentCrop(agentId, streamType);
+    setCurrentCrop(existingCrop);
+  }, [agentId, streamType]);
+
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
   }, [stream]);
+
+  const handleCropSelect = (crop: CropConfig) => {
+    setAgentCrop(agentId, streamType, crop);
+    setCurrentCrop(crop);
+    setIsCropMode(false);
+  };
+
+  const handleClearCrop = () => {
+    setAgentCrop(agentId, streamType, null);
+    setCurrentCrop(null);
+  };
+
   return (
-    <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0">
+    <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0 relative group">
+      {/* Video element */}
       <video ref={videoRef} muted autoPlay playsInline className="w-full h-full object-contain"></video>
+
+      {/* Crop controls - show on hover */}
+      <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 z-20">
+        <button
+          onClick={() => setIsCropMode(true)}
+          disabled={isCropMode}
+          className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white p-1.5 rounded text-xs flex items-center gap-1 transition-colors disabled:opacity-50"
+          title={`Crop ${streamType}`}
+        >
+          <Crop className="w-3 h-3" />
+        </button>
+
+        {currentCrop && (
+          <>
+            <div className="bg-black bg-opacity-70 text-white text-xs px-1.5 py-1 rounded">
+              {currentCrop.width}×{currentCrop.height}
+            </div>
+            <button
+              onClick={handleClearCrop}
+              className="bg-red-600 bg-opacity-80 hover:bg-opacity-100 text-white p-1 rounded transition-colors"
+              title="Clear crop"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Crop overlay */}
+      <CropOverlay
+        isActive={isCropMode}
+        onCropSelect={handleCropSelect}
+        existingCrop={currentCrop}
+        videoElement={videoRef.current}
+      />
     </div>
   );
 };
@@ -170,8 +370,8 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
         <div className="grid md:grid-cols-2 md:gap-6 animate-fade-in">
             {/* Left Column: Media Streams */}
             <div className="space-y-4">
-                {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} />}
-                {streams.cameraStream && <VideoStream stream={streams.cameraStream} />}
+                {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} streamType="screen" agentId={agentId} />}
+                {streams.cameraStream && <VideoStream stream={streams.cameraStream} streamType="camera" agentId={agentId} />}
                 {!streams.screenVideoStream && !streams.cameraStream && (
                     <NoStreamPlaceholder
                         icon={<VideoOff className="w-5 h-5" />}
