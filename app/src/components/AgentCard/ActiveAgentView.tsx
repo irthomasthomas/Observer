@@ -1,5 +1,5 @@
 // components/AgentCard/ActiveAgentView.tsx
-import React, { useMemo, useRef, useEffect, ReactNode } from 'react';
+import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
 import { Eye, Clock, Power, Activity, VideoOff, Mic, Volume2 } from 'lucide-react';
 import { StreamState, AudioStreamType } from '@utils/streamManager';
 
@@ -120,15 +120,51 @@ interface ActiveAgentViewProps {
     liveStatus: AgentLiveStatus;
     lastResponse: string;
     responseKey: number;
+    agentId: string;
 }
 
 const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     streams,
     liveStatus,
     lastResponse,
-    responseKey
+    responseKey,
+    agentId
 }) => {
     const audioStreamsToDisplay = useMemo(() => getActiveAudioStreamsForDisplay(streams), [streams]);
+    const [streamingResponse, setStreamingResponse] = useState('');
+    const [isStreaming, setIsStreaming] = useState(false);
+
+    useEffect(() => {
+        const handleStreamStart = (event: CustomEvent) => {
+            if (event.detail.agentId === agentId) {
+                setStreamingResponse('');
+                setIsStreaming(true);
+            }
+        };
+
+        const handleStreamChunk = (event: CustomEvent) => {
+            if (event.detail.agentId === agentId) {
+                setStreamingResponse(prev => prev + event.detail.chunk);
+            }
+        };
+
+        const handleIterationStart = (event: CustomEvent) => {
+            if (event.detail.agentId === agentId) {
+                setIsStreaming(false);
+                setStreamingResponse('');
+            }
+        };
+
+        window.addEventListener('agentStreamStart', handleStreamStart as EventListener);
+        window.addEventListener('agentResponseChunk', handleStreamChunk as EventListener);
+        window.addEventListener('agentIterationStart', handleIterationStart as EventListener);
+
+        return () => {
+            window.removeEventListener('agentStreamStart', handleStreamStart as EventListener);
+            window.removeEventListener('agentResponseChunk', handleStreamChunk as EventListener);
+            window.removeEventListener('agentIterationStart', handleIterationStart as EventListener);
+        };
+    }, [agentId]);
 
     return (
         <div className="grid md:grid-cols-2 md:gap-6 animate-fade-in">
@@ -152,7 +188,10 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
             {/* Right Column: Status and Response */}
             <div className="space-y-4 flex flex-col justify-start">
                 <StateTicker status={liveStatus} />
-                <LastResponse response={lastResponse} responseKey={responseKey} />
+                <LastResponse
+                    response={isStreaming ? streamingResponse : lastResponse}
+                    responseKey={isStreaming ? -1 : responseKey}
+                />
             </div>
         </div>
     );

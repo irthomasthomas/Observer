@@ -232,7 +232,26 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     }
 
     Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`, { iterationId });
-    const response = await sendPrompt(serverHost, serverPort, agent.model_name, preprocessResult, token);
+
+    // Streaming callback that dispatches events for UI
+    let isFirstChunk = true;
+    const onStreamChunk = (chunk: string) => {
+      try {
+        if (isFirstChunk) {
+          window.dispatchEvent(new CustomEvent('agentStreamStart', {
+            detail: { agentId, iterationId }
+          }));
+          isFirstChunk = false;
+        }
+        window.dispatchEvent(new CustomEvent('agentResponseChunk', {
+          detail: { agentId, chunk, iterationId }
+        }));
+      } catch (error) {
+        Logger.debug(agentId, `Failed to dispatch streaming event: ${error}`, { iterationId });
+      }
+    };
+
+    const response = await sendPrompt(serverHost, serverPort, agent.model_name, preprocessResult, token, true, onStreamChunk);
     Logger.info(agentId, `Response`, { logType: 'model-response', iterationId, content: response });
 
     try {

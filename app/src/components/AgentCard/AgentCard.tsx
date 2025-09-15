@@ -231,6 +231,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               liveStatus={liveStatus}
               lastResponse={lastResponse}
               responseKey={responseKey}
+              agentId={agent.id}
             />
           ) : (
             // FIX: Pass the 'code' prop down to StaticAgentView
