@@ -6,7 +6,6 @@ import { Logger } from './logging';
 import { preProcess } from './pre-processor';
 import { postProcess } from './post-processor';
 import { StreamManager, PseudoStreamType } from './streamManager'; // Import the new manager
-import { removeAgentCrops } from './screenCapture';
 import { recordingManager } from './recordingManager';
 import { IterationStore } from './IterationStore';
 
