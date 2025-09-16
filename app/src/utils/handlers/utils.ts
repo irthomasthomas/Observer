@@ -559,3 +559,10 @@ export async function overlay(appUrl: string, message: string): Promise<void> {
     throw new Error(`Server responded with status: ${response.status}`);
   }
 }
+
+/**
+ * Sleep for a specified number of milliseconds
+ */
+export async function sleep(ms: number = 2000): Promise<void> {
+  await new Promise(r => setTimeout(r, ms));
+}

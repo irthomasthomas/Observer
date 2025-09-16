@@ -547,8 +547,8 @@ export async function executeJavaScript(
           if (!appUrl) throw new Error("Could not determine the local app server address.");
 
           await utils.overlay(appUrl, body);
-          Logger.info(agentId, `Overlay message sent`, { 
-            logType: 'tool-success', 
+          Logger.info(agentId, `Overlay message sent`, {
+            logType: 'tool-success',
             iterationId,
             content: { tool: 'overlay', params: { body: body.slice(0,100)}, success: true }
           });
@@ -562,6 +562,23 @@ export async function executeJavaScript(
         }
       },
 
+      sleep: async (ms: number = 2000): Promise<void> => {
+        try {
+          await utils.sleep(ms);
+          Logger.info(agentId, `Slept for ${ms}ms`, {
+            logType: 'tool-success',
+            iterationId,
+            content: { tool: 'sleep', params: { ms } }
+          });
+        } catch (error) {
+          Logger.error(agentId, `Failed to sleep`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'sleep', params: { ms }, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
 
     };
 
