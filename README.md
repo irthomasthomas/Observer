@@ -50,6 +50,7 @@ Agent Tools:
   * `startAgent(agentId)*` – Starts an agent  
   * `stopAgent(agentId)*` – Stops an agent
   * `time()` - Gets current time
+  * `sleep(ms)` - Waits that ammount of miliseconds
 
 Notification Tools:
   * `sendEmail(email, message, images?)` - Sends an email
