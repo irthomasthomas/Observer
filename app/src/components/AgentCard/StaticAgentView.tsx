@@ -6,8 +6,8 @@ import {
     MessageSquare, MessageSquarePlus, MessageSquareQuote, Tag, Hourglass, Send, Monitor, MessageCircle, Images
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
-import { listModels } from '@utils/ollamaServer';
-import { getOllamaServerAddress } from '@utils/main_loop';
+import { listModels } from '@utils/inferenceServer';
+import { getInferenceAddresses } from '@utils/inferenceServer';
 
 // --- Icon Components for External Tools ---
 function PushoverIcon() { 
@@ -107,9 +107,9 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
         setIsLoading(true);
         setError(null);
         try {
-            const serverDetails = getOllamaServerAddress();
-            if (!serverDetails.host || !serverDetails.port) throw new Error("Ollama server not configured.");
-            const response = await listModels(serverDetails.host, serverDetails.port);
+            const addresses = getInferenceAddresses();
+            if (addresses.length === 0) throw new Error("No inference servers configured.");
+            const response = listModels();
             if (response.error) throw new Error(response.error);
             setAvailableModels(response.models);
         } catch (e) {

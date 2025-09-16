@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Modal from '@components/EditAgent/Modal';
 import { SimpleTool, ToolData } from '@utils/agentTemplateManager';
-import { Model, listModels } from '@utils/ollamaServer';
-import { getOllamaServerAddress } from '@utils/main_loop';
+import { Model, listModels } from '@utils/inferenceServer';
+// Removed getOllamaServerAddress import - no longer needed
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
   Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images
@@ -148,8 +148,8 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const fetchInitialData = useCallback(async () => {
     setLoadingModels(true);
     try {
-      const { host, port } = getOllamaServerAddress();
-      const [modelsResponse, agentsResponse] = await Promise.all([listModels(host, port), listAgents()]);
+      const modelsResponse = listModels();
+      const agentsResponse = await listAgents();
       if (modelsResponse.models) {
         setAvailableModels(modelsResponse.models);
         if (modelsResponse.models.length > 0 && !model) {

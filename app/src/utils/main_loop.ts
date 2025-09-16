@@ -15,8 +15,6 @@ const activeLoops: Record<string, {
   intervalId: number | null,
   isRunning: boolean,
   isExecuting: boolean,
-  serverHost: string,
-  serverPort: string,
   intervalMs: number,
   getToken?: TokenProvider;
 }> = {};
@@ -25,18 +23,7 @@ export const AGENT_STATUS_CHANGED_EVENT = 'agentStatusChanged';
 export const AGENT_ITERATION_START_EVENT = 'agentIterationStart';
 export const AGENT_WAITING_START_EVENT = 'agentWaitingStart';
 
-let serverHost = 'localhost';
-let serverPort = '3838';
-
-export function setOllamaServerAddress(host: string, port: string): void {
-  serverHost = host;
-  serverPort = port;
-  Logger.info('SERVER', `Ollama server address set to ${host}:${port}`);
-}
-
-export function getOllamaServerAddress(): { host: string; port: string } {
-  return { host: serverHost, port: serverPort };
-}
+// Removed legacy server address functions - now using inferenceServer.ts
 
 export async function startAgentLoop(agentId: string, getToken?: TokenProvider): Promise<void> {
   if (activeLoops[agentId]?.isRunning) {
@@ -74,14 +61,12 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
     IterationStore.startSession(agentId, sessionId);
 
     const intervalMs = agent.loop_interval_seconds * 1000;
-    activeLoops[agentId] = { 
-        intervalId: null, 
-        isRunning: true, 
+    activeLoops[agentId] = {
+        intervalId: null,
+        isRunning: true,
         isExecuting: false,
-        serverHost, 
-        serverPort,
         intervalMs,
-        getToken 
+        getToken
     };
     window.dispatchEvent(
       new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
@@ -234,7 +219,7 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
         }
     }
 
-    Logger.debug(agentId, `Sending prompt to Ollama (${serverHost}:${serverPort}, model: ${agent.model_name})`, { iterationId });
+    Logger.debug(agentId, `Sending prompt to inference server (model: ${agent.model_name})`, { iterationId });
 
     // Streaming callback that dispatches events for UI
     let isFirstChunk = true;
@@ -254,7 +239,7 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       }
     };
 
-    const response = await sendPrompt(serverHost, serverPort, agent.model_name, preprocessResult, token, true, onStreamChunk);
+    const response = await sendPrompt(agent.model_name, preprocessResult, token, true, onStreamChunk);
     Logger.info(agentId, `Response`, { logType: 'model-response', iterationId, content: response });
 
     try {
@@ -333,11 +318,9 @@ export async function executeTestIteration(
         token = await getToken();
     }
 
-    // Send the prompt to Ollama and get response
-    Logger.info(agentId, `Sending prompt to Ollama (model: ${modelName})`);
+    // Send the prompt to inference server and get response
+    Logger.info(agentId, `Sending prompt to inference server (model: ${modelName})`);
     const response = await sendPrompt(
-      serverHost,
-      serverPort,
       modelName,
       processedPrompt,
       token

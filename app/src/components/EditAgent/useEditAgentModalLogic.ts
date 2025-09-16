@@ -6,8 +6,8 @@ import {
   downloadAgent,
   listAgents as dbListAgents
 } from '@utils/agent_database';
-import { listModels, Model } from '@utils/ollamaServer';
-import { getOllamaServerAddress, executeTestIteration } from '@utils/main_loop';
+import { listModels, Model } from '@utils/inferenceServer';
+import { executeTestIteration } from '@utils/main_loop';
 import { Logger, LogEntry, LogLevel } from '@utils/logging';
 import {
   getJupyterConfig,
@@ -117,8 +117,7 @@ export const useEditAgentModalLogic = ({
     try {
       setLoadingModels(true);
       setModelsError(null);
-      const { host, port } = getOllamaServerAddress();
-      const r = await listModels(host, port);
+      const r = listModels();
       if (r.error) throw new Error(r.error);
       setAvailableModels(r.models);
       const defaultModel = agent?.model_name ?? r.models[0]?.name ?? '';

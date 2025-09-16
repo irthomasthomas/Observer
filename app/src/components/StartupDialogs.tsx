@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Terminal, Cloud, Server, AlertTriangle, Download } from 'lucide-react';
 import TerminalModal from '@components/TerminalModal';
+import { fetchModels } from '@utils/inferenceServer';
 
 interface StartupDialogProps {
   onDismiss: () => void;
@@ -84,11 +85,13 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
     }
   }, [hostingContext]);
 
-  const handleObServerStart = () => {
+  const handleObServerStart = async () => {
     if (!isAuthenticated) {
       if (onLogin) onLogin();
     } else {
       if (setUseObServer) setUseObServer(true);
+      // Fetch models after switching to ObServer to update the model list
+      await fetchModels();
       onDismiss();
     }
   };

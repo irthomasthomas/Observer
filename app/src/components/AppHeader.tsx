@@ -1,42 +1,16 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
 import { LogOut, ExternalLink, RefreshCw, Server } from 'lucide-react';
-import { checkOllamaServer } from '@utils/ollamaServer';
-import { setOllamaServerAddress } from '@utils/main_loop';
+import { checkInferenceServer, addInferenceAddress, removeInferenceAddress, fetchModels } from '@utils/inferenceServer';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import ConnectionSettingsModal from './ConnectionSettingsModal';
 import StartupDialogs from './StartupDialogs';
 import type { TokenProvider } from '@utils/main_loop';
 
-// --- NEW HELPER FUNCTION ---
-/**
- * Parses a server address string into its host (with protocol) and port.
- * Defaults to http if no protocol is provided.
- * @param address The full address string, e.g., "localhost:3838" or "http://127.0.0.1:8080"
- * @returns An object with host and port.
- */
-const parseServerAddress = (address: string): { host: string; port: string } => {
-  let processedAddress = address.trim();
-
-  // If the user doesn't specify a protocol, default to http for simplicity.
-  if (!processedAddress.startsWith('http://') && !processedAddress.startsWith('https://')) {
-    processedAddress = `http://${processedAddress}`;
-  }
-
-  const lastColonIndex = processedAddress.lastIndexOf(':');
-
-  // Ensure the colon is present and is after the protocol part (e.g., "https://")
-  if (lastColonIndex === -1 || lastColonIndex < processedAddress.indexOf('//')) {
-    Logger.warn('SERVER_PARSE', `No port found in address: ${address}. Returning full address as host.`);
-    return { host: processedAddress, port: '' }; // No port found
-  }
-
-  const host = processedAddress.substring(0, lastColonIndex);
-  const port = processedAddress.substring(lastColonIndex + 1);
-
-  return { host, port };
-};
+// Server address constants
+const OB_SERVER_ADDRESS = 'https://api.observer-ai.com:443';
+const LOCAL_SERVER_ADDRESS = 'http://localhost:3838';
 
 
 // --- The rest of your component ---
@@ -87,10 +61,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   quotaInfo,
   setQuotaInfo,
 }) => {
-  // --- MODIFIED --- Default to the full, desired URL for the proxy.
-  const [serverAddress, setServerAddress] = useState(() => {
-  return localStorage.getItem(LOCAL_STORAGE_KEY) || 'http://localhost:3838';
-});
+  const [localServerOnline, setLocalServerOnline] = useState(false);
+  const [localServerAddress, setLocalServerAddress] = useState(() => {
+    return localStorage.getItem(LOCAL_STORAGE_KEY) || LOCAL_SERVER_ADDRESS;
+  });
 
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
@@ -207,7 +181,19 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       return;
     }
 
-    // Just update the state. The useEffect will handle the rest.
+    // Update state and manage inference addresses
+    if (newValue) {
+      // Add ObServer immediately
+      addInferenceAddress(OB_SERVER_ADDRESS);
+      // Fetch models to include ObServer models
+      fetchModels();
+    } else {
+      // Remove ObServer
+      removeInferenceAddress(OB_SERVER_ADDRESS);
+      // Fetch models to remove ObServer models
+      fetchModels();
+    }
+
     if (externalSetIsUsingObServer) {
       externalSetIsUsingObServer(newValue);
     } else {
@@ -215,88 +201,89 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
-  const checkServerStatus = async () => {
-    if (isUsingObServer) {
-      // --- Handle Ob-Server Case ---
-      try {
-        setServerStatus('unchecked');
-        const host = 'https://api.observer-ai.com';
-        const port = '443';
-        Logger.info('SERVER', `Checking connection to Ob-Server...`);
-        // We set this in the useEffect, but it's safe to re-affirm here.
-        setOllamaServerAddress(host, port);
-
-        const result = await checkOllamaServer(host, port);
-        if (result.status === 'online') {
-          setServerStatus('online');
-          setError(null);
-          Logger.info('SERVER', `Connected successfully to Ob-Server`);
-        } else {
-          throw new Error(result.error || 'Failed to connect');
-        }
-      } catch (err) {
-        setServerStatus('offline');
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        setError('Failed to connect to Ob-Server');
-        Logger.error('SERVER', `Error checking Ob-Server status: ${errorMessage}`, err);
-      }
-      return;
-    }
-
-    // --- Handle Local Inference Case ---
+  const checkLocalServer = async () => {
     try {
-      setServerStatus('unchecked');
-      const { host, port } = parseServerAddress(serverAddress);
-      Logger.debug('SERVER', `parsed address: ${serverAddress} and got host: ${host} and port: ${port}`);
-
-      if (!host || !port) {
-        throw new Error(`Invalid server address format. Please use 'host:port'.`);
-      }
-
-      Logger.info('SERVER', `Checking connection to local server at ${host}:${port}`);
-      setOllamaServerAddress(host, port);
-
-      const result = await checkOllamaServer(host, port);
+      Logger.info('SERVER', `Checking local server connection at ${localServerAddress}...`);
+      const result = await checkInferenceServer(localServerAddress);
 
       if (result.status === 'online') {
-        setServerStatus('online');
-        setError(null);
-        Logger.info('SERVER', `Connected successfully to local server.`);
+        setLocalServerOnline(true);
+        addInferenceAddress(localServerAddress);
+        Logger.info('SERVER', `Local server at ${localServerAddress} is online and added to inference addresses`);
+        // Update model list when server comes online
+        await fetchModels();
       } else {
-        setServerStatus('offline');
-        setError(result.error || 'Failed to connect to local server');
-        Logger.error('SERVER', `Failed to connect: ${result.error || 'Unknown error'}`);
+        setLocalServerOnline(false);
+        removeInferenceAddress(localServerAddress);
+        Logger.warn('SERVER', `Local server at ${localServerAddress} is offline: ${result.error}`);
+        // Update model list when server goes offline
+        await fetchModels();
       }
     } catch (err) {
-      setServerStatus('offline');
+      setLocalServerOnline(false);
+      removeInferenceAddress(localServerAddress);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Connection failed: ${errorMessage}`);
-      Logger.error('SERVER', `Error checking local server status: ${errorMessage}`, err);
+      Logger.error('SERVER', `Error checking local server: ${errorMessage}`, err);
     }
   };
 
-  const handleAddressInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isUsingObServer) return;
-    setServerAddress(e.target.value);
+  const checkObServer = async () => {
+    try {
+      Logger.info('SERVER', 'Checking ObServer connection...');
+      const result = await checkInferenceServer(OB_SERVER_ADDRESS);
+
+      if (result.status === 'online') {
+        Logger.info('SERVER', 'ObServer is online');
+        // Update model list when ObServer comes online
+        await fetchModels();
+      } else {
+        Logger.error('SERVER', `ObServer offline: ${result.error}`);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      Logger.error('SERVER', `Error checking ObServer: ${errorMessage}`, err);
+    }
   };
 
-  const handleAddressInputBlur = () => {
-    if (isUsingObServer) return; // Don't format if in Ob-Server mode
+  const checkAllServers = async () => {
+    setServerStatus('unchecked');
 
-    const currentAddress = serverAddress.trim();
-    if (!currentAddress) return;
+    const promises = [];
 
-    // Only add a protocol if one isn't already there.
-    if (!currentAddress.startsWith('http://') && !currentAddress.startsWith('https://')) {
-        const isLocal = currentAddress.startsWith('localhost') || /^\d{1,3}(\.\d{1,3}){3}/.test(currentAddress);
-        setServerAddress(isLocal ? `http://${currentAddress}` : `https://${currentAddress}`);
+    // Always check local server
+    promises.push(checkLocalServer());
+
+    // Check ObServer if enabled
+    if (isUsingObServer) {
+      promises.push(checkObServer());
+    }
+
+    await Promise.all(promises);
+
+    // Set overall status based on what's available
+    if (isUsingObServer && localServerOnline) {
+      setServerStatus('online');
+      setError(null);
+    } else if (isUsingObServer && !localServerOnline) {
+      setServerStatus('online'); // ObServer is primary when enabled
+      setError(null);
+    } else if (!isUsingObServer && localServerOnline) {
+      setServerStatus('online');
+      setError(null);
+    } else {
+      setServerStatus('offline');
+      setError('No servers available');
     }
   };
 
   const getServerUrl = () => {
-    // --- MODIFIED --- Use the parser to always get a valid URL for the link
-    const { host, port } = parseServerAddress(serverAddress);
-    return port ? `${host}:${port}` : host;
+    return localServerAddress;
+  };
+
+  const handleLocalAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newAddress = e.target.value;
+    setLocalServerAddress(newAddress);
+    localStorage.setItem(LOCAL_STORAGE_KEY, newAddress);
   };
 
   useEffect(() => {
@@ -313,35 +300,35 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     };
   }, []);
 
-  // Effect #1: The Mode Switcher. Its ONLY job is to update the address.
+  // Initialize and check local server on mount
   useEffect(() => {
-    if (isUsingObServer) {
-      setServerAddress('api.observer-ai.com');
-      Logger.info('SERVER', 'Mode switched to Ob-Server. Updating address...');
-      setOllamaServerAddress('https://api.observer-ai.com', '443'); // Set global state immediately
+    checkLocalServer();
+  }, []);
+
+  // Update overall status when local server status changes
+  useEffect(() => {
+    if (isUsingObServer && localServerOnline) {
+      setServerStatus('online');
+      setError(null);
+    } else if (isUsingObServer && !localServerOnline) {
+      setServerStatus('online'); // ObServer is available when enabled
+      setError(null);
+    } else if (!isUsingObServer && localServerOnline) {
+      setServerStatus('online');
+      setError(null);
     } else {
-      // --- MODIFIED LOGIC ---
-    // When switching back to local, get the last used address from storage.
-    const savedAddress = localStorage.getItem(LOCAL_STORAGE_KEY) || 'http://localhost:3838';
-    setServerAddress(savedAddress);
-    Logger.info('SERVER', `Mode switched to Local. Restoring address to ${savedAddress}...`);
+      setServerStatus('offline');
+      setError('No servers available');
+    }
+  }, [isUsingObServer, localServerOnline]);
 
-    // The rest of the logic uses the restored address
-    const { host, port } = parseServerAddress(savedAddress);
-    setOllamaServerAddress(host, port);
-    setQuotaInfo(null);
-    setIsSessionExpired(false);
-  }
-}, [isUsingObServer]);
-
-
-  // Effect #2: The Connection Checker. This runs AFTER Effect #1 has updated the state.
+  // Clear quota info when switching away from ObServer
   useEffect(() => {
-    // This effect runs on the initial component mount AND whenever serverAddress changes.
-    // By definition, it will always have the latest `serverAddress` value.
-    Logger.info('SERVER', `Address changed to "${serverAddress}", initiating connection check.`);
-    checkServerStatus(); // Call the function responsible for checking
-  }, [serverAddress]); // The dependency array is the magic.
+    if (!isUsingObServer) {
+      setQuotaInfo(null);
+      setIsSessionExpired(false);
+    }
+  }, [isUsingObServer]);
 
 
   useEffect(() => {
@@ -350,13 +337,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   }, [isUsingObServer, isAuthenticated, serverStatus]);
 
-  useEffect(() => {
-    // We only want to save the address if the user is in local mode.
-    // This prevents us from saving the Ob-Server API address as a user preference.
-    if (!isUsingObServer) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, serverAddress);
-    }
-  }, [serverAddress, isUsingObServer]);
+  // Removed: No longer need to save server address to localStorage
 
   const renderQuotaStatus = () => {
     if (isSessionExpired) {
@@ -473,28 +454,27 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     )
                   ) : (
                     <div className="text-xs text-center mt-1">
-                      <span className="font-semibold text-slate-700">
-                        Local Inference
+                      <span className={`font-semibold ${
+                        localServerOnline ? 'text-green-600' : 'text-red-500'
+                      }`}>
+                        {localServerOnline ? 'Local Online' : 'Local Offline'}
                       </span>
                     </div>
                   )}
                 </div>
-                {/* Server Address Input */}
+                {/* Local Server Address Input */}
                 <input
                   type="text"
-                  value={serverAddress}
-                  onChange={handleAddressInputChange}
-                  onBlur={handleAddressInputBlur} // Apply formatting when user is done.
-                  placeholder="http://localhost:11434" // Updated placeholder to reflect default
-                  className={`px-2 sm:px-3 py-2 border rounded-md text-sm
-                              ${isUsingObServer ? 'bg-gray-100 opacity-70' : ''}
-                              w-32 sm:w-32 md:w-32 lg:w-auto`}
-                  disabled={isUsingObServer}
+                  value={localServerAddress}
+                  onChange={handleLocalAddressChange}
+                  placeholder="http://localhost:3838"
+                  className="px-2 sm:px-3 py-2 border rounded-md text-sm w-32 sm:w-32 md:w-32 lg:w-auto"
+                  title="Local server address"
                 />
 
-                {/* Status Button */}
+                {/* Status Button - Check All Servers */}
                 <button
-                  onClick={checkServerStatus}
+                  onClick={checkAllServers}
                   className={`py-2 rounded-md flex items-center justify-center text-sm transition-colors duration-200 lg:min-w-32
                               ${serverStatus === 'online'
                                 ? 'bg-green-500 text-white'
@@ -512,19 +492,19 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   ) : (
                     <>
                       <RefreshCw className="h-4 w-4" />
-                      <span className="hidden lg:inline ml-1.5">Retry</span>
+                      <span className="hidden lg:inline ml-1.5">Check Servers</span>
                     </>
                   )}
                 </button>
 
                 {/* Helper link for local server */}
-                {(serverStatus === 'offline' || serverStatus === 'unchecked') && !isUsingObServer && (
+                {!isUsingObServer && !localServerOnline && (
                   <a
                     href={getServerUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center space-x-1.5 ml-1 sm:ml-2 p-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors duration-200 group"
-                    title={`Check ${serverAddress} status in a new tab`}
+                    title="Check local server status in a new tab"
                   >
                     <span className="text-sm text-gray-700 hidden lg:inline">Check Server</span>
                     <ExternalLink className="h-4 w-4 text-gray-500 group-hover:text-blue-600 transition-colors" />
@@ -606,10 +586,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           serverStatus,
           quotaInfo,
           renderQuotaStatus,
-          serverAddress,
-          handleAddressInputChange,
-          checkServerStatus,
-          getServerUrl
+          localServerOnline,
+          checkLocalServer,
+          checkAllServers,
+          checkServerStatus: checkObServer,
+          getServerUrl,
+          serverAddress: localServerAddress,
+          handleAddressInputChange: handleLocalAddressChange
         }}
       />
 

@@ -3,8 +3,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Zap } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
-import { listModels } from '@utils/ollamaServer';
-import { getOllamaServerAddress } from '@utils/main_loop';
+import { listModels } from '@utils/inferenceServer';
+import { getInferenceAddresses } from '@utils/inferenceServer';
 import { AGENT_ITERATION_START_EVENT } from '@utils/main_loop';
 import { Logger, LogEntry } from '@utils/logging';
 import { StreamManager, StreamState } from '@utils/streamManager';
@@ -180,9 +180,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
     }
 
     try {
-      const serverDetails = getOllamaServerAddress();
-      if (!serverDetails.host || !serverDetails.port) throw new Error("Ollama server not configured.");
-      const modelsResponse = await listModels(serverDetails.host, serverDetails.port);
+      const addresses = getInferenceAddresses();
+      if (addresses.length === 0) throw new Error("No inference servers configured.");
+      const modelsResponse = listModels();
       if (modelsResponse.error || !modelsResponse.models.some(m => m.name === currentModel)) {
         setStartWarning(`Model "${currentModel}" is not available. Check server or edit agent.`);
         setIsCheckingModel(false);

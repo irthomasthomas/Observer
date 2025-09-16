@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Sparkles, Terminal, Code, Cpu, Clipboard, ChevronDown, CheckCircle, Loader2 } from 'lucide-react';
 import GenerateAgent from './GenerateAgent';
-import { listModels, Model } from '@utils/ollamaServer'; // For model fetching
-import { getOllamaServerAddress } from '@utils/main_loop'; // For model fetching
+import { listModels, Model } from '@utils/inferenceServer'; // For model fetching
+// Removed getOllamaServerAddress import - no longer needed
 import getSystemPrompt from '@utils/system_prompt'; // For copying browser prompt
 import getPythonSystemPrompt from '@utils/python_system_prompt'; // For copying python prompt
 import type { TokenProvider } from '@utils/main_loop';
@@ -62,8 +62,7 @@ const GenerateAgentModal: React.FC<GenerateAgentModalProps> = ({
         setLoadingModels(true);
         setModelsError(null);
         try {
-          const { host, port } = getOllamaServerAddress();
-          const result = await listModels(host, port);
+          const result = listModels();
           if (result.error) {
             throw new Error(result.error);
           }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { listModels, Model } from '@utils/ollamaServer'; // Import updated Model interface
+import { listModels, Model } from '@utils/inferenceServer'; // Import updated Model interface
 import { Cpu, RefreshCw, Eye } from 'lucide-react'; // <-- Import Eye icon
 import { Logger } from '@utils/logging';
-import { getOllamaServerAddress } from '@utils/main_loop';
+import { getInferenceAddresses } from '@utils/inferenceServer';
 import TerminalModal from '@components/TerminalModal';
 
 // No need to redefine Model interface here if imported correctly
@@ -24,10 +24,10 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
 
     try {
       Logger.info('MODELS', 'Fetching available models from server');
-      const { host, port } = getOllamaServerAddress();
-      Logger.info('MODELS', `Using server address: ${host}:${port}`);
+      const addresses = getInferenceAddresses();
+      Logger.info('MODELS', `Using inference addresses: ${addresses.join(', ')}`);
 
-      const response = await listModels(host, port); // Uses updated listModels
+      const response = listModels(); // Uses updated listModels
 
       if (response.error) {
         throw new Error(response.error);
@@ -71,7 +71,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Available Models</h2>
         <div className="flex items-center gap-2">
-          {!getOllamaServerAddress().host.includes('api.observer-ai.com') && (
+          {getInferenceAddresses().some(addr => addr.includes('localhost')) && (
             <button
               onClick={() => setShowTerminal(true)}
               className="px-3 py-2 rounded-md bg-green-50 text-green-600 hover:bg-green-100"

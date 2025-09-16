@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Terminal, CheckCircle2, XCircle, LoaderCircle, ArrowRight, ArrowLeft } from 'lucide-react';
-import { checkOllamaServer } from '@utils/ollamaServer';
+import { checkInferenceServer } from '@utils/inferenceServer';
 
 interface LocalServerSetupDialogProps {
   serverStatus: 'unchecked' | 'online' | 'offline';
@@ -17,7 +17,7 @@ const LocalServerSetupDialog = ({
 }: LocalServerSetupDialogProps) => {
   useEffect(() => {
     const checkStatus = async () => {
-      const result = await checkOllamaServer('localhost', '3838');
+      const result = await checkInferenceServer('http://localhost:3838');
       setServerStatus(result.status === 'online' ? 'online' : 'offline');
     };
 

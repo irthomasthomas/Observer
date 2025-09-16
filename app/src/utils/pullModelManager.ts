@@ -1,6 +1,6 @@
 // src/utils/pullModelManager.ts
 
-import { getOllamaServerAddress } from './main_loop';
+import { getInferenceAddresses } from './inferenceServer';
 import { Logger } from './logging';
 
 type PullStatus = 'idle' | 'pulling' | 'success' | 'error';
@@ -73,8 +73,15 @@ const pullModel = async (modelName: string) => {
   Logger.info('PULL_MANAGER', `Starting pull for model: ${modelName}`);
 
   try {
-    const { host, port } = getOllamaServerAddress();
-    const response = await fetch(`${host}:${port}/api/pull`, {
+    // Model pulling only works with local Ollama servers
+    const addresses = getInferenceAddresses();
+    const localAddress = addresses.find(addr => addr.includes('localhost'));
+
+    if (!localAddress) {
+      throw new Error('No local Ollama server found for model pulling');
+    }
+
+    const response = await fetch(`${localAddress}/api/pull`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: modelName, stream: true }),

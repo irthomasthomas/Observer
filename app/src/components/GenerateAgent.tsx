@@ -1,12 +1,12 @@
 // src/components/GenerateAgent.tsx
 import React, { useState } from 'react';
 import { Loader2, Zap, XCircle, Save } from 'lucide-react';
-import { sendPrompt } from '@utils/sendApi';
+import { fetchResponse } from '@utils/sendApi';
 import { CompleteAgent, saveAgent } from '@utils/agent_database';
 import EditAgentModal from './EditAgent/EditAgentModal';
 import getSystemPrompt from '@utils/system_prompt';
 import getPythonSystemPrompt from '@utils/python_system_prompt';
-import { getOllamaServerAddress } from '@utils/main_loop';
+// Removed getOllamaServerAddress import - no longer needed
 import type { TokenProvider } from '@utils/main_loop';
 
 const PrettyAgentResponse: React.FC<{ responseText: string; isLoading: boolean }> = ({
@@ -163,12 +163,12 @@ const GenerateAgent: React.FC<GenerateAgentProps> = ({ agentType, modelName, get
     const fullPrompt = `${agentType === 'browser' ? getSystemPrompt() : getPythonSystemPrompt()} ${userInput}`;
 
     try {
-      const { host, port } = getOllamaServerAddress();
-      const response = await sendPrompt(
-        host,
-        port,
-        modelName, // Use the modelName prop
-        { modifiedPrompt: fullPrompt, images: [] }
+      // Use fetchResponse directly for the special Gemini model
+      const response = await fetchResponse(
+        'https://api.observer-ai.com:443',
+        fullPrompt,
+        'gemini-2.0-flash-lite-free',
+        await getToken()
       );
       setFullResponse(response);
       setIsFakeStreaming(true);

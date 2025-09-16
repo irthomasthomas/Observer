@@ -3,14 +3,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu, X, AlertTriangle, Clipboard } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { sendPrompt } from '@utils/sendApi';
+import { sendPrompt, fetchResponse } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
 import MediaUploadMessage from './MediaUploadMessage';
 import getConversationalSystemPrompt from '@utils/conversational_system_prompt';
 import type { TokenProvider } from '@utils/main_loop';
-import { getOllamaServerAddress } from '@utils/main_loop';
-import { listModels, Model } from '@utils/ollamaServer';
+// Removed getOllamaServerAddress import - no longer needed
+import { listModels, Model } from '@utils/inferenceServer';
 
 // ===================================================================================
 //  LOCAL MODEL SELECTION MODAL
@@ -37,8 +37,7 @@ const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isO
         setIsFetchingModels(true);
         setLocalModelError(null);
         try {
-          const { host, port } = getOllamaServerAddress();
-          const result = await listModels(host, port);
+          const result = listModels();
           if (result.error) throw new Error(result.error);
           if (result.models.length === 0) {
             setLocalModelError("No models found. Ensure your local server is running and has models available.");
@@ -245,18 +244,38 @@ What would you like to create today?`
         const token = await getToken();
         if (!token) throw new Error("Authentication failed.");
         // if you think of spamming this model somehow te voy a jalar las patas en la noche >:(
-        responseText = await sendPrompt('https://api.observer-ai.com', '443', 'gemini-2.0-flash-lite-free', { modifiedPrompt: fullPrompt, images }, token, true, (chunk: string) => {
-          accumulatedResponse += chunk;
-          setMessages(prev => prev.map(msg =>
-            msg.id === streamingMessageId
-              ? { ...msg, text: accumulatedResponse }
-              : msg
-          ));
-        });
+        // Prepare content for fetchResponse
+        let content: any = fullPrompt;
+        if (images && images.length > 0) {
+          content = [
+            { type: "text", text: fullPrompt },
+            ...images.map(imageBase64Data => ({
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${imageBase64Data}`
+              }
+            }))
+          ];
+        }
+
+        responseText = await fetchResponse(
+          'https://api.observer-ai.com:443',
+          content,
+          'gemini-2.0-flash-lite-free',
+          token,
+          true,
+          (chunk: string) => {
+            accumulatedResponse += chunk;
+            setMessages(prev => prev.map(msg =>
+              msg.id === streamingMessageId
+                ? { ...msg, text: accumulatedResponse }
+                : msg
+            ));
+          }
+        );
       } else {
         // --- LOCAL PATH ---
-        const { host, port } = getOllamaServerAddress();
-        responseText = await sendPrompt(host, port, selectedLocalModel, { modifiedPrompt: fullPrompt, images }, undefined, true, (chunk: string) => {
+        responseText = await sendPrompt(selectedLocalModel, { modifiedPrompt: fullPrompt, images }, undefined, true, (chunk: string) => {
           accumulatedResponse += chunk;
           setMessages(prev => prev.map(msg =>
             msg.id === streamingMessageId
