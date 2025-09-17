@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Terminal, Cloud, Server, AlertTriangle, Download } from 'lucide-react';
 import TerminalModal from '@components/TerminalModal';
-import { fetchModels } from '@utils/inferenceServer';
+import { fetchModels, addInferenceAddress } from '@utils/inferenceServer';
 
 interface StartupDialogProps {
   onDismiss: () => void;
@@ -91,6 +91,8 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
     } else {
       if (setUseObServer) setUseObServer(true);
       // Fetch models after switching to ObServer to update the model list
+      addInferenceAddress("https://api.observer-ai.com:443");
+
       await fetchModels();
       onDismiss();
     }
