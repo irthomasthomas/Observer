@@ -13,6 +13,17 @@ export function extractAgentConfig(text: string): string | null {
 }
 
 /**
+ * Extracts all agent configuration blocks from a string.
+ * @param text The text possibly containing multiple agent configs.
+ * @returns An array of content inside $$$ blocks, or empty array if none found.
+ */
+export function extractMultipleAgentConfigs(text: string): string[] {
+  const agentBlockRegex = /\$\$\$\s*\n?([\s\S]*?)\n?\$\$\$/g;
+  const matches = Array.from(text.matchAll(agentBlockRegex));
+  return matches.map(match => match[1] ? match[1].trim() : '').filter(config => config.length > 0);
+}
+
+/**
  * Extracts the image request text from a string.
  * @param text The text possibly containing an image request.
  * @returns The content inside the %%% block, or null if not found.

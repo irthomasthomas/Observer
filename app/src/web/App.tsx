@@ -625,6 +625,7 @@ function AppContent() {
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
+                  isPro={isProUser}
                   onSignIn={loginWithRedirect}
                   onSwitchToObServer={() => setIsUsingObServer(true)}
                 />
@@ -663,6 +664,7 @@ function AppContent() {
           getToken={getToken}
           isAuthenticated={isAuthenticated}
           isUsingObServer={isUsingObServer}
+          isPro={isProUser}
           onSignIn={loginWithRedirect}
           onSwitchToObServer={() => setIsUsingObServer(true)}
         />
