@@ -6,16 +6,11 @@ import MultiAgentCreator from './MultiAgentCreator';
 import { CompleteAgent } from '@utils/agent_database';
 import type { TokenProvider } from '@utils/main_loop';
 
-interface MultiAgentResult {
-  agents: CompleteAgent[];
-  codes: string[];
-}
 
 interface GetStartedProps {
   onExploreCommunity: () => void;
   onCreateNewAgent: () => void;
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
-  onMultiAgentGenerated?: (result: MultiAgentResult) => void;
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
@@ -28,7 +23,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
   onExploreCommunity,
   onCreateNewAgent,
   onAgentGenerated,
-  onMultiAgentGenerated,
   getToken,
   isAuthenticated,
   isUsingObServer,

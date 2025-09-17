@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu, X, AlertTriangle, Clipboard, Users } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { sendPrompt, fetchResponse } from '@utils/sendApi';
-import { CompleteAgent, updateAgentImageMemory, saveAgent, getAgentCode } from '@utils/agent_database';
+import { CompleteAgent, updateAgentImageMemory, saveAgent } from '@utils/agent_database';
 import { extractMultipleAgentConfigs, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
 import MediaUploadMessage from './MediaUploadMessage';
 import getMultiAgentSystemPrompt from '@utils/multi_agent_creator';
@@ -174,7 +174,7 @@ interface MultiAgentPreviewProps {
 const MultiAgentPreview: React.FC<MultiAgentPreviewProps> = ({ configsJson, onSaveAll }) => {
   try {
     const agentConfigs = JSON.parse(configsJson) as string[];
-    const previews = agentConfigs.map((config, index) => {
+    const previews = agentConfigs.map((config, _) => {
       const parsed = parseAgentResponse(config);
       return parsed ? { agent: parsed.agent, code: parsed.code } : null;
     }).filter(Boolean);

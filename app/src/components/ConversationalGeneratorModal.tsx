@@ -6,16 +6,11 @@ import MultiAgentCreator from './MultiAgentCreator';
 import { CompleteAgent } from '@utils/agent_database';
 import type { TokenProvider } from '@utils/main_loop';
 
-interface MultiAgentResult {
-  agents: CompleteAgent[];
-  codes: string[];
-}
 
 interface ConversationalGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAgentGenerated: (agent: CompleteAgent, code: string) => void;
-  onMultiAgentGenerated?: (result: MultiAgentResult) => void;
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
@@ -28,7 +23,6 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   isOpen,
   onClose,
   onAgentGenerated,
-  onMultiAgentGenerated,
   getToken,
   isAuthenticated,
   isUsingObServer,
@@ -53,18 +47,6 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     onClose();
   }, [onAgentGenerated, onClose]);
 
-  // Handle multi-agent generation
-  const handleMultiAgentReady = useCallback((result: MultiAgentResult) => {
-    if (onMultiAgentGenerated) {
-      onMultiAgentGenerated(result);
-    } else {
-      // Fallback: save agents individually
-      for (let i = 0; i < result.agents.length; i++) {
-        onAgentGenerated(result.agents[i], result.codes[i]);
-      }
-    }
-    onClose();
-  }, [onMultiAgentGenerated, onAgentGenerated, onClose]);
 
   // Memoize the props to ensure they're stable across renders
   const conversationalProps = useMemo(() => ({
