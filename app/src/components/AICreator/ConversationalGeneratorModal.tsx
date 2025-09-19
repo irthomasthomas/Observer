@@ -17,6 +17,7 @@ interface ConversationalGeneratorModalProps {
   isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
+  onRefresh?: () => void;
 }
 
 const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> = ({
@@ -28,7 +29,8 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   isUsingObServer,
   isPro = false,
   onSignIn,
-  onSwitchToObServer
+  onSwitchToObServer,
+  onRefresh
 }) => {
   const [mode, setMode] = useState<'single' | 'multi'>('single');
 
@@ -63,8 +65,9 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     isAuthenticated,
     isUsingObServer,
     onSignIn,
-    onSwitchToObServer
-  }), [getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer]);
+    onSwitchToObServer,
+    onRefresh
+  }), [getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer, onRefresh]);
 
   if (!isOpen) return null;
 

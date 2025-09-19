@@ -102,7 +102,7 @@ const MultiAgentPreview: React.FC<MultiAgentPreviewProps> = ({ configsJson, onSa
             className="px-6 py-3 text-base bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-medium transition-colors flex items-center mx-auto shadow-lg"
           >
             <Save className="h-5 w-5 mr-2" />
-            Save All {previews.length} Agents
+            {previews.length === 1 ? 'Save Agent' : `Save All ${previews.length} Agents`}
           </button>
         </div>
       </div>
@@ -175,6 +175,17 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      // Trigger the form submit
+      const form = e.currentTarget.closest('form');
+      if (form) {
+        form.requestSubmit();
+      }
+    }
+  };
+
   const handleKeyUp = (_: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Remove cursor position tracking as it's not needed
   };
@@ -208,6 +219,7 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
         ref={inputRef}
         value={value}
         onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         onBlur={handleBlur}
         placeholder={placeholder}
@@ -375,6 +387,7 @@ interface MultiAgentCreatorProps {
   isUsingObServer: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
+  onRefresh?: () => void;
 }
 
 const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
@@ -382,7 +395,8 @@ const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
   isAuthenticated,
   isUsingObServer: _isUsingObServer,
   onSignIn: _onSignIn,
-  onSwitchToObServer: _onSwitchToObServer
+  onSwitchToObServer: _onSwitchToObServer,
+  onRefresh
 }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -599,8 +613,13 @@ What kind of agent team would you like me to create today?`
         setMessages(prev => [...prev, {
           id: Date.now() + Math.random() * 1000,
           sender: 'ai',
-          text: `🎉 Successfully saved ${savedAgents.length} agents: ${savedAgents.map(a => a.name).join(', ')}!\n\nYour agent team is ready to work together!`
+          text: `🎉 Successfully saved ${savedAgents.length} ${savedAgents.length === 1 ? 'agent' : 'agents'}: ${savedAgents.map(a => a.name).join(', ')}!\n\nYour agent ${savedAgents.length === 1 ? 'is' : 'team is'} ready to work together!`
         }]);
+
+        // Refresh the agent list
+        if (onRefresh) {
+          onRefresh();
+        }
       } else {
         setMessages(prev => [...prev, { id: Date.now() + Math.random() * 1000, sender: 'ai', text: "I'm sorry, there was an error parsing the agents. Could you try again?" }]);
       }
