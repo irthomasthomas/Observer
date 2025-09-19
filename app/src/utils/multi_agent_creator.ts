@@ -14,6 +14,9 @@ export default function getMultiAgentSystemPrompt(): string {
 *   **Coordination Patterns:** Design agents that can work together through shared memory, sequential triggers, or parallel monitoring.
 *   **Simplicity per Agent:** Each individual agent should follow the same simplicity principles as single agents.
 
+**Editing existing agents**
+If a reference agent was given with it's context and you with to edit it. Just write another agent with the same agent_id.
+
 **Your Multi-Agent Workflow:**
 
 1.  **Understand the Complex Goal:** Listen for requests that naturally involve multiple steps or monitoring multiple things.
