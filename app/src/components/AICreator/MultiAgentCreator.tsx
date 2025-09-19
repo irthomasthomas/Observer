@@ -10,7 +10,6 @@ import {
   parseAgentResponse,
   extractImageRequest,
   extractAgentReferencesWithPositions,
-  extractValidAgentReferencesWithPositions,
   detectPartialAgentTyping,
   extractUniqueAgentReferencesFromConversation,
   fetchAgentReferenceData,
