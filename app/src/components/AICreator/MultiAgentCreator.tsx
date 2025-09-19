@@ -131,7 +131,7 @@ interface AgentAutocompleteInputProps {
 const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
   value, onChange, placeholder, disabled, className
 }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [agentIds, setAgentIds] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
@@ -154,7 +154,7 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     loadAgentIds();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const newCursorPos = e.target.selectionStart || 0;
 
@@ -176,7 +176,7 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     }
   };
 
-  const handleKeyUp = (_: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyUp = (_: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Remove cursor position tracking as it's not needed
   };
 
@@ -202,86 +202,33 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     setTimeout(() => setShowSuggestions(false), 150);
   };
 
-  // Get valid agent references for highlighting
-  const [validRefs, setValidRefs] = useState<Array<{
-    reference: { agentId: string; runCount: number };
-    start: number;
-    end: number;
-    fullMatch: string;
-  }>>([]);
 
-  useEffect(() => {
-    const loadValidRefs = async () => {
-      const refs = await extractValidAgentReferencesWithPositions(value);
-      setValidRefs(refs);
-    };
-    loadValidRefs();
-  }, [value]);
-
-  // Always use the same input structure to prevent font changes
   return (
     <div className="relative w-full">
-      <input
+      <textarea
         ref={inputRef}
-        type="text"
         value={value}
         onChange={handleInputChange}
         onKeyUp={handleKeyUp}
         onBlur={handleBlur}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full ${className} ${validRefs.length > 0 ? 'relative z-10 bg-transparent' : ''}`}
-        style={validRefs.length > 0 ? { color: 'transparent' } : undefined}
+        rows={1}
+        className={`w-full resize-none ${className}`}
+        style={{
+          minHeight: '2.5rem'
+        }}
+        onInput={(e) => {
+          const target = e.target as HTMLTextAreaElement;
+          target.style.height = 'auto';
+          target.style.height = Math.max(target.scrollHeight, 40) + 'px';
+        }}
       />
-
-      {/* Overlay with highlighted text - only show when there are valid refs */}
-      {validRefs.length > 0 && (
-        <div className="absolute inset-0 flex items-center px-3 pointer-events-none z-0">
-          <div className="text-sm text-gray-700 whitespace-nowrap overflow-hidden w-full">
-            {renderTextWithHighlights()}
-          </div>
-        </div>
-      )}
 
       {renderSuggestions()}
     </div>
   );
 
-  function renderTextWithHighlights() {
-    const elements: React.ReactNode[] = [];
-    let lastIndex = 0;
-
-    validRefs.forEach((ref, i) => {
-      // Add text before this reference
-      if (ref.start > lastIndex) {
-        elements.push(
-          <span key={`text-${i}`}>
-            {value.substring(lastIndex, ref.start)}
-          </span>
-        );
-      }
-
-      // Add highlighted valid agent reference
-      elements.push(
-        <span key={`highlight-${i}`} className="bg-purple-200 text-purple-800 px-1 rounded">
-          {ref.fullMatch}
-        </span>
-      );
-
-      lastIndex = ref.end;
-    });
-
-    // Add remaining text
-    if (lastIndex < value.length) {
-      elements.push(
-        <span key="text-end">
-          {value.substring(lastIndex)}
-        </span>
-      );
-    }
-
-    return elements;
-  }
 
   function renderSuggestions() {
     if (!showSuggestions || filteredSuggestions.length === 0) return null;
