@@ -169,13 +169,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     const newValue = !isUsingObServer;
 
     if (newValue && !isAuthenticated) {
-      Logger.warn('AUTH', 'User attempted to enable Ob-Server while not authenticated.');
+      Logger.warn('AUTH', 'User attempted to enable ObServer while not authenticated.');
       setShowLoginMessage(true);
       setTimeout(() => setShowLoginMessage(false), 3000);
       return;
     }
 
-    // If switching FROM Ob-Server TO local on official web app, show warning
+    // If switching FROM ObServer TO local on official web app, show warning
     if (!newValue && hostingContext === 'official-web') {
       setIsStartupDialogOpen(true);
       return;
@@ -424,16 +424,16 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
               {/* Desktop Controls (Visible on md screens and up) */}
               <div className="hidden md:flex items-center space-x-1 sm:space-x-2">
-                {/* Ob-Server Toggle */}
+                {/* ObServer Toggle */}
                 <div className="flex flex-col items-center">
                   <div className="flex items-center space-x-1 sm:space-x-2">
-                    <span className="text-sm text-gray-600 hidden md:inline">Ob-Server</span>
+                    <span className="text-sm text-gray-600 hidden md:inline">ObServer</span>
                     <button
                       className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
                         isUsingObServer ? 'bg-blue-500' : 'bg-slate-700'
                       }`}
                       onClick={handleToggleObServer}
-                      aria-label={isUsingObServer ? "Disable Ob-Server" : "Enable Ob-Server"}
+                      aria-label={isUsingObServer ? "Disable ObServer" : "Enable ObServer"}
                     >
                       <span
                         className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${

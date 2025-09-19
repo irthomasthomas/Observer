@@ -23,7 +23,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
     { id: 'recordings', icon: Video, label: 'Recordings', color: 'blue' },
     { id: 'community', icon: Users, label: 'Community', color: 'blue' },
     { id: 'models', icon: Database, label: 'Models', color: 'blue' },
-    { id: 'obServer', icon: Server, label: 'Ob-Server', color: 'purple' },
+    { id: 'obServer', icon: Server, label: 'ObServer', color: 'purple' },
     { id: 'settings', icon: Settings, label: 'Settings', color: 'blue' },
   ];
 
