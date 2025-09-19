@@ -1,4 +1,4 @@
-// src/components/ConversationalGeneratorModal.tsx
+// src/components/AICreator/ConversationalGeneratorModal.tsx
 import React, { useMemo, useCallback, useState } from 'react';
 import { X, Sparkles, User, Users } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';

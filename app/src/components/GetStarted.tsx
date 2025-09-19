@@ -1,8 +1,8 @@
 // src/components/GetStarted.tsx
 import React, { useState } from 'react';
 import { Users, MessageCircle, Code, User } from 'lucide-react';
-import ConversationalGenerator from './ConversationalGenerator';
-import MultiAgentCreator from './MultiAgentCreator';
+import ConversationalGenerator from './AICreator/ConversationalGenerator';
+import MultiAgentCreator from './AICreator/MultiAgentCreator';
 import { CompleteAgent } from '@utils/agent_database';
 import type { TokenProvider } from '@utils/main_loop';
 

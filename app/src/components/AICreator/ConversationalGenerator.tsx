@@ -1,4 +1,4 @@
-// src/components/ConversationalGenerator.tsx
+// src/components/AICreator/ConversationalGenerator.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu, X, AlertTriangle, Clipboard } from 'lucide-react';
@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import { sendPrompt, fetchResponse } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
-import MediaUploadMessage from './MediaUploadMessage';
+import MediaUploadMessage from '../MediaUploadMessage';
 import getConversationalSystemPrompt from '@utils/conversational_system_prompt';
 import type { TokenProvider } from '@utils/main_loop';
 // Removed getOllamaServerAddress import - no longer needed

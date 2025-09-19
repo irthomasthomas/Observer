@@ -31,7 +31,7 @@ import GetStarted from '@components/GetStarted';
 import JupyterServerModal from '@components/JupyterServerModal';
 import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
 import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
-import ConversationalGeneratorModal from '@components/ConversationalGeneratorModal';
+import ConversationalGeneratorModal from '@components/AICreator/ConversationalGeneratorModal';
 import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming this path is correct
