@@ -4,13 +4,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Users } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { fetchResponse } from '@utils/sendApi';
-import { CompleteAgent, updateAgentImageMemory, saveAgent, getAllAgentIds } from '@utils/agent_database';
+import { CompleteAgent, updateAgentImageMemory, saveAgent } from '@utils/agent_database';
 import {
   extractMultipleAgentConfigs,
   parseAgentResponse,
   extractImageRequest,
   extractAgentReferencesWithPositions,
-  detectPartialAgentTyping,
   extractUniqueAgentReferencesFromConversation,
   fetchAgentReferenceData,
   buildSystemPromptWithAgentContext,
@@ -20,6 +19,7 @@ import MediaUploadMessage from '../MediaUploadMessage';
 import getMultiAgentSystemPrompt from '@utils/multi_agent_creator';
 import type { TokenProvider } from '@utils/main_loop';
 import AgentReferenceModal from './AgentReferenceModal';
+import { AgentAutocompleteInput } from './AgentAutocompleteInput';
 
 // ===================================================================================
 //  MULTI-AGENT PREVIEW COMPONENT
@@ -116,150 +116,6 @@ const MultiAgentPreview: React.FC<MultiAgentPreviewProps> = ({ configsJson, onSa
   }
 };
 
-// ===================================================================================
-//  AGENT AUTOCOMPLETE INPUT
-// ===================================================================================
-interface AgentAutocompleteInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  disabled: boolean;
-  className?: string;
-}
-
-const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
-  value, onChange, placeholder, disabled, className
-}) => {
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const [agentIds, setAgentIds] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-  const [partialTyping, setPartialTyping] = useState<{
-    partialMatch: string;
-    start: number;
-    end: number;
-  } | null>(null);
-
-  // Load agent IDs on component mount
-  useEffect(() => {
-    const loadAgentIds = async () => {
-      try {
-        const ids = await getAllAgentIds();
-        setAgentIds(ids);
-      } catch (error) {
-        console.error('Failed to load agent IDs:', error);
-      }
-    };
-    loadAgentIds();
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
-    const newCursorPos = e.target.selectionStart || 0;
-
-    onChange(newValue);
-
-    // Check for partial agent typing
-    const partial = detectPartialAgentTyping(newValue, newCursorPos);
-    setPartialTyping(partial);
-
-    if (partial) {
-      // Filter agent IDs based on partial match
-      const filtered = agentIds.filter(id =>
-        id.toLowerCase().includes(partial.partialMatch.toLowerCase())
-      );
-      setFilteredSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-    } else {
-      setShowSuggestions(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      // Trigger the form submit
-      const form = e.currentTarget.closest('form');
-      if (form) {
-        form.requestSubmit();
-      }
-    }
-  };
-
-  const handleKeyUp = (_: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Remove cursor position tracking as it's not needed
-  };
-
-  const handleSuggestionClick = (agentId: string) => {
-    if (!partialTyping) return;
-
-    // Replace partial typing with selected agent ID
-    const newValue =
-      value.substring(0, partialTyping.start) +
-      agentId +
-      value.substring(partialTyping.end);
-
-    onChange(newValue);
-    setShowSuggestions(false);
-    setPartialTyping(null);
-
-    // Focus back to input
-    inputRef.current?.focus();
-  };
-
-  const handleBlur = () => {
-    // Delay hiding suggestions to allow clicking
-    setTimeout(() => setShowSuggestions(false), 150);
-  };
-
-
-  return (
-    <div className="relative w-full">
-      <textarea
-        ref={inputRef}
-        value={value}
-        onChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        onBlur={handleBlur}
-        placeholder={placeholder}
-        disabled={disabled}
-        rows={1}
-        className={`w-full resize-none ${className}`}
-        style={{
-          minHeight: '2.5rem'
-        }}
-        onInput={(e) => {
-          const target = e.target as HTMLTextAreaElement;
-          target.style.height = 'auto';
-          target.style.height = Math.max(target.scrollHeight, 40) + 'px';
-        }}
-      />
-
-      {renderSuggestions()}
-    </div>
-  );
-
-
-  function renderSuggestions() {
-    if (!showSuggestions || filteredSuggestions.length === 0) return null;
-
-    return (
-      <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-40 overflow-y-auto">
-        {filteredSuggestions.map((agentId, _) => (
-          <button
-            key={agentId}
-            onClick={() => handleSuggestionClick(agentId)}
-            className="w-full text-left px-3 py-2 hover:bg-purple-50 text-sm flex items-center border-b border-gray-100 last:border-b-0"
-          >
-            <Users className="h-4 w-4 text-purple-500 mr-2" />
-            <span className="font-mono">@{agentId}</span>
-          </button>
-        ))}
-      </div>
-    );
-  }
-};
 
 // ===================================================================================
 //  MESSAGE CONTENT WITH AGENT BADGES
@@ -671,7 +527,7 @@ What kind of agent team would you like me to create today?`
 
   return (
     <>
-      <div className="flex flex-col h-[350px] md:h-[450px] bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+      <div className="flex flex-col h-[350px] md:h-[450px] bg-white rounded-lg border border-purple-200">
         {/* Chat Messages Area */}
         <div className="flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto">
           {messages.map((msg) => (
@@ -689,7 +545,7 @@ What kind of agent team would you like me to create today?`
                 <div className={`max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base ${
                   msg.sender === 'user'
                     ? 'bg-purple-600 text-white'
-                    : 'bg-white text-gray-800 shadow-sm'
+                    : 'bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm'
                 } ${msg.isStreaming ? 'animate-pulse' : ''}`}>
                   {msg.imageData ? (
                     <div className="space-y-2">
@@ -709,7 +565,7 @@ What kind of agent team would you like me to create today?`
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-white text-gray-800 p-2 md:p-3 rounded-lg text-sm md:text-base inline-flex items-center shadow-sm">
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 p-2 md:p-3 rounded-lg text-sm md:text-base inline-flex items-center shadow-sm">
                 <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin"/>
               </div>
             </div>

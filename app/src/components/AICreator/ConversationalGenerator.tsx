@@ -11,6 +11,7 @@ import getConversationalSystemPrompt from '@utils/conversational_system_prompt';
 import type { TokenProvider } from '@utils/main_loop';
 // Removed getOllamaServerAddress import - no longer needed
 import { listModels, Model } from '@utils/inferenceServer';
+import { AgentAutocompleteInput } from './AgentAutocompleteInput';
 
 // ===================================================================================
 //  LOCAL MODEL SELECTION MODAL
@@ -426,7 +427,7 @@ What would you like to create today?`
 
   return (
     <>
-      <div className="flex flex-col h-[350px] md:h-[450px] bg-gray-50 rounded-lg border border-gray-200">
+      <div className="flex flex-col h-[350px] md:h-[450px] bg-white rounded-lg border border-purple-200">
         {/* Chat Messages Area */}
         <div className="flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto">
           {messages.map((msg) => (
@@ -492,15 +493,15 @@ What would you like to create today?`
         </div>
 
         {/* Dynamic Input Area */}
-        <div className="p-3 md:p-5 border-t border-gray-200 bg-white rounded-b-lg">
-          <form onSubmit={handleSubmit} className="flex items-center space-x-2">
-            <input
-              type="text"
+        <div className="p-2 border-t border-purple-200 bg-white/80 backdrop-blur-sm rounded-b-lg">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <AgentAutocompleteInput
               value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
+              onChange={setUserInput}
               placeholder={getPlaceholderText()}
-              className="flex-1 p-2 md:p-3 border border-gray-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
               disabled={isInputDisabled}
+              disableAutocomplete={true}
+              className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
             />
             
             {!isUsingObServer && (
@@ -516,7 +517,7 @@ What would you like to create today?`
 
             <button
               type="submit"
-              className="p-2 md:p-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:bg-gray-300 transition-colors flex items-center"
+              className="p-2 md:p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
               disabled={isSendDisabled}
               title="Send"
             >
