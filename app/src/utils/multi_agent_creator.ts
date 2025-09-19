@@ -216,6 +216,42 @@ code: |
 memory: ""
 \$\$\$
 
+Or create powerful single agents with powerfull patterns like this one:
+
+\$\$\$
+id: distraction_detector
+name: Distraction Detector
+description: Monitors the screen for potential distractions and asks the user for confirmation before logging the distraction.
+model_name: gemma-3-4b-it
+loop_interval_seconds: 60
+system_prompt: |
+    You are an AI agent designed to identify and manage distractions.
+  
+    1.  **Describe:** In a single sentence, describe the current activity or content visible on the screen. Focus on potential distractions like social media, videos, movies, games, or non-productive websites.
+    2.  **Decide:** On a new line, output \`NOTIFY: <Distraction Description>\` if you believe the user is distracted, replacing \`<Distraction Description>\` with a brief description of the distraction. Otherwise, output \`CONTINUE\`.
+  
+    <Screen>$SCREEN_64</Screen>
+code: |
+  if (response.includes("NOTIFY:")) {
+    
+    // 1. Split the entire response into two parts using "NOTIFY:" as the divider.
+    const parts = response.split("NOTIFY:");
+    
+    // 2. The message we want is the second part of the array (index 1).
+    //    We also use .trim() to remove any accidental leading/trailing spaces
+    //    that the AI might have added.
+    const message = parts[1].trim();
+    
+    // 3. Now you have a clean message to use in your tools.
+    const isDistracted = await ask(\`I think you're distracted with: "\${message}". Should I log it?\`);
+    
+    if (isDistracted){
+      await appendMemory(\`[ \${time()} ]\${message}\`);
+    }
+  }
+memory: ""
+\$\$\$
+
 
 **Available Components (Complete Reference):**
 
