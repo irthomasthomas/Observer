@@ -138,6 +138,24 @@ export async function saveAgent(
   return agent;
 }
 
+// Get all agent IDs (lightweight for suggestions)
+export async function getAllAgentIds(): Promise<string[]> {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(AGENT_STORE, 'readonly');
+    const store = tx.objectStore(AGENT_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const agents = request.result;
+      const agentIds = agents.map(agent => agent.id);
+      resolve(agentIds);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
 // List all agents
 export async function listAgents(): Promise<CompleteAgent[]> {
   const db = await openDB();

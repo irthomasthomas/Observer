@@ -1,167 +1,27 @@
 // src/components/MultiAgentCreator.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Save, Cpu, X, AlertTriangle, Clipboard, Users } from 'lucide-react';
+import { Send, Loader2, Save, X, AlertTriangle, Clipboard, Users, Clock, CheckCircle, XCircle, Code, Brain, Database } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { sendPrompt, fetchResponse } from '@utils/sendApi';
-import { CompleteAgent, updateAgentImageMemory, saveAgent } from '@utils/agent_database';
-import { extractMultipleAgentConfigs, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
+import { CompleteAgent, updateAgentImageMemory, saveAgent, getAllAgentIds } from '@utils/agent_database';
+import {
+  extractMultipleAgentConfigs,
+  parseAgentResponse,
+  extractImageRequest,
+  extractAgentReferences,
+  extractAgentReferencesWithPositions,
+  extractValidAgentReferencesWithPositions,
+  detectPartialAgentTyping,
+  extractUniqueAgentReferencesFromConversation,
+  fetchAgentReferenceData,
+  buildSystemPromptWithAgentContext,
+  AgentReferenceData
+} from '@utils/agentParser';
 import MediaUploadMessage from './MediaUploadMessage';
 import getMultiAgentSystemPrompt from '@utils/multi_agent_creator';
 import type { TokenProvider } from '@utils/main_loop';
-import { listModels, Model } from '@utils/inferenceServer';
 
-// ===================================================================================
-//  LOCAL MODEL SELECTION MODAL
-// ===================================================================================
-interface LocalModelSelectionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  currentModel: string;
-  onSelectModel: (modelName: string) => void;
-  onSignIn?: () => void;
-  onSwitchToObServer?: () => void;
-  isAuthenticated: boolean;
-}
-
-const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({
-  isOpen, onClose, currentModel, onSelectModel, onSignIn, onSwitchToObServer, isAuthenticated
-}) => {
-  const [localModels, setLocalModels] = useState<Model[]>([]);
-  const [isFetchingModels, setIsFetchingModels] = useState(false);
-  const [localModelError, setLocalModelError] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      const fetchLocalModels = async () => {
-        setIsFetchingModels(true);
-        setLocalModelError(null);
-        try {
-          const result = listModels();
-          if (result.error) throw new Error(result.error);
-          if (result.models.length === 0) {
-            setLocalModelError("No models found. Ensure your local server is running and has models available.");
-          } else {
-            setLocalModels(result.models);
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "An unknown error occurred.";
-          setLocalModelError(`Connection failed: ${message}`);
-        } finally {
-          setIsFetchingModels(false);
-        }
-      };
-      fetchLocalModels();
-    }
-  }, [isOpen]);
-
-  const handleCopyPrompt = () => {
-    const promptText = getMultiAgentSystemPrompt();
-    navigator.clipboard.writeText(promptText).then(() => {
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    });
-  };
-
-  const handleTryObServer = () => {
-    if (!isAuthenticated) {
-      onSignIn?.();
-    } else {
-      onSwitchToObServer?.();
-      onClose();
-    }
-  };
-
-  const handleSelectAndClose = (modelName: string) => {
-    onSelectModel(modelName);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all">
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Configure Local Model</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
-        </div>
-        <div className="p-6 space-y-6">
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-sm">
-            <div className="flex items-start space-x-3">
-              <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-bold">Heads Up!</p>
-                <p>Multi-agent creation requires large, capable models for best results.</p>
-                <p className="text-xs text-yellow-700 mt-2">
-                  If you don't have a model bigger than 70B parameters, it is recommended to use Ob-Server.
-                </p>
-                <button
-                  onClick={handleCopyPrompt}
-                  className="mt-3 px-3 py-1.5 text-xs font-medium text-white bg-slate-700 rounded-md hover:bg-slate-800 transition-colors flex items-center"
-                >
-                  <Clipboard className="h-4 w-4 mr-2" />
-                  {isCopied ? 'Copied!' : 'Copy System Prompt'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <span className="text-2xl">💡</span>
-              <div className="flex-1">
-                <p className="font-semibold text-blue-800 mb-1">Recommended:</p>
-                <p className="text-sm text-blue-700 mb-3">
-                  Turn on Ob-Server for multi-agent creation. Provides instant access to large, capable models.
-                </p>
-                <button
-                  onClick={handleTryObServer}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Turn on Ob-Server for multi-agent creation
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="model-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select a model to power the multi-agent creator:
-            </label>
-            {isFetchingModels ? <div className="text-sm text-gray-500">Loading models...</div>
-            : localModelError ? <div className="text-sm text-red-600">{localModelError}</div>
-            : (
-              <select
-                id="model-select"
-                value={currentModel}
-                onChange={(e) => handleSelectAndClose(e.target.value)}
-                className="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-              >
-                <option value="" disabled>-- Choose your model --</option>
-                {localModels.map(model => (
-                  <option key={model.name} value={model.name}>{model.name}</option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div className="text-right">
-             <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ===================================================================================
 //  MULTI-AGENT PREVIEW COMPONENT
@@ -258,6 +118,484 @@ const MultiAgentPreview: React.FC<MultiAgentPreviewProps> = ({ configsJson, onSa
   }
 };
 
+
+// ===================================================================================
+//  AGENT AUTOCOMPLETE INPUT
+// ===================================================================================
+interface AgentAutocompleteInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  disabled: boolean;
+  className?: string;
+}
+
+const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
+  value, onChange, placeholder, disabled, className
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [agentIds, setAgentIds] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [partialTyping, setPartialTyping] = useState<{
+    partialMatch: string;
+    start: number;
+    end: number;
+  } | null>(null);
+
+  // Load agent IDs on component mount
+  useEffect(() => {
+    const loadAgentIds = async () => {
+      try {
+        const ids = await getAllAgentIds();
+        setAgentIds(ids);
+      } catch (error) {
+        console.error('Failed to load agent IDs:', error);
+      }
+    };
+    loadAgentIds();
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    const newCursorPos = e.target.selectionStart || 0;
+
+    onChange(newValue);
+    setCursorPosition(newCursorPos);
+
+    // Check for partial agent typing
+    const partial = detectPartialAgentTyping(newValue, newCursorPos);
+    setPartialTyping(partial);
+
+    if (partial) {
+      // Filter agent IDs based on partial match
+      const filtered = agentIds.filter(id =>
+        id.toLowerCase().includes(partial.partialMatch.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    setCursorPosition(e.currentTarget.selectionStart || 0);
+  };
+
+  const handleSuggestionClick = (agentId: string) => {
+    if (!partialTyping) return;
+
+    // Replace partial typing with selected agent ID
+    const newValue =
+      value.substring(0, partialTyping.start) +
+      agentId +
+      value.substring(partialTyping.end);
+
+    onChange(newValue);
+    setShowSuggestions(false);
+    setPartialTyping(null);
+
+    // Focus back to input
+    inputRef.current?.focus();
+  };
+
+  const handleBlur = () => {
+    // Delay hiding suggestions to allow clicking
+    setTimeout(() => setShowSuggestions(false), 150);
+  };
+
+  // Get valid agent references for highlighting
+  const [validRefs, setValidRefs] = useState<Array<{
+    reference: { agentId: string; runCount: number };
+    start: number;
+    end: number;
+    fullMatch: string;
+  }>>([]);
+
+  useEffect(() => {
+    const loadValidRefs = async () => {
+      const refs = await extractValidAgentReferencesWithPositions(value);
+      setValidRefs(refs);
+    };
+    loadValidRefs();
+  }, [value]);
+
+  // Always use the same input structure to prevent font changes
+  return (
+    <div className="relative w-full">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={handleInputChange}
+        onKeyUp={handleKeyUp}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={`w-full ${className} ${validRefs.length > 0 ? 'relative z-10 bg-transparent' : ''}`}
+        style={validRefs.length > 0 ? { color: 'transparent' } : undefined}
+      />
+
+      {/* Overlay with highlighted text - only show when there are valid refs */}
+      {validRefs.length > 0 && (
+        <div className="absolute inset-0 flex items-center px-3 pointer-events-none z-0">
+          <div className="text-sm text-gray-700 whitespace-nowrap overflow-hidden w-full">
+            {renderTextWithHighlights()}
+          </div>
+        </div>
+      )}
+
+      {renderSuggestions()}
+    </div>
+  );
+
+  function renderTextWithHighlights() {
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+
+    validRefs.forEach((ref, i) => {
+      // Add text before this reference
+      if (ref.start > lastIndex) {
+        elements.push(
+          <span key={`text-${i}`}>
+            {value.substring(lastIndex, ref.start)}
+          </span>
+        );
+      }
+
+      // Add highlighted valid agent reference
+      elements.push(
+        <span key={`highlight-${i}`} className="bg-purple-200 text-purple-800 px-1 rounded">
+          {ref.fullMatch}
+        </span>
+      );
+
+      lastIndex = ref.end;
+    });
+
+    // Add remaining text
+    if (lastIndex < value.length) {
+      elements.push(
+        <span key="text-end">
+          {value.substring(lastIndex)}
+        </span>
+      );
+    }
+
+    return elements;
+  }
+
+  function renderSuggestions() {
+    if (!showSuggestions || filteredSuggestions.length === 0) return null;
+
+    return (
+      <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-40 overflow-y-auto">
+        {filteredSuggestions.map((agentId, index) => (
+          <button
+            key={agentId}
+            onClick={() => handleSuggestionClick(agentId)}
+            className="w-full text-left px-3 py-2 hover:bg-purple-50 text-sm flex items-center border-b border-gray-100 last:border-b-0"
+          >
+            <Users className="h-4 w-4 text-purple-500 mr-2" />
+            <span className="font-mono">@{agentId}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+};
+
+// ===================================================================================
+//  MESSAGE CONTENT WITH AGENT BADGES
+// ===================================================================================
+interface MessageContentProps {
+  text: string;
+  onAgentClick: (agentId: string) => void;
+}
+
+const MessageContent: React.FC<MessageContentProps> = ({ text, onAgentClick }) => {
+  const agentRefs = extractAgentReferencesWithPositions(text);
+
+  if (agentRefs.length === 0) {
+    return (
+      <div className="prose prose-sm max-w-none">
+        <ReactMarkdown
+          components={{
+            ul: ({children}) => <ul className="list-disc pl-4 space-y-1 mb-2">{children}</ul>,
+            ol: ({children}) => <ol className="list-decimal pl-4 space-y-1 mb-2">{children}</ol>,
+            li: ({children}) => <li className="text-inherit">{children}</li>,
+            strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+            code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">{children}</code>,
+            p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>
+          }}
+        >
+          {text}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
+  // Replace @references with agent badges
+  return (
+    <div className="prose prose-sm max-w-none">
+      <div className="mb-2 last:mb-0">
+        {renderTextWithAgentBadges(text, agentRefs, onAgentClick)}
+      </div>
+    </div>
+  );
+};
+
+function renderTextWithAgentBadges(
+  text: string,
+  agentRefs: Array<{
+    reference: { agentId: string; runCount: number };
+    start: number;
+    end: number;
+    fullMatch: string;
+  }>,
+  onAgentClick: (agentId: string) => void
+) {
+  const elements: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  agentRefs.forEach((ref, i) => {
+    // Add text before this reference (with markdown parsing)
+    if (ref.start > lastIndex) {
+      const beforeText = text.substring(lastIndex, ref.start);
+      elements.push(
+        <ReactMarkdown
+          key={`text-${i}`}
+          components={{
+            p: ({children}) => <span>{children}</span>,
+            strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+            code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">{children}</code>
+          }}
+        >
+          {beforeText}
+        </ReactMarkdown>
+      );
+    }
+
+    // Add clickable agent badge
+    elements.push(
+      <button
+        key={`agent-${i}`}
+        onClick={() => onAgentClick(ref.reference.agentId)}
+        className="inline-flex items-center px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-sm font-medium hover:bg-purple-200 transition-colors mx-1"
+      >
+        <Users className="h-4 w-4 mr-1" />
+        {ref.reference.agentId}
+        {ref.reference.runCount !== 3 && (
+          <span className="ml-1 text-xs opacity-75">#{ref.reference.runCount}</span>
+        )}
+      </button>
+    );
+
+    lastIndex = ref.end;
+  });
+
+  // Add remaining text (with markdown parsing)
+  if (lastIndex < text.length) {
+    const remainingText = text.substring(lastIndex);
+    elements.push(
+      <ReactMarkdown
+        key="text-end"
+        components={{
+          p: ({children}) => <span>{children}</span>,
+          strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+          code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">{children}</code>
+        }}
+      >
+        {remainingText}
+      </ReactMarkdown>
+    );
+  }
+
+  return elements;
+}
+
+// ===================================================================================
+//  AGENT REFERENCE MODAL COMPONENT
+// ===================================================================================
+interface AgentReferenceModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  agentData: AgentReferenceData | null;
+}
+
+const AgentReferenceModal: React.FC<AgentReferenceModalProps> = ({ isOpen, onClose, agentData }) => {
+  if (!isOpen || !agentData) return null;
+
+  const { agent, code, memory, recentRuns, reference } = agentData;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b border-gray-200">
+          <div className="flex items-center">
+            <span className="text-purple-600 font-mono text-lg">@{reference.agentId}</span>
+            {agent && <h2 className="ml-3 text-xl font-semibold text-gray-800">{agent.name}</h2>}
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+            <X className="h-6 w-6 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+          {!agent ? (
+            <div className="p-6 text-center">
+              <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-red-800 mb-2">Agent Not Found</h3>
+              <p className="text-red-600">The agent @{reference.agentId} doesn't exist in the database.</p>
+            </div>
+          ) : (
+            <div className="p-6 space-y-6">
+              {/* Agent Info */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <Brain className="h-5 w-5 text-purple-600 mr-2" />
+                  <h3 className="font-semibold text-purple-800">Agent Configuration</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Model:</span>
+                    <span className="ml-2 text-gray-800">{agent.model_name}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Loop Interval:</span>
+                    <span className="ml-2 text-gray-800">{agent.loop_interval_seconds}s</span>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <span className="font-medium text-gray-600">Description:</span>
+                  <p className="mt-1 text-gray-800">{agent.description}</p>
+                </div>
+              </div>
+
+              {/* System Prompt */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <Code className="h-5 w-5 text-blue-600 mr-2" />
+                  <h3 className="font-semibold text-gray-800">System Prompt</h3>
+                </div>
+                <div className="bg-gray-50 border rounded p-3 max-h-40 overflow-y-auto">
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                    {agent.system_prompt}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Code */}
+              {code && (
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center mb-3">
+                    <Code className="h-5 w-5 text-green-600 mr-2" />
+                    <h3 className="font-semibold text-gray-800">Agent Code</h3>
+                  </div>
+                  <div className="bg-gray-50 border rounded p-3 max-h-40 overflow-y-auto">
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                      {code}
+                    </pre>
+                  </div>
+                </div>
+              )}
+
+              {/* Memory */}
+              {memory.trim() && (
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center mb-3">
+                    <Database className="h-5 w-5 text-indigo-600 mr-2" />
+                    <h3 className="font-semibold text-gray-800">Memory</h3>
+                  </div>
+                  <div className="bg-gray-50 border rounded p-3 max-h-32 overflow-y-auto">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{memory}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Runs */}
+              {recentRuns.length > 0 && (
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <Clock className="h-5 w-5 text-orange-600 mr-2" />
+                      <h3 className="font-semibold text-gray-800">Recent Performance</h3>
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      {recentRuns.filter(run => !run.hasError).length}/{recentRuns.length} successful
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {recentRuns.slice(-5).reverse().map((run, i) => (
+                      <div key={run.id} className={`border rounded-lg p-3 ${
+                        run.hasError ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            {run.hasError ? (
+                              <XCircle className="h-4 w-4 text-red-500 mr-2" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                            )}
+                            <span className="text-sm font-medium">
+                              {new Date(run.startTime).toLocaleString()}
+                            </span>
+                          </div>
+                          {run.duration && (
+                            <span className="text-xs text-gray-600">{run.duration.toFixed(1)}s</span>
+                          )}
+                        </div>
+
+                        {run.modelPrompt && (
+                          <div className="mb-2">
+                            <span className="text-xs font-medium text-gray-600">Input:</span>
+                            <p className="text-xs text-gray-700 mt-1">
+                              {run.modelPrompt.substring(0, 150)}
+                              {run.modelPrompt.length > 150 ? '...' : ''}
+                            </p>
+                          </div>
+                        )}
+
+                        {run.modelResponse && (
+                          <div className="mb-2">
+                            <span className="text-xs font-medium text-gray-600">Output:</span>
+                            <p className="text-xs text-gray-700 mt-1">
+                              {run.modelResponse.substring(0, 150)}
+                              {run.modelResponse.length > 150 ? '...' : ''}
+                            </p>
+                          </div>
+                        )}
+
+                        {run.tools.length > 0 && (
+                          <div>
+                            <span className="text-xs font-medium text-gray-600">Tools:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {run.tools.map((tool, j) => (
+                                <span key={j} className={`px-2 py-1 rounded text-xs ${
+                                  tool.status === 'success' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                                }`}>
+                                  {tool.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ===================================================================================
 //  MAIN MULTI-AGENT CREATOR COMPONENT
 // ===================================================================================
@@ -272,17 +610,13 @@ interface Message {
 interface MultiAgentCreatorProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
-  isUsingObServer: boolean;
   onSignIn?: () => void;
-  onSwitchToObServer?: () => void;
 }
 
 const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
   getToken,
   isAuthenticated,
-  isUsingObServer,
-  onSignIn,
-  onSwitchToObServer
+  onSignIn
 }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -307,15 +641,41 @@ What kind of agent team would you like me to create today?`
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Local model selection state
-  const [isLocalModalOpen, setIsLocalModalOpen] = useState(false);
-  const [selectedLocalModel, setSelectedLocalModel] = useState('');
+
+  // Modal state for agent reference details
+  const [selectedAgentModal, setSelectedAgentModal] = useState<{
+    isOpen: boolean;
+    agentData: AgentReferenceData | null;
+  }>({ isOpen: false, agentData: null });
 
   const sendConversation = async (allMessages: Message[]) => {
     setIsLoading(true);
 
+    // Extract all message texts for agent reference scanning
+    const messageTexts = allMessages.map(msg => msg.text);
+
+    // Extract unique agent references from entire conversation
+    const uniqueReferences = extractUniqueAgentReferencesFromConversation(messageTexts);
+
+    // Fetch agent data for all unique references
+    let referenceData: AgentReferenceData[] = [];
+    if (uniqueReferences.length > 0) {
+      try {
+        referenceData = await fetchAgentReferenceData(uniqueReferences);
+      } catch (error) {
+        console.error('Failed to fetch agent references:', error);
+      }
+    }
+
+    // Build enhanced system prompt with agent context
+    const enhancedSystemPrompt = buildSystemPromptWithAgentContext(
+      getMultiAgentSystemPrompt(),
+      referenceData
+    );
+
+    // Keep conversation history clean (no agent data injected)
     const conversationHistory = allMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
-    const fullPrompt = `${getMultiAgentSystemPrompt()}\n${conversationHistory}\nai:`;
+    const fullPrompt = `${enhancedSystemPrompt}\n\n${conversationHistory}\nai:`;
 
     const images = allMessages
       .filter(msg => msg.imageData)
@@ -334,48 +694,38 @@ What kind of agent team would you like me to create today?`
 
     try {
       let responseText: string;
-      if (isUsingObServer) {
-        const token = await getToken();
-        if (!token) throw new Error("Authentication failed.");
+      // Multi-Agent Creator only works with Ob-Server
+      const token = await getToken();
+      if (!token) throw new Error("Authentication failed.");
 
-        let content: any = fullPrompt;
-        if (images && images.length > 0) {
-          content = [
-            { type: "text", text: fullPrompt },
-            ...images.map(imageBase64Data => ({
-              type: "image_url",
-              image_url: {
-                url: `data:image/png;base64,${imageBase64Data}`
-              }
-            }))
-          ];
-        }
+      let content: any = fullPrompt;
+      if (images && images.length > 0) {
+        content = [
+          { type: "text", text: fullPrompt },
+          ...images.map(imageBase64Data => ({
+            type: "image_url",
+            image_url: {
+              url: `data:image/png;base64,${imageBase64Data}`
+            }
+          }))
+        ];
+      }
 
-        responseText = await fetchResponse(
-          'https://api.observer-ai.com:443',
-          content,
-          'gemini-2.5-flash',
-          token,
-          true,
-          (chunk: string) => {
-            accumulatedResponse += chunk;
-            setMessages(prev => prev.map(msg =>
-              msg.id === streamingMessageId
-                ? { ...msg, text: accumulatedResponse }
-                : msg
-            ));
-          }
-        );
-      } else {
-        responseText = await sendPrompt(selectedLocalModel, { modifiedPrompt: fullPrompt, images }, undefined, true, (chunk: string) => {
+      responseText = await fetchResponse(
+        'https://api.observer-ai.com:443',
+        content,
+        'gemini-2.5-flash',
+        token,
+        true,
+        (chunk: string) => {
           accumulatedResponse += chunk;
           setMessages(prev => prev.map(msg =>
             msg.id === streamingMessageId
               ? { ...msg, text: accumulatedResponse }
               : msg
           ));
-        });
-      }
+        }
+      );
 
       // Convert streaming message to final message
       setMessages(prev => prev.map(msg =>
@@ -441,11 +791,6 @@ What kind of agent team would you like me to create today?`
     e.preventDefault();
     if (!userInput.trim() || isLoading) return;
 
-    if (!isUsingObServer && !selectedLocalModel) {
-        setIsLocalModalOpen(true);
-        return;
-    }
-
     const newUserMessage: Message = { id: Date.now() + Math.random() * 1000, sender: 'user', text: userInput };
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
@@ -499,6 +844,28 @@ What kind of agent team would you like me to create today?`
     }
   };
 
+  const handleAgentBadgeClick = async (agentId: string) => {
+    // Fetch the agent data
+    let agentData: AgentReferenceData;
+    try {
+      const references = [{ agentId, runCount: 3 }];
+      const referenceData = await fetchAgentReferenceData(references);
+      agentData = referenceData[0];
+    } catch (error) {
+      console.error('Failed to fetch agent data for modal:', error);
+      // Create a placeholder for missing agent
+      agentData = {
+        reference: { agentId, runCount: 3 },
+        agent: null,
+        code: null,
+        memory: '',
+        recentRuns: []
+      };
+    }
+
+    setSelectedAgentModal({ isOpen: true, agentData });
+  };
+
   const handleMediaResponse = async (messageId: number, result: string | { type: 'image', data: string }) => {
     const newUserMessage: Message = typeof result === 'string'
       ? { id: Date.now() + Math.random() * 1000, sender: 'user', text: result }
@@ -512,13 +879,10 @@ What kind of agent team would you like me to create today?`
   };
 
   const getPlaceholderText = () => {
-    if (isUsingObServer) {
-      return isAuthenticated ? "Describe the agent team you want to build..." : "Enable Ob-Server and log in to use Multi-Agent Builder";
-    }
-    return selectedLocalModel ? "Describe the agent team to build with your model..." : "Click the CPU icon to select a local model";
+    return isAuthenticated ? "Describe the agent team you want to build..." : "Enable Ob-Server and log in to use Multi-Agent Builder";
   };
 
-  const isInputDisabled = isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
+  const isInputDisabled = isLoading || !isAuthenticated;
   const isSendDisabled = isInputDisabled || !userInput.trim();
 
   return (
@@ -545,20 +909,7 @@ What kind of agent team would you like me to create today?`
                 } ${msg.isStreaming ? 'animate-pulse' : ''}`}>
                   {msg.imageData ? (
                     <div className="space-y-2">
-                      <div className="prose prose-sm max-w-none">
-                        <ReactMarkdown
-                          components={{
-                            ul: ({children}) => <ul className="list-disc pl-4 space-y-1 mb-2">{children}</ul>,
-                            ol: ({children}) => <ol className="list-decimal pl-4 space-y-1 mb-2">{children}</ol>,
-                            li: ({children}) => <li className="text-inherit">{children}</li>,
-                            strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                            code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">{children}</code>,
-                            p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>
-                          }}
-                        >
-                          {msg.text}
-                        </ReactMarkdown>
-                      </div>
+                      <MessageContent text={msg.text} onAgentClick={handleAgentBadgeClick} />
                       <img
                         src={`data:image/png;base64,${msg.imageData}`}
                         alt="Uploaded image"
@@ -566,20 +917,7 @@ What kind of agent team would you like me to create today?`
                       />
                     </div>
                   ) : (
-                    <div className="prose prose-sm max-w-none">
-                      <ReactMarkdown
-                        components={{
-                          ul: ({children}) => <ul className="list-disc pl-4 space-y-1 mb-2">{children}</ul>,
-                          ol: ({children}) => <ol className="list-decimal pl-4 space-y-1 mb-2">{children}</ol>,
-                          li: ({children}) => <li className="text-inherit">{children}</li>,
-                          strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                          code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">{children}</code>,
-                          p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>
-                        }}
-                      >
-                        {msg.text}
-                      </ReactMarkdown>
-                    </div>
+                    <MessageContent text={msg.text} onAgentClick={handleAgentBadgeClick} />
                   )}
                 </div>
               )}
@@ -596,31 +934,19 @@ What kind of agent team would you like me to create today?`
         </div>
 
         {/* Input Area */}
-        <div className="p-3 md:p-5 border-t border-purple-200 bg-white/80 backdrop-blur-sm rounded-b-lg">
-          <form onSubmit={handleSubmit} className="flex items-center space-x-2">
-            <input
-              type="text"
+        <div className="p-2 border-t border-purple-200 bg-white/80 backdrop-blur-sm rounded-b-lg">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <AgentAutocompleteInput
               value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
+              onChange={setUserInput}
               placeholder={getPlaceholderText()}
-              className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               disabled={isInputDisabled}
+              className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
-
-            {!isUsingObServer && (
-              <button
-                type="button"
-                onClick={() => setIsLocalModalOpen(true)}
-                className="p-2 bg-purple-700 text-white rounded-md hover:bg-purple-800 transition-colors flex items-center"
-                title="Configure Local Model"
-              >
-                <Cpu className="h-5 w-5" />
-              </button>
-            )}
 
             <button
               type="submit"
-              className="p-2 md:p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center"
+              className="p-2 md:p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
               disabled={isSendDisabled}
               title="Send"
             >
@@ -630,14 +956,10 @@ What kind of agent team would you like me to create today?`
         </div>
       </div>
 
-      <LocalModelSelectionModal
-        isOpen={isLocalModalOpen}
-        onClose={() => setIsLocalModalOpen(false)}
-        currentModel={selectedLocalModel}
-        onSelectModel={setSelectedLocalModel}
-        onSignIn={onSignIn}
-        onSwitchToObServer={onSwitchToObServer}
-        isAuthenticated={isAuthenticated}
+      <AgentReferenceModal
+        isOpen={selectedAgentModal.isOpen}
+        onClose={() => setSelectedAgentModal({ isOpen: false, agentData: null })}
+        agentData={selectedAgentModal.agentData}
       />
     </>
   );
