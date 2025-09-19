@@ -1,15 +1,14 @@
 // src/components/MultiAgentCreator.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Save, X, AlertTriangle, Clipboard, Users, Clock, CheckCircle, XCircle, Code, Brain, Database } from 'lucide-react';
+import { Send, Loader2, Save, X, Users, Clock, CheckCircle, XCircle, Code, Brain, Database } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { sendPrompt, fetchResponse } from '@utils/sendApi';
+import { fetchResponse } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory, saveAgent, getAllAgentIds } from '@utils/agent_database';
 import {
   extractMultipleAgentConfigs,
   parseAgentResponse,
   extractImageRequest,
-  extractAgentReferences,
   extractAgentReferencesWithPositions,
   extractValidAgentReferencesWithPositions,
   detectPartialAgentTyping,
@@ -137,7 +136,6 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
   const [agentIds, setAgentIds] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-  const [cursorPosition, setCursorPosition] = useState(0);
   const [partialTyping, setPartialTyping] = useState<{
     partialMatch: string;
     start: number;
@@ -162,7 +160,6 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     const newCursorPos = e.target.selectionStart || 0;
 
     onChange(newValue);
-    setCursorPosition(newCursorPos);
 
     // Check for partial agent typing
     const partial = detectPartialAgentTyping(newValue, newCursorPos);
@@ -180,8 +177,8 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     }
   };
 
-  const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    setCursorPosition(e.currentTarget.selectionStart || 0);
+  const handleKeyUp = (_: React.KeyboardEvent<HTMLInputElement>) => {
+    // Remove cursor position tracking as it's not needed
   };
 
   const handleSuggestionClick = (agentId: string) => {
@@ -292,7 +289,7 @@ const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
 
     return (
       <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-40 overflow-y-auto">
-        {filteredSuggestions.map((agentId, index) => (
+        {filteredSuggestions.map((agentId, _) => (
           <button
             key={agentId}
             onClick={() => handleSuggestionClick(agentId)}
@@ -529,7 +526,7 @@ const AgentReferenceModal: React.FC<AgentReferenceModalProps> = ({ isOpen, onClo
                   </div>
 
                   <div className="space-y-3">
-                    {recentRuns.slice(-5).reverse().map((run, i) => (
+                    {recentRuns.slice(-5).reverse().map((run, _) => (
                       <div key={run.id} className={`border rounded-lg p-3 ${
                         run.hasError ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'
                       }`}>
@@ -610,13 +607,17 @@ interface Message {
 interface MultiAgentCreatorProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
+  isUsingObServer: boolean;
   onSignIn?: () => void;
+  onSwitchToObServer?: () => void;
 }
 
 const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
   getToken,
   isAuthenticated,
-  onSignIn
+  isUsingObServer: _isUsingObServer,
+  onSignIn: _onSignIn,
+  onSwitchToObServer: _onSwitchToObServer
 }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
