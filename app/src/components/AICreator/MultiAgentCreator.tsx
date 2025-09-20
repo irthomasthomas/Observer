@@ -263,9 +263,9 @@ const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
       text: `Hi there! I'm Observer's **Multi-Agent Builder**. I specialize in creating teams of coordinated agents that work together to accomplish complex tasks.
 
 For example, I can build agent teams to:
-🤖 **Monitor & Document** - One agent watches your screen, another documents processes
-🔍 **Extract & Solve** - One agent reads problems from screen, another solves them
-👀 **Watch & Guide** - One agent observes, another provides step-by-step guidance
+* **Monitor & Document** 🤖 - One agent watches your screen, another documents processes
+* **Extract & Solve** 🔍 - One agent reads problems from screen, another solves them
+* **Watch & Guide** 👀 - One agent observes, another provides step-by-step guidance
 
 What kind of agent team would you like me to create today?`
     }
