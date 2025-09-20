@@ -17,6 +17,7 @@ interface GetStartedProps {
   isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
+  onRefresh?: () => void;
 }
 
 const GetStarted: React.FC<GetStartedProps> = ({
@@ -28,7 +29,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
   isUsingObServer,
   isPro = false,
   onSignIn,
-  onSwitchToObServer
+  onSwitchToObServer,
+  onRefresh
 }) => {
   const [mode, setMode] = useState<'single' | 'multi'>('single');
 
@@ -154,6 +156,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
                   isUsingObServer={isUsingObServer}
                   onSignIn={onSignIn}
                   onSwitchToObServer={onSwitchToObServer}
+                  onRefresh={onRefresh}
                 />
               )}
             </div>

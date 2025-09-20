@@ -636,6 +636,7 @@ function AppContent() {
                   isPro={isProUser}
                   onSignIn={loginWithRedirect}
                   onSwitchToObServer={() => setIsUsingObServer(true)}
+                  onRefresh={fetchAgents}
                 />
               }
             </div>
