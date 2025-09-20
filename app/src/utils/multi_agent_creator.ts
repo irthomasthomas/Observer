@@ -325,7 +325,7 @@ memory: ""
 
 **Final Output Format:**
 
-Generate multiple \`$$$\` blocks, one for each agent in the team:
+Generate multiple \`$$$\` blocks, one for each agent in the team, follow the exact config, don't add anything extra. 
 
 \`\`\`
 \$\$\$

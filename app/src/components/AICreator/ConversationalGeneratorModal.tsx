@@ -1,5 +1,5 @@
 // src/components/AICreator/ConversationalGeneratorModal.tsx
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { X, Sparkles, User, Users } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';
 import MultiAgentCreator from './MultiAgentCreator';
@@ -18,6 +18,8 @@ interface ConversationalGeneratorModalProps {
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
   onRefresh?: () => void;
+  initialMessage?: string;
+  initialMode?: 'single' | 'multi';
 }
 
 const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> = ({
@@ -30,9 +32,16 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   isPro = false,
   onSignIn,
   onSwitchToObServer,
-  onRefresh
+  onRefresh,
+  initialMessage
 }) => {
-  const [mode, setMode] = useState<'single' | 'multi'>('single');
+  // Default to multi-agent mode when we have an initial message (editing existing agents)
+  const [mode, setMode] = useState<'single' | 'multi'>(initialMessage ? 'multi' : 'single');
+
+  // Watch for changes to initialMessage and update mode accordingly
+  useEffect(() => {
+    setMode(initialMessage ? 'multi' : 'single');
+  }, [initialMessage]);
 
   // Handle mode change with Pro restriction
   const handleModeChange = (newMode: 'single' | 'multi') => {
@@ -66,8 +75,9 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     isUsingObServer,
     onSignIn,
     onSwitchToObServer,
-    onRefresh
-  }), [getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer, onRefresh]);
+    onRefresh,
+    initialMessage
+  }), [getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer, onRefresh, initialMessage]);
 
   if (!isOpen) return null;
 

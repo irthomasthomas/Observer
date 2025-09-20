@@ -52,12 +52,13 @@ interface AgentCardProps {
   onUpgradeClick: () => void;
   onSave: (agent: CompleteAgent, code: string) => Promise<void>;
   isProUser?: boolean;
+  onAIEdit?: (agentId: string) => void;
 }
 
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent, code, isRunning, isStarting, isMemoryFlashing, onEdit, onDelete, onToggle,
-  onMemory, onActivity, onShowJupyterModal, hasQuotaError, onUpgradeClick, onSave, isProUser = false
+  onMemory, onActivity, onShowJupyterModal, hasQuotaError, onUpgradeClick, onSave, isProUser = false, onAIEdit
 }) => {
   const [isPythonAgent, setIsPythonAgent] = useState(false);
   const [startWarning, setStartWarning] = useState<string | null>(null);
@@ -259,6 +260,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
         onMemory={onMemory}
         onActivity={onActivity}
         onShowJupyterModal={onShowJupyterModal}
+        onAIEdit={onAIEdit}
       />
     </div>
   );

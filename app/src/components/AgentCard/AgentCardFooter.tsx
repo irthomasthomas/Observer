@@ -1,6 +1,6 @@
 // components/AgentCard/AgentCardFooter.tsx
 import React from 'react';
-import { Edit, Trash2, Terminal, Brain } from 'lucide-react';
+import { Edit, Trash2, Terminal, Brain, Sparkles } from 'lucide-react';
 
 interface AgentCardFooterProps {
     agentId: string;
@@ -12,17 +12,21 @@ interface AgentCardFooterProps {
     onMemory: (agentId: string) => void;
     onActivity: (agentId: string) => void;
     onShowJupyterModal: () => void;
+    onAIEdit?: (agentId: string) => void;
 }
 
 const AgentCardFooter: React.FC<AgentCardFooterProps> = ({
     agentId, isPythonAgent, isJupyterConnected, isMemoryFlashing,
-    onEdit, onDelete, onMemory, onActivity, onShowJupyterModal
+    onEdit, onDelete, onMemory, onActivity, onShowJupyterModal, onAIEdit
 }) => {
     return (
         <div className="border-t border-gray-100 bg-gray-50/75 px-4 py-2 flex justify-between items-center">
             {/* Left Side: Edit/Delete */}
             <div className="flex items-center gap-2">
                 <button onClick={() => onEdit(agentId)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded-md"><Edit className="w-4 h-4" /> Edit</button>
+                {onAIEdit && (
+                    <button onClick={() => onAIEdit(agentId)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-100 rounded-md"><Sparkles className="w-4 h-4" /> AI Edit</button>
+                )}
                 <button onClick={() => onDelete(agentId)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-100 rounded-md"><Trash2 className="w-4 h-4" /> Delete</button>
             </div>
 

@@ -244,6 +244,7 @@ interface MultiAgentCreatorProps {
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
   onRefresh?: () => void;
+  initialMessage?: string;
 }
 
 const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
@@ -252,7 +253,8 @@ const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
   isUsingObServer: _isUsingObServer,
   onSignIn: _onSignIn,
   onSwitchToObServer: _onSwitchToObServer,
-  onRefresh
+  onRefresh,
+  initialMessage
 }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -271,11 +273,32 @@ What kind of agent team would you like me to create today?`
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const hasInitialMessageSent = useRef(false);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-send initial message when provided
+  useEffect(() => {
+    if (initialMessage && isAuthenticated && !isLoading && !hasInitialMessageSent.current) {
+      hasInitialMessageSent.current = true;
+
+      // Create the message directly without going through form submission
+      const newUserMessage: Message = {
+        id: Date.now() + Math.random() * 1000,
+        sender: 'user',
+        text: initialMessage
+      };
+
+      setMessages(prev => [...prev, newUserMessage]);
+
+      // Send the conversation immediately
+      const allMessages = [...messages, newUserMessage];
+      sendConversation(allMessages);
+    }
+  }, []); // Empty dependency array - only run once on mount
 
   // Modal state for agent reference details
   const [selectedAgentModal, setSelectedAgentModal] = useState<{

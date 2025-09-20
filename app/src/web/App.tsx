@@ -88,6 +88,7 @@ function AppContent() {
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
   const [isConversationalModalOpen, setIsConversationalModalOpen] = useState(false);
+  const [aiEditMessage, setAiEditMessage] = useState<string | undefined>();
   const [hasCompletedStartupCheck, setHasCompletedStartupCheck] = useState(false);
 
   // --- NEW STATE FOR QUOTA ERRORS AND MODAL ---
@@ -302,6 +303,12 @@ function AppContent() {
     setActivityModalAgentId(agentId);
     setActivityModalOpen(true);
     Logger.info('APP', `Opening activity modal for agent ${agentId}`);
+  };
+
+  const handleAIEditClick = (agentId: string) => {
+    setAiEditMessage(`Help me edit this agent @${agentId}`);
+    setIsConversationalModalOpen(true);
+    Logger.info('APP', `Opening AI Edit modal for agent ${agentId}`);
   };
 
   const handleDeleteClick = async (agentId: string) => {
@@ -614,6 +621,7 @@ function AppContent() {
                       onUpgradeClick={() => setIsUpgradeModalOpen(true)}
                       onSave={handleSaveAgent}
                       isProUser={isProUser}
+                      onAIEdit={handleAIEditClick}
                     />
                   </div>
                 );
@@ -659,7 +667,10 @@ function AppContent() {
         />
         <ConversationalGeneratorModal
           isOpen={isConversationalModalOpen}
-          onClose={() => setIsConversationalModalOpen(false)}
+          onClose={() => {
+            setIsConversationalModalOpen(false);
+            setAiEditMessage(undefined); // Clear the AI edit message when closing
+          }}
           onAgentGenerated={handleAgentGenerated}
           getToken={getToken}
           isAuthenticated={isAuthenticated}
@@ -668,6 +679,7 @@ function AppContent() {
           onSignIn={loginWithRedirect}
           onSwitchToObServer={() => setIsUsingObServer(true)}
           onRefresh={fetchAgents}
+          initialMessage={aiEditMessage}
         />
 
       {isEditModalOpen && (
