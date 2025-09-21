@@ -372,7 +372,7 @@ What kind of agent team would you like me to create today?`
       responseText = await fetchResponse(
         'https://api.observer-ai.com:443',
         content,
-        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite-free',
         token,
         true,
         (chunk: string) => {

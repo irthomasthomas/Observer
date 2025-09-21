@@ -34,12 +34,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
 }) => {
   const [mode, setMode] = useState<'single' | 'multi'>('single');
 
-  // Handle mode change with Pro restriction
+  // Handle mode change
   const handleModeChange = (newMode: 'single' | 'multi') => {
-    if (newMode === 'multi' && !isPro) {
-      // For non-Pro users trying to access multi-agent, do nothing or show upgrade prompt
-      return;
-    }
     setMode(newMode);
   };
 
@@ -80,23 +76,14 @@ const GetStarted: React.FC<GetStartedProps> = ({
                     </button>
                     <button
                       onClick={() => handleModeChange('multi')}
-                      disabled={!isPro}
-                      className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+                      className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         mode === 'multi'
                           ? 'bg-white text-purple-600 shadow-sm'
-                          : isPro
-                          ? 'text-gray-600 hover:text-purple-600 hover:bg-white/50'
-                          : 'text-gray-400 cursor-not-allowed'
+                          : 'text-gray-600 hover:text-purple-600 hover:bg-white/50'
                       }`}
-                      title={!isPro ? 'Pro feature - Upgrade to access Multi-Agent creation' : ''}
                     >
                       <Users className="h-4 w-4 mr-2" />
                       Multi-Agent
-                      {!isPro && (
-                        <span className="ml-2 px-1.5 py-0.5 text-xs font-semibold bg-purple-500 text-white rounded">
-                          PRO
-                        </span>
-                      )}
                     </button>
                   </div>
                 </div>
@@ -118,23 +105,14 @@ const GetStarted: React.FC<GetStartedProps> = ({
                   </button>
                   <button
                     onClick={() => handleModeChange('multi')}
-                    disabled={!isPro}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       mode === 'multi'
                         ? 'bg-white text-purple-600 shadow-sm'
-                        : isPro
-                        ? 'text-gray-600 hover:text-purple-600 hover:bg-white/50'
-                        : 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-600 hover:text-purple-600 hover:bg-white/50'
                     }`}
-                    title={!isPro ? 'Pro feature - Upgrade to access Multi-Agent creation' : ''}
                   >
                     <Users className="h-4 w-4 mr-2" />
                     Multi-Agent
-                    {!isPro && (
-                      <span className="ml-2 px-1.5 py-0.5 text-xs font-semibold bg-purple-500 text-white rounded">
-                        PRO
-                      </span>
-                    )}
                   </button>
                 </div>
               </div>
