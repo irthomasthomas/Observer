@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertTriangle, Clipboard, Cpu } from 'lucide-react';
+import { X, AlertTriangle, Clipboard } from 'lucide-react';
 import { listModels, Model } from '@utils/inferenceServer';
 import getConversationalSystemPrompt from '@utils/conversational_system_prompt';
 import getMultiAgentSystemPrompt from '@utils/multi_agent_creator';
