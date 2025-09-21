@@ -14,7 +14,6 @@ interface GetStartedProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
-  isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
   onRefresh?: () => void;
@@ -27,7 +26,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
   getToken,
   isAuthenticated,
   isUsingObServer,
-  isPro = false,
   onSignIn,
   onSwitchToObServer,
   onRefresh

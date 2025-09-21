@@ -633,7 +633,6 @@ function AppContent() {
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
-                  isPro={isProUser}
                   onSignIn={loginWithRedirect}
                   onSwitchToObServer={() => setIsUsingObServer(true)}
                   onRefresh={fetchAgents}
