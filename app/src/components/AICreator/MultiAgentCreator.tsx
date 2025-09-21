@@ -1,7 +1,7 @@
 // src/components/AICreator/MultiAgentCreator.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Save, Users } from 'lucide-react';
+import { Send, Loader2, Save, Users, Cpu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { fetchResponse } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory, saveAgent } from '@utils/agent_database';
@@ -20,6 +20,7 @@ import getMultiAgentSystemPrompt from '@utils/multi_agent_creator';
 import type { TokenProvider } from '@utils/main_loop';
 import AgentReferenceModal from './AgentReferenceModal';
 import { AgentAutocompleteInput } from './AgentAutocompleteInput';
+import LocalWarning from './LocalWarning';
 
 // ===================================================================================
 //  MULTI-AGENT PREVIEW COMPONENT
@@ -250,9 +251,9 @@ interface MultiAgentCreatorProps {
 const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
   getToken,
   isAuthenticated,
-  isUsingObServer: _isUsingObServer,
-  onSignIn: _onSignIn,
-  onSwitchToObServer: _onSwitchToObServer,
+  isUsingObServer,
+  onSignIn,
+  onSwitchToObServer,
   onRefresh,
   initialMessage
 }) => {
@@ -306,6 +307,10 @@ What kind of agent team would you like me to create today?`
     agentData: AgentReferenceData | null;
   }>({ isOpen: false, agentData: null });
 
+  // --- STATE FOR MODAL AND LOCAL MODEL SELECTION ---
+  const [isLocalModalOpen, setIsLocalModalOpen] = useState(false);
+  const [selectedLocalModel, setSelectedLocalModel] = useState('');
+
   const sendConversation = async (allMessages: Message[]) => {
     setIsLoading(true);
 
@@ -352,38 +357,51 @@ What kind of agent team would you like me to create today?`
 
     try {
       let responseText: string;
-      // Multi-Agent Creator only works with Ob-Server
-      const token = await getToken();
-      if (!token) throw new Error("Authentication failed.");
+      if (isUsingObServer) {
+        // --- CLOUD PATH ---
+        const token = await getToken();
+        if (!token) throw new Error("Authentication failed.");
 
-      let content: any = fullPrompt;
-      if (images && images.length > 0) {
-        content = [
-          { type: "text", text: fullPrompt },
-          ...images.map(imageBase64Data => ({
-            type: "image_url",
-            image_url: {
-              url: `data:image/png;base64,${imageBase64Data}`
-            }
-          }))
-        ];
-      }
+        let content: any = fullPrompt;
+        if (images && images.length > 0) {
+          content = [
+            { type: "text", text: fullPrompt },
+            ...images.map(imageBase64Data => ({
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${imageBase64Data}`
+              }
+            }))
+          ];
+        }
 
-      responseText = await fetchResponse(
-        'https://api.observer-ai.com:443',
-        content,
-        'gemini-2.5-flash-lite-free',
-        token,
-        true,
-        (chunk: string) => {
+        responseText = await fetchResponse(
+          'https://api.observer-ai.com:443',
+          content,
+          'gemini-2.5-flash-lite-free',
+          token,
+          true,
+          (chunk: string) => {
+            accumulatedResponse += chunk;
+            setMessages(prev => prev.map(msg =>
+              msg.id === streamingMessageId
+                ? { ...msg, text: accumulatedResponse }
+                : msg
+            ));
+          }
+        );
+      } else {
+        // --- LOCAL PATH ---
+        const { sendPrompt } = await import('@utils/sendApi');
+        responseText = await sendPrompt(selectedLocalModel, { modifiedPrompt: fullPrompt, images }, undefined, true, (chunk: string) => {
           accumulatedResponse += chunk;
           setMessages(prev => prev.map(msg =>
             msg.id === streamingMessageId
               ? { ...msg, text: accumulatedResponse }
               : msg
           ));
-        }
-      );
+        });
+      }
 
       // Convert streaming message to final message
       setMessages(prev => prev.map(msg =>
@@ -448,6 +466,12 @@ What kind of agent team would you like me to create today?`
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim() || isLoading) return;
+
+    // Guard against submission if local model isn't selected in local mode
+    if (!isUsingObServer && !selectedLocalModel) {
+        setIsLocalModalOpen(true); // Prompt user to select a model
+        return;
+    }
 
     const newUserMessage: Message = { id: Date.now() + Math.random() * 1000, sender: 'user', text: userInput };
     setMessages(prev => [...prev, newUserMessage]);
@@ -542,10 +566,13 @@ What kind of agent team would you like me to create today?`
   };
 
   const getPlaceholderText = () => {
-    return isAuthenticated ? "Describe the agent team you want to build..." : "Enable Ob-Server and log in to use Multi-Agent Builder";
+    if (isUsingObServer) {
+      return isAuthenticated ? "Describe the agent team you want to build..." : "Enable Ob-Server and log in to use Multi-Agent Builder";
+    }
+    return selectedLocalModel ? "Describe the agent team to build with your model..." : "Click the CPU icon to select a local model";
   };
 
-  const isInputDisabled = isLoading || !isAuthenticated;
+  const isInputDisabled = isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
   const isSendDisabled = isInputDisabled || !userInput.trim();
 
   return (
@@ -607,6 +634,17 @@ What kind of agent team would you like me to create today?`
               className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
 
+            {!isUsingObServer && (
+              <button
+                type="button"
+                onClick={() => setIsLocalModalOpen(true)}
+                className="p-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors flex items-center"
+                title="Configure Local Model"
+              >
+                <Cpu className="h-5 w-5" />
+              </button>
+            )}
+
             <button
               type="submit"
               className="p-2 md:p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
@@ -623,6 +661,17 @@ What kind of agent team would you like me to create today?`
         isOpen={selectedAgentModal.isOpen}
         onClose={() => setSelectedAgentModal({ isOpen: false, agentData: null })}
         agentData={selectedAgentModal.agentData}
+      />
+
+      <LocalWarning
+        isOpen={isLocalModalOpen}
+        onClose={() => setIsLocalModalOpen(false)}
+        currentModel={selectedLocalModel}
+        onSelectModel={setSelectedLocalModel}
+        onSignIn={onSignIn}
+        onSwitchToObServer={onSwitchToObServer}
+        isAuthenticated={isAuthenticated}
+        featureType="multiagent"
       />
     </>
   );

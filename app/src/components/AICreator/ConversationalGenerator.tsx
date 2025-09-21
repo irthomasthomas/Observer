@@ -12,157 +12,8 @@ import type { TokenProvider } from '@utils/main_loop';
 // Removed getOllamaServerAddress import - no longer needed
 import { listModels, Model } from '@utils/inferenceServer';
 import { AgentAutocompleteInput } from './AgentAutocompleteInput';
+import LocalWarning from './LocalWarning';
 
-// ===================================================================================
-//  LOCAL MODEL SELECTION MODAL
-// ===================================================================================
-interface LocalModelSelectionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  currentModel: string;
-  onSelectModel: (modelName: string) => void;
-  onSignIn?: () => void;
-  onSwitchToObServer?: () => void;
-  isAuthenticated: boolean;
-}
-
-const LocalModelSelectionModal: React.FC<LocalModelSelectionModalProps> = ({ isOpen, onClose, currentModel, onSelectModel, onSignIn, onSwitchToObServer, isAuthenticated }) => {
-  const [localModels, setLocalModels] = useState<Model[]>([]);
-  const [isFetchingModels, setIsFetchingModels] = useState(false);
-  const [localModelError, setLocalModelError] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      const fetchLocalModels = async () => {
-        setIsFetchingModels(true);
-        setLocalModelError(null);
-        try {
-          const result = listModels();
-          if (result.error) throw new Error(result.error);
-          if (result.models.length === 0) {
-            setLocalModelError("No models found. Ensure your local server is running and has models available.");
-          } else {
-            setLocalModels(result.models);
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "An unknown error occurred.";
-          setLocalModelError(`Connection failed: ${message}`);
-        } finally {
-          setIsFetchingModels(false);
-        }
-      };
-      fetchLocalModels();
-    }
-  }, [isOpen]);
-
-  const handleCopyPrompt = () => {
-    const promptText = getConversationalSystemPrompt();
-    navigator.clipboard.writeText(promptText).then(() => {
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
-    });
-  };
-
-  const handleTryObServer = () => {
-    if (!isAuthenticated) {
-      onSignIn?.();
-    } else {
-      onSwitchToObServer?.();
-      onClose();
-    }
-  };
-
-  const handleSelectAndClose = (modelName: string) => {
-    onSelectModel(modelName);
-    onClose();
-  };
-  
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all">
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Configure Local Model</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
-        </div>
-        <div className="p-6 space-y-6">
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md text-sm">
-            <div className="flex items-start space-x-3">
-              <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-bold">Heads Up!</p>
-                <p>This feature requires large, capable models for best results.</p>
-                <p className="text-xs text-yellow-700 mt-2">
-                  If you don't have a model bigger than 70B parameters, it is recommended to use Ob-Server or any large LLM provider of your choice by copying the agent creator system prompt to your clipboard.
-                </p>
-                <button 
-                  onClick={handleCopyPrompt}
-                  className="mt-3 px-3 py-1.5 text-xs font-medium text-white bg-slate-700 rounded-md hover:bg-slate-800 transition-colors flex items-center"
-                >
-                  <Clipboard className="h-4 w-4 mr-2" />
-                  {isCopied ? 'Copied!' : 'Copy System Prompt'}
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          {/* Recommended: Turn on Ob-Server Section */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <span className="text-2xl">💡</span>
-              <div className="flex-1">
-                <p className="font-semibold text-blue-800 mb-1">Recommended:</p>
-                <p className="text-sm text-blue-700 mb-3">
-                  Turn on Ob-Server for this feature only. Provides instant access to large, capable models without local hardware requirements.
-                </p>
-                <button 
-                  onClick={handleTryObServer}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Turn on Ob-Server for this feature only
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          <div>
-            <label htmlFor="model-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select a model to power the generator:
-            </label>
-            {isFetchingModels ? <div className="text-sm text-gray-500">Loading models...</div>
-            : localModelError ? <div className="text-sm text-red-600">{localModelError}</div>
-            : (
-              <select
-                id="model-select"
-                value={currentModel}
-                onChange={(e) => handleSelectAndClose(e.target.value)}
-                className="block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-              >
-                <option value="" disabled>-- Choose your model --</option>
-                {localModels.map(model => (
-                  <option key={model.name} value={model.name}>{model.name}</option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div className="text-right">
-             <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 
 // ===================================================================================
@@ -528,7 +379,7 @@ What would you like to create today?`
       </div>
       
       {/* Render the modal (controlled by state) */}
-      <LocalModelSelectionModal 
+      <LocalWarning
         isOpen={isLocalModalOpen}
         onClose={() => setIsLocalModalOpen(false)}
         currentModel={selectedLocalModel}
@@ -536,6 +387,7 @@ What would you like to create today?`
         onSignIn={onSignIn}
         onSwitchToObServer={onSwitchToObServer}
         isAuthenticated={isAuthenticated}
+        featureType="conversational"
       />
     </>
   );
