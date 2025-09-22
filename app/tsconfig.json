@@ -25,7 +25,8 @@
       "@components/*": ["src/components/*"],
       "@utils/*": ["src/utils/*"],
       "@web/*": ["src/web/*"],
-      "@desktop/*": ["src/desktop/*"]
+      "@desktop/*": ["src/desktop/*"],
+      "@hooks/*": ["src/hooks/*"]
     }
   },
   "include": ["src"],

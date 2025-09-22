@@ -22,7 +22,8 @@ export default defineConfig({
       '@components': resolve(__dirname, './src/components'),
       '@utils': resolve(__dirname, './src/utils'),
       '@web': resolve(__dirname, './src/web'),
-      '@desktop': resolve(__dirname, './src/desktop')
+      '@desktop': resolve(__dirname, './src/desktop'),
+      '@hooks': resolve(__dirname, './src/hooks')
     }
   },
   build: {
