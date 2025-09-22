@@ -6,9 +6,9 @@ import {
   ScanText,
   ArrowRight, Clock, Download, ChevronDown, Images, Trash2
 } from 'lucide-react';
-import { IterationStore, IterationData, SensorData, AgentSession } from '../../utils/IterationStore';
-import { exportData, ExportFormat } from '../../utils/exportUtils';
-import ToolStatus from '../shared/ToolStatus';
+import { IterationStore, IterationData, SensorData, AgentSession } from '@utils/IterationStore';
+import { exportData, ExportFormat } from '@utils/exportUtils';
+import ToolStatus from '@components/AgentCard/ToolStatus';
 
 // Lazy Image Loading Component
 interface LazyImageProps {

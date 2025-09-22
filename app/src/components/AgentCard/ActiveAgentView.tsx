@@ -6,9 +6,9 @@ import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { CompleteAgent, getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
 import { agentHasScreenSensor, agentHasCameraSensor, agentHasSensor } from '@utils/agentCapabilities';
 import { IterationStore, ToolCall } from '@utils/IterationStore';
-import ToolStatus from '../shared/ToolStatus';
+import ToolStatus from '@components/AgentCard/ToolStatus';
 import { useTranscriptionPolling } from '@hooks/useTranscriptionPolling';
-import TranscriptionModal from './TranscriptionModal';
+import TranscriptionModal from '@components/AgentCard/TranscriptionModal';
 
 type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'IDLE';
 
