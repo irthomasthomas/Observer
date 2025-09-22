@@ -261,6 +261,25 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   }, [isUsingObServer]);
 
 
+  // Handle ObServer state changes - trigger full workflow when enabled
+  useEffect(() => {
+    if (isUsingObServer) {
+      // Add ObServer inference address
+      addInferenceAddress(OB_SERVER_ADDRESS);
+      // Fetch models to include ObServer models
+      fetchModels();
+      // Check quota when turning on ObServer
+      if (isAuthenticated) {
+        fetchQuotaInfo(true);
+      }
+    } else {
+      // Remove ObServer inference address when disabled
+      removeInferenceAddress(OB_SERVER_ADDRESS);
+      // Fetch models to remove ObServer models
+      fetchModels();
+    }
+  }, [isUsingObServer, isAuthenticated]);
+
   useEffect(() => {
     if (isUsingObServer && isAuthenticated && serverStatus === 'online') {
       fetchQuotaInfo();
@@ -500,13 +519,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {isStartupDialogOpen && (
         <StartupDialogs
           onDismiss={() => setIsStartupDialogOpen(false)}
-          setUseObServer={(value) => {
+          onToggleObServer={() => {
             setIsStartupDialogOpen(false);
-            if (externalSetIsUsingObServer) {
-              externalSetIsUsingObServer(value);
-            } else {
-              setInternalIsUsingObServer(value);
-            }
+            handleToggleObServer();
           }}
           isAuthenticated={isAuthenticated}
           hostingContext={hostingContext}

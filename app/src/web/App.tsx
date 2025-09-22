@@ -83,7 +83,7 @@ function AppContent() {
   const [memoryAgentId, setMemoryAgentId] = useState<string | null>(null);
   const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState('myAgents');
-  const [isUsingObServer, setIsUsingObServer] = useState(true);
+  const [isUsingObServer, setIsUsingObServer] = useState(false);
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
@@ -537,7 +537,7 @@ function AppContent() {
         {showStartupDialog && (
           <StartupDialogs
             onDismiss={handleDismissStartupDialog}
-            setUseObServer={setIsUsingObServer}
+            onToggleObServer={() => setIsUsingObServer(true)}
             onLogin={loginWithRedirect}
             isAuthenticated={isAuthenticated}
             hostingContext={hostingContext}

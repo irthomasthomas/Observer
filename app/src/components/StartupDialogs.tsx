@@ -1,129 +1,98 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Terminal, Cloud, Server, AlertTriangle, Download } from 'lucide-react';
 import TerminalModal from '@components/TerminalModal';
-import { fetchModels, addInferenceAddress } from '@utils/inferenceServer';
 
 interface StartupDialogProps {
   onDismiss: () => void;
   onLogin?: () => void;
-  setUseObServer?: (value: boolean) => void;
+  onToggleObServer?: () => void;
   isAuthenticated: boolean;
   hostingContext: 'official-web' | 'self-hosted' | 'tauri';
   initialView?: 'initial' | 'local-warning' | 'no-models';
 }
 
+// Server address constants - aligned with AppHeader
+const LOCAL_SERVER_ADDRESS = 'http://localhost:3838';
 const LOCAL_STORAGE_KEY = 'observer_local_server_address';
-const DEFAULT_SERVER_ADDRESS = 'http://localhost:3838';
 
 const StartupDialog: React.FC<StartupDialogProps> = ({
   onDismiss,
   onLogin,
-  setUseObServer,
+  onToggleObServer,
   isAuthenticated,
   hostingContext,
   initialView = 'initial'
 }) => {
   const [view, setView] = useState<'initial' | 'local-warning' | 'no-models'>(initialView);
-  const [hasNoModels, setHasNoModels] = useState(false);
-  const [isCheckingModels, setIsCheckingModels] = useState(true);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 
-  useEffect(() => {
-    // Only run this check if in a local context
-    if (hostingContext === 'self-hosted' || hostingContext === 'tauri') {
-      const checkLocalModels = async () => {
-        // 1. Create an AbortController to manage the fetch request
-        const controller = new AbortController();
-        const signal = controller.signal;
+  // Model checking now happens only when user clicks "Use Local Server"
 
-        // 2. Set a 1-second timer. If it fires, it aborts the fetch request.
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, 1000); // 1000 milliseconds = 1 second
-
-        try {
-          const serverAddress = localStorage.getItem(LOCAL_STORAGE_KEY) || DEFAULT_SERVER_ADDRESS;
-
-          // Don't bother checking if the address is the official cloud server
-          if (new URL(serverAddress).hostname.includes('api.observer-ai.com')) {
-              clearTimeout(timeoutId); // Clear the timeout as we are not fetching
-              setIsCheckingModels(false);
-              return;
-          }
-
-          // 3. Make the fetch request with the abort signal
-          const response = await fetch(`${serverAddress}/api/tags`, { signal });
-          
-          // 4. If the fetch completes in time, clear the timeout
-          clearTimeout(timeoutId);
-
-          if (!response.ok) {
-            throw new Error(`Server not reachable (status: ${response.status})`);
-          }
-
-          const data = await response.json();
-          if (data.models && data.models.length === 0) {
-            setHasNoModels(true);
-          }
-        } catch (error: any) {
-          // 5. If the fetch was aborted, it throws an 'AbortError'. We catch it here.
-          if (error.name === 'AbortError') {
-            console.error("Local model check timed out after 1 second. Assuming local server is not running.");
-          } else {
-            console.error("Could not check for local models:", error);
-          }
-        } finally {
-          // 6. Always ensure the loading state is turned off
-          setIsCheckingModels(false);
-        }
-      };
-
-      checkLocalModels();
-    } else {
-        // If not in a local context, just disable the loading state immediately
-        setIsCheckingModels(false);
-    }
-  }, [hostingContext]);
-
-  const handleObServerStart = async () => {
+  const handleObServerStart = () => {
     if (!isAuthenticated) {
       if (onLogin) onLogin();
     } else {
-      if (setUseObServer) setUseObServer(true);
-      // Fetch models after switching to ObServer to update the model list
-      addInferenceAddress("https://api.observer-ai.com:443");
-
-      await fetchModels();
+      // Use AppHeader's toggle function which handles everything properly
+      if (onToggleObServer) onToggleObServer();
       onDismiss();
     }
   };
 
-  // --- BUG FIX 1 
-  const handleSetupLocalClick = () => {
+  const handleSetupLocalClick = async () => {
     if (hostingContext === 'official-web') {
       setView('local-warning');
-    } else if (hasNoModels) {
-      // Set the view AND set the server mode to local
-      setView('no-models');
-      if (setUseObServer) setUseObServer(false);
-    } else {
-      // Proceed as normal
-      if (setUseObServer) setUseObServer(false);
+      return;
+    }
+
+    // Check for models only when user actually wants local server
+    try {
+      const serverAddress = localStorage.getItem(LOCAL_STORAGE_KEY) || LOCAL_SERVER_ADDRESS;
+      const response = await fetch(`${serverAddress}/api/tags`, {
+        signal: AbortSignal.timeout(1000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.models && data.models.length === 0) {
+          setView('no-models');
+          return;
+        }
+      }
+    } catch (error) {
+      console.log("Local server not reachable, assuming non-ollama inference server", error);
+      // Don't show pull models modal for non-ollama servers
       onDismiss();
+      return;
     }
+
+    // If we get here, local server has models - proceed
+    onDismiss();
   };
-  
-  // --- BUG FIX 2 
-  const handleProceedWithLocal = () => {
-    if (hasNoModels) {
-        // Set the view AND set the server mode to local
-        setView('no-models');
-        if (setUseObServer) setUseObServer(false);
-    } else {
-        // Proceed as normal
-        if (setUseObServer) setUseObServer(false);
-        onDismiss();
+
+  const handleProceedWithLocal = async () => {
+    // Check for models when proceeding from warning
+    try {
+      const serverAddress = localStorage.getItem(LOCAL_STORAGE_KEY) || LOCAL_SERVER_ADDRESS;
+      const response = await fetch(`${serverAddress}/api/tags`, {
+        signal: AbortSignal.timeout(1000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.models && data.models.length === 0) {
+          setView('no-models');
+          return;
+        }
+      }
+    } catch (error) {
+      console.log("Local server not reachable, assuming non-ollama inference server", error);
+      // Don't show pull models modal for non-ollama servers
+      onDismiss();
+      return;
     }
+
+    // If we get here, local server has models - proceed
+    onDismiss();
   };
   
   const handlePullModelClick = () => {
@@ -132,13 +101,13 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
 
   const handleTerminalClose = () => {
     setIsTerminalOpen(false);
-    if (setUseObServer) setUseObServer(false);
+    // Note: ObServer should already be false by default
     onDismiss();
   }
 
   const handleAcceptCertClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const url = localStorage.getItem(LOCAL_STORAGE_KEY) || DEFAULT_SERVER_ADDRESS;
+    const url = localStorage.getItem(LOCAL_STORAGE_KEY) || LOCAL_SERVER_ADDRESS;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -195,8 +164,8 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
                       <p className="text-center text-xs text-gray-600 mb-2 leading-relaxed">
                         Run <a href="https://github.com/Roy3838/Observer" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">observer-ollama</a> and <a href="#" onClick={handleAcceptCertClick} className="text-blue-600 hover:underline">check server</a>.
                       </p>
-                      <button onClick={handleSetupLocalClick} disabled={isCheckingModels} className="w-full px-4 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm disabled:bg-slate-400 disabled:cursor-wait">
-                          {isCheckingModels ? 'Checking...' : 'Use Local Server'}
+                      <button onClick={handleSetupLocalClick} className="w-full px-4 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm">
+                          Use Local Server
                       </button>
                   </div>
                 </div>
