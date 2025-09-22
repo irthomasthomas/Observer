@@ -16,6 +16,7 @@ export interface WhisperSettings {
   language?: LanguageCode | string;
   quantized: boolean;
   chunkDurationMs: number;
+  maxChunksToKeep: number;
 }
 
 // Legacy interface for backward compatibility

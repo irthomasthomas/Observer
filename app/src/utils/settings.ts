@@ -89,7 +89,8 @@ class SettingsManager {
         const newSettings: WhisperSettings = {
             modelId,
             quantized: oldSettings.quantized || true,
-            chunkDurationMs: oldSettings.chunkDurationMs || 15000
+            chunkDurationMs: oldSettings.chunkDurationMs || 15000,
+            maxChunksToKeep: oldSettings.maxChunksToKeep || 8
         };
         
         // Add task/language for multilingual models
@@ -147,6 +148,15 @@ class SettingsManager {
         }
         const settings = this.getWhisperSettings();
         settings.chunkDurationMs = durationMs;
+        this.setWhisperSettings(settings);
+    }
+
+    public setWhisperMaxChunksToKeep(maxChunks: number): void {
+        if (maxChunks < 1 || maxChunks > 200) {
+            throw new Error('Max chunks to keep must be between 1-200');
+        }
+        const settings = this.getWhisperSettings();
+        settings.maxChunksToKeep = maxChunks;
         this.setWhisperSettings(settings);
     }
 }

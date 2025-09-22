@@ -32,6 +32,23 @@ const SettingsTab = () => {
   const [ocrLang, setOcrLang] = useState(SensorSettings.getOcrLanguage());
   const [ocrConfidence, setOcrConfidence] = useState(SensorSettings.getOcrConfidenceThreshold());
 
+  // Helper function to format transcript duration
+  const formatTranscriptDuration = (chunkDurationMs: number, maxChunks: number): string => {
+    const totalMs = chunkDurationMs * maxChunks;
+    const totalMinutes = Math.floor(totalMs / 60000);
+    const totalSeconds = Math.floor((totalMs % 60000) / 1000);
+
+    if (totalMinutes >= 60) {
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return `${hours}h ${minutes}m ${totalSeconds}s`;
+    } else if (totalMinutes > 0) {
+      return `${totalMinutes}m ${totalSeconds}s`;
+    } else {
+      return `${totalSeconds}s`;
+    }
+  };
+
   // --- OCR Handler Functions (Existing) ---
   const handleOcrLangChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLang = e.target.value;
@@ -100,6 +117,13 @@ const SettingsTab = () => {
     const newSettings = { ...whisperSettings, chunkDurationMs: newDuration };
     setWhisperSettings(newSettings);
     SensorSettings.setWhisperChunkDuration(newDuration);
+  };
+
+  const handleMaxChunksToKeepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newMaxChunks = parseInt(e.target.value, 10);
+    const newSettings = { ...whisperSettings, maxChunksToKeep: newMaxChunks };
+    setWhisperSettings(newSettings);
+    SensorSettings.setWhisperMaxChunksToKeep(newMaxChunks);
   };
 
   const handleLoadModel = async () => {
@@ -284,21 +308,47 @@ const SettingsTab = () => {
             <label htmlFor="chunk-duration" className="block text-sm font-medium text-gray-700 mb-2">
               Chunk Duration ({Math.round(whisperSettings.chunkDurationMs / 1000)}s)
             </label>
-            <input 
-              type="range" 
-              id="chunk-duration" 
-              min="5000" 
-              max="60000" 
+            <input
+              type="range"
+              id="chunk-duration"
+              min="5000"
+              max="60000"
               step="5000"
-              value={whisperSettings.chunkDurationMs} 
+              value={whisperSettings.chunkDurationMs}
               onChange={handleChunkDurationChange}
               disabled={isTestRunning}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed" 
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>5s</span>
               <span>30s</span>
               <span>60s</span>
+            </div>
+          </div>
+
+          {/* Transcript Size (Max Chunks to Keep) */}
+          <div>
+            <label htmlFor="max-chunks" className="block text-sm font-medium text-gray-700 mb-2">
+              Transcript Size ({whisperSettings.maxChunksToKeep} chunks)
+              <span className="ml-2 text-xs text-blue-600 font-medium">
+                💡 Keeps {formatTranscriptDuration(whisperSettings.chunkDurationMs, whisperSettings.maxChunksToKeep)} of history as text for the Agents
+              </span>
+            </label>
+            <input
+              type="range"
+              id="max-chunks"
+              min="1"
+              max="100"
+              step="1"
+              value={whisperSettings.maxChunksToKeep}
+              onChange={handleMaxChunksToKeepChange}
+              disabled={isTestRunning}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>1 chunk</span>
+              <span>50 chunks</span>
+              <span>100 chunks</span>
             </div>
           </div>
 

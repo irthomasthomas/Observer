@@ -134,7 +134,8 @@ export function getDefaultWhisperSettings(): WhisperSettings {
   return {
     modelId: 'Xenova/whisper-tiny.en',
     quantized: true,
-    chunkDurationMs: 15000
+    chunkDurationMs: 15000,
+    maxChunksToKeep: 8
   };
 }
 
