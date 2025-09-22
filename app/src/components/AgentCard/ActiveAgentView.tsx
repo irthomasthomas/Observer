@@ -5,6 +5,8 @@ import { StreamState, AudioStreamType } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { CompleteAgent, getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
 import { agentHasScreenSensor, agentHasCameraSensor, agentHasSensor } from '@utils/agentCapabilities';
+import { IterationStore, ToolCall } from '@utils/IterationStore';
+import ToolStatus from '../shared/ToolStatus';
 import { useTranscriptionPolling } from '@hooks/useTranscriptionPolling';
 import TranscriptionModal from './TranscriptionModal';
 
@@ -559,6 +561,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     const audioStreamsToDisplay = useMemo(() => getActiveAudioStreamsForDisplay(streams), [streams]);
     const [streamingResponse, setStreamingResponse] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
+    const [lastTools, setLastTools] = useState<ToolCall[]>([]);
 
     // Detect which sensors this agent actually uses
     const hasScreenSensor = useMemo(() => agentHasScreenSensor(agent.system_prompt), [agent.system_prompt]);
@@ -568,6 +571,24 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
 
     // Check if we have any active sensor previews to show
     const hasAnySensorPreviews = hasScreenSensor || hasCameraSensor || hasMemorySensor || hasImageMemorySensor;
+
+    // Load initial tool data and subscribe to updates
+    useEffect(() => {
+        const loadLastTools = () => {
+            const tools = IterationStore.getLastToolsForAgent(agentId, 3);
+            setLastTools(tools);
+        };
+
+        // Load initial data
+        loadLastTools();
+
+        // Subscribe to IterationStore updates
+        const unsubscribe = IterationStore.subscribe(() => {
+            loadLastTools();
+        });
+
+        return unsubscribe;
+    }, [agentId]);
 
     useEffect(() => {
         const handleStreamStart = (event: CustomEvent) => {
@@ -617,8 +638,9 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                     </div>
                 )}
 
-                {/* Show warning only if no sensors are configured */}
-                {!hasAnySensorPreviews && <NoSensorsWarning />}
+
+                {/* Show warning only if no sensors are configured and no recent tools */}
+                {!hasAnySensorPreviews && lastTools.length === 0 && <NoSensorsWarning />}
                 <div className="grid grid-cols-1 gap-2">
                     {audioStreamsToDisplay.map(({ type, stream, title, icon }) => (
                         <AudioWaveform key={type} stream={stream} title={title} icon={icon} type={type} />
@@ -633,6 +655,14 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                     response={isStreaming ? streamingResponse : lastResponse}
                     responseKey={isStreaming ? -1 : responseKey}
                 />
+                {/* Tool Status - Show below last response only if there are tools */}
+                {lastTools.length > 0 && (
+                    <ToolStatus
+                        tools={lastTools}
+                        variant="compact"
+                        maxTools={3}
+                    />
+                )}
             </div>
         </div>
     );

@@ -395,6 +395,25 @@ class IterationStoreClass {
       .sort((a, b) => a.sessionIterationNumber - b.sessionIterationNumber);
   }
 
+  public getLastToolsForAgent(agentId: string, limit: number = 3): ToolCall[] {
+    const iterations = this.getIterationsForAgent(agentId);
+    const allTools: ToolCall[] = [];
+
+    // Collect all tools from all iterations, most recent first
+    for (let i = iterations.length - 1; i >= 0; i--) {
+      const iteration = iterations[i];
+      // Add tools in reverse order (most recent first within the iteration)
+      for (let j = iteration.tools.length - 1; j >= 0; j--) {
+        allTools.push(iteration.tools[j]);
+        if (allTools.length >= limit) {
+          return allTools;
+        }
+      }
+    }
+
+    return allTools;
+  }
+
   public getIteration(iterationId: string): IterationData | undefined {
     return this.iterations.get(iterationId);
   }

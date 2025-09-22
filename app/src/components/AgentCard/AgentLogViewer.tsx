@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Brain, HelpCircle,
-  Monitor, Clipboard, Camera, Mic, CheckCircle, XCircle,
-  ScanText, Bell, Mail, Send, MessageSquare, MessageSquarePlus,
-  MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass,
-  ArrowRight, Clock, Download, ChevronDown, MessageCircle, Images, Trash2
+  Monitor, Clipboard, Camera, Mic,
+  ScanText,
+  ArrowRight, Clock, Download, ChevronDown, Images, Trash2
 } from 'lucide-react';
-import { IterationStore, IterationData, SensorData, ToolCall, AgentSession } from '../../utils/IterationStore';
+import { IterationStore, IterationData, SensorData, AgentSession } from '../../utils/IterationStore';
 import { exportData, ExportFormat } from '../../utils/exportUtils';
+import ToolStatus from '../shared/ToolStatus';
 
 // Lazy Image Loading Component
 interface LazyImageProps {
@@ -78,31 +78,6 @@ const LazyImage: React.FC<LazyImageProps> = ({
   );
 };
 
-// Simple icon components for tools
-const getToolIcon = (toolName: string) => {
-  const iconMap: Record<string, React.ElementType> = {
-    sendDiscordBot: () => <Send className="w-4 h-4" />,
-    sendWhatsapp: () => <MessageSquare className="w-4 h-4" />,
-    sendSms: () => <MessageSquarePlus className="w-4 h-4" />,
-    sendPushover: () => <Send className="w-4 h-4" />,
-    sendTelegram: MessageCircle,
-    sendEmail: Mail,
-    notify: Bell,
-    system_notify: Bell,
-    getMemory: Brain,
-    setMemory: SquarePen,
-    appendMemory: SquarePen,
-    startAgent: PlayCircle,
-    stopAgent: StopCircle,
-    time: Hourglass,
-    startClip: Video,
-    stopClip: VideoOff,
-    markClip: Tag,
-    ask: MessageSquareQuote,
-    message: MessageSquare,
-  };
-  return iconMap[toolName] || CheckCircle;
-};
 
 // Simple sensor icon mapping
 const getSensorIcon = (sensorType: string) => {
@@ -133,7 +108,6 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 }) => {
   const [currentIterations, setCurrentIterations] = useState<IterationData[]>([]);
   const [historicalSessions, setHistoricalSessions] = useState<AgentSession[]>([]);
-  const [hoveredTool, setHoveredTool] = useState<{ index: string; name: string; status: string } | null>(null);
   const [, setLoadedImages] = useState<Set<string>>(new Set());
   const [selectedIteration, setSelectedIteration] = useState<IterationData | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -306,59 +280,6 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     );
   };
 
-  // Render tool indicators
-  const renderToolIndicators = (tools: ToolCall[], iterationId: string) => {
-    if (tools.length === 0) {
-      return (
-        <div className="flex items-center gap-2 text-gray-400 text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-          <span className="italic">No tools used</span>
-        </div>
-      );
-    }
-    
-    return (
-      <div className="flex items-center gap-3 relative">
-        {tools.map((tool, index) => {
-          const isSuccess = tool.status === 'success';
-          const ToolIcon = getToolIcon(tool.name);
-          const toolId = `${iterationId}-${tool.name}-${index}`;
-          
-          return (
-            <div key={index} className="relative">
-              <div 
-                className={`flex items-center gap-1 px-2 py-1 rounded border cursor-help ${
-                  isSuccess 
-                    ? 'bg-green-50 border-green-200 hover:bg-green-100' 
-                    : 'bg-red-50 border-red-200 hover:bg-red-100'
-                }`}
-                onMouseEnter={() => setHoveredTool({ 
-                  index: toolId, 
-                  name: tool.name, 
-                  status: isSuccess ? 'Success' : 'Failed' 
-                })}
-                onMouseLeave={() => setHoveredTool(null)}
-              >
-                <ToolIcon className={`w-3 h-3 ${isSuccess ? 'text-green-600' : 'text-red-600'}`} />
-                {isSuccess ? (
-                  <CheckCircle className="w-3 h-3 text-green-600" />
-                ) : (
-                  <XCircle className="w-3 h-3 text-red-600" />
-                )}
-              </div>
-              
-              {/* Custom Tooltip */}
-              {hoveredTool?.index === toolId && (
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-10">
-                  {hoveredTool.name} - {hoveredTool.status}
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
 
   // Handle card click
   const handleCardClick = (iteration: IterationData, scrollContainer: HTMLElement) => {
@@ -490,7 +411,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
               {/* Actions (Tools) */}
               <div>
                 <div className="text-xs font-medium text-gray-500 mb-2">Actions</div>
-                {renderToolIndicators(iteration.tools, iteration.id)}
+                <ToolStatus tools={iteration.tools} variant="inline" />
               </div>
             </div>
           </div>
@@ -584,34 +505,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
             <div>
               <h2 className="text-xl font-medium text-gray-900 mb-4">Tools</h2>
               {selectedIteration.tools.length > 0 ? (
-                <div className="space-y-3">
-                  {selectedIteration.tools.map((tool, index) => {
-                    const isSuccess = tool.status === 'success';
-                    const ToolIcon = getToolIcon(tool.name);
-                    
-                    return (
-                      <div key={index} className="bg-gray-50 border rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <ToolIcon className={`w-4 h-4 ${
-                            isSuccess ? 'text-green-600' : 'text-red-600'
-                          }`} />
-                          <span className="font-medium text-gray-900">{tool.name}</span>
-                          {isSuccess ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-red-600" />
-                          )}
-                        </div>
-                        
-                        {tool.error && (
-                          <div className="text-sm text-red-600 mt-2">
-                            {tool.error}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                <ToolStatus tools={selectedIteration.tools} variant="full" />
               ) : (
                 <div className="bg-gray-50 border rounded-lg p-4">
                   <div className="text-sm text-gray-500 italic">No tools used</div>
