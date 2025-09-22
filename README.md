@@ -119,9 +119,9 @@ There are a few ways to get Observer up and running with local inference. I reco
 Download Ollama for the best compatibility. 
 
 Observer can connect directly to any server that provides a `v1/chat/completions` endpoint.
-Set the `Custom Model Server URL` on the App (not the browser) to vLLM, llama.cpp or any OpenAI compatible endpoint if not using Ollama.
+Set the `Custom Model Server URL` on the App to vLLM, llama.cpp or any OpenAI compatible endpoint if not using Ollama.
 
-## Option 2: Full Docker Setup (Recommended)
+## Option 2: Full Docker Setup (Deprecated)
 
 This method uses Docker Compose to run everything you need in containers: the Observer WebApp, the `observer-ollama` translator, and a local Ollama instance. This is the easiest way to get a 100% private, local-first setup.
 

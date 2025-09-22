@@ -1,7 +1,7 @@
 // components/ConnectionSettingsModal.tsx
 
 import React from 'react';
-import { X, ExternalLink, RefreshCw } from 'lucide-react';
+import { X, RefreshCw } from 'lucide-react';
 
 // Re-using the types from AppHeader. You might want to move these to a shared types file.
 type ServerStatus = 'unchecked' | 'online' | 'offline';
@@ -19,13 +19,10 @@ interface ConnectionSettingsModalProps {
   handleToggleObServer: () => void;
   showLoginMessage: boolean;
   isAuthenticated: boolean;
-  serverStatus: ServerStatus;
   quotaInfo: QuotaInfo;
   renderQuotaStatus: () => React.ReactNode;
-  serverAddress: string;
-  handleAddressInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  checkServerStatus: () => void;
-  getServerUrl: () => string;
+  localServerOnline: boolean;
+  checkLocalServer: () => void;
 }
 
 const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
@@ -35,12 +32,9 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
   handleToggleObServer,
   showLoginMessage,
   isAuthenticated,
-  serverStatus,
   renderQuotaStatus,
-  serverAddress,
-  handleAddressInputChange,
-  checkServerStatus,
-  getServerUrl,
+  localServerOnline,
+  checkLocalServer,
 }) => {
   if (!isOpen) return null;
 
@@ -73,59 +67,50 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
                 </button>
             </div>
             {showLoginMessage && <span className="text-xs text-red-500 font-semibold mt-1 block">Login Required</span>}
-            {isUsingObServer && isAuthenticated && serverStatus === 'online' && (
-                <div className="text-sm text-center mt-2">
-                    {renderQuotaStatus()}
+            {isUsingObServer ? (
+                isAuthenticated ? (
+                    <div className="text-sm text-center mt-2">
+                        {renderQuotaStatus()}
+                    </div>
+                ) : null
+            ) : (
+                <div className="text-xs text-center mt-1">
+                    <span className="font-semibold text-gray-500">
+                        Fully Offline
+                    </span>
                 </div>
             )}
         </div>
 
         {/* Local Server Section */}
         <div className={`p-3 border rounded-md transition-opacity ${isUsingObServer ? 'opacity-50' : 'opacity-100'}`}>
-            <label htmlFor="server-address-input" className="font-medium text-gray-700 mb-2 block">Local Inference Server</label>
-            <div className="flex items-center space-x-2">
-                 <input
-                  id="server-address-input"
-                  type="text"
-                  value={serverAddress}
-                  onChange={handleAddressInputChange}
-                  placeholder="http://localhost:3838"
-                  className="flex-grow px-3 py-2 border rounded-md text-sm bg-white"
-                  disabled={isUsingObServer}
-                />
-                 {(serverStatus === 'offline' || serverStatus === 'unchecked') && !isUsingObServer && (
-                  <a
-                    href={getServerUrl()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors group"
-                    title="Check server status in new tab"
-                  >
-                    <ExternalLink className="h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                  </a>
-                )}
+            <div className="flex justify-between items-center">
+                <label className="font-medium text-gray-700">Local Server</label>
+                <span className={`text-sm font-semibold ${
+                  localServerOnline ? 'text-green-600' : 'text-red-500'
+                }`}>
+                  {localServerOnline ? 'Online' : 'Offline'}
+                </span>
             </div>
-             {!isUsingObServer && <p className="text-xs text-gray-500 mt-1">e.g., http://127.0.0.1:3838</p>}
+            <p className="text-xs text-gray-500 mt-1">http://localhost:3838</p>
         </div>
 
-        {/* Action Button */}
+        {/* Local Server Check Button */}
         <div className="mt-6">
              <button
-                onClick={checkServerStatus}
+                onClick={checkLocalServer}
                 className={`w-full py-2.5 rounded-md flex items-center justify-center text-base font-semibold text-white transition-colors duration-200
-                              ${serverStatus === 'online'
+                              ${localServerOnline
                                 ? 'bg-green-500'
-                                : serverStatus === 'offline'
-                                ? 'bg-red-500 hover:bg-red-600'
-                                : 'bg-orange-500 hover:bg-orange-600'
+                                : 'bg-red-500 hover:bg-red-600'
                               }`}
               >
-                 {serverStatus === 'online' ? (
-                  'Connected'
+                 {localServerOnline ? (
+                  'Local: Online'
                 ) : (
                   <>
                     <RefreshCw className="h-5 w-5 mr-2" />
-                    Retry Connection
+                    Check Local Server
                   </>
                 )}
             </button>

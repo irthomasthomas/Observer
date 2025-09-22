@@ -1,6 +1,6 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { LogOut, ExternalLink, RefreshCw, Server } from 'lucide-react';
+import { LogOut, RefreshCw, Server } from 'lucide-react';
 import { checkInferenceServer, addInferenceAddress, removeInferenceAddress, fetchModels } from '@utils/inferenceServer';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
@@ -45,8 +45,6 @@ interface AppHeaderProps {
 }
 
 
-const LOCAL_STORAGE_KEY = 'observer_local_server_address';
-
 
 const AppHeader: React.FC<AppHeaderProps> = ({
   serverStatus,
@@ -62,9 +60,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   setQuotaInfo,
 }) => {
   const [localServerOnline, setLocalServerOnline] = useState(false);
-  const [localServerAddress, setLocalServerAddress] = useState(() => {
-    return localStorage.getItem(LOCAL_STORAGE_KEY) || LOCAL_SERVER_ADDRESS;
-  });
 
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
@@ -91,8 +86,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
-  const fetchQuotaInfo = async () => {
-    if (!isUsingObServer || !isAuthenticated || serverStatus !== 'online') {
+  const fetchQuotaInfo = async (forceObServer = false) => {
+    const usingObServer = forceObServer || isUsingObServer;
+    if (!usingObServer || !isAuthenticated) {
       setQuotaInfo(null);
       setIsSessionExpired(false);
       return;
@@ -187,6 +183,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       addInferenceAddress(OB_SERVER_ADDRESS);
       // Fetch models to include ObServer models
       fetchModels();
+      // Check quota when turning on ObServer
+      if (isAuthenticated) {
+        fetchQuotaInfo(true); // Force check even though state hasn't updated yet
+      }
     } else {
       // Remove ObServer
       removeInferenceAddress(OB_SERVER_ADDRESS);
@@ -203,25 +203,25 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const checkLocalServer = async () => {
     try {
-      Logger.info('SERVER', `Checking local server connection at ${localServerAddress}...`);
-      const result = await checkInferenceServer(localServerAddress);
+      Logger.info('SERVER', `Checking local server connection at ${LOCAL_SERVER_ADDRESS}...`);
+      const result = await checkInferenceServer(LOCAL_SERVER_ADDRESS);
 
       if (result.status === 'online') {
         setLocalServerOnline(true);
-        addInferenceAddress(localServerAddress);
-        Logger.info('SERVER', `Local server at ${localServerAddress} is online and added to inference addresses`);
+        addInferenceAddress(LOCAL_SERVER_ADDRESS);
+        Logger.info('SERVER', `Local server at ${LOCAL_SERVER_ADDRESS} is online and added to inference addresses`);
         // Update model list when server comes online
         await fetchModels();
       } else {
         setLocalServerOnline(false);
-        removeInferenceAddress(localServerAddress);
-        Logger.warn('SERVER', `Local server at ${localServerAddress} is offline: ${result.error}`);
+        removeInferenceAddress(LOCAL_SERVER_ADDRESS);
+        Logger.warn('SERVER', `Local server at ${LOCAL_SERVER_ADDRESS} is offline: ${result.error}`);
         // Update model list when server goes offline
         await fetchModels();
       }
     } catch (err) {
       setLocalServerOnline(false);
-      removeInferenceAddress(localServerAddress);
+      removeInferenceAddress(LOCAL_SERVER_ADDRESS);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       Logger.error('SERVER', `Error checking local server: ${errorMessage}`, err);
     }
@@ -245,46 +245,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
-  const checkAllServers = async () => {
-    setServerStatus('unchecked');
-
-    const promises = [];
-
-    // Always check local server
-    promises.push(checkLocalServer());
-
-    // Check ObServer if enabled
-    if (isUsingObServer) {
-      promises.push(checkObServer());
-    }
-
-    await Promise.all(promises);
-
-    // Set overall status based on what's available
-    if (isUsingObServer && localServerOnline) {
-      setServerStatus('online');
-      setError(null);
-    } else if (isUsingObServer && !localServerOnline) {
-      setServerStatus('online'); // ObServer is primary when enabled
-      setError(null);
-    } else if (!isUsingObServer && localServerOnline) {
-      setServerStatus('online');
-      setError(null);
-    } else {
-      setServerStatus('offline');
-      setError('No servers available');
-    }
+  const checkLocalServerOnly = async () => {
+    await checkLocalServer();
   };
 
-  const getServerUrl = () => {
-    return localServerAddress;
-  };
 
-  const handleLocalAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newAddress = e.target.value;
-    setLocalServerAddress(newAddress);
-    localStorage.setItem(LOCAL_STORAGE_KEY, newAddress);
-  };
 
   useEffect(() => {
     const handleQuotaUpdate = () => {
@@ -305,22 +270,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     checkLocalServer();
   }, []);
 
-  // Update overall status when local server status changes
-  useEffect(() => {
-    if (isUsingObServer && localServerOnline) {
-      setServerStatus('online');
-      setError(null);
-    } else if (isUsingObServer && !localServerOnline) {
-      setServerStatus('online'); // ObServer is available when enabled
-      setError(null);
-    } else if (!isUsingObServer && localServerOnline) {
-      setServerStatus('online');
-      setError(null);
-    } else {
-      setServerStatus('offline');
-      setError('No servers available');
-    }
-  }, [isUsingObServer, localServerOnline]);
 
   // Clear quota info when switching away from ObServer
   useEffect(() => {
@@ -447,69 +396,46 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                       Login Required
                     </span>
                   ) : isUsingObServer ? (
-                    isAuthenticated && serverStatus === 'online' && (
+                    isAuthenticated && (
                       <div className="text-xs text-center mt-1 h-4"> {/* h-4 to prevent layout shift */}
                         {renderQuotaStatus()}
                       </div>
                     )
                   ) : (
                     <div className="text-xs text-center mt-1">
-                      <span className={`font-semibold ${
-                        localServerOnline ? 'text-green-600' : 'text-red-500'
-                      }`}>
-                        {localServerOnline ? 'Local Online' : 'Local Offline'}
+                      <span className="font-semibold text-gray-500">
+                        Fully Offline
                       </span>
                     </div>
                   )}
                 </div>
-                {/* Local Server Address Input */}
-                <input
-                  type="text"
-                  value={localServerAddress}
-                  onChange={handleLocalAddressChange}
-                  placeholder="http://localhost:3838"
-                  className="px-2 sm:px-3 py-2 border rounded-md text-sm w-32 sm:w-32 md:w-32 lg:w-auto"
-                  title="Local server address"
-                />
 
-                {/* Status Button - Check All Servers */}
-                <button
-                  onClick={checkAllServers}
-                  className={`py-2 rounded-md flex items-center justify-center text-sm transition-colors duration-200 lg:min-w-32
-                              ${serverStatus === 'online'
-                                ? 'bg-green-500 text-white'
-                                : serverStatus === 'offline'
-                                ? 'bg-red-500 text-white hover:bg-red-600'
-                                : 'bg-orange-500 text-white hover:bg-orange-600'
-                              }
-                              px-2 sm:px-3 md:px-4`}
-                >
-                  {serverStatus === 'online' ? (
-                    <>
-                      <span aria-hidden="true">✓</span>
-                      <span className="hidden lg:inline ml-1.5">Connected</span>
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4" />
-                      <span className="hidden lg:inline ml-1.5">Check Servers</span>
-                    </>
-                  )}
-                </button>
-
-                {/* Helper link for local server */}
-                {!isUsingObServer && !localServerOnline && (
-                  <a
-                    href={getServerUrl()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-1.5 ml-1 sm:ml-2 p-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors duration-200 group"
-                    title="Check local server status in a new tab"
+                {/* Local Server Status Button - Hidden on official web */}
+                {hostingContext !== 'official-web' && (
+                  <button
+                    onClick={checkLocalServerOnly}
+                    className={`py-2 rounded-md flex items-center justify-center text-sm transition-colors duration-200 lg:min-w-36
+                                ${localServerOnline
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-red-500 text-white hover:bg-red-600'
+                                }
+                                px-2 sm:px-3 md:px-4`}
                   >
-                    <span className="text-sm text-gray-700 hidden lg:inline">Check Server</span>
-                    <ExternalLink className="h-4 w-4 text-gray-500 group-hover:text-blue-600 transition-colors" />
-                  </a>
+                    {localServerOnline ? (
+                      <>
+                        <Server className="h-4 w-4" />
+                        <span className="hidden lg:inline ml-1.5">Local: Online</span>
+                      </>
+                    ) : (
+                      <>
+                        <Server className="h-4 w-4" />
+                        <RefreshCw className="h-3 w-3 ml-1" />
+                        <span className="hidden lg:inline ml-1.5">Local: Offline</span>
+                      </>
+                    )}
+                  </button>
                 )}
+
               </div>
 
               {/* Mobile Controls (Visible below md screens) */}
@@ -583,16 +509,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           handleToggleObServer,
           showLoginMessage,
           isAuthenticated,
-          serverStatus,
           quotaInfo,
           renderQuotaStatus,
           localServerOnline,
-          checkLocalServer,
-          checkAllServers,
-          checkServerStatus: checkObServer,
-          getServerUrl,
-          serverAddress: localServerAddress,
-          handleAddressInputChange: handleLocalAddressChange
+          checkLocalServer: checkLocalServerOnly
         }}
       />
 
