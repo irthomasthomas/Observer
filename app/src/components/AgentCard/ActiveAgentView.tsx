@@ -1,8 +1,10 @@
 // components/AgentCard/ActiveAgentView.tsx
 import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
-import { Eye, Clock, Power, Activity, VideoOff, Mic, Volume2, Crop, RotateCcw } from 'lucide-react';
+import { Eye, Clock, Power, Activity, Mic, Volume2, Crop, RotateCcw, Brain, Images, AlertTriangle } from 'lucide-react';
 import { StreamState, AudioStreamType } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
+import { CompleteAgent, getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
+import { agentHasScreenSensor, agentHasCameraSensor, agentHasSensor } from '@utils/agentCapabilities';
 
 type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'IDLE';
 
@@ -279,12 +281,166 @@ const VideoStream: React.FC<{
   );
 };
 
-const NoStreamPlaceholder: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
-  <div className="flex items-center justify-center gap-3 p-4 bg-gray-100 rounded-lg border border-dashed border-gray-300 text-gray-500">
-    {icon}
-    <span className="text-sm font-medium">{text}</span>
+const NoSensorsWarning: React.FC = () => (
+  <div className="flex items-center justify-center gap-3 p-4 bg-red-50 rounded-lg border border-red-200 text-red-600">
+    <AlertTriangle className="w-5 h-5" />
+    <span className="text-sm font-medium">No Active Sensors</span>
   </div>
 );
+
+const MemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
+  const [memory, setMemory] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load initial memory
+  useEffect(() => {
+    const loadMemory = async () => {
+      try {
+        const memoryData = await getAgentMemory(agentId);
+        setMemory(memoryData || '');
+      } catch (error) {
+        console.error('Failed to load memory:', error);
+        setMemory('');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadMemory();
+  }, [agentId]);
+
+  // Listen for memory updates via custom events
+  useEffect(() => {
+    const handleMemoryUpdate = async (event: CustomEvent) => {
+      if (event.detail.agentId === agentId) {
+        try {
+          const memoryData = await getAgentMemory(agentId);
+          setMemory(memoryData || '');
+        } catch (error) {
+          console.error('Failed to reload memory:', error);
+        }
+      }
+    };
+
+    window.addEventListener('agent-memory-update', handleMemoryUpdate as any);
+    return () => {
+      window.removeEventListener('agent-memory-update', handleMemoryUpdate as any);
+    };
+  }, [agentId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
+        <Brain className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <span className="text-blue-700 text-sm italic">Loading memory...</span>
+      </div>
+    );
+  }
+
+  if (!memory.trim()) {
+    return (
+      <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
+        <Brain className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <span className="text-blue-700 text-sm italic">No memory data yet</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
+      <Brain className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium text-blue-600 mb-1">Memory</div>
+        <div className="text-blue-700 text-sm leading-relaxed break-words line-clamp-3 overflow-hidden">
+          {memory}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ImageMemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
+  const [images, setImages] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load initial image memory
+  useEffect(() => {
+    const loadImages = async () => {
+      try {
+        const imageData = await getAgentImageMemory(agentId);
+        setImages(imageData || []);
+      } catch (error) {
+        console.error('Failed to load image memory:', error);
+        setImages([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadImages();
+  }, [agentId]);
+
+  // Listen for memory updates via custom events
+  useEffect(() => {
+    const handleMemoryUpdate = async (event: CustomEvent) => {
+      if (event.detail.agentId === agentId) {
+        try {
+          const imageData = await getAgentImageMemory(agentId);
+          setImages(imageData || []);
+        } catch (error) {
+          console.error('Failed to reload image memory:', error);
+        }
+      }
+    };
+
+    window.addEventListener('agent-memory-update', handleMemoryUpdate as any);
+    return () => {
+      window.removeEventListener('agent-memory-update', handleMemoryUpdate as any);
+    };
+  }, [agentId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 bg-purple-50 px-3 py-2 rounded-lg border border-purple-200 flex-1 min-w-0">
+        <Images className="w-4 h-4 text-purple-600 flex-shrink-0" />
+        <span className="text-purple-700 text-sm italic">Loading image memory...</span>
+      </div>
+    );
+  }
+
+  if (images.length === 0) {
+    return (
+      <div className="flex items-center gap-2 bg-purple-50 px-3 py-2 rounded-lg border border-purple-200 flex-1 min-w-0">
+        <Images className="w-4 h-4 text-purple-600 flex-shrink-0" />
+        <span className="text-purple-700 text-sm italic">No image memory yet</span>
+      </div>
+    );
+  }
+
+  const imagesToShow = images.slice(-3); // Show last 3 images
+
+  return (
+    <div className="bg-purple-50 px-3 py-2 rounded-lg border border-purple-200 flex-1 min-w-0">
+      <div className="flex items-center gap-2 mb-2">
+        <Images className="w-4 h-4 text-purple-600 flex-shrink-0" />
+        <div className="text-xs font-medium text-purple-600">Image Memory</div>
+        <span className="text-xs text-purple-500">({images.length} total)</span>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {imagesToShow.map((imageBase64, index) => (
+          <img
+            key={index}
+            src={`data:image/png;base64,${imageBase64}`}
+            alt={`Memory image ${index + 1}`}
+            className="w-16 h-16 rounded border border-purple-200 object-cover flex-shrink-0"
+            onError={(e) => {
+              // Fallback to JPEG if PNG fails
+              (e.target as HTMLImageElement).src = `data:image/jpeg;base64,${imageBase64}`;
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
   const statusInfo = useMemo(() => {
@@ -321,6 +477,8 @@ interface ActiveAgentViewProps {
     lastResponse: string;
     responseKey: number;
     agentId: string;
+    agent: CompleteAgent;
+    code?: string;
 }
 
 const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
@@ -328,11 +486,21 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     liveStatus,
     lastResponse,
     responseKey,
-    agentId
+    agentId,
+    agent
 }) => {
     const audioStreamsToDisplay = useMemo(() => getActiveAudioStreamsForDisplay(streams), [streams]);
     const [streamingResponse, setStreamingResponse] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
+
+    // Detect which sensors this agent actually uses
+    const hasScreenSensor = useMemo(() => agentHasScreenSensor(agent.system_prompt), [agent.system_prompt]);
+    const hasCameraSensor = useMemo(() => agentHasCameraSensor(agent.system_prompt), [agent.system_prompt]);
+    const hasMemorySensor = useMemo(() => agentHasSensor(agent.system_prompt, 'MEMORY'), [agent.system_prompt]);
+    const hasImageMemorySensor = useMemo(() => agentHasSensor(agent.system_prompt, 'IMEMORY'), [agent.system_prompt]);
+
+    // Check if we have any active sensor previews to show
+    const hasAnySensorPreviews = hasScreenSensor || hasCameraSensor || hasMemorySensor || hasImageMemorySensor;
 
     useEffect(() => {
         const handleStreamStart = (event: CustomEvent) => {
@@ -368,16 +536,22 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
 
     return (
         <div className="grid md:grid-cols-2 md:gap-6 animate-fade-in">
-            {/* Left Column: Media Streams */}
+            {/* Left Column: Media Streams & Sensor Previews */}
             <div className="space-y-4">
-                {streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} streamType="screen" agentId={agentId} />}
-                {streams.cameraStream && <VideoStream stream={streams.cameraStream} streamType="camera" agentId={agentId} />}
-                {!streams.screenVideoStream && !streams.cameraStream && (
-                    <NoStreamPlaceholder
-                        icon={<VideoOff className="w-5 h-5" />}
-                        text="No Video Stream"
-                    />
+                {/* Video Streams */}
+                {hasScreenSensor && streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} streamType="screen" agentId={agentId} />}
+                {hasCameraSensor && streams.cameraStream && <VideoStream stream={streams.cameraStream} streamType="camera" agentId={agentId} />}
+
+                {/* Memory Sensor Previews */}
+                {(hasMemorySensor || hasImageMemorySensor) && (
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        {hasMemorySensor && <MemoryPreview agentId={agentId} />}
+                        {hasImageMemorySensor && <ImageMemoryPreview agentId={agentId} />}
+                    </div>
                 )}
+
+                {/* Show warning only if no sensors are configured */}
+                {!hasAnySensorPreviews && <NoSensorsWarning />}
                 <div className="grid grid-cols-1 gap-2">
                     {audioStreamsToDisplay.map(({ type, stream, title, icon }) => (
                         <AudioWaveform key={type} stream={stream} title={title} icon={icon} />
