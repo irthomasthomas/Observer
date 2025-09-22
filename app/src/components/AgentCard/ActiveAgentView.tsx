@@ -4,7 +4,7 @@ import { Eye, Clock, Power, Activity, Mic, Volume2, Crop, RotateCcw, Brain, Imag
 import { StreamState, AudioStreamType } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { CompleteAgent, getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
-import { agentHasScreenSensor, agentHasCameraSensor, agentHasSensor } from '@utils/agentCapabilities';
+import { agentHasScreenSensor, agentHasCameraSensor, agentHasSensor } from './agentCapabilities';
 import { IterationStore, ToolCall } from '@utils/IterationStore';
 import ToolStatus from '@components/AgentCard/ToolStatus';
 import { useTranscriptionPolling } from '@hooks/useTranscriptionPolling';

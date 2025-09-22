@@ -1,11 +1,11 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
     Cpu, Clock, Eye, ChevronDown, AlertTriangle
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/inferenceServer';
 import { getInferenceAddresses } from '@utils/inferenceServer';
-import { detectAgentCapabilities } from '@utils/agentCapabilities';
+import { detectAgentCapabilities } from './agentCapabilities';
 
 
 
@@ -162,12 +162,23 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     startWarning,
     isProUser = false,
 }) => {
-    const { detectedSensors, detectedTools } = useMemo(() => {
-        const capabilities = detectAgentCapabilities(agent.system_prompt || '', code || '');
-        return {
-            detectedSensors: capabilities.sensors,
-            detectedTools: capabilities.tools
+    const [detectedSensors, setDetectedSensors] = useState<any[]>([]);
+    const [detectedTools, setDetectedTools] = useState<any[]>([]);
+
+    useEffect(() => {
+        const loadCapabilities = async () => {
+            try {
+                const capabilities = await detectAgentCapabilities(agent.system_prompt || '', code || '');
+                setDetectedSensors(capabilities.sensors);
+                setDetectedTools(capabilities.tools);
+            } catch (error) {
+                console.error('Failed to load agent capabilities:', error);
+                setDetectedSensors([]);
+                setDetectedTools([]);
+            }
         };
+
+        loadCapabilities();
     }, [agent.system_prompt, code]);
 
     return (
