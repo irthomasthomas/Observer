@@ -4,7 +4,6 @@ import React from 'react';
 import { X, RefreshCw } from 'lucide-react';
 
 // Re-using the types from AppHeader. You might want to move these to a shared types file.
-type ServerStatus = 'unchecked' | 'online' | 'offline';
 type QuotaInfo = {
   used: number;
   remaining: number | 'unlimited';

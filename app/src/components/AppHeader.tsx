@@ -48,8 +48,6 @@ interface AppHeaderProps {
 
 const AppHeader: React.FC<AppHeaderProps> = ({
   serverStatus,
-  setServerStatus,
-  setError,
   authState,
   isUsingObServer: externalIsUsingObServer,
   setIsUsingObServer: externalSetIsUsingObServer,
@@ -227,23 +225,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
-  const checkObServer = async () => {
-    try {
-      Logger.info('SERVER', 'Checking ObServer connection...');
-      const result = await checkInferenceServer(OB_SERVER_ADDRESS);
-
-      if (result.status === 'online') {
-        Logger.info('SERVER', 'ObServer is online');
-        // Update model list when ObServer comes online
-        await fetchModels();
-      } else {
-        Logger.error('SERVER', `ObServer offline: ${result.error}`);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      Logger.error('SERVER', `Error checking ObServer: ${errorMessage}`, err);
-    }
-  };
 
   const checkLocalServerOnly = async () => {
     await checkLocalServer();
