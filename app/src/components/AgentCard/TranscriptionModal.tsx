@@ -32,6 +32,14 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
   // Get Whisper settings for display
   const whisperSettings = SensorSettings.getWhisperSettings();
 
+  // Helper function to format transcript duration
+  const formatTranscriptDuration = (chunkDurationMs: number, maxChunks: number): string => {
+    const totalMs = chunkDurationMs * maxChunks;
+    const totalMinutes = Math.floor(totalMs / 60000);
+    const totalSeconds = Math.floor((totalMs % 60000) / 1000);
+    return `${totalMinutes} minutes ${totalSeconds} seconds ⏰`;
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(fullTranscript);
@@ -117,7 +125,10 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
               <span className="text-blue-700">{whisperSettings.modelId}</span>
             </div>
             <div className="text-blue-700">
-              Chunks: {Math.round(whisperSettings.chunkDurationMs / 1000)}s
+              Chunk size: {Math.round(whisperSettings.chunkDurationMs / 1000)}s
+            </div>
+            <div className="text-blue-700">
+              Transcript size: {whisperSettings.maxChunksToKeep} chunks ({formatTranscriptDuration(whisperSettings.chunkDurationMs, whisperSettings.maxChunksToKeep)})
             </div>
             {whisperSettings.language && (
               <div className="text-blue-700">
@@ -163,7 +174,7 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
         {/* Footer */}
         <div className="p-4 border-t bg-gray-50 text-center">
           <p className="text-xs text-gray-500">
-            Transcription updates every 500ms • Powered by Whisper AI
+            Transcription updates • Powered by Huggingface/Transformers.js 
           </p>
         </div>
       </div>
