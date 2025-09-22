@@ -5,7 +5,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
   ExternalLink, Loader, CheckCircle2, XCircle, Power,
   Download, Settings, RotateCw, Check, AlertTriangle, Keyboard,
-  Eye, EyeOff, Trash2
+  Eye, EyeOff, Trash2, ChevronRight
 } from 'lucide-react';
 
 // --- Helper Component for the Status Display (MODIFIED) ---
@@ -50,14 +50,15 @@ function LauncherShell() {
   // Now stores full URLs or identifiers for display
   const [foundServers, setFoundServers] = useState<string[]>([]);
 
-  // --- NEW STATE VARIABLES ---
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // --- TAB STATE ---
+  const [activeTab, setActiveTab] = useState<'server' | 'controls'>('server');
+
+  // --- SERVER CONFIGURATION STATE ---
+  const [showServerConfig, setShowServerConfig] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [saveFeedback, setSaveFeedback] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   
-  // --- UNIFIED SHORTCUTS STATE VARIABLES ---
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  const [showOverlayControls, setShowOverlayControls] = useState(false);
+  // --- CONTROLS TAB STATE VARIABLES ---
   const [overlayShortcuts, setOverlayShortcuts] = useState({
     toggle: '',
     move_up: '',
@@ -353,7 +354,7 @@ function LauncherShell() {
   // 4. Load all shortcuts configuration on startup
   useEffect(() => {
     loadAllShortcuts();
-  }, [loadAllShortcuts, showShortcuts]);
+  }, [loadAllShortcuts]);
   
   // 6. Key capture effect
   useEffect(() => {
@@ -433,63 +434,51 @@ function LauncherShell() {
   const showFailureState = !isChecking && foundServers.length === 0;
 
   return (
-    <div className="fixed inset-0 bg-gray-100 flex items-center justify-center p-4 font-sans">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 sm:p-10 max-w-2xl w-full text-center transition-all max-h-screen overflow-y-auto">
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex items-start justify-center pt-4 pb-4 px-4 font-sans">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-xl w-full text-center transition-all max-h-full overflow-y-auto">
 
-        {/* Header (unchanged) */}
-        <div className="mb-8">
-          <div className="flex justify-center items-center mb-5">
-            <img src="/eye-logo-black.svg" alt="Observer AI Logo" className="h-20 w-20 mr-4" />
-            <h1 className="text-5xl font-bold text-slate-800 tracking-tight">Observer AI</h1>
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex justify-center items-center mb-3">
+            <img src="/eye-logo-black.svg" alt="Observer AI Logo" className="h-16 w-16 mr-3" />
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Observer AI</h1>
           </div>
-          <p className="text-xl text-gray-500 max-w-md mx-auto">
+          <p className="text-base text-gray-500 max-w-md mx-auto leading-relaxed">
             {showSuccessState ? "You're all set and ready to launch!" : "Welcome! Let's find your local AI server."}
           </p>
         </div>
 
-        {/* System Check Status Area (unchanged other than prop) */}
-        <div className="bg-slate-50 rounded-xl p-6 h-20 flex items-center justify-center mb-8">
-          <StatusDisplay isChecking={isChecking} foundServers={foundServers} />
+        {/* Tab Navigation */}
+        <div className="mb-5">
+          <div className="flex space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setActiveTab('server')}
+              className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                activeTab === 'server'
+                  ? 'bg-white text-slate-800 shadow-md ring-1 ring-slate-200'
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              Server Setup
+            </button>
+            <button
+              onClick={() => setActiveTab('controls')}
+              className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                activeTab === 'controls'
+                  ? 'bg-white text-slate-800 shadow-md ring-1 ring-slate-200'
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              Advanced Controls
+            </button>
+          </div>
         </div>
 
-        {/* --- MODIFIED Action Area --- */}
-        <div className="mt-8 min-h-[8rem] flex flex-col justify-center">
-          {showFailureState && (
-            <div className="animate-fade-in space-y-4">
-              <div>
-                <p className="text-slate-600 mb-4">No server found. The easiest way to get started is with Ollama.</p>
-                <button
-                  onClick={handleDownloadOllama}
-                  className="w-full px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl flex items-center justify-center"
-                >
-                  <Download className="h-6 w-6 mr-3" />
-                  Download Ollama
-                </button>
-
-                {/* --- NEW BUTTON ADDED HERE --- */}
-                <button
-                  onClick={handleOpenApp}
-                  className="w-full mt-4 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all duration-300 font-semibold text-base flex items-center justify-center"
-                >
-                  I have ollama or another LLM server! proceed to Observer
-                </button>
-                {/* --- END OF NEW BUTTON --- */}
-
-              </div>
-
-              {/* --- NEW: Retry Button --- */}
-              <button
-                onClick={runServerChecks}
-                className="text-sm text-slate-500 hover:text-blue-600 hover:underline transition group inline-flex items-center"
-              >
-                <RotateCw className="h-4 w-4 mr-1.5 transition-transform group-hover:rotate-[-90deg]" />
-                Retry Connection
-              </button>
-            </div>
-          )}
-
-          {showSuccessState && (
-            <div className="animate-fade-in">
+        {/* Tab Content */}
+        {activeTab === 'server' && (
+          <div className="animate-fade-in">
+            {/* Launch Observer Button - Always Visible */}
+            <div className="mb-4">
               <button
                 onClick={handleOpenApp}
                 className="w-full px-6 py-4 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl flex items-center justify-center"
@@ -498,118 +487,159 @@ function LauncherShell() {
                 <ExternalLink className="h-6 w-6 ml-3" />
               </button>
             </div>
-          )}
-        </div>
 
-        {/* --- NEW: Advanced Options Section --- */}
-        <div className="mt-8 border-t pt-6">
-          <button onClick={() => {
-            setShowAdvanced(!showAdvanced);
-            setSaveFeedback(null);
-          }} className="text-sm text-slate-600 hover:text-blue-700 font-medium flex items-center justify-center w-full">
-            <Settings className={`h-4 w-4 mr-2 transition-transform ${showAdvanced ? 'rotate-90' : ''}`} />
-            Advanced Server Configuration
-          </button>
+            {/* System Check Status Area */}
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 h-16 flex items-center justify-center mb-4">
+              <StatusDisplay isChecking={isChecking} foundServers={foundServers} />
+            </div>
 
-          {showAdvanced && (
-            <div className="animate-fade-in mt-4 p-4 bg-slate-50 rounded-lg space-y-3 text-left">
-              <label htmlFor="custom-url" className="block text-sm font-medium text-slate-700">
-                Custom Model Server URL
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  id="custom-url"
-                  type="text"
-                  value={customUrlInput}
-                  onChange={(e) => setCustomUrlInput(e.target.value)}
-                  placeholder="e.g. http://192.168.1.50:11434"
-                  className="flex-grow px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
+            {/* Download Ollama Button - Only show if failed */}
+            {showFailureState && (
+              <div className="mb-4">
                 <button
-                  onClick={handleSaveSettings}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  onClick={handleDownloadOllama}
+                  className="w-full px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl flex items-center justify-center"
                 >
-                  Save
+                  <Download className="h-6 w-6 mr-3" />
+                  Download Ollama
                 </button>
-              </div>
-              {saveFeedback && (
-                <div className={`flex items-center text-sm ${saveFeedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                  {saveFeedback.type === 'success' ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
-                  {saveFeedback.message}
+
+                {/* Explanatory Text */}
+                <p className="text-sm text-slate-600 mt-3 text-center">
+                  No server found. The easiest way to get started is with Ollama, or configure a custom server below.
+                </p>
+
+                {/* Retry Button */}
+                <div className="mt-3 text-center">
+                  <button
+                    onClick={runServerChecks}
+                    className="text-sm text-slate-500 hover:text-blue-600 hover:underline transition group inline-flex items-center"
+                  >
+                    <RotateCw className="h-4 w-4 mr-1.5 transition-transform group-hover:rotate-[-90deg]" />
+                    Retry Connection
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-        
-        {/* --- Overlay Controls Section (Collapsible) --- */}
-        <div className="mt-4 border-t pt-4">
-          <button 
-            onClick={() => setShowOverlayControls(!showOverlayControls)} 
-            className="text-sm text-slate-600 hover:text-blue-700 font-medium flex items-center justify-center w-full"
-          >
-            <span className="mr-2">Overlay Controls</span>
-            <Settings className="h-4 w-4" />
-          </button>
-          
-          {showOverlayControls && (
-            <div className="mt-3 space-y-3 animate-fade-in">
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleShowOverlay}
-                  className="flex-1 px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Show Overlay
-                </button>
-                <button
-                  onClick={handleHideOverlay}
-                  className="flex-1 px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
-                >
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Hide Overlay
-                </button>
               </div>
+            )}
+
+            {/* Server Configuration Section - Collapsible */}
+            <div className="mt-4">
               <button
-                onClick={handleClearOverlay}
-                className="w-full px-4 py-3 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+                onClick={() => {
+                  setShowServerConfig(!showServerConfig);
+                  setSaveFeedback(null);
+                }}
+                className="w-full text-left bg-slate-50 border border-slate-200 rounded-xl p-4 hover:bg-slate-100 transition-all duration-200 flex items-center justify-between"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Clear Messages
+                <div className="flex items-center">
+                  <Settings className="h-4 w-4 mr-2 text-blue-600" />
+                  <span className="text-base font-semibold text-slate-800">Server Configuration</span>
+                </div>
+                <div className={`transform transition-transform duration-200 ${showServerConfig ? 'rotate-90' : ''}`}>
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                </div>
               </button>
-            </div>
-          )}
-        </div>
-        
-        {/* --- UNIFIED: All Shortcuts Configuration Section --- */}
-        <div className="mt-4 border-t pt-4">
-          <button onClick={() => {
-            setShowShortcuts(!showShortcuts);
-            setShortcutFeedback(null);
-          }} className="text-sm text-slate-600 hover:text-blue-700 font-medium flex items-center justify-center w-full">
-            <Keyboard className={`h-4 w-4 mr-2 transition-transform ${showShortcuts ? 'rotate-90' : ''}`} />
-            All Shortcuts ({Object.values(overlayShortcuts).filter(s => s.trim()).length + Object.values(agentShortcuts).filter(s => s.trim()).length} shortcuts)
-          </button>
-          
-          {showShortcuts && (
-            <div className="animate-fade-in mt-4 p-4 bg-slate-50 rounded-lg space-y-4 text-left">
-              {/* Current Active Shortcuts Display */}
-              {activeShortcuts.length > 0 && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                  <h4 className="text-sm font-medium text-green-800 mb-2">Currently Active Shortcuts:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {activeShortcuts.map((shortcut, index) => (
-                      <span key={index} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-mono">
-                        {shortcut}
-                      </span>
-                    ))}
+
+              {showServerConfig && (
+                <div className="mt-2 bg-slate-50 border border-slate-200 rounded-xl p-4 animate-fade-in">
+                  <div className="space-y-3 text-left">
+                <label htmlFor="custom-url" className="block text-sm font-medium text-slate-700">
+                  Custom Model Server URL
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="custom-url"
+                    type="text"
+                    value={customUrlInput}
+                    onChange={(e) => setCustomUrlInput(e.target.value)}
+                    placeholder="e.g. http://192.168.1.50:11434"
+                    className="flex-grow px-4 py-3 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
+                  <button
+                    onClick={handleSaveSettings}
+                    className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all font-medium"
+                  >
+                    Save
+                  </button>
+                </div>
+                {saveFeedback && (
+                  <div className={`flex items-center text-sm ${saveFeedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {saveFeedback.type === 'success' ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
+                    {saveFeedback.message}
+                  </div>
+                )}
+                    <p className="text-xs text-slate-500 mt-1">
+                      Leave empty to auto-detect Ollama (127.0.0.1:11434) or other local servers
+                    </p>
                   </div>
                 </div>
               )}
-              
-              {/* Overlay Shortcuts Section */}
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-slate-800 mb-3">Overlay Controls</h3>
+            </div>
+          </div>
+        )}
+        {activeTab === 'controls' && (
+          <div className="animate-fade-in space-y-5">
+            {/* Overlay Controls Section */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <h3 className="text-base font-semibold text-slate-800 mb-3 flex items-center">
+                <Eye className="h-4 w-4 mr-2 text-green-600" />
+                Overlay Controls
+              </h3>
+
+              <div className="space-y-3">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleShowOverlay}
+                    className="flex-1 px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Show Overlay
+                  </button>
+                  <button
+                    onClick={handleHideOverlay}
+                    className="flex-1 px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+                  >
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Hide Overlay
+                  </button>
+                </div>
+                <button
+                  onClick={handleClearOverlay}
+                  className="w-full px-4 py-3 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-all duration-200 font-medium text-sm flex items-center justify-center"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear Messages
+                </button>
+              </div>
+            </div>
+            {/* Keyboard Shortcuts Section */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <h3 className="text-base font-semibold text-slate-800 mb-3 flex items-center">
+                <Keyboard className="h-4 w-4 mr-2 text-purple-600" />
+                Keyboard Shortcuts
+                <span className="ml-2 text-sm font-normal text-slate-500">
+                  ({Object.values(overlayShortcuts).filter(s => s.trim()).length + Object.values(agentShortcuts).filter(s => s.trim()).length} configured)
+                </span>
+              </h3>
+
+              <div className="space-y-4">
+                {/* Current Active Shortcuts Display */}
+                {activeShortcuts.length > 0 && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 className="text-sm font-semibold text-green-800 mb-2">Currently Active Shortcuts:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {activeShortcuts.map((shortcut, index) => (
+                        <span key={index} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-mono">
+                          {shortcut}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Overlay Shortcuts Section */}
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-800 mb-3">Overlay Controls</h4>
                 <div className="grid grid-cols-1 gap-3">
                   <div className="flex items-center justify-between">
                     <label className="text-sm text-slate-700 font-medium">Toggle Overlay</label>
@@ -894,9 +924,11 @@ function LauncherShell() {
                 </div>
               </div>
               
-              {/* Agent Shortcuts Section */}
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-slate-800 mb-3">Agent Controls ({availableAgents.length} agents)</h3>
+                </div>
+
+                {/* Agent Shortcuts Section */}
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-800 mb-3">Agent Controls ({availableAgents.length} agents)</h4>
                 
                 {/* Add New Agent */}
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
@@ -983,37 +1015,38 @@ function LauncherShell() {
                 )}
               </div>
               
-              {/* Save All Button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSaveAllShortcuts}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-sm"
-                >
-                  Save All Shortcuts
-                </button>
-              </div>
-              
-              {/* Feedback Messages */}
-              {shortcutFeedback && (
-                <div className={`flex items-center text-sm ${shortcutFeedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                  {shortcutFeedback.type === 'success' ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
-                  {shortcutFeedback.message}
+                {/* Save All Button */}
+                <div className="flex justify-end pt-6 border-t border-slate-200">
+                  <button
+                    onClick={handleSaveAllShortcuts}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-sm font-semibold shadow-sm transition-all"
+                  >
+                    Save All Shortcuts
+                  </button>
                 </div>
-              )}
               
-              {/* Help Text */}
-              <div className="text-xs text-slate-500 bg-slate-100 p-2 rounded">
-                <strong>How it works:</strong> Click buttons to capture key combinations instantly • Press Escape to cancel<br/>
-                <strong>Examples:</strong> Cmd+B, Alt+ArrowUp, Ctrl+Shift+X, F1, Space, etc.<br/>
-                <strong>Tips:</strong> Use ✕ to clear shortcuts • Overlay shortcuts need app restart, agent shortcuts work immediately<br/>
-                <strong>Windows users:</strong> Try Alt+ instead of Cmd+ if shortcuts conflict with system shortcuts
+                {/* Feedback Messages */}
+                {shortcutFeedback && (
+                  <div className={`flex items-center text-sm p-3 rounded-lg ${shortcutFeedback.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                    {shortcutFeedback.type === 'success' ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
+                    {shortcutFeedback.message}
+                  </div>
+                )}
+
+                {/* Help Text */}
+                <div className="text-xs text-slate-600 bg-slate-100 p-4 rounded-lg border border-slate-200">
+                  <div className="space-y-2">
+                    <p><strong>How it works:</strong> Click buttons to capture key combinations instantly • Press Escape to cancel</p>
+                    <p><strong>Examples:</strong> Cmd+B, Alt+ArrowUp, Ctrl+Shift+X, F1, Space, etc.</p>
+                    <p><strong>Tips:</strong> Use ✕ to clear shortcuts • Overlay shortcuts need app restart, agent shortcuts work immediately</p>
+                    <p><strong>Windows users:</strong> Try Alt+ instead of Cmd+ if shortcuts conflict with system shortcuts</p>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-        
+        )}
 
-        <p className="text-xs text-gray-400 mt-6">
+        <p className="text-xs text-gray-400 mt-4">
           <Power className="h-3 w-3 inline-block mr-1.5" />
           The background server is running. You can close this launcher.
         </p>
