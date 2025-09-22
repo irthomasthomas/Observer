@@ -340,9 +340,36 @@ What kind of agent team would you like me to create today?`
     const conversationHistory = allMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
     const fullPrompt = `${enhancedSystemPrompt}\n\n${conversationHistory}\nai:`;
 
-    const images = allMessages
+    // Collect images from conversation messages
+    const conversationImages = allMessages
       .filter(msg => msg.imageData)
       .map(msg => msg.imageData!);
+
+    // Collect images from iteration store runs of referenced agents
+    const iterationImages: string[] = [];
+    referenceData.forEach(data => {
+      data.recentRuns.forEach(run => {
+        // Add model images (base64 images sent to model)
+        if (run.modelImages) {
+          iterationImages.push(...run.modelImages);
+        }
+
+        // Add screenshot and camera sensor images
+        run.sensors.forEach(sensor => {
+          if ((sensor.type === 'screenshot' || sensor.type === 'camera') && sensor.content) {
+            // Handle both base64 and raw image data
+            if (typeof sensor.content === 'string') {
+              iterationImages.push(sensor.content);
+            } else if (sensor.content.data) {
+              iterationImages.push(sensor.content.data);
+            }
+          }
+        });
+      });
+    });
+
+    // Combine all images
+    const images = [...conversationImages, ...iterationImages];
 
     const streamingMessageId = Date.now() + Math.random();
     const streamingMessage: Message = {
