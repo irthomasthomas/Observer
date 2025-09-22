@@ -215,36 +215,16 @@ const AgentReferenceModal: React.FC<AgentReferenceModalProps> = ({ isOpen, onClo
                       const imageSrc = imageData.startsWith('data:') ? imageData : `data:image/png;base64,${imageData}`;
 
                       return (
-                        <div key={index} className="relative group">
-                          <img
-                            src={imageSrc}
-                            alt={`Agent capture ${index + 1}`}
-                            className="w-full h-20 object-cover rounded border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
-                            onClick={() => {
-                              // Open image in new window for full view
-                              const newWindow = window.open();
-                              if (newWindow) {
-                                newWindow.document.write(`
-                                  <html>
-                                    <head><title>Agent Image ${index + 1}</title></head>
-                                    <body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;">
-                                      <img src="${imageSrc}" style="max-width:100%;max-height:100vh;object-fit:contain;" />
-                                    </body>
-                                  </html>
-                                `);
-                              }
-                            }}
-                            onError={(e) => {
-                              // Hide broken images
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity rounded flex items-center justify-center">
-                            <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                              Click to enlarge
-                            </span>
-                          </div>
-                        </div>
+                        <img
+                          key={index}
+                          src={imageSrc}
+                          alt={`Agent capture ${index + 1}`}
+                          className="w-full h-20 object-cover rounded border border-gray-200"
+                          onError={(e) => {
+                            // Hide broken images
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
                       );
                     })}
                   </div>
