@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, XCircle, Brain, Code, Database, Clock, CheckCircle } from 'lucide-react';
+import { X, XCircle, Brain, Code, Database, Clock, CheckCircle, Image } from 'lucide-react';
 import { AgentReferenceData } from '@utils/agentParser';
 
 interface AgentReferenceModalProps {
@@ -12,6 +12,30 @@ const AgentReferenceModal: React.FC<AgentReferenceModalProps> = ({ isOpen, onClo
   if (!isOpen || !agentData) return null;
 
   const { agent, code, memory, recentRuns, reference } = agentData;
+
+  // Collect all images from recent runs
+  const allImages: string[] = [];
+  recentRuns.forEach(run => {
+    // Add model images (base64 images sent to model)
+    if (run.modelImages) {
+      allImages.push(...run.modelImages);
+    }
+
+    // Add screenshot and camera sensor images
+    run.sensors.forEach(sensor => {
+      if ((sensor.type === 'screenshot' || sensor.type === 'camera') && sensor.content) {
+        // Handle both base64 and raw image data
+        if (typeof sensor.content === 'string') {
+          allImages.push(sensor.content);
+        } else if (sensor.content.data) {
+          allImages.push(sensor.content.data);
+        }
+      }
+    });
+  });
+
+  // Remove duplicates and limit to most recent 20 images
+  const uniqueImages = Array.from(new Set(allImages)).slice(-20);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
@@ -168,6 +192,61 @@ const AgentReferenceModal: React.FC<AgentReferenceModalProps> = ({ isOpen, onClo
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Images Preview */}
+              {uniqueImages.length > 0 && (
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <Image className="h-5 w-5 text-pink-600 mr-2" />
+                      <h3 className="font-semibold text-gray-800">Recent Images</h3>
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      {uniqueImages.length} image{uniqueImages.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto">
+                    {uniqueImages.map((imageData, index) => {
+                      // Ensure image has proper data URL format
+                      const imageSrc = imageData.startsWith('data:') ? imageData : `data:image/png;base64,${imageData}`;
+
+                      return (
+                        <div key={index} className="relative group">
+                          <img
+                            src={imageSrc}
+                            alt={`Agent capture ${index + 1}`}
+                            className="w-full h-20 object-cover rounded border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => {
+                              // Open image in new window for full view
+                              const newWindow = window.open();
+                              if (newWindow) {
+                                newWindow.document.write(`
+                                  <html>
+                                    <head><title>Agent Image ${index + 1}</title></head>
+                                    <body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;">
+                                      <img src="${imageSrc}" style="max-width:100%;max-height:100vh;object-fit:contain;" />
+                                    </body>
+                                  </html>
+                                `);
+                              }
+                            }}
+                            onError={(e) => {
+                              // Hide broken images
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity rounded flex items-center justify-center">
+                            <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                              Click to enlarge
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
