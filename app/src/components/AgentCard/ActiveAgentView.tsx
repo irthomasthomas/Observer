@@ -575,7 +575,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     // Load initial tool data and subscribe to updates
     useEffect(() => {
         const loadLastTools = () => {
-            const tools = IterationStore.getLastToolsForAgent(agentId, 3);
+            const tools = IterationStore.getToolsFromLastIteration(agentId);
             setLastTools(tools);
         };
 
@@ -657,11 +657,12 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                 />
                 {/* Tool Status - Show below last response only if there are tools */}
                 {lastTools.length > 0 && (
-                    <ToolStatus
-                        tools={lastTools}
-                        variant="compact"
-                        maxTools={3}
-                    />
+                    <div className="max-h-32 overflow-y-auto">
+                        <ToolStatus
+                            tools={lastTools}
+                            variant="compact"
+                        />
+                    </div>
                 )}
             </div>
         </div>

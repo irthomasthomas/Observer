@@ -414,6 +414,15 @@ class IterationStoreClass {
     return allTools;
   }
 
+  public getToolsFromLastIteration(agentId: string): ToolCall[] {
+    const iterations = this.getIterationsForAgent(agentId);
+    if (iterations.length === 0) return [];
+
+    // Get the most recent iteration
+    const lastIteration = iterations[iterations.length - 1];
+    return [...lastIteration.tools]; // Return copy of tools array
+  }
+
   public getIteration(iterationId: string): IterationData | undefined {
     return this.iterations.get(iterationId);
   }
