@@ -174,13 +174,21 @@ const LocalWarning: React.FC<LocalWarningProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={handleCopyPrompt}
-              className="w-full px-4 py-2 text-sm font-medium text-white bg-slate-700 rounded-md hover:bg-slate-800 transition-colors flex items-center justify-center"
-            >
-              <Clipboard className="h-4 w-4 mr-2" />
-              {isCopied ? 'Copied!' : 'Copy System Prompt'}
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={isAuthenticated ? onSwitchToObServer : onSignIn}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Sign in to Use ObServer
+              </button>
+              <button
+                onClick={handleCopyPrompt}
+                className="px-3 py-2 text-white bg-slate-700 rounded-md hover:bg-slate-800 transition-colors"
+                title={isCopied ? 'Copied!' : 'Copy System Prompt'}
+              >
+                <Clipboard className="h-4 w-4" />
+              </button>
+            </div>
 
             <div>
               <label htmlFor="model-select" className="block text-sm font-medium text-gray-700 mb-2">
