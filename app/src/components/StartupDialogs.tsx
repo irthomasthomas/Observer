@@ -1,6 +1,4 @@
-import React, { useState } from 'react';
-import { Terminal, Cloud, Server, AlertTriangle, Download } from 'lucide-react';
-import TerminalModal from '@components/TerminalModal';
+import React from 'react';
 
 interface StartupDialogProps {
   onDismiss: () => void;
