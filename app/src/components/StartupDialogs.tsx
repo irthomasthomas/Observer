@@ -3,6 +3,7 @@ import React from 'react';
 interface StartupDialogProps {
   onDismiss: () => void;
   onLogin?: () => void;
+  onToggleObServer?: () => void;
   isAuthenticated: boolean;
   hostingContext: 'official-web' | 'self-hosted' | 'tauri';
 }
@@ -11,6 +12,7 @@ interface StartupDialogProps {
 const StartupDialog: React.FC<StartupDialogProps> = ({
   onDismiss,
   onLogin,
+  onToggleObServer,
   isAuthenticated,
   hostingContext
 }) => {
@@ -24,6 +26,10 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
     if (onLogin) {
       onLogin();
     }
+    // Enable ObServer after signing in
+    if (onToggleObServer) {
+      onToggleObServer();
+    }
   };
 
   const handleSkip = () => {
@@ -32,7 +38,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] backdrop-blur-sm p-4">
-      <div className="bg-white rounded-xl shadow-xl p-6 sm:p-8 max-w-md w-full transition-all duration-300">
+      <div className="bg-white rounded-xl shadow-xl p-6 sm:p-8 max-w-md w-full transition-all duration-300 relative">
         <div className="text-center">
           {/* Observer Logo/Icon */}
           <div className="flex justify-center mb-6">
@@ -57,22 +63,24 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
             >
               Sign In to Start Creating Agents
             </button>
-
-            {/* Show Skip button only for Tauri app */}
-            {hostingContext === 'tauri' && (
-              <button
-                onClick={handleSkip}
-                className="w-full px-6 py-3 text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-              >
-                Skip & Use Local Models Only
-              </button>
-            )}
           </div>
 
-          {/* Footer */}
-          <p className="text-xs text-gray-500 mt-6">
-            You can always sign in later from the app header to unlock cloud features.
-          </p>
+          {/* Small Skip button positioned bottom-right for Tauri and Self-hosted */}
+          {(hostingContext === 'tauri' || hostingContext === 'self-hosted') && (
+            <button
+              onClick={handleSkip}
+              className="absolute bottom-4 right-4 text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1"
+            >
+              Skip →
+            </button>
+          )}
+
+          {/* Footer - only show for self-hosted and tauri */}
+          {hostingContext !== 'official-web' && (
+            <p className="text-xs text-gray-500 mt-6">
+              You can always sign in later from the app header to unlock cloud features.
+            </p>
+          )}
         </div>
       </div>
     </div>

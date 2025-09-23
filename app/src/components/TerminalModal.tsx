@@ -9,6 +9,7 @@ interface TerminalModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPullComplete?: () => void;
+  noModels?: boolean;
 }
 
 const suggestedModels = [
@@ -31,11 +32,13 @@ const formatBytes = (bytes: number, decimals = 2) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 };
 
-const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullComplete }) => {
+const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullComplete, noModels = false }) => {
   // Local state is now only for the user's input
   const [modelToPull, setModelToPull] = useState('');
   // All display state comes from the manager
   const [downloadState, setDownloadState] = useState<PullState>(pullModelManager.getInitialState());
+  // State to control showing welcome screen for no-models case
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(noModels);
 
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +60,16 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullCo
     }
   };
 
+  const handlePullModelClick = () => {
+    setModelToPull('gemma3:4b'); // Pre-fill with recommended model
+    setShowWelcomeScreen(false); // Switch to input screen
+    pullModelManager.pullModel('gemma3:4b'); // Start pulling immediately
+  };
+
+  const handleSkipForNow = () => {
+    setShowWelcomeScreen(false); // Go to regular input screen
+  };
+
   const handleCancelPull = () => {
     pullModelManager.cancelPull();
   };
@@ -73,6 +86,13 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullCo
   const isPulling = status === 'pulling';
   const isFinished = status === 'success' || status === 'error';
 
+  // Reset welcome screen state when modal reopens
+  useEffect(() => {
+    if (isOpen) {
+      setShowWelcomeScreen(noModels);
+    }
+  }, [isOpen, noModels]);
+
   return (
     <Modal open={isOpen} onClose={handleDone} className="w-full max-w-xl">
       <div className="p-6">
@@ -82,8 +102,38 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullCo
             <X size={20} />
           </button>
         </div>
-        
-        {!isFinished && !isPulling && (
+
+        {showWelcomeScreen ? (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <Download className="h-7 w-7 text-green-500 flex-shrink-0" />
+              <h2 className="text-xl sm:text-2xl font-semibold">Let's Get Your First Model</h2>
+            </div>
+
+            <p className="text-gray-700 mb-6">
+              Your local server is running, but it looks like you don't have any AI models installed yet. Models are the "brains" that power your agents. Let's download the recommended one to get you started.
+            </p>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+              <h3 className="font-semibold text-green-800 mb-2 text-lg">Recommended Model: Gemma3 4B</h3>
+              <button
+                onClick={handlePullModelClick}
+                className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-base shadow-sm hover:shadow-md"
+              >
+                Pull Your First Model!
+              </button>
+            </div>
+
+            <div className="mt-8 flex flex-col-reverse sm:flex-row justify-between items-center gap-4">
+              <button onClick={handleSkipForNow} className="text-sm text-gray-600 hover:underline">
+                Choose a different model
+              </button>
+              <button onClick={handleDone} className="text-sm text-gray-600 hover:underline">
+                I'll do this later
+              </button>
+            </div>
+          </div>
+        ) : !isFinished && !isPulling && (
           <>
             <p className="text-gray-600 mb-5">
               Enter a model name from the Ollama library (e.g., <code className="bg-gray-100 px-1 rounded text-sm">gemma3:4b</code>).

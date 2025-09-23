@@ -38,7 +38,9 @@ import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming th
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import AgentActivityModal from '@components/AgentCard/AgentActivityModal';
+import TerminalModal from '@components/TerminalModal';
 import { startCommandSSE, updateCommandSSEToken } from '@utils/commandSSE';
+import { fetchModels } from '@utils/inferenceServer';
 
 
 function AppContent() {
@@ -75,7 +77,7 @@ function AppContent() {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
-  const [showStartupDialog, setShowStartupDialog] = useState(true);
+  const [showStartupDialog, setShowStartupDialog] = useState(false);
   const [showGlobalLogs, setShowGlobalLogs] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [schedulingAgentId, setSchedulingAgentId] = useState<string | null>(null);
@@ -98,6 +100,10 @@ function AppContent() {
   // --- STATE FOR ACTIVITY MODAL ---
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalAgentId, setActivityModalAgentId] = useState<string | null>(null);
+
+  // --- STATE FOR TERMINAL MODAL ---
+  const [noModels, setNoModels] = useState(false);
+  const [isTerminalModalOpen, setIsTerminalModalOpen] = useState(false);
 
   // --- STATE FOR QUOTA INFO ---
   const [quotaInfo, setQuotaInfo] = useState<{
@@ -489,14 +495,23 @@ function AppContent() {
   useEffect(() => {
     if (!isLoading) {
       Logger.info('AUTH', `Auth loading complete, authenticated: ${isAuthenticated}`);
+      // Auto-enable ObServer if user is authenticated
+      if (isAuthenticated && !isUsingObServer) {
+        Logger.info('AUTH', 'Auto-enabling ObServer for authenticated user');
+        setIsUsingObServer(true);
+      }
+      // Show startup dialog only if user is NOT authenticated
+      if (!isAuthenticated) {
+        setShowStartupDialog(true);
+      }
     }
   }, [isLoading, isAuthenticated]);
 
   useEffect(() => {
-    if (serverStatus === 'offline' && !hasCompletedStartupCheck) {
+    if (serverStatus === 'offline' && !hasCompletedStartupCheck && !isLoading && !isAuthenticated) {
       setShowStartupDialog(true);
     }
-  }, [serverStatus, hasCompletedStartupCheck]);
+  }, [serverStatus, hasCompletedStartupCheck, isLoading, isAuthenticated]);
 
   // --- NEW: Memoized sorting logic ---
   // This will sort the agents array to bring active ones to the top.
@@ -534,14 +549,6 @@ function AppContent() {
 
         <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
 
-        {showStartupDialog && (
-          <StartupDialogs
-            onDismiss={handleDismissStartupDialog}
-            onLogin={loginWithRedirect}
-            isAuthenticated={isAuthenticated}
-            hostingContext={hostingContext}
-            />
-        )}
 
         <AppHeader
           serverStatus={serverStatus}
@@ -559,6 +566,7 @@ function AppContent() {
           }}
           getToken={getToken}
           onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+          onShowTerminalModal={() => setNoModels(true)}
           quotaInfo={quotaInfo}
           setQuotaInfo={setQuotaInfo}
         />
@@ -818,6 +826,29 @@ function AppContent() {
           isAuthenticated={isAuthenticated}
         />
       )}
+
+      {showStartupDialog && (
+        <StartupDialogs
+          onDismiss={handleDismissStartupDialog}
+          onLogin={loginWithRedirect}
+          onToggleObServer={() => setIsUsingObServer(true)}
+          isAuthenticated={isAuthenticated}
+          hostingContext={hostingContext}
+        />
+      )}
+
+      <TerminalModal
+        isOpen={!showStartupDialog && (noModels || isTerminalModalOpen)}
+        onClose={() => {
+          setNoModels(false);
+          setIsTerminalModalOpen(false);
+        }}
+        onPullComplete={async () => {
+          // Refresh models after pulling
+          await fetchModels();
+        }}
+        noModels={noModels}
+      />
     </div>
   );
 }

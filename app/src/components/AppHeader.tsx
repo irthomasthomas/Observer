@@ -40,6 +40,7 @@ interface AppHeaderProps {
   hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
   getToken: TokenProvider;
   onUpgradeClick?: () => void;
+  onShowTerminalModal?: () => void;
   quotaInfo: QuotaInfo;
   setQuotaInfo: React.Dispatch<React.SetStateAction<QuotaInfo>>;
 }
@@ -54,6 +55,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   hostingContext = 'self-hosted',
   getToken,
   onUpgradeClick,
+  onShowTerminalModal,
   quotaInfo,
   setQuotaInfo,
 }) => {
@@ -199,6 +201,28 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
+  const checkForEmptyOllamaModels = async () => {
+    try {
+      // Check if this is an Ollama server by checking the /api/tags endpoint
+      const response = await fetch(`${LOCAL_SERVER_ADDRESS}/api/tags`, {
+        signal: AbortSignal.timeout(1000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.models && data.models.length === 0) {
+          Logger.info('MODELS', 'Local Ollama server detected with no models, showing terminal modal');
+          if (onShowTerminalModal) {
+            onShowTerminalModal();
+          }
+        }
+      }
+    } catch (error) {
+      // Not an Ollama server or not reachable via /api/tags, ignore
+      Logger.debug('MODELS', 'Local server is not Ollama or /api/tags not accessible');
+    }
+  };
+
   const checkLocalServer = async () => {
     try {
       Logger.info('SERVER', `Checking local server connection at ${LOCAL_SERVER_ADDRESS}...`);
@@ -210,6 +234,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         Logger.info('SERVER', `Local server at ${LOCAL_SERVER_ADDRESS} is online and added to inference addresses`);
         // Update model list when server comes online
         await fetchModels();
+        // Check if it's an Ollama server with no models
+        await checkForEmptyOllamaModels();
       } else {
         setLocalServerOnline(false);
         removeInferenceAddress(LOCAL_SERVER_ADDRESS);
@@ -520,6 +546,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         <StartupDialogs
           onDismiss={() => setIsStartupDialogOpen(false)}
           onLogin={() => authState?.loginWithRedirect()}
+          onToggleObServer={handleToggleObServer}
           isAuthenticated={isAuthenticated}
           hostingContext={hostingContext}
         />
