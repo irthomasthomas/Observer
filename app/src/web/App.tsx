@@ -537,7 +537,6 @@ function AppContent() {
         {showStartupDialog && (
           <StartupDialogs
             onDismiss={handleDismissStartupDialog}
-            onToggleObServer={() => setIsUsingObServer(true)}
             onLogin={loginWithRedirect}
             isAuthenticated={isAuthenticated}
             hostingContext={hostingContext}

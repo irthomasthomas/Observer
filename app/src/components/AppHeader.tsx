@@ -519,13 +519,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {isStartupDialogOpen && (
         <StartupDialogs
           onDismiss={() => setIsStartupDialogOpen(false)}
-          onToggleObServer={() => {
-            setIsStartupDialogOpen(false);
-            handleToggleObServer();
-          }}
+          onLogin={() => authState?.loginWithRedirect()}
           isAuthenticated={isAuthenticated}
           hostingContext={hostingContext}
-          initialView="local-warning"
         />
       )}
     </>
