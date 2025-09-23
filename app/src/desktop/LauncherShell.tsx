@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
-  ExternalLink, Loader, CheckCircle2, XCircle, Power,
+  ExternalLink, Loader, CheckCircle2, Power,
   Download, Settings, RotateCw, Check, AlertTriangle, Keyboard,
   Eye, EyeOff, Trash2, ChevronRight, Info
 } from 'lucide-react';
