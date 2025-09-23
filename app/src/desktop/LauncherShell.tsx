@@ -5,7 +5,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
   ExternalLink, Loader, CheckCircle2, XCircle, Power,
   Download, Settings, RotateCw, Check, AlertTriangle, Keyboard,
-  Eye, EyeOff, Trash2, ChevronRight
+  Eye, EyeOff, Trash2, ChevronRight, Info
 } from 'lucide-react';
 
 // --- Helper Component for the Status Display (MODIFIED) ---
@@ -36,8 +36,8 @@ const StatusDisplay: React.FC<{
 
   return (
     <div className="flex items-center justify-center space-x-4 animate-fade-in">
-      <XCircle className="h-8 w-8 text-red-500" />
-      <p className="text-base text-red-600 font-medium">No running AI model server was detected.</p>
+      <Info className="h-8 w-8 text-blue-500" />
+      <p className="text-base text-slate-700 font-medium">Welcome! First, let's get you set up with a local AI server.</p>
     </div>
   );
 };
@@ -57,6 +57,7 @@ function LauncherShell() {
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [saveFeedback, setSaveFeedback] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const [showNoServerDialog, setShowNoServerDialog] = useState(false);
   
   // --- CONTROLS TAB STATE VARIABLES ---
   const [overlayShortcuts, setOverlayShortcuts] = useState({
@@ -426,8 +427,23 @@ function LauncherShell() {
     }
   }, []);
 
-  // --- Handlers (unchanged) ---
-  const handleOpenApp = () => serverUrl && open(serverUrl);
+  // --- Handlers ---
+  const handleOpenApp = () => {
+    // Check if no servers are found, show confirmation dialog
+    if (showFailureState) {
+      setShowNoServerDialog(true);
+      return;
+    }
+    // Open the server URL if available
+    serverUrl && open(serverUrl);
+  };
+
+  const handleConfirmLaunchWithoutServer = () => {
+    setShowNoServerDialog(false);
+    // Proceed with launching Observer even without local server
+    serverUrl && open(serverUrl);
+  };
+
   const handleDownloadOllama = () => open('https://ollama.com');
 
   const showSuccessState = !isChecking && foundServers.length > 0;
@@ -498,25 +514,28 @@ function LauncherShell() {
               <div className="mb-4">
                 <button
                   onClick={handleDownloadOllama}
-                  className="w-full px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl flex items-center justify-center"
+                  className="w-full px-8 py-5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 font-semibold text-xl shadow-lg hover:shadow-xl flex items-center justify-center"
                 >
-                  <Download className="h-6 w-6 mr-3" />
-                  Download Ollama
+                  <Download className="h-7 w-7 mr-3" />
+                  Get Started with Ollama
                 </button>
 
                 {/* Explanatory Text */}
-                <p className="text-sm text-slate-600 mt-3 text-center">
-                  No server found. The easiest way to get started is with Ollama, or configure a custom server below.
-                </p>
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-slate-700 font-medium">
+                    Ollama is a free, open-source AI server that runs locally on your computer. Observer also works with Llama.cpp, vLLM, LMStudio or any other endpoint!
+                  </p>
+                </div>
 
-                {/* Retry Button */}
-                <div className="mt-3 text-center">
+                {/* Alternative Option */}
+                <div className="mt-4 text-center">
+                  <p className="text-xs text-slate-400 mb-2"> Set your endpoint IP below.</p>
                   <button
                     onClick={runServerChecks}
-                    className="text-sm text-slate-500 hover:text-blue-600 hover:underline transition group inline-flex items-center"
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition group inline-flex items-center font-medium"
                   >
                     <RotateCw className="h-4 w-4 mr-1.5 transition-transform group-hover:rotate-[-90deg]" />
-                    Retry Connection
+                    Check for Server
                   </button>
                 </div>
               </div>
@@ -1050,6 +1069,37 @@ function LauncherShell() {
           <Power className="h-3 w-3 inline-block mr-1.5" />
           The background server is running. You can close this launcher.
         </p>
+
+        {/* No Server Confirmation Dialog */}
+        {showNoServerDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 max-w-md mx-4 text-center shadow-2xl">
+              <div className="mb-4">
+                <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-3">
+                  <AlertTriangle className="h-6 w-6 text-amber-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">No Local AI Server Found</h3>
+                <p className="text-sm text-slate-600">
+                  You won't be able to use local models without a server like Ollama. You can still use Observer with remote API endpoints.
+                </p>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowNoServerDialog(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmLaunchWithoutServer}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all font-medium"
+                >
+                  Launch Anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
