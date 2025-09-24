@@ -2,11 +2,13 @@
 
 Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
 
-## [Observer App Online](https://app.observer-ai.com/)
+<div align="center">
 
-## [Download App](https://github.com/Roy3838/Observer/releases/latest/)
+[![Observer App Online](https://img.shields.io/badge/🌐_Observer_App-Online-blue?style=for-the-badge&color=4CAF50)](https://app.observer-ai.com/)
+[![Download App](https://img.shields.io/badge/⬇️_Download-Latest_Release-blue?style=for-the-badge&color=2196F3)](https://github.com/Roy3838/Observer/releases/latest/)
+[![Support Project](https://img.shields.io/badge/☕_Support-Buy_Me_Coffee-blue?style=for-the-badge&color=FF9800)](https://buymeacoffee.com/roy3838)
 
-- [Support me and the project!](https://buymeacoffee.com/roy3838)
+</div>
 
 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
