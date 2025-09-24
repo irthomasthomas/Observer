@@ -12,12 +12,12 @@ import { detectAgentCapabilities } from './agentCapabilities';
 
 // --- GENERIC HELPER COMPONENTS ---
 
-const InfoTag: React.FC<{ icon: React.ElementType; label: string; warning?: string }> = ({ icon: Icon, label, warning }) => (
+const InfoTag: React.FC<{ icon: React.ElementType; label: string; warning?: string; isBlocking?: boolean }> = ({ icon: Icon, label, warning, isBlocking }) => (
     <div className="relative group">
         <div className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2 py-1 rounded-md text-xs font-medium cursor-default">
             <Icon className="w-3.5 h-3.5" />
             <span>{label}</span>
-            {warning && <AlertTriangle className="w-3.5 h-3.5 ml-1 text-orange-500" />}
+            {warning && <AlertTriangle className={`w-3.5 h-3.5 ml-1 ${isBlocking ? 'text-red-500' : 'text-orange-500'}`} />}
         </div>
         {warning && (
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -151,6 +151,7 @@ interface StaticAgentViewProps {
     onModelChange: (modelName: string) => void;
     startWarning: string | null;
     isProUser?: boolean;
+    hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
 }
 
 
@@ -162,6 +163,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     onModelChange,
     startWarning,
     isProUser = false,
+    hostingContext,
 }) => {
     const [detectedSensors, setDetectedSensors] = useState<any[]>([]);
     const [detectedTools, setDetectedTools] = useState<any[]>([]);
@@ -169,7 +171,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     useEffect(() => {
         const loadCapabilities = async () => {
             try {
-                const capabilities = await detectAgentCapabilities(agent.system_prompt || '', code || '');
+                const capabilities = await detectAgentCapabilities(agent.system_prompt || '', code || '', hostingContext);
                 setDetectedSensors(capabilities.sensors);
                 setDetectedTools(capabilities.tools);
             } catch (error) {
@@ -180,7 +182,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
         };
 
         loadCapabilities();
-    }, [agent.system_prompt, code]);
+    }, [agent.system_prompt, code, hostingContext]);
 
     return (
         <div className="space-y-4 animate-fade-in">
@@ -220,6 +222,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                                 icon={tool.icon}
                                 label={tool.label}
                                 warning={tool.warning}
+                                isBlocking={tool.isBlocking}
                             />
                         ))}
                     </div>

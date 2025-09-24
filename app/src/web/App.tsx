@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Terminal, Server } from 'lucide-react';
+import { Terminal } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import {
@@ -629,6 +629,7 @@ function AppContent() {
                       onSave={handleSaveAgent}
                       isProUser={isProUser}
                       onAIEdit={handleAIEditClick}
+                      hostingContext={hostingContext}
                     />
                   </div>
                 );

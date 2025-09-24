@@ -14,6 +14,7 @@ export interface DetectedTool {
     label: string;
     icon: React.ElementType;
     warning?: string;
+    isBlocking?: boolean;
 }
 
 export interface AgentCapabilities {
@@ -133,17 +134,30 @@ export async function detectAgentSensors(systemPrompt: string): Promise<Detected
 /**
  * Detects which tools an agent uses based on its code
  */
-export async function detectAgentTools(code: string): Promise<DetectedTool[]> {
+export async function detectAgentTools(code: string, hostingContext?: 'official-web' | 'self-hosted' | 'tauri'): Promise<DetectedTool[]> {
     const foundTools: DetectedTool[] = [];
+
+    // Tools that don't work in official web environment
+    const webIncompatibleTools = ['overlay', 'message', 'ask', 'system_notify'];
 
     for (const [key, tool] of Object.entries(TOOL_CONFIG)) {
         if (code.match(tool.regex)) {
             const icon = await loadToolIcon(key);
+            let warning = tool.warning;
+
+            // Add web incompatibility warning if in official web context
+            let isBlocking = false;
+            if (hostingContext === 'official-web' && webIncompatibleTools.includes(key)) {
+                warning = 'These tools are only available when using the Observer App';
+                isBlocking = true;
+            }
+
             foundTools.push({
                 key,
                 label: tool.label,
                 icon,
-                warning: tool.warning
+                warning,
+                isBlocking
             });
         }
     }
@@ -154,10 +168,10 @@ export async function detectAgentTools(code: string): Promise<DetectedTool[]> {
 /**
  * Detects all capabilities of an agent (sensors + tools)
  */
-export async function detectAgentCapabilities(systemPrompt: string, code: string): Promise<AgentCapabilities> {
+export async function detectAgentCapabilities(systemPrompt: string, code: string, hostingContext?: 'official-web' | 'self-hosted' | 'tauri'): Promise<AgentCapabilities> {
     const [sensors, tools] = await Promise.all([
         detectAgentSensors(systemPrompt),
-        detectAgentTools(code)
+        detectAgentTools(code, hostingContext)
     ]);
 
     return {

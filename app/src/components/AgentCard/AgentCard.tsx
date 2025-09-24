@@ -53,12 +53,13 @@ interface AgentCardProps {
   onSave: (agent: CompleteAgent, code: string) => Promise<void>;
   isProUser?: boolean;
   onAIEdit?: (agentId: string) => void;
+  hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
 }
 
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent, code, isRunning, isStarting, isMemoryFlashing, onEdit, onDelete, onToggle,
-  onMemory, onActivity, onShowJupyterModal, hasQuotaError, onUpgradeClick, onSave, isProUser = false, onAIEdit
+  onMemory, onActivity, onShowJupyterModal, hasQuotaError, onUpgradeClick, onSave, isProUser = false, onAIEdit, hostingContext
 }) => {
   const [isPythonAgent, setIsPythonAgent] = useState(false);
   const [startWarning, setStartWarning] = useState<string | null>(null);
@@ -246,6 +247,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               onModelChange={setCurrentModel}
               startWarning={startWarning}
               isProUser={isProUser}
+              hostingContext={hostingContext}
               // REMOVED: communicationWarnings prop is gone
             />
           )}
