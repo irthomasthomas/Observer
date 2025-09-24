@@ -741,13 +741,6 @@ function AppContent() {
               >
                 <Terminal className="h-5 w-5" />
               </button>
-
-              <button
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
-                onClick={() => setIsJupyterModalOpen(true)}
-              >
-                <Server className="h-5 w-5" />
-              </button>
             </div>
 
             <div className="flex items-center space-x-4">

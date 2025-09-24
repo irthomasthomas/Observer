@@ -1,5 +1,5 @@
 // src/components/GlobalLogsViewer.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LogEntry, LogLevel, Logger } from '../utils/logging';
 import { X, RefreshCw, Download, Filter } from 'lucide-react';
 
@@ -15,8 +15,49 @@ const GlobalLogsViewer: React.FC<GlobalLogsViewerProps> = ({ isOpen, onClose }) 
   const [isAutoScroll, setIsAutoScroll] = useState(true);
   const [filterSource, setFilterSource] = useState<string | null>(null);
   const [uniqueSources, setUniqueSources] = useState<string[]>([]);
+  const [height, setHeight] = useState(256); // Default height in pixels
+  const [isDragging, setIsDragging] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
-  
+
+  // Handle mouse resize
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsDragging(true);
+    e.preventDefault();
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+
+    const windowHeight = window.innerHeight;
+    const mouseY = e.clientY;
+    const newHeight = windowHeight - mouseY;
+
+    // Constrain height between 100px and 80% of window height
+    const minHeight = 100;
+    const maxHeight = windowHeight * 0.8;
+    const constrainedHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
+
+    setHeight(constrainedHeight);
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = '';
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
   // Load logs when the component mounts
   useEffect(() => {
     if (!isOpen) return;
@@ -133,7 +174,17 @@ const GlobalLogsViewer: React.FC<GlobalLogsViewerProps> = ({ isOpen, onClose }) 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-40 h-64 overflow-hidden flex flex-col">
+    <div
+      className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-40 overflow-hidden flex flex-col"
+      style={{ height: `${height}px` }}
+    >
+      {/* Resize handle */}
+      <div
+        className="h-1 bg-gray-200 cursor-ns-resize hover:bg-gray-300 transition-colors"
+        onMouseDown={handleMouseDown}
+        title="Drag to resize"
+      />
+
       {/* Header */}
       <div className="bg-gray-100 px-4 py-2 flex justify-between items-center border-b">
         <div className="flex items-center">
