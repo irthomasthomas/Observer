@@ -5,7 +5,7 @@ import { Model, listModels } from '@utils/inferenceServer';
 // Removed getOllamaServerAddress import - no longer needed
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
-  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images
+  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server
 } from 'lucide-react';
 
 
@@ -42,7 +42,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ availableModels, selected
           {availableModels.map((m) => (
             <button key={m.name} onClick={() => { onSelectModel(m.name); setIsOpen(false); }} className={`w-full text-left px-3 py-2 text-xs flex justify-between items-center ${selectedModel === m.name ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}>
               <span className="truncate pr-2">{m.name}</span>
-              {m.multimodal && <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${selectedModel === m.name ? 'bg-blue-400 text-white' : 'text-purple-600 bg-purple-100'}`}><Eye className="h-3.5 w-3.5 mr-1" />Vision</span>}
+              <div className="flex items-center space-x-1">
+                {m.multimodal && <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${selectedModel === m.name ? 'bg-blue-400 text-white' : 'text-purple-600 bg-purple-100'}`}><Eye className="h-3.5 w-3.5 mr-1" />Vision</span>}
+                {(m.server.includes('localhost') || m.server.includes('http://')) && <span title="Running Locally" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${selectedModel === m.name ? 'bg-blue-400 text-white' : 'text-gray-600 bg-gray-100'}`}><Server className="h-3.5 w-3.5 mr-1" />Local</span>}
+              </div>
             </button>
           ))}
         </div>
@@ -179,8 +182,10 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
     // Vision validation
     const hasVisionSensor = /\$SCREEN_64|\$CAMERA/.test(systemPrompt);
     const selectedModelInfo = availableModels.find(m => m.name === model);
-    if (hasVisionSensor && selectedModelInfo && !selectedModelInfo.multimodal) {
-      setVisionValidationError("This model may not support images. Please select a 'Vision' model.");
+    const isLocalModel = selectedModelInfo && (selectedModelInfo.server.includes('localhost') || selectedModelInfo.server.includes('http://'));
+
+    if (hasVisionSensor && selectedModelInfo && !selectedModelInfo.multimodal && !isLocalModel) {
+      setVisionValidationError("This model does not support images. Please select a 'Vision' model.");
     } else {
       setVisionValidationError(null);
     }
@@ -298,6 +303,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                             {model === m.name && <CheckCircle2 className="h-4 w-4" />}
                             <span className="truncate">{m.name}</span>
                             {m.multimodal && (<span title="Vision Model"><Eye className="h-4 w-4 text-purple-400 group-hover:text-purple-500" /></span>)}
+                            {(m.server.includes('localhost') || m.server.includes('http://')) && (<span title="Running Locally"><Server className="h-4 w-4 text-gray-400 group-hover:text-gray-500" /></span>)}
                         </button>
                     ))}
                 </div>

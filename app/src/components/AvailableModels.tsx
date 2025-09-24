@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { listModels, Model } from '@utils/inferenceServer'; // Import updated Model interface
-import { Cpu, RefreshCw, Eye } from 'lucide-react'; // <-- Import Eye icon
+import { Cpu, RefreshCw, Eye, Server } from 'lucide-react'; // <-- Import Eye and Server icons
 import { Logger } from '@utils/logging';
 import { getInferenceAddresses } from '@utils/inferenceServer';
 import TerminalModal from '@components/TerminalModal';
@@ -130,7 +130,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
                       </span>
                     )}
                   </div>
-                  {/* Container for parameter size and multimodal icon */}
+                  {/* Container for parameter size, multimodal icon, and local tag */}
                   <div className="flex items-center flex-wrap mt-1">
                     {model.parameterSize && model.parameterSize !== "N/A" && (
                       <span className="inline-block mr-2 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
@@ -139,9 +139,16 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
                     )}
                     {/* Conditionally render the Eye icon if multimodal is true */}
                     {model.multimodal && (
-                      <span title="Supports Multimodal Input" className="inline-block text-xs font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded">
+                      <span title="Supports Multimodal Input" className="inline-block mr-2 text-xs font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded">
                         <Eye className="h-3.5 w-3.5 inline-block mr-1 -mt-px" />
                         Vision
+                      </span>
+                    )}
+                    {/* Conditionally render the Local tag if server is localhost or http */}
+                    {(model.server.includes('localhost') || model.server.includes('http://')) && (
+                      <span title="Running Locally" className="inline-block text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        <Server className="h-3.5 w-3.5 inline-block mr-1 -mt-px" />
+                        Local
                       </span>
                     )}
                   </div>

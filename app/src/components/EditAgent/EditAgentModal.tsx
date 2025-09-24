@@ -137,7 +137,7 @@ interface ConfigContentProps {
   loadingModels: boolean;
   modelsError: string | null;
   // FIX: Changed `multimodal: boolean | undefined` to `multimodal?: boolean` to make it optional
-  availableModels: { name: string; multimodal?: boolean; pro?: boolean }[];
+  availableModels: { name: string; multimodal?: boolean; pro?: boolean; server: string; }[];
   loopInterval: number;
   setLoopInterval: (interval: number) => void;
   description: string;
@@ -168,7 +168,7 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
             <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
           {isModelDropdownOpen && (
-            <div className="absolute z-20 mt-1 w-full max-h-60 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto">
+            <div className="absolute z-20 mt-1 w-full max-h-40 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto">
               {loadingModels && <div className="px-3 py-2 text-sm text-gray-500">Loading…</div>}
               {modelsError && <div className="px-3 py-2 text-sm text-red-600">{modelsError}</div>}
               {!loadingModels && !modelsError && availableModels.length === 0 && <div className="px-3 py-2 text-sm text-gray-500">No models. Ensure Ollama is running.</div>}
@@ -195,12 +195,20 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
                         </span>
                       )}
                     </div>
-                    {m.multimodal && (
-                      <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-purple-600 bg-purple-100'}`}>
-                        <Eye className="h-3.5 w-3.5 mr-1" />
-                        Vision
-                      </span>
-                    )}
+                    <div className="flex items-center space-x-1">
+                      {m.multimodal && (
+                        <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-purple-600 bg-purple-100'}`}>
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          Vision
+                        </span>
+                      )}
+                      {(m.server.includes('localhost') || m.server.includes('http://')) && (
+                        <span title="Running Locally" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-gray-600 bg-gray-100'}`}>
+                          <Server className="h-3.5 w-3.5 mr-1" />
+                          Local
+                        </span>
+                      )}
+                    </div>
                   </button>
               ))}
               {!loadingModels && (modelsError || availableModels.length === 0) && (
@@ -218,7 +226,7 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
       </div>
       <div className="col-span-1 sm:col-span-2">
         <label className="block text-gray-600 mb-1 flex items-center"><Edit3 size={14} className="mr-1.5 text-gray-500" />Description</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" placeholder="Optional description" />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" placeholder="Optional description" />
       </div>
     </div>
   </div>

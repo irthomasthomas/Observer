@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
-    Cpu, Clock, Eye, ChevronDown, AlertTriangle
+    Cpu, Clock, Eye, ChevronDown, AlertTriangle, Server
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/inferenceServer';
@@ -64,7 +64,7 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [availableModels, setAvailableModels] = useState<{ name: string; multimodal?: boolean; pro?: boolean; }[]>([]);
+    const [availableModels, setAvailableModels] = useState<{ name: string; multimodal?: boolean; pro?: boolean; server: string; }[]>([]);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const fetchModels = async () => {
@@ -104,7 +104,7 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
             </button>
             {isOpen && (
                 <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                    <div className="py-1">
+                    <div className="py-1 max-h-72 overflow-y-auto">
                         {isLoading && <div className="px-3 py-1.5 text-xs text-gray-500">Loading...</div>}
                         {error && <div className="px-3 py-1.5 text-xs text-red-600">{error}</div>}
                         {!isLoading && !error && availableModels.map((model) => (
@@ -128,6 +128,7 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
                                   </div>
                                   <div className="flex items-center space-x-1">
                                     {model.multimodal && <Eye className="h-4 w-4 text-purple-600" />}
+                                    {(model.server.includes('localhost') || model.server.includes('http://')) && <Server className="h-4 w-4 text-gray-600" />}
                                   </div>
                                 </div>
                             </button>
