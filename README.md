@@ -32,13 +32,11 @@ Local Open-source micro-agents that observe, log and react, all while keeping yo
 
 *Build simple local agents that don't just watch, they **understand**, **remember**, and **act** intelligently on your behalf.*
 
-## 📹 Watch Observer AI in Action
+## 📹 Why Observer AI?
 
 <div align="center">
 
 [![Observer AI Demo](https://img.youtube.com/vi/i5WDvQy0XJA/0.jpg)](https://www.youtube.com/watch?v=i5WDvQy0XJA)
-
-*Click to watch the full demo on YouTube*
 
 </div>
 
