@@ -1,4 +1,4 @@
-# Observer AI 🚀! 
+# Observer AI 🚀!
 
 Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
 
@@ -12,9 +12,23 @@ Local Open-source micro-agents that observe, log and react, all while keeping yo
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-# 🚀 Take a quick look:
+## 🔧 Agent Superpowers
 
-https://github.com/user-attachments/assets/9e63da4f-08f9-4c71-9ea2-908f1ccfbdeb
+### 📊 **Intelligent Logging & Memory**
+- **Screen Recording** - Start Recording intelligently or analyze video clips with custom labels.
+- **Audio Intelligence** - Listen to microphone, screen audio, or both simultaneously.
+- **Text and Visual Memory** - Store and retrieve images for context-aware decisions.
+
+### 🚨 **Multi-Channel Notifications**
+- **📧 Email Alerts** - Get Emails with image attachments
+- **💬 Discord Integration** - Real-time server notifications with rich media
+- **📱 Telegram Messages** - Instant mobile alerts via Observer bot
+- **📞 SMS Notifications** - Direct text messaging (non USA/Canada) 
+- **💚 WhatsApp Alerts** - Get messages on your favorite messaging platform
+- **🖥️ System Notifications** - Native OS alerts and pop-ups
+- **📺 Observer Overlay** - Custom on-screen messages and status updates
+
+*Build simple local agents that don't just watch, they **understand**, **remember**, and **act** intelligently on your behalf.*
 
 # 🏗️ Building Your Own Agent
 
