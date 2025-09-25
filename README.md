@@ -1,20 +1,44 @@
-# Observer AI 🚀! 
+# Observer AI 🚀!
 
 Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
 
-## [Observer App Online](https://app.observer-ai.com/)
+<div align="center">
 
-## [Download App](https://github.com/Roy3838/Observer/releases/latest/)
+[![Observer App Online](https://img.shields.io/badge/🌐_Observer_App-Online-blue?style=for-the-badge&color=4CAF50)](https://app.observer-ai.com/)
+[![Download App](https://img.shields.io/badge/⬇️_Download-Latest_Release-blue?style=for-the-badge&color=2196F3)](https://github.com/Roy3838/Observer/releases/latest/)
+[![Support Project](https://img.shields.io/badge/☕_Support-Buy_Me_Coffee-blue?style=for-the-badge&color=FF9800)](https://buymeacoffee.com/roy3838)
 
-- [Support me and the project!](https://buymeacoffee.com/roy3838)
+</div>
 
 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-# 🚀 Take a quick look:
+## 🔧 Agent Superpowers
 
-https://github.com/user-attachments/assets/9e63da4f-08f9-4c71-9ea2-908f1ccfbdeb
+### 📊 **Intelligent Logging & Memory**
+- **Screen Recording** - Start Recording intelligently or analyze video clips with custom labels.
+- **Audio Intelligence** - Listen to microphone, screen audio, or both simultaneously.
+- **Text and Visual Memory** - Store and retrieve images for context-aware decisions.
+
+### 🚨 **Multi-Channel Notifications**
+- **📧 Email Alerts** - Get Emails with image attachments
+- **💬 Discord Integration** - Real-time server notifications with rich media
+- **📱 Telegram Messages** - Instant mobile alerts via Observer bot
+- **📞 SMS Notifications** - Direct text messaging (non USA/Canada) 
+- **💚 WhatsApp Alerts** - Get messages on your favorite messaging platform
+- **🖥️ System Notifications** - Native OS alerts and pop-ups
+- **📺 Observer Overlay** - Custom on-screen messages and status updates
+
+*Build simple local agents that don't just watch, they **understand**, **remember**, and **act** intelligently on your behalf.*
+
+## 📹 Why Observer AI?
+
+<div align="center">
+
+[![Observer AI Demo](https://img.youtube.com/vi/i5WDvQy0XJA/0.jpg)](https://www.youtube.com/watch?v=i5WDvQy0XJA)
+
+</div>
 
 # 🏗️ Building Your Own Agent
 
@@ -103,18 +127,14 @@ sendTelegram(cleanedResponse, "12345678") // Example chat_id
 > **Note:** any function marked with `*` takes an `agentId` argument.  
 > If you omit `agentId`, it defaults to the agent that’s running the code.
 
+# 🚀 Getting Started with Local Inference
 
-https://github.com/user-attachments/assets/c5af311f-7e10-4fde-9321-bb98ceebc271
 
-
-> ✨ **Major Update: Simpler Setup & More Flexibility!**
-> The `observer-ollama` service no longer requires SSL by default. This means **no more browser security warnings** for a standard local setup! It now also supports any backend that uses a standard OpenAI-compatible (`v1/chat/completions`) endpoint, like Llama.cpp.
-
-There are a few ways to get Observer up and running with local inference. I recommend using Docker for the simplest setup.
+There are a few ways to get Observer up and running with local inference. I recommend the Observer App. 
 
 ## Option 1: Just Install the Desktop App with any OpenAI compatible endpoint (Ollama, llama.cpp, vLLM)
 
-## [Download Official App](https://github.com/Roy3838/Observer/releases/latest/)
+[![Download App](https://img.shields.io/badge/⬇️_Download-Latest_Release-blue?style=for-the-badge&color=2196F3)](https://github.com/Roy3838/Observer/releases/latest/)
 
 Download Ollama for the best compatibility. 
 
@@ -122,6 +142,13 @@ Observer can connect directly to any server that provides a `v1/chat/completions
 Set the `Custom Model Server URL` on the App to vLLM, llama.cpp or any OpenAI compatible endpoint if not using Ollama.
 
 ## Option 2: Full Docker Setup (Deprecated)
+
+https://github.com/user-attachments/assets/c5af311f-7e10-4fde-9321-bb98ceebc271
+
+
+> ✨ **Major Update: Simpler Setup & More Flexibility!**
+> The `observer-ollama` service no longer requires SSL by default. This means **no more browser security warnings** for a standard local setup! It now also supports any backend that uses a standard OpenAI-compatible (`v1/chat/completions`) endpoint, like Llama.cpp.
+
 
 This method uses Docker Compose to run everything you need in containers: the Observer WebApp, the `observer-ollama` translator, and a local Ollama instance. This is the easiest way to get a 100% private, local-first setup.
 
@@ -208,7 +235,6 @@ To use Python agents:
 3. Test the connection using the "Test Connection" button
 4. Switch to the Python tab in the code editor to write Python-based agents
 
-# 🚀 Getting Started with Local Inference
 
 ## Deploy & Share
 
