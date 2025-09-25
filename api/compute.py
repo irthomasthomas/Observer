@@ -1,7 +1,7 @@
 # compute.py
 
 from fastapi import APIRouter, Request, HTTPException, status, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import logging
 import json
 from collections import defaultdict
@@ -36,20 +36,22 @@ compute_router = APIRouter()
 _conversation_metrics = []
 _metrics_lock = Lock()
 
-def log_conversation_metrics(user_id: str, prompt_text: str, response_text: str, 
-                           handler: str, model: str, status_code: int, image_count: int = 0):
+def log_conversation_metrics(user_id: str, prompt_text: str, response_text: str,
+                           handler: str, model: str, status_code: int, image_count: int = 0,
+                           time_to_first_token: float = None, chunks_per_second: float = None):
     """Log conversation metrics to memory (no disk I/O)."""
     with _metrics_lock:
         entry = {
             "timestamp": datetime.now().isoformat(),
             "user_id": user_id,
-            "prompt": prompt_text[-500:] if prompt_text else "",  # See last 500 chars to look at requests for generated agents 
+            "prompt": prompt_text[-500:] if prompt_text else "",  # See last 500 chars to look at requests for generated agents
             "response": response_text[:500] if response_text else "",
             "handler": handler,
             "model": model,
-            # No timing data - pure conversation logging
             "status_code": status_code,
-            "image_count": image_count
+            "image_count": image_count,
+            "time_to_first_token": time_to_first_token,
+            "chunks_per_second": chunks_per_second
         }
         _conversation_metrics.append(entry)
         
@@ -61,6 +63,83 @@ def get_all_conversation_metrics() -> list:
     """Get all conversation metrics (for admin endpoint)."""
     with _metrics_lock:
         return list(_conversation_metrics)  # Return copy
+
+async def _log_streaming_response(stream_iterator, user_id: str, prompt_text: str,
+                                 handler: str, model: str, image_count: int = 0):
+    """
+    Wrapper that logs complete streaming response with timing metrics.
+    Accumulates content from OpenAI SSE chunks and logs when stream completes.
+    """
+    import time
+
+    response_parts = []
+    start_time = time.time()
+    first_token_time = None
+    total_chunks = 0
+
+    try:
+        async for chunk in stream_iterator:
+            # Yield chunk immediately for streaming
+            yield chunk
+
+            # Parse chunk to extract content for logging
+            if isinstance(chunk, (str, bytes)):
+                chunk_str = chunk.decode() if isinstance(chunk, bytes) else chunk
+                if chunk_str.startswith("data: ") and not chunk_str.startswith("data: [DONE]"):
+                    try:
+                        json_data = chunk_str[6:].strip()  # Remove "data: " prefix
+                        if json_data:
+                            chunk_json = json.loads(json_data)
+                            choices = chunk_json.get("choices", [])
+                            if choices and "delta" in choices[0]:
+                                content = choices[0]["delta"].get("content")
+                                if content:
+                                    # Mark time to first token
+                                    if first_token_time is None:
+                                        first_token_time = time.time()
+                                    response_parts.append(content)
+                                    total_chunks += 1
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        # Skip malformed chunks
+                        continue
+
+        # Calculate timing metrics
+        end_time = time.time()
+        total_duration = end_time - start_time
+
+        time_to_first_token_ms = None
+        if first_token_time is not None:
+            time_to_first_token_ms = round((first_token_time - start_time) * 1000, 2)
+
+        chunks_per_second = None
+        if total_chunks > 0 and total_duration > 0:
+            chunks_per_second = round(total_chunks / total_duration, 2)
+
+        # Log complete response when stream finishes
+        complete_response = ''.join(response_parts)
+        log_conversation_metrics(
+            user_id=user_id,
+            prompt_text=prompt_text,
+            response_text=complete_response,
+            handler=handler,
+            model=model,
+            status_code=200,
+            image_count=image_count,
+            time_to_first_token=time_to_first_token_ms,
+            chunks_per_second=chunks_per_second
+        )
+
+    except Exception as e:
+        # Log error if stream fails
+        log_conversation_metrics(
+            user_id=user_id,
+            prompt_text=prompt_text,
+            response_text=f"STREAM_ERROR: {str(e)}",
+            handler=handler,
+            model=model,
+            status_code=500,
+            image_count=image_count
+        )
 
 # --- API Routes ---
 
@@ -168,28 +247,23 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
     
     try:
         response_payload = await selected_handler.handle_request(request_data)
-        
-        # Extract response text for logging
-        response_text = ""
-        if isinstance(response_payload, dict) and 'choices' in response_payload:
-            choices = response_payload.get('choices', [])
-            if choices and 'message' in choices[0] and 'content' in choices[0]['message']:
-                response_text = choices[0]['message']['content']
-        
-        # Log successful request metrics (no disk I/O)
-        log_conversation_metrics(
-            user_id=current_user.id,
-            prompt_text=prompt_text,
-            response_text=response_text,
-            handler=selected_handler.name,
-            model=model_name,
-            status_code=200,
-            image_count=image_count
-        )
-        
-        # If it's a StreamingResponse, return it directly; otherwise wrap in JSONResponse
+
+        # Wrap StreamingResponse with logging (all requests are streaming)
         if hasattr(response_payload, '__class__') and response_payload.__class__.__name__ == 'StreamingResponse':
-            return response_payload
+            return StreamingResponse(
+                _log_streaming_response(
+                    response_payload.body_iterator,
+                    current_user.id,
+                    prompt_text,
+                    selected_handler.name,
+                    model_name,
+                    image_count
+                ),
+                media_type=response_payload.media_type,
+                headers=response_payload.headers
+            )
+
+        # Fallback for non-streaming responses (shouldn't happen but defensive)
         return JSONResponse(content=response_payload)
         
     except (HandlerError, ConfigError, BackendAPIError) as e:
