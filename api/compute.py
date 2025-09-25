@@ -1,12 +1,16 @@
 # compute.py
 
-from fastapi import APIRouter, Request, HTTPException, status
+from fastapi import APIRouter, Request, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 import logging
 import json
+from collections import defaultdict
+from datetime import datetime
+from threading import Lock
 
 # --- Local Imports ---
 from auth import AuthUser
+from admin_auth import get_admin_access
 # Import the new, specific functions and the QUOTA_LIMITS dictionary
 from quota_manager import increment_usage, get_usage_for_service, check_usage, QUOTA_LIMITS
 
@@ -27,7 +31,46 @@ except ImportError as e:
 
 compute_router = APIRouter()
 
+# --- Metrics Logging System (Memory-Only) ---
+# Similar to quota_manager.py pattern - all in memory
+_conversation_metrics = []
+_metrics_lock = Lock()
+
+def log_conversation_metrics(user_id: str, prompt_text: str, response_text: str, 
+                           handler: str, model: str, status_code: int, image_count: int = 0):
+    """Log conversation metrics to memory (no disk I/O)."""
+    with _metrics_lock:
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "user_id": user_id,
+            "prompt": prompt_text[-500:] if prompt_text else "",  # See last 500 chars to look at requests for generated agents 
+            "response": response_text[:500] if response_text else "",
+            "handler": handler,
+            "model": model,
+            # No timing data - pure conversation logging
+            "status_code": status_code,
+            "image_count": image_count
+        }
+        _conversation_metrics.append(entry)
+        
+        # Keep only last 1000 entries to prevent memory bloat
+        if len(_conversation_metrics) > 1000:
+            _conversation_metrics.pop(0)
+
+def get_all_conversation_metrics() -> list:
+    """Get all conversation metrics (for admin endpoint)."""
+    with _metrics_lock:
+        return list(_conversation_metrics)  # Return copy
+
 # --- API Routes ---
+
+@compute_router.get("/admin/metrics", tags=["Admin"], summary="Get all conversation metrics")
+async def get_all_metrics(is_admin: bool = Depends(get_admin_access)):
+    """
+    (Admin) Returns all conversation metrics including response times, models used, and error rates.
+    Requires a valid X-Admin-Key header.
+    """
+    return get_all_conversation_metrics()
 
 @compute_router.get("/quota", summary="Check remaining API credits for the authenticated user")
 async def check_quota_endpoint(current_user: AuthUser): 
@@ -98,15 +141,86 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
             detail=f"Model '{model_name}' requires a pro subscription. Please upgrade to access premium models."
         )
 
-    # 7. Execute handler logic
+    # 7. Execute handler logic with centralized metrics logging
+    
+    # Extract prompt info for logging
+    messages = request_data.get("messages", [])
+    prompt_text = ""
+    image_count = 0
+    
+    if messages:
+        last_message = messages[-1]
+        content = last_message.get("content")
+        if isinstance(content, str):
+            prompt_text = content
+        elif isinstance(content, list):
+            # Handle multimodal content (text + images)
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    if item.get("type") == "text":
+                        text_parts.append(item.get("text", ""))
+                    elif item.get("type") == "image_url":
+                        image_count += 1
+            prompt_text = " ".join(text_parts)
+            if image_count > 0:
+                prompt_text += f" ({image_count} images)"
+    
     try:
         response_payload = await selected_handler.handle_request(request_data)
+        
+        # Extract response text for logging
+        response_text = ""
+        if isinstance(response_payload, dict) and 'choices' in response_payload:
+            choices = response_payload.get('choices', [])
+            if choices and 'message' in choices[0] and 'content' in choices[0]['message']:
+                response_text = choices[0]['message']['content']
+        
+        # Log successful request metrics (no disk I/O)
+        log_conversation_metrics(
+            user_id=current_user.id,
+            prompt_text=prompt_text,
+            response_text=response_text,
+            handler=selected_handler.name,
+            model=model_name,
+            status_code=200,
+            image_count=image_count
+        )
+        
+        # If it's a StreamingResponse, return it directly; otherwise wrap in JSONResponse
+        if hasattr(response_payload, '__class__') and response_payload.__class__.__name__ == 'StreamingResponse':
+            return response_payload
         return JSONResponse(content=response_payload)
+        
     except (HandlerError, ConfigError, BackendAPIError) as e:
-        logger.error(f"Handler error for model '{model_name}': {e}", exc_info=True)
         status_code = getattr(e, 'status_code', 500)
+        
+        # Log error request metrics
+        log_conversation_metrics(
+            user_id=current_user.id,
+            prompt_text=prompt_text,
+            response_text=f"ERROR: {str(e)}",
+            handler=selected_handler.name,
+            model=model_name,
+            status_code=status_code,
+            image_count=image_count
+        )
+        
+        logger.error(f"Handler error for model '{model_name}': {e}", exc_info=True)
         raise HTTPException(status_code=status_code, detail=str(e))
+        
     except Exception as e:
+        # Log unexpected error metrics
+        log_conversation_metrics(
+            user_id=current_user.id,
+            prompt_text=prompt_text,
+            response_text=f"INTERNAL_ERROR: {str(e)}",
+            handler=selected_handler.name,
+            model=model_name,
+            status_code=500,
+            image_count=image_count
+        )
+        
         logger.exception(f"Unexpected error processing request with handler {selected_handler.name}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
@@ -161,7 +275,7 @@ async def list_models_v1_endpoint():
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend handlers are not available.")
 
-    EXCLUDED = {"gemini-2.0-flash-lite", "gemini-2.0-flash-lite-free"}
+    EXCLUDED = {"gemini-2.0-flash-lite", "gemini-2.0-flash-lite-free", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite-free"}
     
     # This list will hold the model data in the new format.
     model_data_list = []

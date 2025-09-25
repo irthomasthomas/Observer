@@ -64,30 +64,8 @@ class BaseAPIHandler:
         """
         raise NotImplementedError(f"Handler '{self.name}' must implement handle_request")
 
-    def log_conversation(self, prompt, response, model_name, images_count=0):
-        """Log conversation details to a file."""
-        # Keep this synchronous, logging IO is usually acceptable to block briefly
-        log_dir = Path("./logs")
-        log_dir.mkdir(exist_ok=True)
-        log_file = log_dir / f"{self.name}_conversations.log"
-        # Ensure response is serializable (it should be if it's the final text)
-        if not isinstance(response, (str, int, float, bool, type(None))):
-             response_log = "[Object]" # Avoid logging complex objects directly
-        else:
-             response_log = response
-
-        entry = {
-            "timestamp": datetime.now().isoformat(),
-            "model": model_name,
-            "prompt": prompt, # Assumes prompt is simple text for logging
-            "response": response_log,
-            "images_count": images_count
-        }
-        try:
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry) + "\n")
-        except Exception as log_e:
-            logger.error(f"Failed to write conversation log for {self.name}: {log_e}")
+    # NOTE: log_conversation() method removed - now handled centrally in compute.py
+    # This eliminates disk I/O during requests and ensures consistent logging across all handlers
 
 
 # --- Import and Instantiate REWRITTEN Handlers ---

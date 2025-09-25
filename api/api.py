@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import argparse
 import logging
@@ -31,6 +32,13 @@ logger = logging.getLogger('api-server')
 
 # Setup FastAPI app
 app = FastAPI()
+
+# Create temp images directory
+TEMP_IMAGES_DIR = Path("temp_images")
+TEMP_IMAGES_DIR.mkdir(exist_ok=True)
+
+# Mount static files for serving images
+app.mount("/temp-images", StaticFiles(directory="temp_images"), name="temp-images")
 
 # Enable CORS
 app.add_middleware(

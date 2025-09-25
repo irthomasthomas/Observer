@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import httpx  # Use httpx for async requests
+from fastapi.responses import StreamingResponse
 
 # Import base class and custom exceptions
 from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError
@@ -62,10 +63,11 @@ class FireworksAPIHandler(BaseAPIHandler):
             "Accept": "application/json"
         }
 
-    async def handle_request(self, request_data: dict) -> dict:
+    async def handle_request(self, request_data: dict):
         """
         Process a /v1/chat/completions request asynchronously via Fireworks AI.
         Translates display model name to actual Fireworks model ID.
+        Returns either dict (non-streaming) or StreamingResponse (streaming).
         """
         if not self.api_key:
             raise ConfigError("FIREWORKS_API_KEY is not configured on the server.")
@@ -113,9 +115,16 @@ class FireworksAPIHandler(BaseAPIHandler):
         headers = self.base_headers.copy()
         headers["Authorization"] = f"Bearer {self.api_key}"
 
-        logger.info(f"Calling Fireworks API: display_model='{display_model_name}', actual_model='{actual_model_id}'")
+        logger.info(f"Calling Fireworks API: display_model='{display_model_name}', actual_model='{actual_model_id}', streaming={payload.get('stream', False)}")
 
-        # --- Make API Call using httpx ---
+        # --- Check for streaming ---
+        if payload.get("stream", False):
+            return StreamingResponse(
+                self._stream_fireworks_response(headers, payload, display_model_name, actual_model_id),
+                media_type="text/event-stream"
+            )
+
+        # --- Make Non-Streaming API Call using httpx ---
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(self.FIREWORKS_API_URL, headers=headers, json=payload)
@@ -154,8 +163,7 @@ class FireworksAPIHandler(BaseAPIHandler):
         except Exception as log_parse_err:
             logger.warning(f"Could not parse prompt/response for logging: {log_parse_err}")
 
-        # Log using the display name the user requested
-        self.log_conversation(prompt_text, response_text, display_model_name)
+        # --- Conversation logging now handled centrally in compute.py ---
 
         # --- Return Response ---
         # Replace actual ID with display name in response
@@ -164,3 +172,35 @@ class FireworksAPIHandler(BaseAPIHandler):
 
         logger.info(f"Successfully processed Fireworks request for display model '{display_model_name}'.")
         return response_data
+
+    async def _stream_fireworks_response(self, headers: dict, payload: dict, display_model_name: str, actual_model_id: str):
+        """Stream SSE chunks from Fireworks API."""
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream("POST", self.FIREWORKS_API_URL, headers=headers, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            # Replace actual model ID with display name in streaming chunks
+                            chunk_data = line[6:]  # Remove "data: " prefix
+                            if chunk_data != "[DONE]":
+                                try:
+                                    chunk_json = json.loads(chunk_data)
+                                    if "model" in chunk_json:
+                                        chunk_json["model"] = display_model_name
+                                    yield f"data: {json.dumps(chunk_json)}\n\n"
+                                except json.JSONDecodeError:
+                                    # If we can't parse, just forward as-is
+                                    yield f"data: {chunk_data}\n\n"
+                            else:
+                                yield f"data: {chunk_data}\n\n"
+        except httpx.RequestError as exc:
+            logger.error(f"Fireworks streaming API request failed: {exc}")
+            yield f"data: {json.dumps({'error': f'Connection error: {exc}'})}\n\n"
+        except httpx.HTTPStatusError as exc:
+            error_body = exc.response.text
+            logger.error(f"Fireworks streaming API error {exc.response.status_code}: {error_body[:500]}")
+            yield f"data: {json.dumps({'error': f'API error ({exc.response.status_code}): {error_body}'})}\n\n"
+        except Exception as exc:
+            logger.exception(f"Unexpected error in Fireworks streaming for model {actual_model_id}")
+            yield f"data: {json.dumps({'error': f'Unexpected error: {exc}'})}\n\n"

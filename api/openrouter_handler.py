@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import httpx # Use httpx for async requests
+from fastapi.responses import StreamingResponse
 
 # Import base class and custom exceptions
 from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError
@@ -33,23 +34,24 @@ class OpenRouterAPIHandler(BaseAPIHandler):
             #     "parameters": "27B",
             #     "multimodal": True
             # },
-            "deepseek-r1": {
-                "model_id": "deepseek/deepseek-r1:free", # Example
+            "Grok 4": {
+                "model_id": "x-ai/grok-4-fast:free", # Example
+                "parameters": "N/A",
+                "multimodal": True,
+                "pro": True,
+            },
+            "deepseek-v3.1": {
+                "model_id": "deepseek/deepseek-chat-v3.1:free", # Example
                 "parameters": "671B",
                 "multimodal": False
             },
-            "deepseek-v3": {
-                "model_id": "deepseek/deepseek-chat:free", # Example
-                "parameters": "671B",
-                "multimodal": False
-            },
-             "qwq": {
-                 "model_id": "qwen/qwq-32b:free", # Example
-                 "parameters": "32B",
+             "gpt-oss-20b": {
+                 "model_id": "openai/gpt-oss-20b:free", # Example
+                 "parameters": "20B",
                  "multimodal": False
             },
-            "deepseek-llama-70b": {
-                "model_id": "deepseek/deepseek-r1-distill-llama-70b:free",
+            "meta-llama-3.3-8b": {
+                "model_id": "meta-llama/llama-3.3-8b-instruct:free",
                 "parameters": "70b",
                 "multimodal": False
             }
@@ -60,7 +62,8 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         # Define supported models for display using the pretty names from the map
         self.models = [
             {"name": display_name, "parameters": model_info.get("parameters", "N/A"),
-            "multimodal": model_info.get("multimodal", False), "pro": False}
+             "multimodal": model_info.get("multimodal", False), 
+             "pro": model_info.get("pro", False) }
             for display_name, model_info in self.model_map.items()
         ]
         # --- End Model Mapping ---
@@ -82,10 +85,11 @@ class OpenRouterAPIHandler(BaseAPIHandler):
             "User-Agent": "ObserverAI-FastAPI-Client/1.0"
         }
 
-    async def handle_request(self, request_data: dict) -> dict:
+    async def handle_request(self, request_data: dict):
         """
         Process a /v1/chat/completions request asynchronously via OpenRouter.
         Translates display model name to actual OpenRouter model ID.
+        Returns either dict (non-streaming) or StreamingResponse (streaming).
         """
         if not self.api_key:
             raise ConfigError("OPENROUTER_API_KEY is not configured on the server.")
@@ -109,7 +113,6 @@ class OpenRouterAPIHandler(BaseAPIHandler):
              raise ConfigError(f"Internal mapping error for model '{display_model_name}'.")
         # --- End Translation ---
 
-
         # --- Prepare API Call ---
         # Create a copy of the request data to modify
         payload = request_data.copy()
@@ -120,9 +123,16 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         headers = self.base_headers.copy()
         headers["Authorization"] = f"Bearer {self.api_key}"
 
-        logger.info(f"Calling OpenRouter API: display_model='{display_model_name}', actual_model='{actual_model_id}'")
+        logger.info(f"Calling OpenRouter API: display_model='{display_model_name}', actual_model='{actual_model_id}', streaming={payload.get('stream', False)}")
 
-        # --- Make API Call using httpx ---
+        # --- Check for streaming ---
+        if payload.get("stream", False):
+            return StreamingResponse(
+                self._stream_openrouter_response(headers, payload, display_model_name, actual_model_id),
+                media_type="text/event-stream"
+            )
+
+        # --- Make Non-Streaming API Call using httpx ---
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(self.OPENROUTER_API_URL, headers=headers, json=payload)
@@ -147,7 +157,6 @@ class OpenRouterAPIHandler(BaseAPIHandler):
             logger.exception(f"An unexpected error occurred during OpenRouter API call for model {actual_model_id}")
             raise HandlerError(f"Unexpected error processing OpenRouter request: {exc}") from exc
 
-
         # --- Log Conversation (using display name for consistency if desired) ---
         prompt_text = ""
         response_text = ""
@@ -162,9 +171,7 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         except Exception as log_parse_err:
             logger.warning(f"Could not parse prompt/response for logging: {log_parse_err}")
 
-        # Log using the display name the user requested
-        self.log_conversation(prompt_text, response_text, display_model_name)
-
+        # --- Conversation logging now handled centrally in compute.py ---
 
         # --- Return Response ---
         # Modify the response payload to show the *display name* instead of the actual ID? Optional.
@@ -174,3 +181,35 @@ class OpenRouterAPIHandler(BaseAPIHandler):
 
         logger.info(f"Successfully processed OpenRouter request for display model '{display_model_name}'.")
         return response_data
+
+    async def _stream_openrouter_response(self, headers: dict, payload: dict, display_model_name: str, actual_model_id: str):
+        """Stream SSE chunks from OpenRouter API."""
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream("POST", self.OPENROUTER_API_URL, headers=headers, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            # Replace actual model ID with display name in streaming chunks
+                            chunk_data = line[6:]  # Remove "data: " prefix
+                            if chunk_data != "[DONE]":
+                                try:
+                                    chunk_json = json.loads(chunk_data)
+                                    if "model" in chunk_json:
+                                        chunk_json["model"] = display_model_name
+                                    yield f"data: {json.dumps(chunk_json)}\n\n"
+                                except json.JSONDecodeError:
+                                    # If we can't parse, just forward as-is
+                                    yield f"data: {chunk_data}\n\n"
+                            else:
+                                yield f"data: {chunk_data}\n\n"
+        except httpx.RequestError as exc:
+            logger.error(f"OpenRouter streaming API request failed: {exc}")
+            yield f"data: {json.dumps({'error': f'Connection error: {exc}'})}\n\n"
+        except httpx.HTTPStatusError as exc:
+            error_body = exc.response.text
+            logger.error(f"OpenRouter streaming API error {exc.response.status_code}: {error_body[:500]}")
+            yield f"data: {json.dumps({'error': f'API error ({exc.response.status_code}): {error_body}'})}\n\n"
+        except Exception as exc:
+            logger.exception(f"Unexpected error in OpenRouter streaming for model {actual_model_id}")
+            yield f"data: {json.dumps({'error': f'Unexpected error: {exc}'})}\n\n"

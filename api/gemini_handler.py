@@ -7,6 +7,7 @@ import base64
 import secrets
 import logging
 import httpx # Use httpx for async requests
+from fastapi.responses import StreamingResponse
 
 # Import base class and custom exceptions
 from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError
@@ -48,7 +49,13 @@ class GeminiAPIHandler(BaseAPIHandler):
                 "parameters": "N/A",
                 "multimodal": True,
                 "pro": False
-            }
+            },
+            "gemini-2.5-flash-lite-free": {
+                "model_id": "gemini-2.5-flash",  # Maps to actual model
+                "parameters": "N/A",
+                "multimodal": True,
+                "pro": False
+            },
         }
         
         # Define supported models using the display names from the map
@@ -68,9 +75,10 @@ class GeminiAPIHandler(BaseAPIHandler):
 
         logger.info("GeminiAPIHandler registered models: %s", [m["name"] for m in self.models])
 
-    async def handle_request(self, request_data: dict) -> dict:
+    async def handle_request(self, request_data: dict):
         """
         Process a /v1/chat/completions request asynchronously for Gemini models.
+        Returns either dict (non-streaming) or StreamingResponse (streaming).
         """
         if not self.api_key:
              raise ConfigError("GEMINI_API_KEY is not configured on the server.")
@@ -90,10 +98,12 @@ class GeminiAPIHandler(BaseAPIHandler):
         if not messages:
             raise ValueError("Request body must contain a 'messages' array")
 
-        # Simple stream enforcement (Gemini API might support it differently)
+        # Check for streaming
         if request_data.get("stream", False):
-            logger.warning("Request specified stream=true, but this handler forces non-streaming.")
-            # Note: Implementing true streaming requires yielding chunks, changing return type.
+            return StreamingResponse(
+                self._stream_gemini_response(request_data, target_model),
+                media_type="text/event-stream"
+            )
 
         # --- Convert OpenAI format messages to Gemini format ---
         # Gemini expects a 'contents' list. Handle basic user/assistant roles.
@@ -237,8 +247,7 @@ class GeminiAPIHandler(BaseAPIHandler):
             generated_text = "[Error parsing Gemini response]"
             # Keep finish_reason as 'stop' or set to an error state?
 
-        # --- Log Conversation ---
-        self.log_conversation(combined_text_prompt, generated_text, target_model, image_count)
+        # --- Conversation logging now handled centrally in compute.py ---
 
         # --- Format Response (OpenAI Style) ---
         openai_response = {
@@ -264,3 +273,159 @@ class GeminiAPIHandler(BaseAPIHandler):
 
         logger.info(f"Successfully processed Gemini request for {target_model}. Response length: {len(generated_text)}")
         return openai_response
+
+    async def _stream_gemini_response(self, request_data: dict, target_model: str):
+        """Stream Gemini API response and convert to OpenAI SSE format."""
+        # Prepare Gemini content from request
+        gemini_parts, combined_text_prompt, image_count = self._prepare_gemini_content(request_data)
+        
+        # Prepare Gemini API call
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:streamGenerateContent?alt=sse"
+        payload = {"contents": [{"role": "user", "parts": gemini_parts}]}
+        
+        # Add generationConfig if needed
+        generation_config = {}
+        if "temperature" in request_data: generation_config["temperature"] = request_data["temperature"]
+        if "max_tokens" in request_data: generation_config["maxOutputTokens"] = request_data["max_tokens"]
+        if generation_config: payload["generationConfig"] = generation_config
+
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key,
+            "User-Agent": "ObserverAI-FastAPI-Client/1.0"
+        }
+
+        logger.info(f"Streaming Gemini API: model={target_model}, parts={len(gemini_parts)}, images={image_count}")
+
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream("POST", gemini_url, headers=headers, json=payload) as response:
+                    response.raise_for_status()
+                    
+                    chunk_id = "gemini-chatcmpl-" + secrets.token_hex(12)
+                    chunk_index = 0
+                    
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            chunk_data = line[6:]  # Remove "data: " prefix
+                            if chunk_data.strip():
+                                try:
+                                    gemini_chunk = json.loads(chunk_data)
+                                    # Convert Gemini chunk to OpenAI format
+                                    openai_chunk = self._convert_gemini_chunk_to_openai(
+                                        gemini_chunk, chunk_id, chunk_index, target_model
+                                    )
+                                    if openai_chunk:
+                                        yield f"data: {json.dumps(openai_chunk)}\n\n"
+                                        chunk_index += 1
+                                except json.JSONDecodeError:
+                                    # Skip invalid JSON chunks
+                                    continue
+                    
+                    # Send [DONE] when finished
+                    yield f"data: [DONE]\n\n"
+                    
+        except httpx.RequestError as exc:
+            logger.error(f"Gemini streaming API request failed: {exc}")
+            yield f"data: {json.dumps({'error': f'Connection error: {exc}'})}\n\n"
+        except httpx.HTTPStatusError as exc:
+            error_body = exc.response.text
+            logger.error(f"Gemini streaming API error {exc.response.status_code}: {error_body[:500]}")
+            yield f"data: {json.dumps({'error': f'API error ({exc.response.status_code}): {error_body}'})}\n\n"
+        except Exception as exc:
+            logger.exception(f"Unexpected error in Gemini streaming for model {target_model}")
+            yield f"data: {json.dumps({'error': f'Unexpected error: {exc}'})}\n\n"
+
+    def _prepare_gemini_content(self, request_data: dict):
+        """Extract and prepare content for Gemini API from OpenAI request format."""
+        messages = request_data.get("messages", [])
+        last_message = messages[-1]
+        content = last_message.get("content")
+        
+        gemini_parts = []
+        combined_text_prompt = ""
+        image_count = 0
+
+        if isinstance(content, str):
+            text = content.strip()
+            if text:
+                gemini_parts.append({"text": text})
+                combined_text_prompt = text
+        elif isinstance(content, list):
+            text_parts_log = []
+            for item in content:
+                if not isinstance(item, dict): continue
+                item_type = item.get("type")
+                if item_type == "text":
+                    text = item.get("text", "").strip()
+                    if text:
+                        gemini_parts.append({"text": text})
+                        text_parts_log.append(text)
+                elif item_type == "image_url":
+                    image_url_data = item.get("image_url")
+                    if isinstance(image_url_data, dict) and "url" in image_url_data:
+                        url = image_url_data["url"]
+                        if url.startswith("data:"):
+                            try:
+                                header, base64_data = url.split(",", 1)
+                                mime_match = re.match(r"data:(image\/[a-zA-Z+.-]+);base64", header)
+                                if mime_match:
+                                    mime_type = mime_match.group(1)
+                                    gemini_parts.append({
+                                        "inline_data": {"mime_type": mime_type, "data": base64_data}
+                                    })
+                                    image_count += 1
+                            except Exception as e:
+                                logger.error(f"Error processing data URI image: {e}")
+            combined_text_prompt = " ".join(text_parts_log) + f" ({image_count} images)" if image_count else " ".join(text_parts_log)
+        
+        return gemini_parts, combined_text_prompt, image_count
+
+    def _convert_gemini_chunk_to_openai(self, gemini_chunk: dict, chunk_id: str, index: int, model: str):
+        """Convert a Gemini streaming chunk to OpenAI format."""
+        candidates = gemini_chunk.get("candidates", [])
+        if not candidates:
+            return None
+            
+        candidate = candidates[0]
+        content = candidate.get("content", {})
+        parts = content.get("parts", [])
+        
+        # Extract text content
+        text_content = ""
+        for part in parts:
+            if "text" in part:
+                text_content += part["text"]
+        
+        # Check for finish reason
+        finish_reason = None
+        finish_reason_gemini = candidate.get("finishReason")
+        if finish_reason_gemini:
+            if finish_reason_gemini == "MAX_TOKENS":
+                finish_reason = "length"
+            elif finish_reason_gemini == "SAFETY":
+                finish_reason = "content_filter"
+            else:
+                finish_reason = "stop"
+
+        # Build OpenAI chunk
+        openai_chunk = {
+            "id": chunk_id,
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": model,
+            "choices": [{
+                "index": 0,
+                "delta": {}
+            }]
+        }
+        
+        # Add content if present
+        if text_content:
+            openai_chunk["choices"][0]["delta"]["content"] = text_content
+        
+        # Add finish reason if present
+        if finish_reason:
+            openai_chunk["choices"][0]["finish_reason"] = finish_reason
+        
+        return openai_chunk
