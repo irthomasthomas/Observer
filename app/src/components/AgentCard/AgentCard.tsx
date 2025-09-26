@@ -217,6 +217,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       <div className="p-5 flex-grow">
         <AgentCardHeader
           agentName={agent.name}
+          agentDescription={agent.description}
           isRunning={isRunning}
           isStarting={showStartingState}
           hasQuotaError={hasQuotaError}
