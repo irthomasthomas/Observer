@@ -241,8 +241,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             // FIX: Pass the 'code' prop down to StaticAgentView
             <StaticAgentView
               agent={agent}
-              code={code} // This prop is now correctly passed
-              isPythonAgent={isPythonAgent}
+              code={code}
               currentModel={currentModel}
               onModelChange={setCurrentModel}
               startWarning={startWarning}
