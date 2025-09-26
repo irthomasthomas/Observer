@@ -228,7 +228,7 @@ const SharingPermissionsModal: React.FC<SharingPermissionsModalProps> = ({ isOpe
   const hasChanges = JSON.stringify([...selectedSensors].sort()) !== JSON.stringify([...activeSensors].sort());
 
   return (
-    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl border border-gray-200 m-4 flex flex-col max-h-[90vh] animate-fade-in">
         
         {/* Header */}
