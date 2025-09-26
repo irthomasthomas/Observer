@@ -14,21 +14,20 @@ Local Open-source micro-agents that observe, log and react, all while keeping yo
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 🔧 Agent Superpowers
+## 🔧 Power Up your Local Models
 
-### 📊 **Intelligent Logging & Memory**
-- **Screen Recording** - Start Recording intelligently or analyze video clips with custom labels.
-- **Audio Intelligence** - Listen to microphone, screen audio, or both simultaneously.
+### 📊 **Logging**
 - **Text and Visual Memory** - Store and retrieve images for context-aware decisions.
+- **Screen Recording** - Start Recording intelligently or analyze video clips with custom labels.
 
-### 🚨 **Multi-Channel Notifications**
-- **📧 Email Alerts** - Get Emails with image attachments
-- **💬 Discord Integration** - Real-time server notifications with rich media
-- **📱 Telegram Messages** - Instant mobile alerts via Observer bot
-- **📞 SMS Notifications** - Direct text messaging (non USA/Canada) 
-- **💚 WhatsApp Alerts** - Get messages on your favorite messaging platform
-- **🖥️ System Notifications** - Native OS alerts and pop-ups
-- **📺 Observer Overlay** - Custom on-screen messages and status updates
+### 🚨 **Notifications**
+- **📧 Email Alerts** 
+- **💬 Discord Integration** 
+- **📱 Telegram Messages** 
+- **📞 SMS Notifications** 
+- **💚 WhatsApp Alerts** 
+- **🖥️ System Notifications** - Native OS alerts and pop-ups with the App
+- **📺 Observer Overlay** - Custom on-screen messages
 
 *Build simple local agents that don't just watch, they **understand**, **remember**, and **act** intelligently on your behalf.*
 
@@ -81,9 +80,9 @@ Notification Tools:
   * `sendPushover(user_token, message, images?, title?)` - Sends a pushover notification.
   * `sendDiscord(discord_webhook, message, images?)`Sends a discord message to a server.
   * `sendTelegram(chat_id, message, images?)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
+  * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message with the Observer bot. Send a message first to +1 (555)783-4727 to use.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
   * `sendSms(phone_number, message, images?)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
-  * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number. TEMPORARILY BLOCKED due to spam :c
 
 Video Recording Tools: 
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
