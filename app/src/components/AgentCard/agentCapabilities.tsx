@@ -40,7 +40,7 @@ export const SENSOR_CONFIG = {
     SCREEN_64: { label: 'Screen', iconName: 'Monitor' },
     CAMERA: { label: 'Camera', iconName: 'Camera' },
     MEMORY: { label: 'Memory', iconName: 'Brain' },
-    IMEMORY: { label: 'Image Memory', iconName: 'Images' },
+    IMEMORY: { label: 'Memory', iconName: 'Images' },
     CLIPBOARD: { label: 'Clipboard', iconName: 'Clipboard' },
     MICROPHONE: { label: 'Microphone', iconName: 'Mic' },
     SCREEN_AUDIO: { label: 'Screen Audio', iconName: 'Volume2' },

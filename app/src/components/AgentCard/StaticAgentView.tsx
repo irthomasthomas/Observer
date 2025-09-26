@@ -67,7 +67,7 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
 
     return (
         <div className="relative inline-block text-left" ref={dropdownRef}>
-            <button type="button" onClick={handleToggle} className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-2.5 py-1.5 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50">
+            <button type="button" onClick={handleToggle} className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 md:px-2.5 md:py-1.5 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 min-h-[44px] md:min-h-0">
                 <span className="truncate max-w-[150px]">{currentModel || 'Select Model'}</span>
                 <ChevronDown className="-mr-1 ml-1.5 h-4 w-4" />
             </button>
@@ -153,67 +153,76 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 
     return (
         <div className="animate-fade-in">
-            {/* 3 Column Layout with Arrows */}
-            <div className="flex items-start gap-4">
+            {/* 3 Column Layout with Arrows - Responsive: vertical on mobile, horizontal on desktop */}
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-1 md:gap-4">
                 {/* Column 1: Sensors */}
-                <div className="flex flex-col flex-1">
-                    <div className="flex justify-center mb-4">
-                        <Eye className="w-5 h-5 text-gray-500" />
-                    </div>
-                    <div className="space-y-2 flex flex-col items-center">
-                        {detectedSensors.length > 0 ? (
-                            detectedSensors.map(sensor => (
-                                <InfoTag key={sensor.key} icon={sensor.icon} label={sensor.label} />
-                            ))
-                        ) : (
-                            <div className="text-sm text-gray-400 italic">No sensors</div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Arrow 1 */}
-                <div className="flex items-center justify-center pt-2">
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                </div>
-
-                {/* Column 2: Model */}
-                <div className="flex flex-col flex-1">
-                    <div className="flex justify-center mb-4">
-                        <Cpu className="w-5 h-5 text-gray-500" />
-                    </div>
-                    <div className="space-y-3">
-                        <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
-                        <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
+                <div className="flex flex-col flex-1 w-full md:w-auto">
+                    {/* Mobile: horizontal layout with icon on left */}
+                    <div className="flex md:flex-col items-start md:items-center">
+                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0">
+                            <Eye className="w-5 h-5 text-gray-500" />
+                        </div>
+                        <div className="flex flex-wrap gap-2 md:flex-col md:space-y-2 items-start md:items-center min-h-[44px] md:min-h-0 flex-1 ml-12 md:ml-0">
+                            {detectedSensors.length > 0 ? (
+                                detectedSensors.map(sensor => (
+                                    <InfoTag key={sensor.key} icon={sensor.icon} label={sensor.label} />
+                                ))
+                            ) : (
+                                <div className="text-sm text-gray-400 italic">No sensors</div>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* Arrow 2 */}
-                <div className="flex items-center justify-center pt-2">
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                {/* Arrow 1 - Responsive: down on mobile, right on desktop */}
+                <div className="flex items-center justify-start md:justify-center py-2 md:pt-2 pl-1 md:pl-0">
+                    <ChevronRight className="w-4 h-4 text-gray-400 rotate-90 md:rotate-0" />
+                </div>
+
+                {/* Column 2: Model */}
+                <div className="flex flex-col flex-1 w-full md:w-auto">
+                    {/* Mobile: horizontal layout with icon on left */}
+                    <div className="flex md:flex-col items-start md:items-center">
+                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0">
+                            <Cpu className="w-5 h-5 text-gray-500" />
+                        </div>
+                        <div className="flex items-center justify-between md:flex-col md:items-center md:justify-center w-full md:w-auto ml-12 md:ml-0 md:space-y-3">
+                            <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
+                            <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Arrow 2 - Responsive: down on mobile, right on desktop */}
+                <div className="flex items-center justify-start md:justify-center py-2 md:pt-2 pl-1 md:pl-0">
+                    <ChevronRight className="w-4 h-4 text-gray-400 rotate-90 md:rotate-0" />
                 </div>
 
                 {/* Column 3: Tools */}
-                <div className="flex flex-col flex-1">
-                    <div className="flex justify-center mb-4">
-                        <Wrench className="w-5 h-5 text-gray-500" />
-                    </div>
-                    <div className="space-y-2 flex flex-col items-center">
-                        {detectedTools.length > 0 ? (
-                            detectedTools.map(tool => (
-                                <InfoTag
-                                    key={tool.key}
-                                    icon={tool.icon}
-                                    label={tool.label}
-                                    warning={tool.warning}
-                                    isBlocking={tool.isBlocking}
-                                />
-                            ))
-                        ) : (
-                            <div className="text-sm text-gray-400 italic">No tools</div>
-                        )}
+                <div className="flex flex-col flex-1 w-full md:w-auto">
+                    {/* Mobile: horizontal layout with icon on left */}
+                    <div className="flex md:flex-col items-start md:items-center">
+                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0">
+                            <Wrench className="w-5 h-5 text-gray-500" />
+                        </div>
+                        <div className="flex flex-wrap gap-2 md:flex-col md:space-y-2 items-start md:items-center min-h-[44px] md:min-h-0 flex-1 ml-12 md:ml-0">
+                            {detectedTools.length > 0 ? (
+                                detectedTools.map(tool => (
+                                    <InfoTag
+                                        key={tool.key}
+                                        icon={tool.icon}
+                                        label={tool.label}
+                                        warning={tool.warning}
+                                        isBlocking={tool.isBlocking}
+                                    />
+                                ))
+                            ) : (
+                                <div className="text-sm text-gray-400 italic">No tools</div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
