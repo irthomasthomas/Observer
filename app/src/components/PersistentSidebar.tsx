@@ -5,17 +5,25 @@ import { Logger } from '@utils/logging';
 interface PersistentSidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  isMobileMenuOpen?: boolean;
+  onCloseMobileMenu?: () => void;
 }
 
 const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   activeTab,
-  onTabChange
+  onTabChange,
+  isMobileMenuOpen = false,
+  onCloseMobileMenu
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleTabClick = (tab: string) => {
     onTabChange(tab);
     Logger.info('NAVIGATION', `Navigated to ${tab} tab`);
+
+    if (onCloseMobileMenu) {
+      onCloseMobileMenu();
+    }
   };
 
   const menuItems = [
@@ -28,13 +36,25 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   ];
 
   return (
-    <div 
-      className={`fixed top-16 left-0 bottom-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-30 transition-all duration-300 ease-in-out ${
-        isExpanded ? 'w-64' : 'w-16'
-      }`}
-      onMouseEnter={() => setIsExpanded(true)}
-      onMouseLeave={() => setIsExpanded(false)}
-    >
+    <>
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={onCloseMobileMenu}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`fixed top-16 left-0 bottom-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-50 transition-all duration-300 ease-in-out w-64 ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0 ${
+          isExpanded ? 'md:w-64' : 'md:w-16'
+        }`}
+        onMouseEnter={() => setIsExpanded(true)}
+        onMouseLeave={() => setIsExpanded(false)}
+      >
 
       {/* Navigation */}
       <nav className="pt-6 pb-4">
@@ -49,18 +69,18 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
                 <button
                   onClick={() => handleTabClick(item.id)}
                   className={`w-full flex items-center rounded-lg transition-all duration-200 ${
-                    isExpanded ? 'px-3 py-2.5' : 'p-3 justify-center'
+                    isExpanded || isMobileMenuOpen ? 'px-3 py-2.5' : 'p-3 justify-center'
                   } ${
-                    isActive 
+                    isActive
                       ? isObServer
-                        ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' 
+                        ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300'
                         : 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                       : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
                   }`}
-                  title={!isExpanded ? item.label : undefined}
+                  title={(!isExpanded && !isMobileMenuOpen) ? item.label : undefined}
                 >
-                  <IconComponent className={`${isExpanded ? 'w-5 h-5' : 'w-5 h-5'} flex-shrink-0`} />
-                  {isExpanded && (
+                  <IconComponent className={`${isExpanded || isMobileMenuOpen ? 'w-5 h-5' : 'w-5 h-5'} flex-shrink-0`} />
+                  {(isExpanded || isMobileMenuOpen) && (
                     <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">
                       {item.label}
                     </span>
@@ -73,7 +93,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
       </nav>
 
       {/* Footer */}
-      {isExpanded && (
+      {(isExpanded || isMobileMenuOpen) && (
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
             Observer v0.1.0
@@ -81,6 +101,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
         </div>
       )}
     </div>
+    </>
   );
 };
 

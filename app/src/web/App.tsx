@@ -113,6 +113,9 @@ function AppContent() {
     pro_status: boolean;
   } | null>(null);
 
+  // --- STATE FOR MOBILE SIDEBAR ---
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // --- DERIVED STATE ---
   const isProUser = quotaInfo?.pro_status === true;
 
@@ -569,11 +572,14 @@ function AppContent() {
           onShowTerminalModal={() => setNoModels(true)}
           quotaInfo={quotaInfo}
           setQuotaInfo={setQuotaInfo}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
         <PersistentSidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          isMobileMenuOpen={isMobileMenuOpen}
+          onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
         />
 
         <JupyterServerModal
@@ -581,7 +587,7 @@ function AppContent() {
           onClose={() => setIsJupyterModalOpen(false)}
         />
 
-        <main className="pt-24 pb-16 px-4 pl-20 wide:px-4 max-w-7xl mx-auto">
+        <main className="pt-24 pb-16 px-4 pl-2 md:pl-20 wide:px-4 max-w-7xl mx-auto">
 
           {error && <ErrorDisplay message={error} />}
 

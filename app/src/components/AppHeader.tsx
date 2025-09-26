@@ -1,6 +1,6 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { LogOut, RefreshCw, Server } from 'lucide-react';
+import { LogOut, RefreshCw, Server, Menu } from 'lucide-react';
 import { checkInferenceServer, addInferenceAddress, removeInferenceAddress, fetchModels } from '@utils/inferenceServer';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
@@ -43,6 +43,7 @@ interface AppHeaderProps {
   onShowTerminalModal?: () => void;
   quotaInfo: QuotaInfo;
   setQuotaInfo: React.Dispatch<React.SetStateAction<QuotaInfo>>;
+  onToggleMobileMenu?: () => void;
 }
 
 
@@ -58,6 +59,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onShowTerminalModal,
   quotaInfo,
   setQuotaInfo,
+  onToggleMobileMenu,
 }) => {
   const [localServerOnline, setLocalServerOnline] = useState(false);
 
@@ -373,6 +375,15 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           <div className="flex justify-between items-center">
             {/* Left side */}
             <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Burger Menu - Mobile Only */}
+              <button
+                onClick={onToggleMobileMenu}
+                className="md:hidden p-2 rounded-md hover:bg-gray-100"
+                aria-label="Toggle navigation menu"
+              >
+                <Menu className="h-5 w-5 text-gray-600" />
+              </button>
+
               <img
                 src="/eye-logo-black.svg"
                 alt="Observer Logo"

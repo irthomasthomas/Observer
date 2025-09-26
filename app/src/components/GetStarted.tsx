@@ -38,7 +38,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-6">
+    <div className="w-full max-w-6xl mx-auto px-2 md:px-4 py-6">
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-6 h-full">
         {/* Main Create Agent Card - Full width on mobile */}
         <div className="flex flex-col md:col-span-2 order-1">
