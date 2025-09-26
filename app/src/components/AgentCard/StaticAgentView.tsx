@@ -160,7 +160,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                     <div className="flex justify-center mb-4">
                         <Eye className="w-5 h-5 text-gray-500" />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex flex-col items-center">
                         {detectedSensors.length > 0 ? (
                             detectedSensors.map(sensor => (
                                 <InfoTag key={sensor.key} icon={sensor.icon} label={sensor.label} />
@@ -200,7 +200,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                     <div className="flex justify-center mb-4">
                         <Wrench className="w-5 h-5 text-gray-500" />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex flex-col items-center">
                         {detectedTools.length > 0 ? (
                             detectedTools.map(tool => (
                                 <InfoTag
