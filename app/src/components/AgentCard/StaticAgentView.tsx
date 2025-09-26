@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
-    Cpu, Clock, Eye, ChevronDown, AlertTriangle, Server
+    Cpu, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/inferenceServer';
@@ -27,37 +27,6 @@ const InfoTag: React.FC<{ icon: React.ElementType; label: string; warning?: stri
     </div>
 );
 
-const NoSensorsWarning: React.FC = () => (
-    <div className="mt-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
-        <div className="flex">
-            <div className="flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-yellow-500" aria-hidden="true" />
-            </div>
-            <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                    <b>Warning:</b> No sensors detected.
-                    <span className="block sm:inline sm:ml-1">This agent can't perceive anything. Please edit the agent and add a sensor variable (e.g., <code className="text-xs">$SCREEN_OCR</code>) to its prompt.</span>
-                </p>
-            </div>
-        </div>
-    </div>
-);
-
-const NoToolsNotice: React.FC = () => (
-    <div className="mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
-        <div className="flex">
-            <div className="flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-blue-500" aria-hidden="true" />
-            </div>
-            <div className="ml-3">
-                <p className="text-sm text-blue-700">
-                    <b>Notice:</b> No tools detected.
-                    <span className="block sm:inline sm:ml-1">This agent won't perform any actions with the model's output. Please edit the code and add a tool function, like <code className="text-xs">notify(response)</code>.</span>
-                </p>
-            </div>
-        </div>
-    </div>
-);
 
 
 const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName: string) => void; isProUser?: boolean; }> = ({ currentModel, onModelChange, isProUser = false }) => {
@@ -146,7 +115,6 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
 interface StaticAgentViewProps {
     agent: CompleteAgent;
     code?: string;
-    isPythonAgent: boolean;
     currentModel: string;
     onModelChange: (modelName: string) => void;
     startWarning: string | null;
@@ -158,7 +126,6 @@ interface StaticAgentViewProps {
 const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     agent,
     code,
-    isPythonAgent,
     currentModel,
     onModelChange,
     startWarning,
@@ -185,55 +152,75 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     }, [agent.system_prompt, code, hostingContext]);
 
     return (
-        <div className="space-y-4 animate-fade-in">
-            <p className="text-sm text-gray-600">{agent.description || "No description provided."}</p>
-
-            {/* Agent Info Tags */}
-            <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
-                <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPythonAgent ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                    {isPythonAgent ? 'Python' : 'JavaScript'}
+        <div className="animate-fade-in">
+            {/* 3 Column Layout with Arrows */}
+            <div className="flex items-start gap-4">
+                {/* Column 1: Sensors */}
+                <div className="flex flex-col flex-1">
+                    <div className="flex justify-center mb-4">
+                        <Eye className="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div className="space-y-2">
+                        {detectedSensors.length > 0 ? (
+                            detectedSensors.map(sensor => (
+                                <InfoTag key={sensor.key} icon={sensor.icon} label={sensor.label} />
+                            ))
+                        ) : (
+                            <div className="text-sm text-gray-400 italic">No sensors</div>
+                        )}
+                    </div>
                 </div>
-                <div className="inline-flex items-center"><Cpu className="w-4 h-4 mr-1.5" /><ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} /></div>
-                <div className="inline-flex items-center"><Clock className="w-4 h-4 mr-1.5" />{agent.loop_interval_seconds}s</div>
-            </div>
 
-            {/* SENSORS Section */}
-            <div className="pt-2">
-                <h4 className="text-xs font-semibold text-gray-500 mb-2">SENSORS</h4>
-                {detectedSensors.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                        {detectedSensors.map(sensor => (
-                            <InfoTag key={sensor.key} icon={sensor.icon} label={sensor.label} />
-                        ))}
-                    </div>
-                ) : (
-                    <NoSensorsWarning />
-                )}
-            </div>
+                {/* Arrow 1 */}
+                <div className="flex items-center justify-center pt-2">
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </div>
 
-            {/* TOOLS Section */}
-            <div className="pt-2">
-                <h4 className="text-xs font-semibold text-gray-500 mb-2">TOOLS</h4>
-                {detectedTools.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                        {detectedTools.map(tool => (
-                            <InfoTag
-                                key={tool.key}
-                                icon={tool.icon}
-                                label={tool.label}
-                                warning={tool.warning}
-                                isBlocking={tool.isBlocking}
-                            />
-                        ))}
+                {/* Column 2: Model */}
+                <div className="flex flex-col flex-1">
+                    <div className="flex justify-center mb-4">
+                        <Cpu className="w-5 h-5 text-gray-500" />
                     </div>
-                ) : (
-                    <NoToolsNotice />
-                )}
+                    <div className="space-y-3">
+                        <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
+                        <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Arrow 2 */}
+                <div className="flex items-center justify-center pt-2">
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </div>
+
+                {/* Column 3: Tools */}
+                <div className="flex flex-col flex-1">
+                    <div className="flex justify-center mb-4">
+                        <Wrench className="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div className="space-y-2">
+                        {detectedTools.length > 0 ? (
+                            detectedTools.map(tool => (
+                                <InfoTag
+                                    key={tool.key}
+                                    icon={tool.icon}
+                                    label={tool.label}
+                                    warning={tool.warning}
+                                    isBlocking={tool.isBlocking}
+                                />
+                            ))
+                        ) : (
+                            <div className="text-sm text-gray-400 italic">No tools</div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Other Warnings */}
             {startWarning && (
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md text-sm flex items-center gap-2">
+                <div className="mt-6 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md text-sm flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                     <span>{startWarning}</span>
                 </div>
