@@ -90,6 +90,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
     }
   }, [currentModel, agent, code, onSave]);
 
+  const handleToggleSignificantChange = async (enabled: boolean) => {
+    if (onSave && code !== undefined) {
+      await onSave({ ...agent, only_on_significant_change: enabled }, code);
+    }
+  };
+
   useEffect(() => {
     StreamManager.addListener(setStreams);
     return () => StreamManager.removeListener(setStreams);
@@ -250,6 +256,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               code={code}
               currentModel={currentModel}
               onModelChange={setCurrentModel}
+              onToggleSignificantChange={handleToggleSignificantChange}
               startWarning={startWarning}
               isProUser={isProUser}
               hostingContext={hostingContext}

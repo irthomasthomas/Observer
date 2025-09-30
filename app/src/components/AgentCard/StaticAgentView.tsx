@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
-    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight
+    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/inferenceServer';
@@ -117,6 +117,7 @@ interface StaticAgentViewProps {
     code?: string;
     currentModel: string;
     onModelChange: (modelName: string) => void;
+    onToggleSignificantChange: (enabled: boolean) => void;
     startWarning: string | null;
     isProUser?: boolean;
     hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
@@ -128,6 +129,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     code,
     currentModel,
     onModelChange,
+    onToggleSignificantChange,
     startWarning,
     isProUser = false,
     hostingContext,
@@ -188,9 +190,29 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                         </div>
                         <div className="flex items-center justify-between md:flex-col md:items-center md:justify-center w-full md:w-auto ml-12 md:ml-0 md:space-y-3">
                             <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
-                            <div className="flex items-center gap-2">
-                                <Clock className="w-4 h-4 text-gray-500" />
-                                <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-gray-500" />
+                                    <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
+                                </div>
+                                <div className="relative group">
+                                    <button
+                                        onClick={() => onToggleSignificantChange(!(agent.only_on_significant_change ?? true))}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
+                                            (agent.only_on_significant_change ?? true)
+                                                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        <Zap className="w-4 h-4" />
+                                        <span className="text-xs font-medium">
+                                            {(agent.only_on_significant_change ?? true) ? 'On' : 'Off'}
+                                        </span>
+                                    </button>
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                        Only run model when there's significant change in inputs
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
