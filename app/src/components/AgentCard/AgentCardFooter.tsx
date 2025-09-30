@@ -1,6 +1,6 @@
 // components/AgentCard/AgentCardFooter.tsx
 import React from 'react';
-import { Edit, Trash2, Terminal, Save, Sparkles } from 'lucide-react';
+import { Edit, Trash2, Terminal, Sparkles } from 'lucide-react';
 
 interface AgentCardFooterProps {
     agentId: string;
