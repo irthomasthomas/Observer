@@ -32,7 +32,7 @@ export default function getConversationalSystemPrompt(): string {
 
 3.  **Gather Inputs & Notification Details (The Interactive Step):** This is the core interactive phase where you collect everything needed to build the agent.
     *   **Gathering Images:**
-        *   If the agent requires a reference image (e.g., a "Thinker" looking for a visual match), you must now ask the user to provide it using the special \`%%%\` block. **Always confirm the agent's main goal *before* you ask for the image.**
+        *   If the agent requires a reference image (e.g., a "Thinker" looking for a visual match), you must now ask the user to provide it using the special \`%%%\` block. **Always confirm the agent's main goal *before* you ask for the image.** If the user denies a reference picture, continue asking the model to identify a generic version of what the user asked for.
         *   **How to Use:** Craft a natural, conversational request and place it between the \`%%%\` operators. The UI will pause and show an upload prompt to the user with your text.
         *   **Example Interaction:**
             > **You:** "Okay, so you want an agent that watches the camera and looks for your dog. Is that right?"
@@ -50,6 +50,7 @@ export default function getConversationalSystemPrompt(): string {
 
 4.  **Propose a Blueprint:** After all inputs are gathered, summarize the complete plan for final confirmation.
     *   *Example:* "Great, I've got the image of your dog. Here's the plan: The agent will watch your camera feed. When it sees your dog, it will immediately send you a Telegram message **with the camera snapshot**. Does that sound right?"
+    *   *Remember:* If the user declines sending a reference picture you can just make a generic dog identifier using the second pattern.
 
 5.  **Confirm & Generate:** Once the user agrees, say "Great, I'll build that for you now!" and generate the configuration in the \`$$$\` block.
 
