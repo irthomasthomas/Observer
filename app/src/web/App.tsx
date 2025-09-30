@@ -739,7 +739,7 @@ function AppContent() {
         />
       )}
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-30">
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-[60]">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <div className="flex space-x-3">
