@@ -8,6 +8,7 @@ import { postProcess } from './post-processor';
 import { StreamManager, PseudoStreamType } from './streamManager'; // Import the new manager
 import { recordingManager } from './recordingManager';
 import { IterationStore } from './IterationStore';
+import { detectSignificantChange, clearAgentChangeData } from './change_detector';
 
 export type TokenProvider = () => Promise<string | undefined>;
 
@@ -19,9 +20,8 @@ const activeLoops: Record<string, {
   getToken?: TokenProvider;
 }> = {};
 
-export const AGENT_STATUS_CHANGED_EVENT = 'agentStatusChanged';
-export const AGENT_ITERATION_START_EVENT = 'agentIterationStart';
-export const AGENT_WAITING_START_EVENT = 'agentWaitingStart';
+// Event constants removed - Logger now dispatches all events based on logType
+// This creates a unified system where Logger is the single source of truth
 
 // Removed legacy server address functions - now using inferenceServer.ts
 
@@ -60,6 +60,9 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
     const sessionId = `session_${new Date().toISOString()}_${Math.random().toString(36).substring(2, 9)}`;
     IterationStore.startSession(agentId, sessionId);
 
+    // Clear any previous change detection data for fresh start
+    clearAgentChangeData(agentId);
+
     const intervalMs = agent.loop_interval_seconds * 1000;
     activeLoops[agentId] = {
         intervalId: null,
@@ -68,11 +71,12 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
         intervalMs,
         getToken
     };
-    window.dispatchEvent(
-      new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
-        detail: { agentId, status: 'running' },
-      })
-    );
+
+    // Logger dispatches the window event automatically
+    Logger.info(agentId, 'Agent started', {
+      logType: 'agent-status-changed',
+      content: { agentId, status: 'running' }
+    });
 
     // Simple execution function
     const executeIteration = async () => {
@@ -86,14 +90,13 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
         
       } catch (error) {
         // Any error stops the agent cleanly
-        Logger.error(agentId, `Agent stopped due to error: ${error}`, error);
-        await stopAgentLoop(agentId);
-        
-        // Surface the error to UI
         const errorMessage = error instanceof Error ? error.message : String(error);
-        window.dispatchEvent(new CustomEvent('agentRuntimeError', {
-          detail: { agentId, error: errorMessage }
-        }));
+        Logger.error(agentId, `Agent stopped due to error: ${errorMessage}`, {
+          error,
+          logType: 'agent-error',
+          content: { error: errorMessage }
+        });
+        await stopAgentLoop(agentId);
         
       } finally {
         // Always cleanup execution state
@@ -121,12 +124,12 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider):
     // On startup failure, ensure we release any streams that might have been requested
     StreamManager.releaseStreamsForAgent(agentId);
     // Note: Crop configs are preserved even on startup failure
-    // Dispatch "stopped" so UI can recover
-    window.dispatchEvent(
-      new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
-        detail: { agentId, status: 'stopped' },
-      })
-    );
+
+    // Logger dispatches the window event automatically
+    Logger.info(agentId, 'Agent stopped (startup failure)', {
+      logType: 'agent-status-changed',
+      content: { agentId, status: 'stopped' }
+    });
     // clean up and re-throw…
     throw displayError;
   }
@@ -144,6 +147,9 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
 
     StreamManager.releaseStreamsForAgent(agentId);
 
+    // Clear change detection data
+    clearAgentChangeData(agentId);
+
     // Note: Agent crop configurations are preserved across stop/start cycles
 
 
@@ -153,17 +159,17 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
     // -------------------------
 
     activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
-    
+
     if (getRunningAgentIds().length === 0) {
       // This was the last running agent, so shut down the recorder.
       recordingManager.forceStop();
     }
 
-    window.dispatchEvent(
-      new CustomEvent(AGENT_STATUS_CHANGED_EVENT, {
-        detail: { agentId, status: 'stopped' },
-      })
-    );
+    // Logger dispatches the window event automatically
+    Logger.info(agentId, 'Agent stopped', {
+      logType: 'agent-status-changed',
+      content: { agentId, status: 'stopped' }
+    });
   } else {
     Logger.warn(agentId, `Attempted to stop agent that wasn't running`);
   }
@@ -184,29 +190,42 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
   const iterationId = `iter_${new Date().toISOString()}_${Math.random().toString(36).substring(2, 9)}`;
   const iterationStartTime = Date.now();
 
-  // Emit start event with timing info - UI shows "Model is thinking..." and starts progress bar
-  window.dispatchEvent(
-    new CustomEvent(AGENT_ITERATION_START_EVENT, {
-      detail: { 
-        agentId,
-        intervalMs: loopData.intervalMs,
-        iterationStartTime
-      }
-    })
-  );
-
   try {
     const agent = await getAgent(agentId);
     const agentCode = await getAgentCode(agentId) || '';
     if (!agent) throw new Error(`Agent ${agentId} not found`);
 
-    Logger.info(agentId, `Iteration started`, { 
-      logType: 'iteration-start', 
+    // Logger dispatches the window event automatically
+    Logger.info(agentId, `Iteration started`, {
+      logType: 'iteration-start',
       iterationId,
-      content: { model: agent.model_name, interval: agent.loop_interval_seconds }
+      content: {
+        model: agent.model_name,
+        interval: agent.loop_interval_seconds,
+        intervalMs: loopData.intervalMs,
+        iterationStartTime
+      }
     });
 
     const preprocessResult = await preProcess(agentId, agent.system_prompt, iterationId);
+
+    // Check for significant change if enabled
+    if (agent.only_on_significant_change) {
+      const isSignificant = await detectSignificantChange(agentId, preprocessResult);
+      if (!isSignificant) {
+        // No significant change - skip model call but still do cleanup
+        if (isAgentLoopRunning(agentId)) {
+          recordingManager.handleEndOfLoop();
+        }
+        Logger.info(agentId, `Skipped - no significant change detected`, {
+          logType: 'iteration-skipped',
+          iterationId,
+          content: { success: true }
+        });
+        return;
+      }
+    }
+
     Logger.info(agentId, `Prompt`, { logType: 'model-prompt', iterationId, content: preprocessResult });
 
     let token: string | undefined;
@@ -221,21 +240,24 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
 
     Logger.debug(agentId, `Sending prompt to inference server (model: ${agent.model_name})`, { iterationId });
 
-    // Streaming callback that dispatches events for UI
+    // Streaming callback that logs chunks - Logger dispatches events automatically
     let isFirstChunk = true;
     const onStreamChunk = (chunk: string) => {
       try {
         if (isFirstChunk) {
-          window.dispatchEvent(new CustomEvent('agentStreamStart', {
-            detail: { agentId, iterationId }
-          }));
+          Logger.debug(agentId, 'Stream started', {
+            logType: 'stream-start',
+            iterationId
+          });
           isFirstChunk = false;
         }
-        window.dispatchEvent(new CustomEvent('agentResponseChunk', {
-          detail: { agentId, chunk, iterationId }
-        }));
+        Logger.debug(agentId, 'Stream chunk', {
+          logType: 'stream-chunk',
+          iterationId,
+          content: { chunk }
+        });
       } catch (error) {
-        Logger.debug(agentId, `Failed to dispatch streaming event: ${error}`, { iterationId });
+        Logger.debug(agentId, `Failed to log streaming event: ${error}`, { iterationId });
       }
     };
 
@@ -266,10 +288,11 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     });
     
     if (error instanceof UnauthorizedError) {
-    // 1. Log a clear, specific warning for debugging
-      Logger.warn(agentId, 'Agent stopped due to quota limit (401 Unauthorized).');
+      // Logger dispatches the window event automatically
+      Logger.warn(agentId, 'Agent stopped due to quota limit (401 Unauthorized)', {
+        logType: 'quota-exceeded'
+      });
       stopAgentLoop(agentId);
-      window.dispatchEvent(new CustomEvent('quotaExceeded', {detail: { agentId: agentId }}));
     } else {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       Logger.error(agentId, `Error in agent iteration: ${errorMessage}`, error);

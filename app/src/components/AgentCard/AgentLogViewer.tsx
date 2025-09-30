@@ -353,10 +353,32 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   const renderIterations = (iterations: IterationData[], sessionLabel?: string) => {
     return iterations.map((iteration) => {
       const iterationNumber = iteration.sessionIterationNumber;
-      
+
+      // Render minimal card for skipped iterations
+      if (iteration.isSkipped) {
+        return (
+          <div
+            key={iteration.id}
+            className="border border-orange-200 bg-orange-50 rounded-lg px-4 py-3 transition-all duration-200 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+              <span className="text-sm font-medium text-orange-700">
+                #{iterationNumber} Iteration Skipped - Same Inputs
+              </span>
+              {sessionLabel && (
+                <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded ml-auto">
+                  {sessionLabel}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div 
-          key={iteration.id} 
+        <div
+          key={iteration.id}
           className={`border rounded-lg p-4 transition-all duration-200 shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.01] ${
             iteration.hasError ? 'border-red-200 bg-red-50 hover:bg-red-100' : 'border-gray-200 bg-white hover:bg-gray-50'
           }`}

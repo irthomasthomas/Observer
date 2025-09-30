@@ -5,7 +5,6 @@ import { CompleteAgent } from '@utils/agent_database';
 import { isJupyterConnected } from '@utils/handlers/JupyterConfig';
 import { listModels } from '@utils/inferenceServer';
 import { getInferenceAddresses } from '@utils/inferenceServer';
-import { AGENT_ITERATION_START_EVENT } from '@utils/main_loop';
 import { Logger, LogEntry } from '@utils/logging';
 import { StreamManager, StreamState } from '@utils/streamManager';
 
@@ -32,7 +31,7 @@ const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeCli
   </div>
 );
 
-type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'IDLE';
+type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'SKIPPED' | 'IDLE';
 
 interface AgentCardProps {
   agent: CompleteAgent;
@@ -117,6 +116,11 @@ const AgentCard: React.FC<AgentCardProps> = ({
       const handleNewLog = (log: LogEntry) => {
         if (log.source !== agent.id) return;
         if (log.details?.logType === 'model-prompt') setLiveStatus('THINKING');
+        else if (log.details?.logType === 'iteration-skipped') {
+          setLiveStatus('SKIPPED');
+          setLastResponse('No significant change detected - iteration skipped to save resources.');
+          setResponseKey(key => key + 1);
+        }
         else if (log.details?.logType === 'model-response') {
           setLiveStatus('WAITING');
           setLastResponse(log.details.content as string);
@@ -158,10 +162,11 @@ const AgentCard: React.FC<AgentCardProps> = ({
       }, 50);
     };
 
-    window.addEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
+    // Event dispatched by Logger based on logType 'iteration-start'
+    window.addEventListener('agentIterationStart' as any, handleIterationStart);
     return () => {
       if (progressTimer) clearInterval(progressTimer);
-      window.removeEventListener(AGENT_ITERATION_START_EVENT as any, handleIterationStart);
+      window.removeEventListener('agentIterationStart' as any, handleIterationStart);
     };
   }, []); // Empty deps - runs once on mount
 

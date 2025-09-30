@@ -9,7 +9,7 @@ import {
   saveAgent,
   CompleteAgent,
 } from '@utils/agent_database';
-import { startAgentLoop, stopAgentLoop, AGENT_STATUS_CHANGED_EVENT } from '@utils/main_loop';
+import { startAgentLoop, stopAgentLoop } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
 import { IterationStore } from '@utils/IterationStore';
@@ -221,13 +221,14 @@ function AppContent() {
       });
     };
 
+    // Event dispatched by Logger based on logType 'agent-status-changed'
     window.addEventListener(
-      AGENT_STATUS_CHANGED_EVENT,
+      'agentStatusChanged',
       handleAgentStatusChange as EventListener
     );
     return () => {
       window.removeEventListener(
-        AGENT_STATUS_CHANGED_EVENT,
+        'agentStatusChanged',
         handleAgentStatusChange as EventListener
       );
     };

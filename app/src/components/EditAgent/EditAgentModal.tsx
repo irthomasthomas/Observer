@@ -141,6 +141,8 @@ interface ConfigContentProps {
   availableModels: { name: string; multimodal?: boolean; pro?: boolean; server: string; }[];
   loopInterval: number;
   setLoopInterval: (interval: number) => void;
+  onlyOnSignificantChange: boolean;
+  setOnlyOnSignificantChange: (value: boolean) => void;
   description: string;
   setDescription: (desc: string) => void;
   isProUser?: boolean;
@@ -148,7 +150,8 @@ interface ConfigContentProps {
 const ConfigContent: React.FC<ConfigContentProps> = ({
   name, setName, agentId, setAgentId, createMode, currentModel, setCurrentModel,
   isModelDropdownOpen, setIsModelDropdownOpen, loadingModels, modelsError,
-  availableModels, loopInterval, setLoopInterval, description, setDescription, isProUser = false,
+  availableModels, loopInterval, setLoopInterval, onlyOnSignificantChange, setOnlyOnSignificantChange,
+  description, setDescription, isProUser = false,
 }) => (
   <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
     <h3 className="text-lg font-semibold text-indigo-700 mb-4 md:hidden">Agent Configuration</h3>
@@ -161,69 +164,81 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
         <label className="block text-gray-600 mb-1 flex items-center"><Tag size={14} className="mr-1.5 text-gray-500" />ID {createMode && <span className="text-red-500">*</span>}</label>
         <input value={agentId} onChange={(e) => { if (createMode) { setAgentId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); } }} readOnly={!createMode} className={`w-full p-2 bg-gray-100 border-gray-300 rounded-md ${createMode ? 'focus:ring-indigo-500' : 'opacity-70 cursor-not-allowed bg-gray-200'}`} placeholder="my_agent_id" />
       </div>
-      <div>
-        <label className="block text-gray-600 mb-1 flex items-center"><Brain size={14} className="mr-1.5 text-gray-500" />Model <span className="text-red-500">*</span></label>
-        <div className="relative">
-          <button onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)} disabled={loadingModels} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md flex justify-between items-center text-left">
-            <span className="truncate">{currentModel || (loadingModels ? 'Loading…' : 'Select model')}</span>
-            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {isModelDropdownOpen && (
-            <div className="absolute z-20 mt-1 w-full max-h-40 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto">
-              {loadingModels && <div className="px-3 py-2 text-sm text-gray-500">Loading…</div>}
-              {modelsError && <div className="px-3 py-2 text-sm text-red-600">{modelsError}</div>}
-              {!loadingModels && !modelsError && availableModels.length === 0 && <div className="px-3 py-2 text-sm text-gray-500">No models. Ensure Ollama is running.</div>}
-              {!loadingModels && !modelsError && availableModels.map((m) => (
-                  <button
-                    key={m.name}
-                    onClick={() => {
-                      if (m.pro && !isProUser) return; // Prevent selection of pro models for non-pro users
-                      setCurrentModel(m.name);
-                      setIsModelDropdownOpen(false);
-                    }}
-                    disabled={m.pro && !isProUser}
-                    className={`w-full text-left px-3 py-2 text-xs flex justify-between items-center ${
-                      currentModel === m.name
-                        ? 'bg-indigo-500 text-white'
-                        : 'hover:bg-gray-100'
-                    } ${m.pro && !isProUser ? 'opacity-50 select-none cursor-not-allowed' : ''}`}
-                  >
-                    <div className="flex items-center truncate pr-2">
-                      <span className="truncate">{m.name}</span>
-                      {m.pro && !isProUser && (
-                        <span className="ml-2 text-xs font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full">
-                          PRO
-                        </span>
-                      )}
+      <div className="col-span-1 sm:col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-gray-600 mb-1 flex items-center"><Brain size={14} className="mr-1.5 text-gray-500" />Model <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <button onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)} disabled={loadingModels} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md flex justify-between items-center text-left">
+                <span className="truncate">{currentModel || (loadingModels ? 'Loading…' : 'Select model')}</span>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isModelDropdownOpen && (
+                <div className="absolute z-20 mt-1 w-full max-h-40 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto">
+                  {loadingModels && <div className="px-3 py-2 text-sm text-gray-500">Loading…</div>}
+                  {modelsError && <div className="px-3 py-2 text-sm text-red-600">{modelsError}</div>}
+                  {!loadingModels && !modelsError && availableModels.length === 0 && <div className="px-3 py-2 text-sm text-gray-500">No models. Ensure Ollama is running.</div>}
+                  {!loadingModels && !modelsError && availableModels.map((m) => (
+                      <button
+                        key={m.name}
+                        onClick={() => {
+                          if (m.pro && !isProUser) return; // Prevent selection of pro models for non-pro users
+                          setCurrentModel(m.name);
+                          setIsModelDropdownOpen(false);
+                        }}
+                        disabled={m.pro && !isProUser}
+                        className={`w-full text-left px-3 py-2 text-xs flex justify-between items-center ${
+                          currentModel === m.name
+                            ? 'bg-indigo-500 text-white'
+                            : 'hover:bg-gray-100'
+                        } ${m.pro && !isProUser ? 'opacity-50 select-none cursor-not-allowed' : ''}`}
+                      >
+                        <div className="flex items-center truncate pr-2">
+                          <span className="truncate">{m.name}</span>
+                          {m.pro && !isProUser && (
+                            <span className="ml-2 text-xs font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full">
+                              PRO
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {m.multimodal && (
+                            <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-purple-600 bg-purple-100'}`}>
+                              <Eye className="h-3.5 w-3.5 mr-1" />
+                              Vision
+                            </span>
+                          )}
+                          {(m.server.includes('localhost') || m.server.includes('http://')) && (
+                            <span title="Running Locally" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-gray-600 bg-gray-100'}`}>
+                              <Server className="h-3.5 w-3.5 mr-1" />
+                              Local
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                  ))}
+                  {!loadingModels && (modelsError || availableModels.length === 0) && (
+                    <div className="p-2 border-t">
+                      <input value={currentModel} onChange={(e) => setCurrentModel(e.target.value)} className="w-full p-1.5 bg-gray-100 border-gray-300 rounded-md text-xs" placeholder="Custom model name" onClick={(e) => e.stopPropagation()} />
                     </div>
-                    <div className="flex items-center space-x-1">
-                      {m.multimodal && (
-                        <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-purple-600 bg-purple-100'}`}>
-                          <Eye className="h-3.5 w-3.5 mr-1" />
-                          Vision
-                        </span>
-                      )}
-                      {(m.server.includes('localhost') || m.server.includes('http://')) && (
-                        <span title="Running Locally" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-gray-600 bg-gray-100'}`}>
-                          <Server className="h-3.5 w-3.5 mr-1" />
-                          Local
-                        </span>
-                      )}
-                    </div>
-                  </button>
-              ))}
-              {!loadingModels && (modelsError || availableModels.length === 0) && (
-                <div className="p-2 border-t">
-                  <input value={currentModel} onChange={(e) => setCurrentModel(e.target.value)} className="w-full p-1.5 bg-gray-100 border-gray-300 rounded-md text-xs" placeholder="Custom model name" onClick={(e) => e.stopPropagation()} />
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </div>
+          <div>
+            <label className="block text-gray-600 mb-1 flex items-center"><Activity size={14} className="mr-1.5 text-gray-500" />Loop (s)</label>
+            <input type="number" min="1" step="1" value={loopInterval} onChange={(e) => setLoopInterval(Math.max(1, parseFloat(e.target.value) || 30))} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" />
+          </div>
+          <div>
+            <label className="block text-gray-600 mb-1 flex items-center"><Zap size={14} className="mr-1.5 text-gray-500" />Only on Change</label>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={onlyOnSignificantChange} onChange={(e) => setOnlyOnSignificantChange(e.target.checked)} className="sr-only peer" />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              <span className="ml-3 text-sm font-medium text-gray-700">{onlyOnSignificantChange ? 'On' : 'Off'}</span>
+            </label>
+          </div>
         </div>
-      </div>
-      <div>
-        <label className="block text-gray-600 mb-1 flex items-center"><Activity size={14} className="mr-1.5 text-gray-500" />Loop (s)</label>
-        <input type="number" min="1" step="1" value={loopInterval} onChange={(e) => setLoopInterval(Math.max(1, parseFloat(e.target.value) || 30))} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" />
       </div>
       <div className="col-span-1 sm:col-span-2">
         <label className="block text-gray-600 mb-1 flex items-center"><Edit3 size={14} className="mr-1.5 text-gray-500" />Description</label>
@@ -516,6 +531,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                     loadingModels={logic.loadingModels} modelsError={logic.modelsError}
                     availableModels={logic.availableModels}
                     loopInterval={logic.loopInterval} setLoopInterval={logic.setLoopInterval}
+                    onlyOnSignificantChange={logic.onlyOnSignificantChange} setOnlyOnSignificantChange={logic.setOnlyOnSignificantChange}
                     description={logic.description} setDescription={logic.setDescription}
                     isProUser={isProUser}
                   />
@@ -574,6 +590,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
                 loadingModels={logic.loadingModels} modelsError={logic.modelsError}
                 availableModels={logic.availableModels}
                 loopInterval={logic.loopInterval} setLoopInterval={logic.setLoopInterval}
+                onlyOnSignificantChange={logic.onlyOnSignificantChange} setOnlyOnSignificantChange={logic.setOnlyOnSignificantChange}
                 description={logic.description} setDescription={logic.setDescription}
                 isProUser={isProUser}
               />
