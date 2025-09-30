@@ -1,7 +1,7 @@
 // src/components/AgentLogViewer.tsx
 import React, { useState, useEffect } from 'react';
 import {
-  Brain, HelpCircle,
+  Save, HelpCircle,
   Monitor, Clipboard, Camera, Mic,
   ScanText,
   ArrowRight, Clock, Download, ChevronDown, Images, Trash2
@@ -87,7 +87,7 @@ const getSensorIcon = (sensorType: string) => {
     ocr: ScanText,
     audio: Mic,
     clipboard: Clipboard,
-    memory: Brain,
+    memory: Save,
     imemory: Images,
   };
   return iconMap[sensorType] || Monitor;
@@ -263,7 +263,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     if (!response) {
       return (
         <div className="flex items-center gap-2 text-gray-400 text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-          <Brain className="w-4 h-4" />
+          <Save className="w-4 h-4" />
           <span className="italic">No response</span>
         </div>
       );
@@ -272,7 +272,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     const preview = response.slice(0, 100);
     return (
       <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-        <Brain className="w-4 h-4 text-green-600 flex-shrink-0" />
+        <Save className="w-4 h-4 text-green-600 flex-shrink-0" />
         <span className="text-sm text-green-700 truncate">
           "{preview}{response.length > 100 ? '...' : ''}"
         </span>

@@ -13,6 +13,7 @@ import {
   Zap,
   Monitor,
   Brain,
+  Save,
   Activity,
   Edit3,
   Tag,
@@ -269,7 +270,7 @@ const PromptContent: React.FC<PromptContentProps> = ({
             {availableAgentsForBlocks.map(agent => (
                 <SensorButton
                   key={agent.id}
-                  icon={Brain}
+                  icon={Save}
                   label={`Memory: ${agent.name}`}
                   onClick={() => insertSystemPromptText(`$MEMORY@${agent.id}`)}
                   colorClass="text-green-600"

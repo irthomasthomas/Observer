@@ -5,7 +5,7 @@ import { Model, listModels } from '@utils/inferenceServer';
 // Removed getOllamaServerAddress import - no longer needed
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
-  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, Brain, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server
+  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server
 } from 'lucide-react';
 
 
@@ -326,7 +326,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               <SensorButton icon={Mic} label="Microphone" onClick={() => insertSensor('$MICROPHONE')} colorClass="text-slate-600" />
               <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSensor('$SCREEN_AUDIO')} colorClass="text-slate-600" />
               <SensorButton icon={Blend} label="All Audio" onClick={() => insertSensor('$ALL_AUDIO')} colorClass="text-slate-600" />
-              <SensorButton icon={Brain} label="Memory" onClick={() => insertSensor('$MEMORY@agent_id')} />
+              <SensorButton icon={Save} label="Memory" onClick={() => insertSensor('$MEMORY@agent_id')} />
               <SensorButton icon={Images} label="Image Memory" onClick={() => insertSensor('$IMEMORY@agent_id')} colorClass="text-purple-600" />
             </div>
             {visionValidationError && <div className="mt-2 p-2 bg-yellow-50 rounded-md flex items-center text-xs text-yellow-800"><AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />{visionValidationError}</div>}

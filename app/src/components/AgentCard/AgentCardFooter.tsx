@@ -1,6 +1,6 @@
 // components/AgentCard/AgentCardFooter.tsx
 import React from 'react';
-import { Edit, Trash2, Terminal, Brain, Sparkles } from 'lucide-react';
+import { Edit, Trash2, Terminal, Save, Sparkles } from 'lucide-react';
 
 interface AgentCardFooterProps {
     agentId: string;
@@ -37,8 +37,8 @@ const AgentCardFooter: React.FC<AgentCardFooterProps> = ({
                         <Terminal className="w-4 h-4" /> Jupyter
                     </button>
                 ) : (
-                    <button onClick={() => onMemory(agentId)} className={`flex items-center justify-center p-2 text-purple-600 hover:bg-purple-100 rounded-md ${isMemoryFlashing ? 'animate-pulse' : ''}`} title="Memory">
-                        <Brain className="w-4 h-4" />
+                    <button onClick={() => onMemory(agentId)} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-100 rounded-md ${isMemoryFlashing ? 'animate-pulse' : ''}`}>
+                        Memory
                     </button>
                 )}
                 <button onClick={() => onActivity(agentId)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100 rounded-md">

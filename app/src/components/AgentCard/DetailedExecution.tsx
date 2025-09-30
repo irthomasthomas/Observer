@@ -1,9 +1,9 @@
 // src/components/AgentCard/DetailedExecution.tsx
 import React from 'react';
 import { LogEntry } from '../../utils/logging';
-import { 
-  ImageIcon, Brain, Zap, Eye, ScanText, Mic, CheckCircle, XCircle,
-  Bell, Mail, Send, MessageSquare, MessageSquarePlus, 
+import {
+  ImageIcon, Save, Zap, Eye, ScanText, Mic, CheckCircle, XCircle,
+  Bell, Mail, Send, MessageSquare, MessageSquarePlus,
   MessageSquareQuote, PlayCircle, StopCircle, Video, VideoOff, Tag, SquarePen, Hourglass
 } from 'lucide-react';
 
@@ -101,7 +101,7 @@ const DetailedExecution: React.FC<DetailedExecutionProps> = ({ group }) => {
       sendEmail: Mail,
       notify: Bell,
       system_notify: Bell,
-      getMemory: Brain,
+      getMemory: Save,
       setMemory: SquarePen,
       appendMemory: SquarePen,
       startAgent: PlayCircle,
@@ -174,7 +174,7 @@ const DetailedExecution: React.FC<DetailedExecutionProps> = ({ group }) => {
       {/* THINK Section */}
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <Brain className="w-4 h-4" />
+          <Save className="w-4 h-4" />
           THINK
         </h4>
         {(() => {

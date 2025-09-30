@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
-    Cpu, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight
+    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/inferenceServer';
@@ -184,7 +184,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                     {/* Mobile: horizontal layout with icon on left */}
                     <div className="flex md:flex-col items-start md:items-center">
                         <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0">
-                            <Cpu className="w-5 h-5 text-gray-500" />
+                            <Brain className="w-5 h-5 text-gray-500" />
                         </div>
                         <div className="flex items-center justify-between md:flex-col md:items-center md:justify-center w-full md:w-auto ml-12 md:ml-0 md:space-y-3">
                             <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />

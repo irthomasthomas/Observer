@@ -1,6 +1,6 @@
 // components/AgentCard/IterationStoreDebug.tsx
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Database, CheckCircle, XCircle, Camera, Monitor, Mic, Clipboard, Brain } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, CheckCircle, XCircle, Camera, Monitor, Mic, Clipboard, Save } from 'lucide-react';
 import { IterationStore, IterationData, SensorData, AgentSession } from '../../utils/IterationStore';
 
 interface IterationStoreDebugProps {
@@ -67,7 +67,7 @@ const IterationStoreDebug: React.FC<IterationStoreDebugProps> = ({ agentId }) =>
       case 'ocr': return <Monitor className="h-4 w-4 text-green-500" />;
       case 'audio': return <Mic className="h-4 w-4 text-orange-500" />;
       case 'clipboard': return <Clipboard className="h-4 w-4 text-purple-500" />;
-      case 'memory': return <Brain className="h-4 w-4 text-indigo-500" />;
+      case 'memory': return <Save className="h-4 w-4 text-indigo-500" />;
       default: return <Database className="h-4 w-4 text-gray-500" />;
     }
   };

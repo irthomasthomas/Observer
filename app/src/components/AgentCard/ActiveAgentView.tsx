@@ -1,6 +1,6 @@
 // components/AgentCard/ActiveAgentView.tsx
 import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
-import { Eye, Clock, Power, Activity, Mic, Volume2, Crop, RotateCcw, Brain, Images, AlertTriangle } from 'lucide-react';
+import { Eye, Clock, Power, Activity, Mic, Volume2, Crop, RotateCcw, Save, Images, AlertTriangle } from 'lucide-react';
 import { StreamState, AudioStreamType } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { CompleteAgent, getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
@@ -399,7 +399,7 @@ const MemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-        <Brain className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <Save className="w-4 h-4 text-blue-600 flex-shrink-0" />
         <span className="text-blue-700 text-sm italic">Loading memory...</span>
       </div>
     );
@@ -408,7 +408,7 @@ const MemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
   if (!memory.trim()) {
     return (
       <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-        <Brain className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <Save className="w-4 h-4 text-blue-600 flex-shrink-0" />
         <span className="text-blue-700 text-sm italic">No memory data yet</span>
       </div>
     );
@@ -416,7 +416,7 @@ const MemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
 
   return (
     <div className="flex items-start gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-      <Brain className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+      <Save className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium text-blue-600 mb-1">Memory</div>
         <div className="text-blue-700 text-sm leading-relaxed break-words line-clamp-3 overflow-hidden">
