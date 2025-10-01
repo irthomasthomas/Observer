@@ -17,6 +17,7 @@ interface ConversationalGeneratorModalProps {
   isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
+  onUpgrade?: () => void;
   onRefresh?: () => void;
   initialMessage?: string;
   initialMode?: 'single' | 'multi';
@@ -32,6 +33,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   isPro = false,
   onSignIn,
   onSwitchToObServer,
+  onUpgrade,
   onRefresh,
   initialMessage
 }) => {
@@ -43,12 +45,8 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     setMode(initialMessage ? 'multi' : 'single');
   }, [initialMessage]);
 
-  // Handle mode change with Pro restriction
+  // Handle mode change - allow toggle but multi-agent will be greyed out if not Pro
   const handleModeChange = (newMode: 'single' | 'multi') => {
-    if (newMode === 'multi' && !isPro) {
-      // For non-Pro users trying to access multi-agent, do nothing or show upgrade prompt
-      return;
-    }
     setMode(newMode);
   };
 
@@ -69,20 +67,27 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     onSwitchToObServer
   }), [handleAgentReady, getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer]);
 
+  const handleUpgrade = useCallback(() => {
+    onUpgrade?.();
+    onClose();
+  }, [onUpgrade, onClose]);
+
   const multiAgentProps = useMemo(() => ({
     getToken,
     isAuthenticated,
     isUsingObServer,
+    isPro,
     onSignIn,
     onSwitchToObServer,
+    onUpgrade: handleUpgrade,
     onRefresh,
     initialMessage
-  }), [getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer, onRefresh, initialMessage]);
+  }), [getToken, isAuthenticated, isUsingObServer, isPro, onSignIn, onSwitchToObServer, handleUpgrade, onRefresh, initialMessage]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[70] p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4">
@@ -108,23 +113,15 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
                   </button>
                   <button
                     onClick={() => handleModeChange('multi')}
-                    disabled={!isPro}
                     className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
                       mode === 'multi'
                         ? 'bg-white text-purple-600 shadow-sm'
-                        : isPro
-                        ? 'text-white/80 hover:text-white hover:bg-white/10'
-                        : 'text-white/50 cursor-not-allowed'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
                     }`}
                     title={!isPro ? 'Pro feature - Upgrade to access Multi-Agent creation' : ''}
                   >
                     <Users className="h-4 w-4 mr-2" />
                     Multi-Agent
-                    {!isPro && (
-                      <span className="ml-2 px-1.5 py-0.5 text-xs font-semibold bg-purple-500 text-white rounded">
-                        PRO
-                      </span>
-                    )}
                   </button>
                 </div>
               </div>
@@ -154,23 +151,15 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
               </button>
               <button
                 onClick={() => handleModeChange('multi')}
-                disabled={!isPro}
                 className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
                   mode === 'multi'
                     ? 'bg-white text-purple-600 shadow-sm'
-                    : isPro
-                    ? 'text-white/80 hover:text-white hover:bg-white/10'
-                    : 'text-white/50 cursor-not-allowed'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
                 title={!isPro ? 'Pro feature - Upgrade to access Multi-Agent creation' : ''}
               >
                 <Users className="h-4 w-4 mr-2" />
                 Multi-Agent
-                {!isPro && (
-                  <span className="ml-2 px-1.5 py-0.5 text-xs font-semibold bg-purple-500 text-white rounded">
-                    PRO
-                  </span>
-                )}
               </button>
             </div>
           </div>

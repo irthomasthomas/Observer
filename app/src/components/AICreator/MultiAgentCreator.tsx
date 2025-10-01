@@ -242,8 +242,10 @@ interface MultiAgentCreatorProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
+  isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
+  onUpgrade?: () => void;
   onRefresh?: () => void;
   initialMessage?: string;
 }
@@ -252,8 +254,10 @@ const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
   getToken,
   isAuthenticated,
   isUsingObServer,
+  isPro = false,
   onSignIn,
   onSwitchToObServer,
+  onUpgrade,
   onRefresh,
   initialMessage
 }) => {
@@ -261,9 +265,8 @@ const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
     {
       id: 1,
       sender: 'ai',
-      text: `Hi there! I'm Observer's **Multi-Agent Builder**. I specialize in creating teams of coordinated agents that work together to accomplish complex tasks.
+      text: `Hi there! I'm Observer's **Multi-Agent Builder**. I specialize in creating teams of coordinated agents that work together to accomplish complex tasks. For example:
 
-For example, I can build agent teams to:
 * **Monitor & Document** 🤖 - One agent watches your screen, another documents processes
 * **Extract & Solve** 🔍 - One agent reads problems from screen, another solves them
 * **Watch & Guide** 👀 - One agent observes, another provides step-by-step guidance
@@ -281,23 +284,11 @@ What kind of agent team would you like me to create today?`
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-send initial message when provided
+  // Set initial message in input without auto-sending
   useEffect(() => {
-    if (initialMessage && isAuthenticated && !isLoading && !hasInitialMessageSent.current) {
+    if (initialMessage && !hasInitialMessageSent.current) {
       hasInitialMessageSent.current = true;
-
-      // Create the message directly without going through form submission
-      const newUserMessage: Message = {
-        id: Date.now() + Math.random() * 1000,
-        sender: 'user',
-        text: initialMessage
-      };
-
-      setMessages(prev => [...prev, newUserMessage]);
-
-      // Send the conversation immediately
-      const allMessages = [...messages, newUserMessage];
-      sendConversation(allMessages);
+      setUserInput(initialMessage);
     }
   }, []); // Empty dependency array - only run once on mount
 
@@ -593,18 +584,53 @@ What kind of agent team would you like me to create today?`
   };
 
   const getPlaceholderText = () => {
+    if (!isPro) {
+      return "Upgrade to Pro to use Multi-Agent Builder";
+    }
     if (isUsingObServer) {
       return isAuthenticated ? "Describe the agent team you want to build..." : "Enable Ob-Server and log in to use Multi-Agent Builder";
     }
     return selectedLocalModel ? "Describe the agent team to build with your model..." : "Click the CPU icon to select a local model";
   };
 
-  const isInputDisabled = isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
+  const isInputDisabled = !isPro || isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
   const isSendDisabled = isInputDisabled || !userInput.trim();
 
   return (
     <>
-      <div className="flex flex-col h-[350px] md:h-[450px] bg-white rounded-lg border border-purple-200">
+      <div className={`flex flex-col h-[350px] md:h-[450px] bg-white rounded-lg border border-purple-200 relative`}>
+        {/* Greyed out background layer */}
+        {!isPro && (
+          <div className="absolute inset-0 z-[5] bg-white opacity-60 pointer-events-none" />
+        )}
+
+        {/* Pro Feature Overlay */}
+        {!isPro && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md mx-4 border-2 border-purple-300 pointer-events-auto">
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="bg-purple-100 rounded-full p-3">
+                    <Users className="h-8 w-8 text-purple-600" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  🔒 Multi-Agent Builder is a Pro Feature
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Upgrade to Pro to create and edit coordinated agent teams with AI collaboration
+                </p>
+                <button
+                  onClick={onUpgrade}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-medium transition-colors shadow-lg"
+                >
+                  Upgrade to Pro
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Chat Messages Area */}
         <div className="flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto">
           {messages.map((msg) => (

@@ -648,8 +648,13 @@ function AppContent() {
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
+                  isPro={isProUser}
                   onSignIn={loginWithRedirect}
                   onSwitchToObServer={() => setIsUsingObServer(true)}
+                  onUpgrade={() => {
+                    setActiveTab('obServer');
+                    setIsUsingObServer(true);
+                  }}
                   onRefresh={fetchAgents}
                 />
               }
@@ -693,6 +698,10 @@ function AppContent() {
           isPro={isProUser}
           onSignIn={loginWithRedirect}
           onSwitchToObServer={() => setIsUsingObServer(true)}
+          onUpgrade={() => {
+            setActiveTab('obServer');
+            setIsUsingObServer(true);
+          }}
           onRefresh={fetchAgents}
           initialMessage={aiEditMessage}
         />

@@ -14,8 +14,10 @@ interface GetStartedProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
+  isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
+  onUpgrade?: () => void;
   onRefresh?: () => void;
 }
 
@@ -26,8 +28,10 @@ const GetStarted: React.FC<GetStartedProps> = ({
   getToken,
   isAuthenticated,
   isUsingObServer,
+  isPro,
   onSignIn,
   onSwitchToObServer,
+  onUpgrade,
   onRefresh
 }) => {
   const [mode, setMode] = useState<'single' | 'multi'>('single');
@@ -130,8 +134,10 @@ const GetStarted: React.FC<GetStartedProps> = ({
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
+                  isPro={isPro}
                   onSignIn={onSignIn}
                   onSwitchToObServer={onSwitchToObServer}
+                  onUpgrade={onUpgrade}
                   onRefresh={onRefresh}
                 />
               )}
