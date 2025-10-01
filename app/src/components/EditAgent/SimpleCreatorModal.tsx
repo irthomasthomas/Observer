@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Modal from '@components/EditAgent/Modal';
+import SensorInputText from '@components/EditAgent/SensorInputText';
 import { SimpleTool, ToolData } from '@utils/agentTemplateManager';
 import { Model, listModels } from '@utils/inferenceServer';
 // Removed getOllamaServerAddress import - no longer needed
@@ -54,28 +55,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ availableModels, selected
   );
 };
 
-const SENSOR_COLORS: Record<string, string> = {
-  SCREEN_OCR: 'text-blue-500 bg-blue-50',
-  SCREEN_64: 'text-purple-500 bg-purple-50',
-  CAMERA: 'text-purple-500 bg-purple-50',
-  CLIPBOARD_TEXT: 'text-slate-500 bg-slate-50',
-  MICROPHONE: 'text-slate-500 bg-slate-50', 
-  SCREEN_AUDIO: 'text-slate-500 bg-slate-50', 
-  ALL_AUDIO: 'text-slate-500 bg-slate-50',
-  IMEMORY: 'text-purple-500 bg-purple-50',
-};
-const highlightPrompt = (text: string) => {
-  const parts = text.split(/(\$[A-Z0-9_@]+)/g);
-  return parts.map((part, i) => {
-    const match = part.match(/^\$([A-Z0-9_@]+)/);
-    if (match) {
-      const sensorName = match[1].split('@')[0];
-      const colorClass = SENSOR_COLORS[sensorName] || 'text-green-500 bg-green-50';
-      return <span key={i} className={`rounded px-1 py-0.5 font-medium ${colorClass}`}>{part}</span>;
-    }
-    return part;
-  });
-};
 
 // --- Sensor Button Helper ---
 const SensorButton = ({ icon: Icon, label, colorClass, onClick }: { icon: React.ElementType, label: string, colorClass?: string, onClick: () => void }) => (
@@ -314,10 +293,13 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
           {/* --- Step 2: Prompt & Sensors --- */}
           <div className="w-full flex-shrink-0 p-8 flex flex-col overflow-y-auto">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Prompt & Sensors</h3>
-            <div className="relative flex-grow min-h-[250px]">
-              <div className="absolute inset-0 p-4 font-mono text-sm whitespace-pre-wrap pointer-events-none leading-relaxed" aria-hidden="true">{highlightPrompt(systemPrompt)}</div>
-              <textarea ref={promptRef} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} className="w-full h-full p-4 bg-transparent text-transparent caret-blue-500 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500 leading-relaxed" placeholder="e.g., Look at the screen for 'ERROR'..." />
-            </div>
+            <SensorInputText
+              value={systemPrompt}
+              onChange={setSystemPrompt}
+              textareaRef={promptRef}
+              className="flex-grow min-h-[250px]"
+              placeholder="e.g., Look at the screen for 'ERROR'..."
+            />
             <div className="flex flex-wrap gap-2 mt-4">
               <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSensor('$SCREEN_OCR')} />
               <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSensor('$SCREEN_64')} colorClass="text-purple-600" />

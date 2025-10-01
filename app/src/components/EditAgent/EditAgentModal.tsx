@@ -2,13 +2,14 @@ import React, {
   Suspense, useState, useEffect, useRef,
 } from 'react';
 import Modal from '@components/EditAgent/Modal';
+import SensorInputText from '@components/EditAgent/SensorInputText';
 import { CompleteAgent, importAgentsFromFiles } from '@utils/agent_database';
 import {
   Download,
-  ChevronDown, ChevronUp,
+  Server,
+  ChevronDown,
   Eye,
   ScanText,
-  Play,
   X,
   Zap,
   Monitor,
@@ -17,8 +18,6 @@ import {
   Activity,
   Edit3,
   Tag,
-  Server,
-  Terminal,
   FileUp,
   Clipboard,
   Mic,
@@ -29,7 +28,6 @@ import {
   Images
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
-import JupyterServerModal from '@components/JupyterServerModal';
 import { useEditAgentModalLogic } from './useEditAgentModalLogic';
 
 import LazyCodeMirror from '@uiw/react-codemirror';
@@ -85,33 +83,6 @@ const MobileTabNav: React.FC<MobileTabNavProps> = ({ activeTab, setActiveTab }) 
   );
 };
 
-interface AccordionProps {
-  title: string;
-  icon: React.ElementType;
-  children: React.ReactNode;
-  rightContent?: React.ReactNode;
-}
-const Accordion: React.FC<AccordionProps> = ({ title, icon: Icon, children, rightContent }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <div className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex justify-between items-center p-4 text-left"
-      >
-        <div className="flex items-center">
-          <Icon className="h-5 w-5 mr-3 text-indigo-600" />
-          <h3 className="text-lg font-semibold text-indigo-700">{title}</h3>
-        </div>
-        <div className="flex items-center space-x-4">
-            {rightContent && <div onClick={e => e.stopPropagation()}>{rightContent}</div>}
-            {isOpen ? <ChevronUp className="h-5 w-5 text-gray-500" /> : <ChevronDown className="h-5 w-5 text-gray-500" />}
-        </div>
-      </button>
-      {isOpen && <div className="p-4 border-t border-gray-200">{children}</div>}
-    </div>
-  );
-};
 
 // --- NEW HELPER COMPONENT: Sensor Button ---
 const SensorButton = ({ icon: Icon, label, colorClass, onClick }: { icon: React.ElementType, label: string, colorClass?: string, onClick: () => void }) => (
@@ -242,7 +213,7 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
       </div>
       <div className="col-span-1 sm:col-span-2">
         <label className="block text-gray-600 mb-1 flex items-center"><Edit3 size={14} className="mr-1.5 text-gray-500" />Description</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" placeholder="Optional description" />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" placeholder="Optional description" />
       </div>
     </div>
   </div>
@@ -268,7 +239,14 @@ const PromptContent: React.FC<PromptContentProps> = ({
         <p className="text-xs text-gray-500">Define instructions for the agent</p>
       </div>
     </div>
-    <textarea ref={systemPromptRef} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={10} className="w-full flex-grow p-3 bg-gray-50 border border-gray-300 rounded-md font-mono text-sm" placeholder="Enter system prompt…" />
+    <SensorInputText
+      value={systemPrompt}
+      onChange={setSystemPrompt}
+      textareaRef={systemPromptRef}
+      className="flex-grow bg-gray-50"
+      placeholder="Enter system prompt…"
+      rows={10}
+    />
 
     {/* --- NEW: Static Sensor Button Grid --- */}
     <div className="mt-4">
@@ -313,61 +291,28 @@ const PromptContent: React.FC<PromptContentProps> = ({
   </div>
 );
 
-// --- Code Preview Content Component ---
-interface CodePreviewContentProps {
-  testResponseRef: React.RefObject<HTMLTextAreaElement>;
-  testResponse: string;
-  setTestResponse: (response: string) => void;
-}
-const CodePreviewContent: React.FC<CodePreviewContentProps> = ({ testResponseRef, testResponse, setTestResponse }) => (
-  <textarea ref={testResponseRef} value={testResponse} onChange={(e) => setTestResponse(e.target.value)} rows={4} className="w-full p-2 bg-gray-50 border border-gray-300 rounded-md font-mono text-xs" placeholder="Output from Run Model…" />
-);
 
-// --- Logs Content Component ---
-interface LogsContentProps {
-  testOutput: string;
-}
-const LogsContent: React.FC<LogsContentProps> = ({ testOutput }) => (
-  <pre className="w-full p-2 bg-gray-50 border border-gray-300 rounded-md font-mono text-xs h-32 overflow-y-auto">
-    {testOutput ? (testOutput.replace(/\\n/g, '\n').split('\n').map((line, i) => (<div key={i} className={line.startsWith('ERROR:') ? 'text-red-500' : line.startsWith('SYSTEM:') ? 'text-blue-600' : line.startsWith('[DEBUG]') ? 'text-gray-500' : 'text-gray-700'}>{line}</div>))) : (<span className="text-gray-400">Logs will appear here…</span>)}
-  </pre>
-);
 
 // --- Code Editor Content Component ---
 interface CodeEditorContentProps {
   isPythonMode: boolean;
   setIsPythonMode: (isPython: boolean) => void;
-  jupyterStatus: 'checking' | 'connected' | 'error' | 'disconnected' | 'unknown';
-  setIsJupyterModalOpen: (isOpen: boolean) => void;
-  handleRunCode: () => void;
-  isRunningCode: boolean;
-  testResponse: string;
   langSnippets: { name: string; code: string; description: string }[];
   insertCodeSnippet: (code: string) => void;
   editorIsLoaded: boolean;
   agentCode: string;
   setAgentCode: (code: string) => void;
-  testOutput: string;
 }
 const CodeEditorContent: React.FC<CodeEditorContentProps> = ({
-  isPythonMode, setIsPythonMode, jupyterStatus, setIsJupyterModalOpen,
-  handleRunCode, isRunningCode, testResponse, langSnippets, insertCodeSnippet,
-  editorIsLoaded, agentCode, setAgentCode, testOutput
+  isPythonMode, setIsPythonMode, langSnippets, insertCodeSnippet,
+  editorIsLoaded, agentCode, setAgentCode
 }) => (
    <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm flex-grow flex flex-col h-full">
       <div className="flex justify-between items-start mb-2">
           <h3 className="text-lg font-semibold text-indigo-700 mt-0.5">Agent Code</h3>
-          <div className="flex items-center space-x-2">
-            {isPythonMode && (
-              <button onClick={() => setIsJupyterModalOpen(true)} className={`p-1.5 rounded border text-sm ${jupyterStatus === 'connected' ? 'bg-green-50 text-green-600 border-green-300' : jupyterStatus === 'error' ? 'bg-red-50 text-red-600 border-red-300' : jupyterStatus === 'checking' ? 'bg-gray-100 text-gray-500 border-gray-300 animate-pulse' : 'bg-gray-100 text-gray-500 border-gray-300'}`} title="Configure Jupyter Server"><Server size={16} /></button>
-            )}
-            <div className="flex border border-gray-300 rounded-md overflow-hidden text-sm">
-              <button onClick={() => setIsPythonMode(false)} className={`px-3 py-1 ${!isPythonMode ? 'bg-yellow-500 text-white' : 'bg-gray-50 text-gray-600'}`}>JS</button>
-              <button onClick={() => setIsPythonMode(true)} className={`px-3 py-1 ${isPythonMode ? 'bg-blue-500 text-white' : 'bg-gray-50 text-gray-600'}`}>Py</button>
-            </div>
-            <button onClick={handleRunCode} disabled={isRunningCode || !testResponse} className={`px-3 py-1.5 rounded-md flex items-center text-sm text-white ${isRunningCode ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500 hover:bg-blue-600'}`}>
-              {isRunningCode ? (<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />) : (<Zap size={16} className="mr-1" />)} Run Code
-            </button>
+          <div className="flex border border-gray-300 rounded-md overflow-hidden text-sm">
+            <button onClick={() => setIsPythonMode(false)} className={`px-3 py-1 ${!isPythonMode ? 'bg-yellow-500 text-white' : 'bg-gray-50 text-gray-600'}`}>JS</button>
+            <button onClick={() => setIsPythonMode(true)} className={`px-3 py-1 ${isPythonMode ? 'bg-blue-500 text-white' : 'bg-gray-50 text-gray-600'}`}>Py</button>
           </div>
       </div>
       <div className="mb-2 flex flex-wrap items-center gap-1 text-xs">
@@ -376,18 +321,12 @@ const CodeEditorContent: React.FC<CodeEditorContentProps> = ({
             <button key={s.name} onClick={() => insertCodeSnippet(s.code)} title={s.description} className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200">{s.name}</button>
           ))}
       </div>
-      <div className="h-72 border border-gray-300 rounded-md overflow-hidden relative mb-3">
+      <div className="flex-grow border border-gray-300 rounded-md overflow-hidden relative">
            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-sm">Loading editor…</div>}>
               {editorIsLoaded && (
                   <LazyCodeMirror value={agentCode} height="100%" className="h-full" theme={vscodeDark} extensions={[isPythonMode ? python() : javascript()]} onChange={(v) => setAgentCode(v)} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, autocompletion: true, bracketMatching: true, closeBrackets: true }} />
               )}
            </Suspense>
-      </div>
-      {/* The Logs section is shown on desktop, but hidden on mobile (where it's in an accordion) */}
-      <div className="hidden md:block">
-          <Accordion title="Logs" icon={Terminal}>
-              <LogsContent testOutput={testOutput} />
-          </Accordion>
       </div>
    </div>
 );
@@ -519,60 +458,41 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
         <div className="flex-grow min-h-0 bg-gray-50 overflow-y-auto">
           {/* --- DESKTOP LAYOUT --- */}
           <div className="hidden md:flex flex-row flex-grow h-full">
+            {/* Left Half: System Prompt (Full Height) */}
             <div className="w-1/2 p-5 flex flex-col overflow-y-auto border-r border-gray-200">
-              <div className="flex-shrink-0 mb-5">
-                <Accordion title="Model Configuration" icon={Brain}>
-                  <ConfigContent
-                    name={logic.name} setName={logic.setName}
-                    agentId={logic.agentId} setAgentId={logic.setAgentId}
-                    createMode={createMode}
-                    currentModel={logic.currentModel} setCurrentModel={logic.setCurrentModel}
-                    isModelDropdownOpen={logic.isModelDropdownOpen} setIsModelDropdownOpen={logic.setIsModelDropdownOpen}
-                    loadingModels={logic.loadingModels} modelsError={logic.modelsError}
-                    availableModels={logic.availableModels}
-                    loopInterval={logic.loopInterval} setLoopInterval={logic.setLoopInterval}
-                    onlyOnSignificantChange={logic.onlyOnSignificantChange} setOnlyOnSignificantChange={logic.setOnlyOnSignificantChange}
-                    description={logic.description} setDescription={logic.setDescription}
-                    isProUser={isProUser}
-                  />
-                </Accordion>
-              </div>
-              <div className="flex-grow min-h-0">
-                <PromptContent
-                  systemPromptRef={logic.systemPromptRef}
-                  systemPrompt={logic.systemPrompt} setSystemPrompt={logic.setSystemPrompt}
-                  insertSystemPromptText={logic.insertSystemPromptText}
-                  availableAgentsForBlocks={logic.availableAgentsForBlocks}
-                  visionValidationError={logic.visionValidationError}
-                />
-              </div>
+              <PromptContent
+                systemPromptRef={logic.systemPromptRef}
+                systemPrompt={logic.systemPrompt} setSystemPrompt={logic.setSystemPrompt}
+                insertSystemPromptText={logic.insertSystemPromptText}
+                availableAgentsForBlocks={logic.availableAgentsForBlocks}
+                visionValidationError={logic.visionValidationError}
+              />
             </div>
-            <div className="w-1/2 p-5 flex flex-col overflow-y-auto">
-              <div className="flex-shrink-0 mb-5">
-                <Accordion title="Response Preview" icon={Play} rightContent={
-                  <button onClick={logic.handleRunModel} disabled={logic.isRunningModel || !logic.currentModel} className={`px-3 py-1.5 rounded-md flex items-center text-sm text-white ${logic.isRunningModel ? 'bg-yellow-500 animate-pulse' : 'bg-green-500 hover:bg-green-600'}`}>
-                    {logic.isRunningModel ? (<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />) : (<Play size={16} className="mr-1" />)} Run Model
-                  </button>
-                }>
-                  <CodePreviewContent
-                    testResponseRef={logic.testResponseRef}
-                    testResponse={logic.testResponse}
-                    setTestResponse={logic.setTestResponse}
-                  />
-                </Accordion>
+
+            {/* Right Half: Config (Top) + Code (Bottom) */}
+            <div className="w-1/2 p-5 flex flex-col overflow-y-auto space-y-5">
+              <div className="flex-shrink-0">
+                <ConfigContent
+                  name={logic.name} setName={logic.setName}
+                  agentId={logic.agentId} setAgentId={logic.setAgentId}
+                  createMode={createMode}
+                  currentModel={logic.currentModel} setCurrentModel={logic.setCurrentModel}
+                  isModelDropdownOpen={logic.isModelDropdownOpen} setIsModelDropdownOpen={logic.setIsModelDropdownOpen}
+                  loadingModels={logic.loadingModels} modelsError={logic.modelsError}
+                  availableModels={logic.availableModels}
+                  loopInterval={logic.loopInterval} setLoopInterval={logic.setLoopInterval}
+                  onlyOnSignificantChange={logic.onlyOnSignificantChange} setOnlyOnSignificantChange={logic.setOnlyOnSignificantChange}
+                  description={logic.description} setDescription={logic.setDescription}
+                  isProUser={isProUser}
+                />
               </div>
               <div className="flex-grow min-h-0">
                 <CodeEditorContent
                   isPythonMode={logic.isPythonMode} setIsPythonMode={logic.setIsPythonMode}
-                  jupyterStatus={logic.jupyterStatus} setIsJupyterModalOpen={logic.setIsJupyterModalOpen}
-                  handleRunCode={logic.handleRunCode}
-                  isRunningCode={logic.isRunningCode}
-                  testResponse={logic.testResponse}
                   langSnippets={logic.langSnippets}
                   insertCodeSnippet={logic.insertCodeSnippet}
                   editorIsLoaded={editorIsLoaded}
                   agentCode={logic.agentCode} setAgentCode={logic.setAgentCode}
-                  testOutput={logic.testOutput}
                 />
               </div>
             </div>
@@ -607,36 +527,13 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
             </div>}
 
             {activeTab === 'code' && (
-                <div className="space-y-4">
-                    <Accordion title="Response Preview" icon={Play} rightContent={
-                        <button onClick={logic.handleRunModel} disabled={logic.isRunningModel || !logic.currentModel} className={`px-3 py-1.5 rounded-md flex items-center text-sm text-white ${logic.isRunningModel ? 'bg-yellow-500 animate-pulse' : 'bg-green-500 hover:bg-green-600'}`}>
-                           {logic.isRunningModel ? 'Running...' : 'Run Model'}
-                        </button>
-                    }>
-                        <CodePreviewContent
-                           testResponseRef={logic.testResponseRef}
-                           testResponse={logic.testResponse}
-                           setTestResponse={logic.setTestResponse}
-                        />
-                    </Accordion>
-
-                    <CodeEditorContent
-                      isPythonMode={logic.isPythonMode} setIsPythonMode={logic.setIsPythonMode}
-                      jupyterStatus={logic.jupyterStatus} setIsJupyterModalOpen={logic.setIsJupyterModalOpen}
-                      handleRunCode={logic.handleRunCode}
-                      isRunningCode={logic.isRunningCode}
-                      testResponse={logic.testResponse}
-                      langSnippets={logic.langSnippets}
-                      insertCodeSnippet={logic.insertCodeSnippet}
-                      editorIsLoaded={editorIsLoaded}
-                      agentCode={logic.agentCode} setAgentCode={logic.setAgentCode}
-                      testOutput={logic.testOutput}
-                    />
-
-                    <Accordion title="Logs" icon={Terminal}>
-                        <LogsContent testOutput={logic.testOutput} />
-                    </Accordion>
-                </div>
+                <CodeEditorContent
+                  isPythonMode={logic.isPythonMode} setIsPythonMode={logic.setIsPythonMode}
+                  langSnippets={logic.langSnippets}
+                  insertCodeSnippet={logic.insertCodeSnippet}
+                  editorIsLoaded={editorIsLoaded}
+                  agentCode={logic.agentCode} setAgentCode={logic.setAgentCode}
+                />
             )}
           </div>
         </div>
@@ -644,18 +541,10 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
         {/* --- FOOTER --- */}
         <div className="flex-shrink-0 flex justify-end space-x-3 p-4 border-t border-gray-200 bg-gray-50">
           <button onClick={onClose} className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={logic.handleSave} disabled={(createMode && !logic.agentId) || !logic.name || !logic.currentModel || logic.isRunningModel || logic.isRunningCode} className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-60">{createMode ? 'Create Agent' : 'Save Changes'}</button>
+          <button onClick={logic.handleSave} disabled={(createMode && !logic.agentId) || !logic.name || !logic.currentModel} className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-60">{createMode ? 'Create Agent' : 'Save Changes'}</button>
         </div>
       </Modal>
 
-      {/* --- MODALS --- */}
-      <JupyterServerModal
-        isOpen={logic.isJupyterModalOpen}
-        onClose={() => {
-          logic.setIsJupyterModalOpen(false);
-          logic.checkJupyter();
-        }}
-      />
     </>
   );
 };
