@@ -6,6 +6,8 @@ import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/inferenceServer';
 import { getInferenceAddresses } from '@utils/inferenceServer';
 import { detectAgentCapabilities } from './agentCapabilities';
+import SensorModal from './SensorModal';
+import ToolsModal from './ToolsModal';
 
 
 
@@ -136,6 +138,8 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 }) => {
     const [detectedSensors, setDetectedSensors] = useState<any[]>([]);
     const [detectedTools, setDetectedTools] = useState<any[]>([]);
+    const [isSensorModalOpen, setIsSensorModalOpen] = useState(false);
+    const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
 
     useEffect(() => {
         const loadCapabilities = async () => {
@@ -159,12 +163,15 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
             <div className="flex flex-col md:flex-row items-center md:items-start gap-1 md:gap-4">
                 {/* Column 1: Sensors */}
                 <div className="flex flex-col flex-1 w-full md:w-auto">
-                    {/* Mobile: horizontal layout with icon on left */}
-                    <div className="flex md:flex-col items-start md:items-center">
-                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0">
-                            <Eye className="w-5 h-5 text-gray-500" />
+                    <button
+                        onClick={() => setIsSensorModalOpen(true)}
+                        className="flex md:flex-col items-start md:items-center w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
+                        title="View system prompt"
+                    >
+                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0 transition-colors">
+                            <Eye className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
                         </div>
-                        <div className="flex flex-wrap gap-2 md:flex-col md:space-y-2 items-start md:items-center min-h-[44px] md:min-h-0 flex-1 ml-12 md:ml-0">
+                        <div className="flex flex-wrap gap-2 md:flex-col md:space-y-2 items-start md:items-center min-h-[44px] md:min-h-0 flex-1 ml-3 md:ml-0">
                             {detectedSensors.length > 0 ? (
                                 detectedSensors.map(sensor => (
                                     <InfoTag key={sensor.key} icon={sensor.icon} label={sensor.label} />
@@ -173,7 +180,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                                 <div className="text-sm text-gray-400 italic">No sensors</div>
                             )}
                         </div>
-                    </div>
+                    </button>
                 </div>
 
                 {/* Arrow 1 - Responsive: down on mobile, right on desktop */}
@@ -225,12 +232,15 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 
                 {/* Column 3: Tools */}
                 <div className="flex flex-col flex-1 w-full md:w-auto">
-                    {/* Mobile: horizontal layout with icon on left */}
-                    <div className="flex md:flex-col items-start md:items-center">
-                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0">
-                            <Wrench className="w-5 h-5 text-gray-500" />
+                    <button
+                        onClick={() => setIsToolsModalOpen(true)}
+                        className="flex md:flex-col items-start md:items-center w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
+                        title="View agent code"
+                    >
+                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0 transition-colors">
+                            <Wrench className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
                         </div>
-                        <div className="flex flex-wrap gap-2 md:flex-col md:space-y-2 items-start md:items-center min-h-[44px] md:min-h-0 flex-1 ml-12 md:ml-0">
+                        <div className="flex flex-wrap gap-2 md:flex-col md:space-y-2 items-start md:items-center min-h-[44px] md:min-h-0 flex-1 ml-3 md:ml-0">
                             {detectedTools.length > 0 ? (
                                 detectedTools.map(tool => (
                                     <InfoTag
@@ -245,7 +255,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                                 <div className="text-sm text-gray-400 italic">No tools</div>
                             )}
                         </div>
-                    </div>
+                    </button>
                 </div>
             </div>
 
@@ -256,6 +266,22 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                     <span>{startWarning}</span>
                 </div>
             )}
+
+            {/* Sensor Modal */}
+            <SensorModal
+                isOpen={isSensorModalOpen}
+                onClose={() => setIsSensorModalOpen(false)}
+                systemPrompt={agent.system_prompt || ''}
+                agentName={agent.name || 'Unnamed Agent'}
+            />
+
+            {/* Tools Modal */}
+            <ToolsModal
+                isOpen={isToolsModalOpen}
+                onClose={() => setIsToolsModalOpen(false)}
+                code={code || ''}
+                agentName={agent.name || 'Unnamed Agent'}
+            />
         </div>
     );
 };
