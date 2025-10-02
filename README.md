@@ -2,7 +2,7 @@
 
 # 👁️ Observer AI
 
-### *Local AI Agents That See, Remember, and Act*
+### *Local Micro-Agents That Observe, Log and React*
 
 Build powerful micro-agents that observe your digital world, remember what matters, and react intelligently—all while keeping your data **100% private and secure**.
 
@@ -31,13 +31,13 @@ Build powerful micro-agents that observe your digital world, remember what matte
 </td>
 <td align="center" width="25%">
 <img src="https://img.icons8.com/fluency/96/000000/microphone.png" width="64" height="64" alt="Audio"/>
-<br><strong>🎤 Audio</strong>
-<br><sub>Mic + Computer Audio</sub>
+<br><strong>Audio</strong>
+<br><sub>Mic + Computer</sub>
 </td>
 <td align="center" width="25%">
 <img src="https://img.icons8.com/fluency/96/000000/brain.png" width="64" height="64" alt="Memory"/>
 <br><strong>Memory</strong>
-<br><sub>Context Storage</sub>
+<br><sub>Text + Image</sub>
 </td>
 </tr>
 </table>
@@ -55,10 +55,10 @@ Build powerful micro-agents that observe your digital world, remember what matte
 ### 📊 **Intelligent Logging**
 
 🧠 **Text & Visual Memory**
-Store and retrieve images for context-aware decisions
+Store and retrieve images or text intelligently.
 
 🎥 **Smart Screen Recording**
-Start recording intelligently or analyze clips with custom labels
+Start recording when something happens or analyze clips with custom labels
 
 💾 **Persistent Context**
 Agents remember what matters across sessions
