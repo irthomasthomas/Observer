@@ -19,6 +19,7 @@ interface GetStartedProps {
   onSwitchToObServer?: () => void;
   onUpgrade?: () => void;
   onRefresh?: () => void;
+  onUpgradeClick?: () => void;
 }
 
 const GetStarted: React.FC<GetStartedProps> = ({
@@ -32,7 +33,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
   onSignIn,
   onSwitchToObServer,
   onUpgrade,
-  onRefresh
+  onRefresh,
+  onUpgradeClick
 }) => {
   const [mode, setMode] = useState<'single' | 'multi'>('single');
 
@@ -128,6 +130,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
                   isUsingObServer={isUsingObServer}
                   onSignIn={onSignIn}
                   onSwitchToObServer={onSwitchToObServer}
+                  onUpgradeClick={onUpgradeClick}
                 />
               ) : (
                 <MultiAgentCreator

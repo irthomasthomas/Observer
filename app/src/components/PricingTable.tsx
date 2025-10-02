@@ -76,7 +76,13 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <ul className="space-y-4 mb-8 flex-grow">
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free To Try Out!</span></li>
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Single Agent Creator:</strong> Limited builds</span></li>
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cloud Model Usage:</strong> 15 calls/day</span></li>
+            <li className="flex items-start">
+              <Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" />
+              <span>
+                <strong>Cloud Model Usage:</strong> 15 calls/day
+                {isHalfwayWarning && <span className="ml-2 text-yellow-600 font-semibold">(Halfway there!)</span>}
+              </span>
+            </li>
             <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Limited notifications</strong></span></li>
             <li className="flex items-start"><HeartCrack className="h-6 w-6 text-red-500 mr-3 flex-shrink-0" /><span><strong>Support:</strong> Limited (solo dev!)</span></li>
           </ul>

@@ -667,6 +667,10 @@ function AppContent() {
                     setIsUsingObServer(true);
                   }}
                   onRefresh={fetchAgents}
+                  onUpgradeClick={() => {
+                    setIsHalfwayWarning(false);
+                    setIsUpgradeModalOpen(true);
+                  }}
                 />
               }
             </div>
@@ -715,6 +719,10 @@ function AppContent() {
           }}
           onRefresh={fetchAgents}
           initialMessage={aiEditMessage}
+          onUpgradeClick={() => {
+            setIsHalfwayWarning(false);
+            setIsUpgradeModalOpen(true);
+          }}
         />
 
       {isEditModalOpen && (

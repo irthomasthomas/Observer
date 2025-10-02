@@ -21,6 +21,7 @@ interface ConversationalGeneratorModalProps {
   onRefresh?: () => void;
   initialMessage?: string;
   initialMode?: 'single' | 'multi';
+  onUpgradeClick?: () => void;
 }
 
 const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> = ({
@@ -35,7 +36,8 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   onSwitchToObServer,
   onUpgrade,
   onRefresh,
-  initialMessage
+  initialMessage,
+  onUpgradeClick
 }) => {
   // Default to multi-agent mode when we have an initial message (editing existing agents)
   const [mode, setMode] = useState<'single' | 'multi'>(initialMessage ? 'multi' : 'single');
@@ -64,8 +66,9 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     isAuthenticated,
     isUsingObServer,
     onSignIn,
-    onSwitchToObServer
-  }), [handleAgentReady, getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer]);
+    onSwitchToObServer,
+    onUpgradeClick
+  }), [handleAgentReady, getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer, onUpgradeClick]);
 
   const handleUpgrade = useCallback(() => {
     onUpgrade?.();
