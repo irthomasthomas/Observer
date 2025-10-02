@@ -96,6 +96,7 @@ function AppContent() {
   // --- NEW STATE FOR QUOTA ERRORS AND MODAL ---
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isHalfwayWarning, setIsHalfwayWarning] = useState(false);
 
   // --- STATE FOR ACTIVITY MODAL ---
   const [activityModalOpen, setActivityModalOpen] = useState(false);
@@ -551,7 +552,11 @@ function AppContent() {
         `}
       </style>
 
-        <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          isHalfwayWarning={isHalfwayWarning}
+        />
 
 
         <AppHeader
@@ -569,7 +574,10 @@ function AppContent() {
             logout
           }}
           getToken={getToken}
-          onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+          onUpgradeClick={() => {
+            setIsHalfwayWarning(true);
+            setIsUpgradeModalOpen(true);
+          }}
           onShowTerminalModal={() => setNoModels(true)}
           quotaInfo={quotaInfo}
           setQuotaInfo={setQuotaInfo}
@@ -632,7 +640,10 @@ function AppContent() {
                       getToken={getToken}
                       isAuthenticated={isAuthenticated}
                       hasQuotaError={agentsWithQuotaError.has(agent.id)}
-                      onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+                      onUpgradeClick={() => {
+                        setIsHalfwayWarning(false);
+                        setIsUpgradeModalOpen(true);
+                      }}
                       onSave={handleSaveAgent}
                       isProUser={isProUser}
                       onAIEdit={handleAIEditClick}

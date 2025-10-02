@@ -18,6 +18,7 @@ interface PricingTableProps {
   onManageSubscription: () => void;
   onLogin: () => void;
   isTriggeredByQuotaError?: boolean; // Optional prop for special styling
+  isHalfwayWarning?: boolean; // New prop to indicate halfway warning vs full limit
 }
 
 export const PricingTable: React.FC<PricingTableProps> = ({
@@ -31,6 +32,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   onManageSubscription,
   onLogin,
   isTriggeredByQuotaError = false,
+  isHalfwayWarning = false,
 }) => {
   // Use smaller sizing for non-modal contexts (like ObServerTab)
   const containerClass = isTriggeredByQuotaError 

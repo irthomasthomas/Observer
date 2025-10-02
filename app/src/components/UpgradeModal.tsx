@@ -9,9 +9,10 @@ import { PricingTable } from './PricingTable'; // Import our new reusable compon
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  isHalfwayWarning?: boolean;
 }
 
-export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
+export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isHalfwayWarning = false }) => {
   const [status, setStatus] = useState<'loading' | 'pro' | 'free' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
@@ -91,7 +92,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) =
           </div>
         ) : (
           <PricingTable
-            headline="You've Reached Your Daily Limit!"
+            headline={isHalfwayWarning ? "You've Used Half of Your Daily Limit!" : "You've Reached Your Daily Limit!"}
             subheadline="Upgrade to Observer Pro!"
             status={status}
             isButtonLoading={isButtonLoading}
@@ -101,6 +102,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) =
             onManageSubscription={() => handleApiAction('create-customer-portal-session')}
             onLogin={loginWithRedirect}
             isTriggeredByQuotaError={true} // <-- Pass the special prop here
+            isHalfwayWarning={isHalfwayWarning}
           />
         )}
       </div>
