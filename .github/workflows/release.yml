@@ -17,8 +17,8 @@ jobs:
       matrix:
         platform:
           - os: macos-latest # Apple Silicon (ARM64)
-          - os: macos-13     # Intel (x86_64) Frick 
-          # - os: ubuntu-latest  # Linux (x86_64)
+          - os: macos-15     # Intel (x86_64) New instance
+          - os: ubuntu-latest  # Linux (x86_64)
           - os: windows-latest # Windows (x86_64)
 
     runs-on: ${{ matrix.platform.os }}
