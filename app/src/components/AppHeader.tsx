@@ -1,7 +1,19 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { LogOut, RefreshCw, Server } from 'lucide-react';
-import { checkInferenceServer, addInferenceAddress, removeInferenceAddress, fetchModels } from '@utils/inferenceServer';
+import { LogOut, Server, Menu } from 'lucide-react';
+import {
+  checkInferenceServer,
+  addInferenceAddress,
+  removeInferenceAddress,
+  fetchModels,
+  loadCustomServers,
+  getCustomServers,
+  addCustomServer,
+  removeCustomServer,
+  toggleCustomServer,
+  checkCustomServer,
+  type CustomServer
+} from '@utils/inferenceServer';
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import ConnectionSettingsModal from './ConnectionSettingsModal';
@@ -43,6 +55,7 @@ interface AppHeaderProps {
   onShowTerminalModal?: () => void;
   quotaInfo: QuotaInfo;
   setQuotaInfo: React.Dispatch<React.SetStateAction<QuotaInfo>>;
+  onToggleMobileMenu?: () => void;
 }
 
 
@@ -58,8 +71,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onShowTerminalModal,
   quotaInfo,
   setQuotaInfo,
+  onToggleMobileMenu,
 }) => {
   const [localServerOnline, setLocalServerOnline] = useState(false);
+  const [customServers, setCustomServers] = useState<CustomServer[]>([]);
 
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
@@ -81,6 +96,26 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const user = authState?.user;
 
   const isProUser = quotaInfo?.pro_status === true;
+
+  // Calculate overall server status based on all enabled servers
+  const computedServerStatus: 'unchecked' | 'online' | 'offline' = (() => {
+    const enabledCustomServersOnline = customServers.some(s => s.enabled && s.status === 'online');
+    const obServerOnline = isUsingObServer && isAuthenticated;
+
+    // If ANY enabled server is online, show green
+    if (localServerOnline || obServerOnline || enabledCustomServersOnline) {
+      return 'online';
+    }
+
+    // If all checked servers are offline, show red
+    const hasCheckedServers = customServers.some(s => s.status !== 'unchecked');
+    if (!localServerOnline && (!isUsingObServer || !isAuthenticated) && (customServers.length === 0 || hasCheckedServers)) {
+      return 'offline';
+    }
+
+    // Otherwise show unchecked
+    return 'unchecked';
+  })();
 
   const handleLogout = () => {
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
@@ -272,8 +307,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     };
   }, []);
 
-  // Initialize and check local server on mount
+  // Initialize custom servers and check local server on mount
   useEffect(() => {
+    // Load custom servers from localStorage
+    const loaded = loadCustomServers();
+    setCustomServers(loaded);
+
+    // Check local server
     checkLocalServer();
   }, []);
 
@@ -313,6 +353,32 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   }, [isUsingObServer, isAuthenticated, serverStatus]);
 
   // Removed: No longer need to save server address to localStorage
+
+  // Custom server handlers
+  const handleAddCustomServer = (address: string) => {
+    const updated = addCustomServer(address);
+    setCustomServers(updated);
+    fetchModels();
+  };
+
+  const handleRemoveCustomServer = (address: string) => {
+    const updated = removeCustomServer(address);
+    setCustomServers(updated);
+    fetchModels();
+  };
+
+  const handleToggleCustomServer = (address: string) => {
+    const updated = toggleCustomServer(address);
+    setCustomServers(updated);
+    fetchModels();
+  };
+
+  const handleCheckCustomServer = async (address: string) => {
+    await checkCustomServer(address);
+    const updated = getCustomServers();
+    setCustomServers(updated);
+    fetchModels();
+  };
 
   const renderQuotaStatus = () => {
     if (isSessionExpired) {
@@ -368,11 +434,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
+      <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-[60]">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-4">
           <div className="flex justify-between items-center">
             {/* Left side */}
             <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Burger Menu - Mobile Only */}
+              <button
+                onClick={onToggleMobileMenu}
+                className="md:hidden p-2 rounded-md hover:bg-gray-100"
+                aria-label="Toggle navigation menu"
+              >
+                <Menu className="h-5 w-5 text-gray-600" />
+              </button>
+
               <img
                 src="/eye-logo-black.svg"
                 alt="Observer Logo"
@@ -397,79 +472,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
             {/* Right side */}
             <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
-              {/* Desktop Controls (Visible on md screens and up) */}
-              <div className="hidden md:flex items-center space-x-1 sm:space-x-2">
-                {/* ObServer Toggle */}
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center space-x-1 sm:space-x-2">
-                    <span className="text-sm text-gray-600 hidden md:inline">ObServer</span>
-                    <button
-                      className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
-                        isUsingObServer ? 'bg-blue-500' : 'bg-slate-700'
-                      }`}
-                      onClick={handleToggleObServer}
-                      aria-label={isUsingObServer ? "Disable ObServer" : "Enable ObServer"}
-                    >
-                      <span
-                        className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${
-                          isUsingObServer ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  {showLoginMessage ? (
-                    <span className="text-xs text-red-500 font-semibold mt-1">
-                      Login Required
-                    </span>
-                  ) : isUsingObServer ? (
-                    isAuthenticated && (
-                      <div className="text-xs text-center mt-1 h-4"> {/* h-4 to prevent layout shift */}
-                        {renderQuotaStatus()}
-                      </div>
-                    )
-                  ) : (
-                    <div className="text-xs text-center mt-1">
-                      <span className="font-semibold text-gray-500">
-                        Fully Offline
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Local Server Status Button - Hidden on official web */}
-                {hostingContext !== 'official-web' && (
-                  <button
-                    onClick={checkLocalServerOnly}
-                    className={`py-2 rounded-md flex items-center justify-center text-sm transition-colors duration-200 lg:min-w-36
-                                ${localServerOnline
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-red-500 text-white hover:bg-red-600'
-                                }
-                                px-2 sm:px-3 md:px-4`}
-                  >
-                    {localServerOnline ? (
-                      <>
-                        <Server className="h-4 w-4" />
-                        <span className="hidden lg:inline ml-1.5">Local: Online</span>
-                      </>
-                    ) : (
-                      <>
-                        <Server className="h-4 w-4" />
-                        <RefreshCw className="h-3 w-3 ml-1" />
-                        <span className="hidden lg:inline ml-1.5">Local: Offline</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-              </div>
-
-              {/* Mobile Controls (Visible below md screens) */}
-              <div className="flex md:hidden items-center space-x-2">
+              {/* Server Status and Settings Button (All screen sizes) */}
+              <div className="flex items-center space-x-2">
                 {/* Status Indicator Dot */}
                 <div className={`w-3 h-3 rounded-full
-                    ${serverStatus === 'online' ? 'bg-green-500' : serverStatus === 'offline' ? 'bg-red-500' : 'bg-orange-500 animate-pulse'}
-                `} title={`Status: ${serverStatus}`}></div>
+                    ${computedServerStatus === 'online' ? 'bg-green-500' : computedServerStatus === 'offline' ? 'bg-red-500' : 'bg-orange-500 animate-pulse'}
+                `} title={`Status: ${computedServerStatus}`}></div>
 
                 {/* Settings Button */}
                 <button
@@ -538,7 +546,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           quotaInfo,
           renderQuotaStatus,
           localServerOnline,
-          checkLocalServer: checkLocalServerOnly
+          checkLocalServer: checkLocalServerOnly,
+          customServers,
+          onAddCustomServer: handleAddCustomServer,
+          onRemoveCustomServer: handleRemoveCustomServer,
+          onToggleCustomServer: handleToggleCustomServer,
+          onCheckCustomServer: handleCheckCustomServer
         }}
       />
 

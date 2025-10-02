@@ -14,9 +14,12 @@ interface GetStartedProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
+  isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
+  onUpgrade?: () => void;
   onRefresh?: () => void;
+  onUpgradeClick?: () => void;
 }
 
 const GetStarted: React.FC<GetStartedProps> = ({
@@ -26,9 +29,12 @@ const GetStarted: React.FC<GetStartedProps> = ({
   getToken,
   isAuthenticated,
   isUsingObServer,
+  isPro,
   onSignIn,
   onSwitchToObServer,
-  onRefresh
+  onUpgrade,
+  onRefresh,
+  onUpgradeClick
 }) => {
   const [mode, setMode] = useState<'single' | 'multi'>('single');
 
@@ -38,7 +44,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-6">
+    <div className="w-full max-w-6xl mx-auto px-2 md:px-4 py-6">
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-6 h-full">
         {/* Main Create Agent Card - Full width on mobile */}
         <div className="flex flex-col md:col-span-2 order-1">
@@ -124,14 +130,17 @@ const GetStarted: React.FC<GetStartedProps> = ({
                   isUsingObServer={isUsingObServer}
                   onSignIn={onSignIn}
                   onSwitchToObServer={onSwitchToObServer}
+                  onUpgradeClick={onUpgradeClick}
                 />
               ) : (
                 <MultiAgentCreator
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
+                  isPro={isPro}
                   onSignIn={onSignIn}
                   onSwitchToObServer={onSwitchToObServer}
+                  onUpgrade={onUpgrade}
                   onRefresh={onRefresh}
                 />
               )}

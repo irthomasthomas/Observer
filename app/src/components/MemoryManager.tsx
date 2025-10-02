@@ -216,7 +216,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[70] bg-black bg-opacity-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-lg w-3/4 max-w-4xl h-3/4 flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-xl font-semibold">Memory Manager: {agentName}</h2>

@@ -192,6 +192,95 @@ class LoggingService {
         console.error('Error in log listener:', error);
       }
     });
+
+    // Dispatch window events for certain logTypes (unified event system)
+    this.dispatchWindowEventIfNeeded(entry);
+  }
+
+  /**
+   * Dispatch window events based on logType - unified event system
+   * Logger is the single source of truth; events are notifications
+   */
+  private dispatchWindowEventIfNeeded(entry: LogEntry): void {
+    const logType = entry.details?.logType;
+    if (!logType) return;
+
+    try {
+      switch (logType) {
+        case 'agent-status-changed':
+          window.dispatchEvent(
+            new CustomEvent('agentStatusChanged', {
+              detail: entry.details.content
+            })
+          );
+          break;
+
+        case 'iteration-start':
+          window.dispatchEvent(
+            new CustomEvent('agentIterationStart', {
+              detail: {
+                agentId: entry.source,
+                intervalMs: entry.details.content?.intervalMs,
+                iterationStartTime: entry.details.content?.iterationStartTime,
+                iterationId: entry.details.iterationId
+              }
+            })
+          );
+          break;
+
+        case 'iteration-end':
+        case 'iteration-skipped':
+          // These are logged but don't need immediate UI events
+          // UI can track completion through log listener
+          break;
+
+        case 'stream-start':
+          window.dispatchEvent(
+            new CustomEvent('agentStreamStart', {
+              detail: {
+                agentId: entry.source,
+                iterationId: entry.details.iterationId
+              }
+            })
+          );
+          break;
+
+        case 'stream-chunk':
+          window.dispatchEvent(
+            new CustomEvent('agentResponseChunk', {
+              detail: {
+                agentId: entry.source,
+                chunk: entry.details.content?.chunk,
+                iterationId: entry.details.iterationId
+              }
+            })
+          );
+          break;
+
+        case 'agent-error':
+          window.dispatchEvent(
+            new CustomEvent('agentRuntimeError', {
+              detail: {
+                agentId: entry.source,
+                error: entry.details.content?.error
+              }
+            })
+          );
+          break;
+
+        case 'quota-exceeded':
+          window.dispatchEvent(
+            new CustomEvent('quotaExceeded', {
+              detail: {
+                agentId: entry.source
+              }
+            })
+          );
+          break;
+      }
+    } catch (error) {
+      console.error('Error dispatching window event from logger:', error);
+    }
   }
 }
 

@@ -123,7 +123,6 @@ export async function fetchResponse(
         headers['Authorization'] = `Bearer ${token}`;
       }
       // Trigger the optimistic UI update
-      optimisticUpdateQuota();
     }
 
     const requestBody = JSON.stringify({
@@ -229,6 +228,10 @@ export async function sendPrompt(
           }
         }))
       ];
+    }
+
+    if (serverAddress.includes('api.observer-ai.com') && token) {
+      optimisticUpdateQuota();
     }
 
     // Use the new fetchResponse function

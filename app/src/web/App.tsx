@@ -9,7 +9,7 @@ import {
   saveAgent,
   CompleteAgent,
 } from '@utils/agent_database';
-import { startAgentLoop, stopAgentLoop, AGENT_STATUS_CHANGED_EVENT } from '@utils/main_loop';
+import { startAgentLoop, stopAgentLoop } from '@utils/main_loop';
 import { Logger } from '@utils/logging';
 import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
 import { IterationStore } from '@utils/IterationStore';
@@ -96,6 +96,7 @@ function AppContent() {
   // --- NEW STATE FOR QUOTA ERRORS AND MODAL ---
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isHalfwayWarning, setIsHalfwayWarning] = useState(false);
 
   // --- STATE FOR ACTIVITY MODAL ---
   const [activityModalOpen, setActivityModalOpen] = useState(false);
@@ -112,6 +113,9 @@ function AppContent() {
     limit: number | 'unlimited';
     pro_status: boolean;
   } | null>(null);
+
+  // --- STATE FOR MOBILE SIDEBAR ---
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // --- DERIVED STATE ---
   const isProUser = quotaInfo?.pro_status === true;
@@ -218,13 +222,14 @@ function AppContent() {
       });
     };
 
+    // Event dispatched by Logger based on logType 'agent-status-changed'
     window.addEventListener(
-      AGENT_STATUS_CHANGED_EVENT,
+      'agentStatusChanged',
       handleAgentStatusChange as EventListener
     );
     return () => {
       window.removeEventListener(
-        AGENT_STATUS_CHANGED_EVENT,
+        'agentStatusChanged',
         handleAgentStatusChange as EventListener
       );
     };
@@ -547,7 +552,11 @@ function AppContent() {
         `}
       </style>
 
-        <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          isHalfwayWarning={isHalfwayWarning}
+        />
 
 
         <AppHeader
@@ -565,15 +574,21 @@ function AppContent() {
             logout
           }}
           getToken={getToken}
-          onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+          onUpgradeClick={() => {
+            setIsHalfwayWarning(true);
+            setIsUpgradeModalOpen(true);
+          }}
           onShowTerminalModal={() => setNoModels(true)}
           quotaInfo={quotaInfo}
           setQuotaInfo={setQuotaInfo}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
         <PersistentSidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          isMobileMenuOpen={isMobileMenuOpen}
+          onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
         />
 
         <JupyterServerModal
@@ -581,7 +596,7 @@ function AppContent() {
           onClose={() => setIsJupyterModalOpen(false)}
         />
 
-        <main className="pt-24 pb-16 px-4 pl-20 wide:px-4 max-w-7xl mx-auto">
+        <main className="pt-24 pb-16 px-4 pl-2 md:pl-20 wide:px-4 max-w-7xl mx-auto">
 
           {error && <ErrorDisplay message={error} />}
 
@@ -625,7 +640,10 @@ function AppContent() {
                       getToken={getToken}
                       isAuthenticated={isAuthenticated}
                       hasQuotaError={agentsWithQuotaError.has(agent.id)}
-                      onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+                      onUpgradeClick={() => {
+                        setIsHalfwayWarning(false);
+                        setIsUpgradeModalOpen(true);
+                      }}
                       onSave={handleSaveAgent}
                       isProUser={isProUser}
                       onAIEdit={handleAIEditClick}
@@ -641,9 +659,18 @@ function AppContent() {
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
+                  isPro={isProUser}
                   onSignIn={loginWithRedirect}
                   onSwitchToObServer={() => setIsUsingObServer(true)}
+                  onUpgrade={() => {
+                    setActiveTab('obServer');
+                    setIsUsingObServer(true);
+                  }}
                   onRefresh={fetchAgents}
+                  onUpgradeClick={() => {
+                    setIsHalfwayWarning(false);
+                    setIsUpgradeModalOpen(true);
+                  }}
                 />
               }
             </div>
@@ -686,8 +713,16 @@ function AppContent() {
           isPro={isProUser}
           onSignIn={loginWithRedirect}
           onSwitchToObServer={() => setIsUsingObServer(true)}
+          onUpgrade={() => {
+            setActiveTab('obServer');
+            setIsUsingObServer(true);
+          }}
           onRefresh={fetchAgents}
           initialMessage={aiEditMessage}
+          onUpgradeClick={() => {
+            setIsHalfwayWarning(false);
+            setIsUpgradeModalOpen(true);
+          }}
         />
 
       {isEditModalOpen && (
@@ -732,7 +767,7 @@ function AppContent() {
         />
       )}
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-30">
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-[60]">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <div className="flex space-x-3">

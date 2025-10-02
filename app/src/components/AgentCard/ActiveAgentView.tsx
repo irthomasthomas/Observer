@@ -1,6 +1,6 @@
 // components/AgentCard/ActiveAgentView.tsx
 import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
-import { Eye, Clock, Power, Activity, Mic, Volume2, Crop, RotateCcw, Brain, Images, AlertTriangle } from 'lucide-react';
+import { Eye, Clock, Power, Activity, Mic, Volume2, Crop, RotateCcw, Save, Images, AlertTriangle } from 'lucide-react';
 import { StreamState, AudioStreamType } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { CompleteAgent, getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
@@ -10,7 +10,7 @@ import ToolStatus from '@components/AgentCard/ToolStatus';
 import { useTranscriptionPolling } from '@hooks/useTranscriptionPolling';
 import TranscriptionModal from '@components/AgentCard/TranscriptionModal';
 
-type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'IDLE';
+type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'SKIPPED' | 'IDLE';
 
 // --- Crop Overlay Component ---
 
@@ -399,7 +399,7 @@ const MemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-        <Brain className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <Save className="w-4 h-4 text-blue-600 flex-shrink-0" />
         <span className="text-blue-700 text-sm italic">Loading memory...</span>
       </div>
     );
@@ -408,7 +408,7 @@ const MemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
   if (!memory.trim()) {
     return (
       <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-        <Brain className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <Save className="w-4 h-4 text-blue-600 flex-shrink-0" />
         <span className="text-blue-700 text-sm italic">No memory data yet</span>
       </div>
     );
@@ -416,7 +416,7 @@ const MemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
 
   return (
     <div className="flex items-start gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-      <Brain className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+      <Save className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium text-blue-600 mb-1">Memory</div>
         <div className="text-blue-700 text-sm leading-relaxed break-words line-clamp-3 overflow-hidden">
@@ -517,6 +517,7 @@ const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
       case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
       case 'CAPTURING': return { icon: <Eye className="w-5 h-5 animate-subtle-pulse" />, text: 'Capturing Inputs...', color: 'text-cyan-600' };
       case 'THINKING': return { icon: <Activity className="w-5 h-5" />, text: 'Model is thinking...', color: 'text-purple-600' };
+      case 'SKIPPED': return { icon: <Clock className="w-5 h-5" />, text: 'No Change, Skipped Iteration...', color: 'text-orange-500' };
       case 'WAITING': return { icon: <Clock className="w-5 h-5" />, text: 'Waiting for next cycle...', color: 'text-gray-500' };
       default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };
     }

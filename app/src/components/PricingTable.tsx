@@ -3,7 +3,7 @@
 import React from 'react';
 import { 
   Loader2, Zap, ExternalLink, Heart, HeartCrack,
-  Check, HardDrive, Server, Sparkles, AlertTriangle
+  Check, HardDrive, Server, Sparkles
 } from 'lucide-react';
 
 // Define the props this component will accept
@@ -18,6 +18,7 @@ interface PricingTableProps {
   onManageSubscription: () => void;
   onLogin: () => void;
   isTriggeredByQuotaError?: boolean; // Optional prop for special styling
+  isHalfwayWarning?: boolean; // New prop to indicate halfway warning vs full limit
 }
 
 export const PricingTable: React.FC<PricingTableProps> = ({
@@ -31,6 +32,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   onManageSubscription,
   onLogin,
   isTriggeredByQuotaError = false,
+  isHalfwayWarning = false,
 }) => {
   // Use smaller sizing for non-modal contexts (like ObServerTab)
   const containerClass = isTriggeredByQuotaError 
@@ -72,13 +74,16 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <p className="text-gray-500 min-h-[4rem]">No setup required.</p>
           </div>
           <ul className="space-y-4 mb-8 flex-grow">
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free</span></li>
-            {isTriggeredByQuotaError ? (
-                <li className="flex items-start font-semibold text-red-600"><AlertTriangle className="h-6 w-6 text-red-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> Limit Reached</span></li>
-            ) : (
-                <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> 15 actions/day</span></li>
-            )}
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Setup:</strong> Start building in 30 seconds</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free To Try Out!</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Single Agent Creator:</strong> Limited builds</span></li>
+            <li className="flex items-start">
+              <Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" />
+              <span>
+                <strong>Cloud Model Usage:</strong> 15 calls/day
+                {isHalfwayWarning && <span className="ml-2 text-yellow-600 font-semibold">(Halfway there!)</span>}
+              </span>
+            </li>
+            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Limited notifications</strong></span></li>
             <li className="flex items-start"><HeartCrack className="h-6 w-6 text-red-500 mr-3 flex-shrink-0" /><span><strong>Support:</strong> Limited (solo dev!)</span></li>
           </ul>
            <div className="mt-auto h-12"></div> {/* Spacer to align buttons */}
@@ -87,18 +92,22 @@ export const PricingTable: React.FC<PricingTableProps> = ({
         {/* Column 2: Observer Pro */}
         <div className="relative border-2 border-purple-500 rounded-lg p-6 flex flex-col h-full bg-purple-50 shadow-lg">
           <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-            <div className="bg-purple-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1">Recommended</div>
+            <div className="bg-purple-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap">Recommended</div>
           </div>
           <div className="text-center">
-            <Sparkles className="mx-auto h-10 w-10 text-purple-500 mb-3" />
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Sparkles className="h-10 w-10 text-purple-500" />
+              <span className="text-2xl font-bold text-purple-800">+</span>
+              <HardDrive className="h-10 w-10 text-purple-500" />
+            </div>
             <h2 className="text-2xl font-bold text-purple-800">Observer Pro</h2>
-            <p className="text-purple-700">Save Time, Build More</p>
+            <p className="text-purple-700">+ Local Server</p>
           </div>
           <ul className="space-y-2 mt-7 mb-8 flex-grow">
-            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited use of models</strong></span></li>
-            <li className="flex items-start"><Sparkles className="h-5 w-5 text-purple-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Access to Pro Models</strong></span></li>
-            <li className="flex items-start"><Zap className="h-5 w-5 text-yellow-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Priority performance & speed</strong></span></li>
-            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited SMS, WhatsApp, Discord & Email</strong></span></li>
+            <li className="flex items-start"><Sparkles className="h-5 w-5 text-purple-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlock Multi-Agent Creator and Editor</strong></span></li>
+            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited Single Agent Creator</strong></span></li>
+            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited Cloud Model Usage + Pro Models</strong></span></li>
+            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited Telegram, Discord, SMS, WhatsApp, Email & Pushover notifications</strong></span></li>
             <li className="flex items-start"><Heart className="h-5 w-5 text-pink-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>$20/month</strong></span></li>
           </ul>
            {status === 'pro' ? (
@@ -122,18 +131,19 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             )}
         </div>
 
-        {/* Column 3: Self-Hosted */}
+        {/* Column 3: Local Inference Details */}
         <div className={isTriggeredByQuotaError ? "border rounded-lg p-4 flex flex-col h-full bg-gray-50/50 shadow-sm" : "border rounded-lg p-3 flex flex-col h-full bg-gray-50/50 shadow-sm"}>
           <div className="text-center">
             <HardDrive className={isTriggeredByQuotaError ? "mx-auto h-10 w-10 text-gray-500 mb-3" : "mx-auto h-8 w-8 text-gray-500 mb-2"} />
-            <h2 className="text-xl font-bold text-gray-800">Build Locally</h2>
+            <h2 className="text-xl font-bold text-gray-800">Local Server</h2>
             <p className="text-gray-500 min-h-[4rem]">Complete control of your data and infrastructure.</p>
           </div>
           <ul className="space-y-4 mb-8 flex-grow">
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free (your hardware)</span></li>
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Performance:</strong> As fast as your hardware!</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free (No API costs!)</span></li>
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Daily Usage:</strong> ∞ Unlimited</span></li>
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Privacy:</strong> 100% local</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Efficient:</strong> Runs on your machine with small models.</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Performance:</strong> As fast as your hardware!</span></li>
             <li className="flex items-start"><Heart className="h-6 w-6 text-pink-500 mr-3 flex-shrink-0" /><span><strong>Support:</strong> Community</span></li>
           </ul>
           <a href="https://github.com/Roy3838/Observer?tab=readme-ov-file#option-1-full-docker-setup-recommended--easiest" target="_blank" rel="noopener noreferrer" className="w-full text-center mt-auto px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors">

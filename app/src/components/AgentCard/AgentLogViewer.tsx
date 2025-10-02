@@ -1,7 +1,7 @@
 // src/components/AgentLogViewer.tsx
 import React, { useState, useEffect } from 'react';
 import {
-  Brain, HelpCircle,
+  Save, HelpCircle,
   Monitor, Clipboard, Camera, Mic,
   ScanText,
   ArrowRight, Clock, Download, ChevronDown, Images, Trash2
@@ -87,7 +87,7 @@ const getSensorIcon = (sensorType: string) => {
     ocr: ScanText,
     audio: Mic,
     clipboard: Clipboard,
-    memory: Brain,
+    memory: Save,
     imemory: Images,
   };
   return iconMap[sensorType] || Monitor;
@@ -263,7 +263,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     if (!response) {
       return (
         <div className="flex items-center gap-2 text-gray-400 text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-          <Brain className="w-4 h-4" />
+          <Save className="w-4 h-4" />
           <span className="italic">No response</span>
         </div>
       );
@@ -272,7 +272,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     const preview = response.slice(0, 100);
     return (
       <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-        <Brain className="w-4 h-4 text-green-600 flex-shrink-0" />
+        <Save className="w-4 h-4 text-green-600 flex-shrink-0" />
         <span className="text-sm text-green-700 truncate">
           "{preview}{response.length > 100 ? '...' : ''}"
         </span>
@@ -353,10 +353,32 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   const renderIterations = (iterations: IterationData[], sessionLabel?: string) => {
     return iterations.map((iteration) => {
       const iterationNumber = iteration.sessionIterationNumber;
-      
+
+      // Render minimal card for skipped iterations
+      if (iteration.isSkipped) {
+        return (
+          <div
+            key={iteration.id}
+            className="border border-orange-200 bg-orange-50 rounded-lg px-4 py-3 transition-all duration-200 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+              <span className="text-sm font-medium text-orange-700">
+                #{iterationNumber} Iteration Skipped - Same Inputs
+              </span>
+              {sessionLabel && (
+                <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded ml-auto">
+                  {sessionLabel}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div 
-          key={iteration.id} 
+        <div
+          key={iteration.id}
           className={`border rounded-lg p-4 transition-all duration-200 shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.01] ${
             iteration.hasError ? 'border-red-200 bg-red-50 hover:bg-red-100' : 'border-gray-200 bg-white hover:bg-gray-50'
           }`}

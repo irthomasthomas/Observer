@@ -12,11 +12,23 @@ export interface Model {
   server: string;
 }
 
+export interface CustomServer {
+  address: string;
+  enabled: boolean;
+  status: 'unchecked' | 'online' | 'offline';
+}
+
 // Global state for inference addresses
 let inferenceAddresses: string[] = [];
 
 // Global state for models (updated by fetchModels, read by listModels)
 let availableModels: Model[] = [];
+
+// Global state for custom servers
+let customServers: CustomServer[] = [];
+
+// LocalStorage key
+const CUSTOM_SERVERS_KEY = 'observer-custom-servers';
 
 interface ModelsResponse {
   models: Model[];
@@ -40,6 +52,98 @@ export function getInferenceAddresses(): string[] {
 
 export function clearInferenceAddresses(): void {
   inferenceAddresses = [];
+}
+
+// Custom server management functions
+export function loadCustomServers(): CustomServer[] {
+  try {
+    const stored = localStorage.getItem(CUSTOM_SERVERS_KEY);
+    if (stored) {
+      customServers = JSON.parse(stored);
+      return customServers;
+    }
+  } catch (error) {
+    console.error('Failed to load custom servers:', error);
+  }
+  return [];
+}
+
+export function getCustomServers(): CustomServer[] {
+  return [...customServers];
+}
+
+export function addCustomServer(address: string): CustomServer[] {
+  // Normalize the address (trim whitespace)
+  const normalizedAddress = address.trim();
+
+  // Check if already exists
+  if (customServers.some(s => s.address === normalizedAddress)) {
+    return customServers;
+  }
+
+  const newServer: CustomServer = {
+    address: normalizedAddress,
+    enabled: true,
+    status: 'unchecked'
+  };
+
+  customServers.push(newServer);
+  localStorage.setItem(CUSTOM_SERVERS_KEY, JSON.stringify(customServers));
+
+  return [...customServers];
+}
+
+export function removeCustomServer(address: string): CustomServer[] {
+  customServers = customServers.filter(s => s.address !== address);
+  localStorage.setItem(CUSTOM_SERVERS_KEY, JSON.stringify(customServers));
+
+  // Also remove from inference addresses if present
+  removeInferenceAddress(address);
+
+  return [...customServers];
+}
+
+export function toggleCustomServer(address: string): CustomServer[] {
+  const server = customServers.find(s => s.address === address);
+  if (server) {
+    server.enabled = !server.enabled;
+    localStorage.setItem(CUSTOM_SERVERS_KEY, JSON.stringify(customServers));
+
+    // Update inference addresses based on enabled state
+    if (server.enabled && server.status === 'online') {
+      addInferenceAddress(address);
+    } else {
+      removeInferenceAddress(address);
+    }
+  }
+
+  return [...customServers];
+}
+
+export function updateCustomServerStatus(address: string, status: 'online' | 'offline'): CustomServer[] {
+  const server = customServers.find(s => s.address === address);
+  if (server) {
+    server.status = status;
+    localStorage.setItem(CUSTOM_SERVERS_KEY, JSON.stringify(customServers));
+
+    // Update inference addresses based on status and enabled state
+    if (status === 'online' && server.enabled) {
+      addInferenceAddress(address);
+    } else {
+      removeInferenceAddress(address);
+    }
+  }
+
+  return [...customServers];
+}
+
+export async function checkCustomServer(address: string): Promise<ServerResponse> {
+  const result = await checkInferenceServer(address);
+
+  // Update the custom server status
+  updateCustomServerStatus(address, result.status);
+
+  return result;
 }
 
 export async function checkInferenceServer(address: string): Promise<ServerResponse> {

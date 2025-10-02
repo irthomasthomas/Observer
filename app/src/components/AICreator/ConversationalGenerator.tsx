@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { sendPrompt, fetchResponse } from '@utils/sendApi';
+import { sendPrompt, fetchResponse, UnauthorizedError } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
 import MediaUploadMessage from '../MediaUploadMessage';
@@ -33,6 +33,7 @@ interface ConversationalGeneratorProps {
   isUsingObServer: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
+  onUpgradeClick?: () => void;
 }
 
 const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({
@@ -41,7 +42,8 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({
   isAuthenticated,
   isUsingObServer,
   onSignIn,
-  onSwitchToObServer
+  onSwitchToObServer,
+  onUpgradeClick
 }) => {
   
   const [messages, setMessages] = useState<Message[]>([
@@ -207,8 +209,17 @@ What would you like to create today?`
     } catch (err) {
       // Remove streaming message on error
       setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
-      const errorText = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setMessages(prev => [...prev, { id: Date.now() + Math.random() * 1000, sender: 'ai', text: `Sorry, I ran into an error: ${errorText}` }]);
+
+      // Check if it's a quota exceeded error
+      if (err instanceof UnauthorizedError && err.message.includes('Quota may be exceeded')) {
+        if (onUpgradeClick) {
+          onUpgradeClick();
+        }
+        setMessages(prev => [...prev, { id: Date.now() + Math.random() * 1000, sender: 'ai', text: `You've reached your daily limit. Please upgrade to continue.` }]);
+      } else {
+        const errorText = err instanceof Error ? err.message : 'An unknown error occurred.';
+        setMessages(prev => [...prev, { id: Date.now() + Math.random() * 1000, sender: 'ai', text: `Sorry, I ran into an error: ${errorText}` }]);
+      }
     } finally {
       setIsLoading(false);
     }

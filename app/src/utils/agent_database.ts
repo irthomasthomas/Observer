@@ -11,6 +11,7 @@ export interface CompleteAgent {
   model_name: string;
   system_prompt: string;
   loop_interval_seconds: number;
+  only_on_significant_change?: boolean;
 }
 
 // Database setup
@@ -102,7 +103,8 @@ export async function saveAgent(
     id: agent.id,
     model_name: agent.model_name,
     system_prompt: agent.system_prompt,
-    loop_interval_seconds: agent.loop_interval_seconds
+    loop_interval_seconds: agent.loop_interval_seconds,
+    only_on_significant_change: agent.only_on_significant_change
   };
   
   const configStore = tx.objectStore(CONFIG_STORE);
@@ -226,6 +228,7 @@ async function getAgentConfig(agentId: string): Promise<{
   model_name: string;
   system_prompt: string;
   loop_interval_seconds: number;
+  only_on_significant_change?: boolean;
 } | null> {
   const db = await openDB();
   
@@ -396,6 +399,7 @@ export interface AgentExport {
   model_name: string;
   system_prompt: string;
   loop_interval_seconds: number;
+  only_on_significant_change?: boolean;
   code: string;
   memory: string;
 }
@@ -426,7 +430,8 @@ export async function importAgentFromFile(file: File): Promise<CompleteAgent> {
           description: agentData.description || '',
           model_name: agentData.model_name,
           system_prompt: agentData.system_prompt,
-          loop_interval_seconds: agentData.loop_interval_seconds
+          loop_interval_seconds: agentData.loop_interval_seconds,
+          only_on_significant_change: agentData.only_on_significant_change
         };
         
         await saveAgent(agent, agentData.code);
@@ -497,6 +502,7 @@ export async function exportAgentToFile(agentId: string): Promise<Blob> {
     model_name: agent.model_name,
     system_prompt: agent.system_prompt,
     loop_interval_seconds: agent.loop_interval_seconds,
+    only_on_significant_change: agent.only_on_significant_change,
     code,
     memory
   };

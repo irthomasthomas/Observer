@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
   CheckCircle, XCircle, Send, MessageSquare, MessageSquarePlus, MessageSquareQuote,
-  MessageCircle, Mail, Bell, Brain, SquarePen, PlayCircle, StopCircle, Hourglass,
+  MessageCircle, Mail, Bell, Save, SquarePen, PlayCircle, StopCircle, Hourglass,
   Video, VideoOff, Hammer, Tag
 } from 'lucide-react';
 import { ToolCall } from '@utils/IterationStore';
@@ -18,7 +18,7 @@ const getToolIcon = (toolName: string) => {
     sendEmail: Mail,
     notify: Bell,
     system_notify: Bell,
-    getMemory: Brain,
+    getMemory: Save,
     setMemory: SquarePen,
     appendMemory: SquarePen,
     startAgent: PlayCircle,

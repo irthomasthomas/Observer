@@ -1,36 +1,91 @@
-# Observer AI 🚀!
-
-Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
-
 <div align="center">
+
+# 👁️ Observer AI
+
+### *Local Micro-Agents That Observe, Log and React*
+
+Build powerful micro-agents that observe your digital world, remember what matters, and react intelligently—all while keeping your data **100% private and secure**.
 
 [![Observer App Online](https://img.shields.io/badge/🌐_Observer_App-Online-blue?style=for-the-badge&color=4CAF50)](https://app.observer-ai.com/)
 [![Download App](https://img.shields.io/badge/⬇️_Download-Latest_Release-blue?style=for-the-badge&color=2196F3)](https://github.com/Roy3838/Observer/releases/latest/)
 [![Support Project](https://img.shields.io/badge/☕_Support-Buy_Me_Coffee-blue?style=for-the-badge&color=FF9800)](https://buymeacoffee.com/roy3838)
 
-</div>
-
-
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 🔧 Agent Superpowers
+---
 
-### 📊 **Intelligent Logging & Memory**
-- **Screen Recording** - Start Recording intelligently or analyze video clips with custom labels.
-- **Audio Intelligence** - Listen to microphone, screen audio, or both simultaneously.
-- **Text and Visual Memory** - Store and retrieve images for context-aware decisions.
+## 👁️ Observer Agents See
 
-### 🚨 **Multi-Channel Notifications**
-- **📧 Email Alerts** - Get Emails with image attachments
-- **💬 Discord Integration** - Real-time server notifications with rich media
-- **📱 Telegram Messages** - Instant mobile alerts via Observer bot
-- **📞 SMS Notifications** - Direct text messaging (non USA/Canada) 
-- **💚 WhatsApp Alerts** - Get messages on your favorite messaging platform
-- **🖥️ System Notifications** - Native OS alerts and pop-ups
-- **📺 Observer Overlay** - Custom on-screen messages and status updates
+<table>
+<tr>
+<td align="center" width="25%">
+<img src="https://img.icons8.com/fluency/96/000000/monitor.png" width="64" height="64" alt="Screen"/>
+<br><strong>Screen</strong>
+<br><sub>OCR & Vision</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.icons8.com/fluency/96/000000/camera.png" width="64" height="64" alt="Camera"/>
+<br><strong>Camera</strong>
+<br><sub>Visual Input</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.icons8.com/fluency/96/000000/microphone.png" width="64" height="64" alt="Audio"/>
+<br><strong>Audio</strong>
+<br><sub>Mic + Computer</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.icons8.com/fluency/96/000000/brain.png" width="64" height="64" alt="Memory"/>
+<br><strong>Memory</strong>
+<br><sub>Text + Image</sub>
+</td>
+</tr>
+</table>
 
-*Build simple local agents that don't just watch, they **understand**, **remember**, and **act** intelligently on your behalf.*
+</div>
+
+---
+
+## 🎯 What Observer AI Does Best
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 📊 **Intelligent Logging**
+
+🧠 **Text & Visual Memory**
+Store and retrieve images or text intelligently.
+
+🎥 **Smart Screen Recording**
+Start recording when something happens or analyze clips with custom labels
+
+💾 **Persistent Context**
+Agents remember what matters across sessions
+
+</td>
+<td width="50%" valign="top">
+
+### 🚨 **Powerful Notifications**
+
+📧 **Email** • 💬 **Discord** • 📱 **Telegram**
+📞 **SMS** • 💚 **WhatsApp**
+
+🖥️ **System Alerts**
+Native OS notifications and pop-ups
+
+📺 **Observer Overlay**
+Custom on-screen messages
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+
+### *Build local agents that don't just watch—they **understand**, **remember**, and **act** intelligently on your behalf.*
+
+</div>
 
 ## 📹 Why Observer AI?
 
@@ -81,9 +136,9 @@ Notification Tools:
   * `sendPushover(user_token, message, images?, title?)` - Sends a pushover notification.
   * `sendDiscord(discord_webhook, message, images?)`Sends a discord message to a server.
   * `sendTelegram(chat_id, message, images?)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
+  * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message with the Observer bot. Send a message first to +1 (555)783-4727 to use.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
   * `sendSms(phone_number, message, images?)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
-  * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the numer "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number. TEMPORARILY BLOCKED due to spam :c
 
 Video Recording Tools: 
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.

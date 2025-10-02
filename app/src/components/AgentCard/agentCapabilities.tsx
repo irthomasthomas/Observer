@@ -39,8 +39,8 @@ export const SENSOR_CONFIG = {
     SCREEN_OCR: { label: 'Screen OCR', iconName: 'ScanText' },
     SCREEN_64: { label: 'Screen', iconName: 'Monitor' },
     CAMERA: { label: 'Camera', iconName: 'Camera' },
-    MEMORY: { label: 'Memory', iconName: 'Brain' },
-    IMEMORY: { label: 'Image Memory', iconName: 'Images' },
+    MEMORY: { label: 'Memory', iconName: 'Save' },
+    IMEMORY: { label: 'Memory', iconName: 'Images' },
     CLIPBOARD: { label: 'Clipboard', iconName: 'Clipboard' },
     MICROPHONE: { label: 'Microphone', iconName: 'Mic' },
     SCREEN_AUDIO: { label: 'Screen Audio', iconName: 'Volume2' },
@@ -57,7 +57,7 @@ interface ToolConfigEntry {
 
 export const TOOL_CONFIG: Record<string, ToolConfigEntry> = {
     notify: { label: 'Browser Notification', iconName: 'Bell', iconType: 'lucide', regex: /\bnotify\s*\(/g, warning: 'Browser notifications are unreliable, preferably use system_notify ' },
-    getMemory: { label: 'Get Memory', iconName: 'Brain', iconType: 'lucide', regex: /getMemory\s*\(/g },
+    getMemory: { label: 'Get Memory', iconName: 'Save', iconType: 'lucide', regex: /getMemory\s*\(/g },
     setMemory: { label: 'Set Memory', iconName: 'SquarePen', iconType: 'lucide', regex: /setMemory\s*\(/g },
     appendMemory: { label: 'Append Memory', iconName: 'SquarePen', iconType: 'lucide', regex: /appendMemory\s*\(/g },
     startAgent: { label: 'Start Agent', iconName: 'PlayCircle', iconType: 'lucide', regex: /startAgent\s*\(/g },

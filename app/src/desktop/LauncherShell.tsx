@@ -450,8 +450,8 @@ function LauncherShell() {
   const showFailureState = !isChecking && foundServers.length === 0;
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex items-start justify-center pt-4 pb-4 px-4 font-sans">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-xl w-full text-center transition-all max-h-full overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-50 flex items-center justify-center p-4 font-sans overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 max-w-2xl w-full text-center my-auto">
 
         {/* Header */}
         <div className="mb-6">

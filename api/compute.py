@@ -1,12 +1,16 @@
 # compute.py
 
-from fastapi import APIRouter, Request, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request, HTTPException, status, Depends
+from fastapi.responses import JSONResponse, StreamingResponse
 import logging
 import json
+from collections import defaultdict
+from datetime import datetime
+from threading import Lock
 
 # --- Local Imports ---
 from auth import AuthUser
+from admin_auth import get_admin_access
 # Import the new, specific functions and the QUOTA_LIMITS dictionary
 from quota_manager import increment_usage, get_usage_for_service, check_usage, QUOTA_LIMITS
 
@@ -27,7 +31,125 @@ except ImportError as e:
 
 compute_router = APIRouter()
 
+# --- Metrics Logging System (Memory-Only) ---
+# Similar to quota_manager.py pattern - all in memory
+_conversation_metrics = []
+_metrics_lock = Lock()
+
+def log_conversation_metrics(user_id: str, prompt_text: str, response_text: str,
+                           handler: str, model: str, status_code: int, image_count: int = 0,
+                           time_to_first_token: float = None, chunks_per_second: float = None):
+    """Log conversation metrics to memory (no disk I/O)."""
+    with _metrics_lock:
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "user_id": user_id,
+            "prompt": prompt_text[-500:] if prompt_text else "",  # See last 500 chars to look at requests for generated agents
+            "response": response_text[:500] if response_text else "",
+            "handler": handler,
+            "model": model,
+            "status_code": status_code,
+            "image_count": image_count,
+            "time_to_first_token": time_to_first_token,
+            "chunks_per_second": chunks_per_second
+        }
+        _conversation_metrics.append(entry)
+        
+        # Keep only last 1000 entries to prevent memory bloat
+        if len(_conversation_metrics) > 1000:
+            _conversation_metrics.pop(0)
+
+def get_all_conversation_metrics() -> list:
+    """Get all conversation metrics (for admin endpoint)."""
+    with _metrics_lock:
+        return list(_conversation_metrics)  # Return copy
+
+async def _log_streaming_response(stream_iterator, user_id: str, prompt_text: str,
+                                 handler: str, model: str, image_count: int = 0):
+    """
+    Wrapper that logs complete streaming response with timing metrics.
+    Accumulates content from OpenAI SSE chunks and logs when stream completes.
+    """
+    import time
+
+    response_parts = []
+    start_time = time.time()
+    first_token_time = None
+    total_chunks = 0
+
+    try:
+        async for chunk in stream_iterator:
+            # Yield chunk immediately for streaming
+            yield chunk
+
+            # Parse chunk to extract content for logging
+            if isinstance(chunk, (str, bytes)):
+                chunk_str = chunk.decode() if isinstance(chunk, bytes) else chunk
+                if chunk_str.startswith("data: ") and not chunk_str.startswith("data: [DONE]"):
+                    try:
+                        json_data = chunk_str[6:].strip()  # Remove "data: " prefix
+                        if json_data:
+                            chunk_json = json.loads(json_data)
+                            choices = chunk_json.get("choices", [])
+                            if choices and "delta" in choices[0]:
+                                content = choices[0]["delta"].get("content")
+                                if content:
+                                    # Mark time to first token
+                                    if first_token_time is None:
+                                        first_token_time = time.time()
+                                    response_parts.append(content)
+                                    total_chunks += 1
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        # Skip malformed chunks
+                        continue
+
+        # Calculate timing metrics
+        end_time = time.time()
+        total_duration = end_time - start_time
+
+        time_to_first_token_ms = None
+        if first_token_time is not None:
+            time_to_first_token_ms = round((first_token_time - start_time) * 1000, 2)
+
+        chunks_per_second = None
+        if total_chunks > 0 and total_duration > 0:
+            chunks_per_second = round(total_chunks / total_duration, 2)
+
+        # Log complete response when stream finishes
+        complete_response = ''.join(response_parts)
+        log_conversation_metrics(
+            user_id=user_id,
+            prompt_text=prompt_text,
+            response_text=complete_response,
+            handler=handler,
+            model=model,
+            status_code=200,
+            image_count=image_count,
+            time_to_first_token=time_to_first_token_ms,
+            chunks_per_second=chunks_per_second
+        )
+
+    except Exception as e:
+        # Log error if stream fails
+        log_conversation_metrics(
+            user_id=user_id,
+            prompt_text=prompt_text,
+            response_text=f"STREAM_ERROR: {str(e)}",
+            handler=handler,
+            model=model,
+            status_code=500,
+            image_count=image_count
+        )
+
 # --- API Routes ---
+
+@compute_router.get("/admin/metrics", tags=["Admin"], summary="Get all conversation metrics")
+async def get_all_metrics(is_admin: bool = Depends(get_admin_access)):
+    """
+    (Admin) Returns all conversation metrics including response times, models used, and error rates.
+    Requires a valid X-Admin-Key header.
+    """
+    return get_all_conversation_metrics()
 
 @compute_router.get("/quota", summary="Check remaining API credits for the authenticated user")
 async def check_quota_endpoint(current_user: AuthUser): 
@@ -98,15 +220,81 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
             detail=f"Model '{model_name}' requires a pro subscription. Please upgrade to access premium models."
         )
 
-    # 7. Execute handler logic
+    # 7. Execute handler logic with centralized metrics logging
+    
+    # Extract prompt info for logging
+    messages = request_data.get("messages", [])
+    prompt_text = ""
+    image_count = 0
+    
+    if messages:
+        last_message = messages[-1]
+        content = last_message.get("content")
+        if isinstance(content, str):
+            prompt_text = content
+        elif isinstance(content, list):
+            # Handle multimodal content (text + images)
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    if item.get("type") == "text":
+                        text_parts.append(item.get("text", ""))
+                    elif item.get("type") == "image_url":
+                        image_count += 1
+            prompt_text = " ".join(text_parts)
+            if image_count > 0:
+                prompt_text += f" ({image_count} images)"
+    
     try:
         response_payload = await selected_handler.handle_request(request_data)
+
+        # Wrap StreamingResponse with logging (all requests are streaming)
+        if hasattr(response_payload, '__class__') and response_payload.__class__.__name__ == 'StreamingResponse':
+            return StreamingResponse(
+                _log_streaming_response(
+                    response_payload.body_iterator,
+                    current_user.id,
+                    prompt_text,
+                    selected_handler.name,
+                    model_name,
+                    image_count
+                ),
+                media_type=response_payload.media_type,
+                headers=response_payload.headers
+            )
+
+        # Fallback for non-streaming responses (shouldn't happen but defensive)
         return JSONResponse(content=response_payload)
+        
     except (HandlerError, ConfigError, BackendAPIError) as e:
-        logger.error(f"Handler error for model '{model_name}': {e}", exc_info=True)
         status_code = getattr(e, 'status_code', 500)
+        
+        # Log error request metrics
+        log_conversation_metrics(
+            user_id=current_user.id,
+            prompt_text=prompt_text,
+            response_text=f"ERROR: {str(e)}",
+            handler=selected_handler.name,
+            model=model_name,
+            status_code=status_code,
+            image_count=image_count
+        )
+        
+        logger.error(f"Handler error for model '{model_name}': {e}", exc_info=True)
         raise HTTPException(status_code=status_code, detail=str(e))
+        
     except Exception as e:
+        # Log unexpected error metrics
+        log_conversation_metrics(
+            user_id=current_user.id,
+            prompt_text=prompt_text,
+            response_text=f"INTERNAL_ERROR: {str(e)}",
+            handler=selected_handler.name,
+            model=model_name,
+            status_code=500,
+            image_count=image_count
+        )
+        
         logger.exception(f"Unexpected error processing request with handler {selected_handler.name}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
@@ -161,7 +349,7 @@ async def list_models_v1_endpoint():
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend handlers are not available.")
 
-    EXCLUDED = {"gemini-2.0-flash-lite", "gemini-2.0-flash-lite-free"}
+    EXCLUDED = {"gemini-2.0-flash-lite", "gemini-2.0-flash-lite-free", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite-free"}
     
     # This list will hold the model data in the new format.
     model_data_list = []
