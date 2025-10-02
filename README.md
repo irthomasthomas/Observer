@@ -1,35 +1,91 @@
-# Observer AI 🚀!
-
-Local Open-source micro-agents that observe, log and react, all while keeping your data private and secure.
-
 <div align="center">
+
+# 👁️ Observer AI
+
+### *Local AI Agents That See, Remember, and Act*
+
+Build powerful micro-agents that observe your digital world, remember what matters, and react intelligently—all while keeping your data **100% private and secure**.
 
 [![Observer App Online](https://img.shields.io/badge/🌐_Observer_App-Online-blue?style=for-the-badge&color=4CAF50)](https://app.observer-ai.com/)
 [![Download App](https://img.shields.io/badge/⬇️_Download-Latest_Release-blue?style=for-the-badge&color=2196F3)](https://github.com/Roy3838/Observer/releases/latest/)
 [![Support Project](https://img.shields.io/badge/☕_Support-Buy_Me_Coffee-blue?style=for-the-badge&color=FF9800)](https://buymeacoffee.com/roy3838)
 
-</div>
-
-
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 🔧 Power Up your Local Models
+---
 
-### 📊 **Logging**
-- **Text and Visual Memory** - Store and retrieve images for context-aware decisions.
-- **Screen Recording** - Start Recording intelligently or analyze video clips with custom labels.
+## 👁️ Observer Agents See
 
-### 🚨 **Notifications**
-- **📧 Email Alerts** 
-- **💬 Discord Integration** 
-- **📱 Telegram Messages** 
-- **📞 SMS Notifications** 
-- **💚 WhatsApp Alerts** 
-- **🖥️ System Notifications** - Native OS alerts and pop-ups with the App
-- **📺 Observer Overlay** - Custom on-screen messages
+<table>
+<tr>
+<td align="center" width="25%">
+<img src="https://img.icons8.com/fluency/96/000000/monitor.png" width="64" height="64" alt="Screen"/>
+<br><strong>Screen</strong>
+<br><sub>OCR & Vision</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.icons8.com/fluency/96/000000/camera.png" width="64" height="64" alt="Camera"/>
+<br><strong>Camera</strong>
+<br><sub>Visual Input</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.icons8.com/fluency/96/000000/microphone.png" width="64" height="64" alt="Audio"/>
+<br><strong>🎤 Audio</strong>
+<br><sub>Mic + Computer Audio</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.icons8.com/fluency/96/000000/brain.png" width="64" height="64" alt="Memory"/>
+<br><strong>Memory</strong>
+<br><sub>Context Storage</sub>
+</td>
+</tr>
+</table>
 
-*Build simple local agents that don't just watch, they **understand**, **remember**, and **act** intelligently on your behalf.*
+</div>
+
+---
+
+## 🎯 What Observer AI Does Best
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 📊 **Intelligent Logging**
+
+🧠 **Text & Visual Memory**
+Store and retrieve images for context-aware decisions
+
+🎥 **Smart Screen Recording**
+Start recording intelligently or analyze clips with custom labels
+
+💾 **Persistent Context**
+Agents remember what matters across sessions
+
+</td>
+<td width="50%" valign="top">
+
+### 🚨 **Powerful Notifications**
+
+📧 **Email** • 💬 **Discord** • 📱 **Telegram**
+📞 **SMS** • 💚 **WhatsApp**
+
+🖥️ **System Alerts**
+Native OS notifications and pop-ups
+
+📺 **Observer Overlay**
+Custom on-screen messages
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+
+### *Build local agents that don't just watch—they **understand**, **remember**, and **act** intelligently on your behalf.*
+
+</div>
 
 ## 📹 Why Observer AI?
 
