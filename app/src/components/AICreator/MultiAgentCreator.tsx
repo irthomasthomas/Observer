@@ -584,7 +584,7 @@ What kind of agent team would you like me to create today?`
   };
 
   const getPlaceholderText = () => {
-    if (!isPro) {
+    if (!isPro && isUsingObServer) {
       return "Upgrade to Pro to use Multi-Agent Builder";
     }
     if (isUsingObServer) {
@@ -593,19 +593,19 @@ What kind of agent team would you like me to create today?`
     return selectedLocalModel ? "Describe the agent team to build with your model..." : "Click the CPU icon to select a local model";
   };
 
-  const isInputDisabled = !isPro || isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
+  const isInputDisabled = (isUsingObServer && !isPro) || isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
   const isSendDisabled = isInputDisabled || !userInput.trim();
 
   return (
     <>
       <div className={`flex flex-col h-[350px] md:h-[450px] bg-white rounded-lg border border-purple-200 relative`}>
         {/* Greyed out background layer */}
-        {!isPro && (
+        {!isPro && isUsingObServer && (
           <div className="absolute inset-0 z-[5] bg-white opacity-60 pointer-events-none" />
         )}
 
         {/* Pro Feature Overlay */}
-        {!isPro && (
+        {!isPro && isUsingObServer && (
           <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
             <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md mx-4 border-2 border-purple-300 pointer-events-auto">
               <div className="text-center">
