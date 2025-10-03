@@ -23,7 +23,7 @@ export async function detectSignificantChange(
 
   // First run always counts as significant
   if (!previous) {
-    Logger.debug(agentId, 'First iteration - storing baseline data');
+    Logger.debug('CHANGE_DETECTOR', 'First iteration - storing baseline data');
     previousIterationData.set(agentId, currentData);
     return true;
   }
@@ -32,7 +32,7 @@ export async function detectSignificantChange(
   const isSameText = compareText(previous.modifiedPrompt, currentData.modifiedPrompt);
 
   // Compare images using dhash
-  Logger.debug(agentId, `Starting image comparison. Previous: ${previous.images?.length || 0} images, Current: ${currentData.images?.length || 0} images`);
+  Logger.debug('CHANGE_DETECTOR', `Starting image comparison. Previous: ${previous.images?.length || 0} images, Current: ${currentData.images?.length || 0} images`);
 
   const isSameImages = await compareImages(
     agentId,
@@ -40,7 +40,7 @@ export async function detectSignificantChange(
     currentData.images || []
   );
 
-  Logger.debug(agentId, `Change detection: text=${isSameText ? 'same' : 'changed'}, images=${isSameImages ? 'same' : 'changed'}`);
+  Logger.debug('CHANGE_DETECTOR', `Change detection: text=${isSameText ? 'same' : 'changed'}, images=${isSameImages ? 'same' : 'changed'}`);
 
   // Only skip if BOTH text AND images are the same
   const isSignificant = !isSameText || !isSameImages;
@@ -114,44 +114,51 @@ function levenshteinDistance(str1: string, str2: string): number {
 async function compareImages(agentId: string, images1: string[], images2: string[]): Promise<boolean> {
   // If both have no images, they're the same
   if (images1.length === 0 && images2.length === 0) {
-    Logger.debug(agentId, 'No images to compare - considered same');
+    Logger.debug("CHANGE_DETECTOR", 'No images to compare - considered same');
     return true;
   }
 
   // If different number of images, they're different
   if (images1.length !== images2.length) {
-    Logger.debug(agentId, `Different number of images: ${images1.length} vs ${images2.length} - considered different`);
+    Logger.debug("CHANGE_DETECTOR", `Different number of images: ${images1.length} vs ${images2.length} - considered different`);
     return false;
   }
 
   // Compare each image pair
   for (let i = 0; i < images1.length; i++) {
-    Logger.debug(agentId, `Comparing image pair ${i + 1}/${images1.length}`);
-    Logger.debug(agentId, `Image 1 prefix: ${images1[i].substring(0, 50)}...`);
-    Logger.debug(agentId, `Image 1 length: ${images1[i].length} chars`);
-    Logger.debug(agentId, `Image 2 prefix: ${images2[i].substring(0, 50)}...`);
-    Logger.debug(agentId, `Image 2 length: ${images2[i].length} chars`);
+    Logger.debug("CHANGE_DETECTOR", `Comparing image pair ${i + 1}/${images1.length}`);
+    Logger.debug("CHANGE_DETECTOR", `Image 1 prefix: ${images1[i].substring(0, 50)}...`);
+    Logger.debug("CHANGE_DETECTOR", `Image 1 length: ${images1[i].length} chars`);
+    Logger.debug("CHANGE_DETECTOR", `Image 2 prefix: ${images2[i].substring(0, 50)}...`);
+    Logger.debug("CHANGE_DETECTOR", `Image 2 length: ${images2[i].length} chars`);
 
     try {
       const hash1 = await calculateDHash(agentId, images1[i], `previous-${i}`);
       const hash2 = await calculateDHash(agentId, images2[i], `current-${i}`);
 
+      // Check for invalid hashes (all 0s or all 1s indicates image processing error)
+      if (isInvalidHash(hash1) || isInvalidHash(hash2)) {
+        Logger.warn("CHANGE_DETECTOR", `Image ${i + 1} produced invalid hash (all 0s or 1s) - treating as different to be safe`);
+        Logger.debug("CHANGE_DETECTOR", `Hash1: ${hash1.substring(0, 32)}..., Hash2: ${hash2.substring(0, 32)}...`);
+        return false;
+      }
+
       const similarity = compareHashes(hash1, hash2);
-      Logger.debug(agentId, `Image ${i + 1} similarity: ${(similarity * 100).toFixed(2)}% (threshold: ${IMAGE_SIMILARITY_THRESHOLD * 100}%)`);
+      Logger.debug("CHANGE_DETECTOR", `Image ${i + 1} similarity: ${(similarity * 100).toFixed(2)}% (threshold: ${IMAGE_SIMILARITY_THRESHOLD * 100}%)`);
 
       // If any image pair is significantly different, return false
       if (similarity < IMAGE_SIMILARITY_THRESHOLD) {
-        Logger.debug(agentId, `Image ${i + 1} below threshold - considered different`);
+        Logger.debug("CHANGE_DETECTOR", `Image ${i + 1} below threshold - considered different`);
         return false;
       }
     } catch (error) {
-      Logger.error(agentId, `Error comparing image ${i + 1}: ${error}`);
+      Logger.error("CHANGE_DETECTOR", `Error comparing image ${i + 1}: ${error}`);
       // On error, assume different to be safe
       return false;
     }
   }
 
-  Logger.debug(agentId, 'All images above threshold - considered same');
+  Logger.debug("CHANGE_DETECTOR", 'All images above threshold - considered same');
   return true;
 }
 
@@ -165,7 +172,7 @@ async function calculateDHash(agentId: string, base64Image: string, label: strin
 
     img.onload = () => {
       try {
-        Logger.debug(agentId, `Image ${label} loaded successfully (${img.width}x${img.height})`);
+        Logger.debug("CHANGE_DETECTOR", `Image ${label} loaded successfully (${img.width}x${img.height})`);
 
         // Create canvas for image processing
         const canvas = document.createElement('canvas');
@@ -204,22 +211,22 @@ async function calculateDHash(agentId: string, base64Image: string, label: strin
           }
         }
 
-        Logger.debug(agentId, `Image ${label} hash calculated: ${hash.substring(0, 16)}...`);
+        Logger.debug("CHANGE_DETECTOR", `Image ${label} hash calculated: ${hash.substring(0, 16)}...`);
         resolve(hash);
       } catch (error) {
-        Logger.error(agentId, `Error processing image ${label}: ${error}`);
+        Logger.error("CHANGE_DETECTOR", `Error processing image ${label}: ${error}`);
         reject(error);
       }
     };
 
     img.onerror = (event) => {
-      Logger.error(agentId, `Failed to load image ${label}`);
-      Logger.error(agentId, `Error event: ${JSON.stringify(event)}`);
-      Logger.error(agentId, `Image src starts with: ${base64Image.substring(0, 100)}`);
+      Logger.error("CHANGE_DETECTOR", `Failed to load image ${label}`);
+      Logger.error("CHANGE_DETECTOR", `Error event: ${JSON.stringify(event)}`);
+      Logger.error("CHANGE_DETECTOR", `Image src starts with: ${base64Image.substring(0, 100)}`);
       reject(new Error(`Failed to load image ${label}`));
     };
 
-    Logger.debug(agentId, `Starting to load image ${label}...`);
+    Logger.debug("CHANGE_DETECTOR", `Starting to load image ${label}...`);
 
     // Ensure proper data URI format
     if (base64Image.startsWith('data:')) {
@@ -227,9 +234,17 @@ async function calculateDHash(agentId: string, base64Image: string, label: strin
     } else {
       // Base64 string without data URI prefix - add it
       img.src = `data:image/png;base64,${base64Image}`;
-      Logger.debug(agentId, `Added data URI prefix to image ${label}`);
+      Logger.debug("CHANGE_DETECTOR", `Added data URI prefix to image ${label}`);
     }
   });
+}
+
+/**
+ * Check if a hash is invalid (all 0s or all 1s)
+ * These patterns indicate image processing errors (solid color, failed capture, etc.)
+ */
+function isInvalidHash(hash: string): boolean {
+  return hash === '0'.repeat(hash.length) || hash === '1'.repeat(hash.length);
 }
 
 /**
@@ -253,7 +268,7 @@ function compareHashes(hash1: string, hash2: string): number {
  */
 export function clearAgentChangeData(agentId: string): void {
   previousIterationData.delete(agentId);
-  Logger.debug(agentId, 'Cleared change detection data');
+  Logger.debug("CHANGE_DETECTOR", 'Cleared change detection data');
 }
 
 /**
