@@ -175,7 +175,7 @@ const GlobalLogsViewer: React.FC<GlobalLogsViewerProps> = ({ isOpen, onClose }) 
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-40 overflow-hidden flex flex-col"
+      className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-[70] overflow-hidden flex flex-col"
       style={{ height: `${height}px` }}
     >
       {/* Resize handle */}
