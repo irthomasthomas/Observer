@@ -35,7 +35,6 @@ export async function detectSignificantChange(
   Logger.debug('CHANGE_DETECTOR', `Starting image comparison. Previous: ${previous.images?.length || 0} images, Current: ${currentData.images?.length || 0} images`);
 
   const isSameImages = await compareImages(
-    agentId,
     previous.images || [],
     currentData.images || []
   );
@@ -111,7 +110,7 @@ function levenshteinDistance(str1: string, str2: string): number {
  * Compare images using dhash (difference hash)
  * Returns true if images are similar enough (no significant change)
  */
-async function compareImages(agentId: string, images1: string[], images2: string[]): Promise<boolean> {
+async function compareImages(images1: string[], images2: string[]): Promise<boolean> {
   // If both have no images, they're the same
   if (images1.length === 0 && images2.length === 0) {
     Logger.debug("CHANGE_DETECTOR", 'No images to compare - considered same');
@@ -133,8 +132,8 @@ async function compareImages(agentId: string, images1: string[], images2: string
     Logger.debug("CHANGE_DETECTOR", `Image 2 length: ${images2[i].length} chars`);
 
     try {
-      const hash1 = await calculateDHash(agentId, images1[i], `previous-${i}`);
-      const hash2 = await calculateDHash(agentId, images2[i], `current-${i}`);
+      const hash1 = await calculateDHash(images1[i], `previous-${i}`);
+      const hash2 = await calculateDHash(images2[i], `current-${i}`);
 
       // Check for invalid hashes (all 0s or all 1s indicates image processing error)
       if (isInvalidHash(hash1) || isInvalidHash(hash2)) {
@@ -166,7 +165,7 @@ async function compareImages(agentId: string, images1: string[], images2: string
  * Calculate difference hash (dhash) for an image
  * Returns a 64-bit hash as a string
  */
-async function calculateDHash(agentId: string, base64Image: string, label: string): Promise<string> {
+async function calculateDHash(base64Image: string, label: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
 
