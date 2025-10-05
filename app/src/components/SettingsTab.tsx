@@ -10,6 +10,9 @@ import { SUGGESTED_MODELS, LANGUAGE_NAMES } from '../config/whisper-models';
 
 import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
 
+// Import the new ChangeDetectionSettings component
+import ChangeDetectionSettings from './ChangeDetectionSettings';
+
 
 
 
@@ -55,13 +58,13 @@ const SettingsTab = () => {
     setOcrLang(newLang);
     SensorSettings.setOcrLanguage(newLang);
   };
-  
+
   const handleOcrConfidenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newConfidence = parseInt(e.target.value, 10);
     setOcrConfidence(newConfidence);
     SensorSettings.setOcrConfidenceThreshold(newConfidence);
   };
-  
+
 
   // --- NEW WHISPER STATE ---
   const [whisperSettings, setWhisperSettings] = useState(SensorSettings.getWhisperSettings());
@@ -204,6 +207,9 @@ const SettingsTab = () => {
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold text-gray-800">Application Settings</h1>
+
+      {/* --- Change Detection Settings Card --- */}
+      <ChangeDetectionSettings />
 
       {/* --- Existing Screen OCR Settings Card --- */}
       <SettingsCard title="Screen OCR Settings">
@@ -357,7 +363,7 @@ const SettingsTab = () => {
             <button
               onClick={handleLoadModel}
               disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center transition-all"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center transition-all"
             >
               {modelState?.status === 'loading' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
