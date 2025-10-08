@@ -58,7 +58,7 @@ interface AgentCardProps {
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent, code, isRunning, isStarting, isMemoryFlashing, onEdit, onDelete, onToggle,
-  onMemory, onActivity, onShowJupyterModal, hasQuotaError, onUpgradeClick, onSave, isProUser = false, onAIEdit, hostingContext
+  onMemory, onActivity, onShowJupyterModal, getToken, hasQuotaError, onUpgradeClick, onSave, isProUser = false, onAIEdit, hostingContext
 }) => {
   const [isPythonAgent, setIsPythonAgent] = useState(false);
   const [startWarning, setStartWarning] = useState<string | null>(null);
@@ -260,6 +260,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               startWarning={startWarning}
               isProUser={isProUser}
               hostingContext={hostingContext}
+              getToken={getToken}
               // REMOVED: communicationWarnings prop is gone
             />
           )}

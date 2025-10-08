@@ -123,6 +123,7 @@ interface StaticAgentViewProps {
     startWarning: string | null;
     isProUser?: boolean;
     hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
+    getToken?: () => Promise<string | undefined>;
 }
 
 
@@ -135,6 +136,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     startWarning,
     isProUser = false,
     hostingContext,
+    getToken,
 }) => {
     const [detectedSensors, setDetectedSensors] = useState<any[]>([]);
     const [detectedTools, setDetectedTools] = useState<any[]>([]);
@@ -281,6 +283,8 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 onClose={() => setIsToolsModalOpen(false)}
                 code={code || ''}
                 agentName={agent.name || 'Unnamed Agent'}
+                agentId={agent.id}
+                getToken={getToken}
             />
         </div>
     );
