@@ -68,8 +68,7 @@ function getAllTools(): ToolConfig[] {
       isTestable: true,
       parameters: [
         { name: 'email', description: 'Email address' },
-        { name: 'message', description: 'Email message content' },
-        { name: 'images', description: 'Optional images array' }
+        { name: 'message', description: 'Email message content' }
       ],
       testMessage: 'This is a test from Observer!'
     },
@@ -97,7 +96,6 @@ function getAllTools(): ToolConfig[] {
       parameters: [
         { name: 'user_token', description: 'Pushover user token' },
         { name: 'message', description: 'Notification message' },
-        { name: 'images', description: 'Optional images' },
         { name: 'title', description: 'Notification title' }
       ],
       testMessage: 'This is a test from Observer!'
@@ -111,8 +109,7 @@ function getAllTools(): ToolConfig[] {
       isTestable: true,
       parameters: [
         { name: 'webhook_url', description: 'Discord webhook URL' },
-        { name: 'message', description: 'Message content' },
-        { name: 'images', description: 'Optional images array' }
+        { name: 'message', description: 'Message content' }
       ],
       testMessage: 'This is a test from Observer!'
     },
@@ -125,8 +122,7 @@ function getAllTools(): ToolConfig[] {
       isTestable: true,
       parameters: [
         { name: 'chat_id', description: 'Telegram chat ID' },
-        { name: 'message', description: 'Message content' },
-        { name: 'images', description: 'Optional images array' }
+        { name: 'message', description: 'Message content' }
       ],
       testMessage: 'This is a test from Observer!',
       infoMessage: 'ℹ️ Get your chat_id by messaging @observer_notification_bot'
@@ -140,8 +136,7 @@ function getAllTools(): ToolConfig[] {
       isTestable: true,
       parameters: [
         { name: 'phone_number', description: 'Phone number with country code' },
-        { name: 'message', description: 'SMS content' },
-        { name: 'images', description: 'Optional images array' }
+        { name: 'message', description: 'SMS content' }
       ],
       testMessage: 'This is a test from Observer!',
       warning: '⚠️ IMPORTANT: Due to A2P policy, some SMS messages are being blocked. Not recommended for US/Canada.'
@@ -487,11 +482,6 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
     imemory: [] as string[]
   }), []);
 
-  // Initialize images in mock context
-  useEffect(() => {
-    mockContext.images = [mockContext.screen, mockContext.camera];
-  }, [mockContext]);
-
   // When a tool is clicked, evaluate its arguments and populate inputs
   const handleToolClick = (call: ToolCall) => {
     setSelectedCall(call);
@@ -567,7 +557,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
           const token = await getAuthToken();
           const userKey = testInputs[0] || '';
           const message = testInputs[1] || selectedToolConfig.testMessage || '';
-          const title = testInputs[3] || 'Test from Observer';
+          const title = testInputs[2] || 'Test from Observer';
           await utils.sendPushover(message, userKey, token, undefined, title);
           break;
         }
@@ -754,6 +744,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                   `}</style>
                   <CodeMirror
                     value={code}
+                    height="400px"
                     theme={vscodeDark}
                     extensions={[
                       javascript(),
