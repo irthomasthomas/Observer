@@ -42,9 +42,19 @@ const SensorInputText: React.FC<SensorInputTextProps> = ({
   placeholder = '',
   rows,
 }) => {
+  const overlayRef = React.useRef<HTMLDivElement>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (overlayRef.current) {
+      overlayRef.current.scrollTop = e.currentTarget.scrollTop;
+      overlayRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+  };
+
   return (
     <div className={`relative ${className}`}>
       <div
+        ref={overlayRef}
         className="absolute inset-0 p-4 font-mono text-sm whitespace-pre-wrap pointer-events-none leading-relaxed overflow-hidden"
         aria-hidden="true"
       >
@@ -54,6 +64,7 @@ const SensorInputText: React.FC<SensorInputTextProps> = ({
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onScroll={handleScroll}
         rows={rows}
         className="w-full h-full p-4 bg-transparent text-transparent caret-blue-500 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
         placeholder={placeholder}
