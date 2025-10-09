@@ -671,80 +671,83 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
       </div>
 
       {/* Content */}
-      <div className="flex-grow flex overflow-hidden bg-gray-50">
-        {/* Code Display Panel */}
-        <div
-          className={`overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100 border-r border-gray-300 transition-all duration-300 ease-in-out ${
-            selectedCall ? 'w-3/5' : 'w-full'
-          }`}
-        >
+      <div className="flex-grow flex overflow-hidden bg-gray-50 relative">
+        {/* Backdrop overlay when drawer is open */}
+        {selectedCall && (
+          <div
+            className="absolute inset-0 bg-black/5 z-[5] transition-opacity duration-300"
+            onClick={handleClosePanel}
+          />
+        )}
+
+        {/* Code Display Panel - Fixed width */}
+        <div className="flex-1 overflow-y-auto bg-white">
           <div className="p-6 space-y-4">
             {!hasTools && (
-              <div className="text-center py-12">
-                <Info className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">No Observer tools detected in agent code</p>
-                <p className="text-sm text-gray-400 mt-2">Add tools like sendEmail(), notify(), or getMemory() to test them here</p>
+              <div className="text-center py-16">
+                <Info className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium text-lg">No Observer tools detected</p>
+                <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                  Add tools like <code className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">sendEmail()</code>, <code className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">notify()</code>, or <code className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">getMemory()</code> to test them here
+                </p>
               </div>
             )}
 
             {hasTools && (
               <>
-                <div className="mb-4 flex items-center gap-4 text-sm text-gray-600">
+                <div className="mb-4 flex items-center gap-6 text-sm">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded" style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}></div>
-                    <span>Click <span className="font-semibold text-blue-600">blue tools</span> to test</span>
+                    <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300"></div>
+                    <span className="text-gray-600">Click <span className="font-medium text-blue-600">blue tools</span> to test</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded" style={{ backgroundColor: 'rgba(100, 116, 139, 0.2)' }}></div>
-                    <span><span className="font-semibold text-slate-600">Grey tools</span> for info</span>
+                    <div className="w-3 h-3 rounded bg-slate-100 border border-slate-300"></div>
+                    <span className="text-gray-600"><span className="font-medium text-slate-600">Grey tools</span> for reference</span>
                   </div>
                 </div>
 
-                <div className="rounded-lg overflow-hidden border border-gray-700 shadow-lg">
+                <div className="rounded-lg overflow-hidden border border-gray-300 shadow-sm">
                   <style>{`
-                    /* Mute the base CodeMirror text */
+                    /* Clean code display */
                     .cm-editor .cm-content {
-                      opacity: 0.6;
+                      opacity: 0.7;
                     }
 
-                    /* Make tool highlights vibrant and stand out */
+                    /* Testable tools - blue theme */
                     .cm-tool-testable {
-                      background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(37, 99, 235, 0.4));
-                      border: 1px solid rgba(59, 130, 246, 0.6);
-                      border-radius: 4px;
+                      background: rgba(59, 130, 246, 0.1);
+                      border-bottom: 2px solid rgba(59, 130, 246, 0.4);
                       padding: 2px 4px;
-                      font-weight: 700;
-                      color: rgb(30, 64, 175) !important;
+                      font-weight: 600;
+                      color: rgb(37, 99, 235) !important;
                       opacity: 1 !important;
-                      box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
-                      transition: all 0.2s ease;
+                      transition: all 0.15s ease;
+                      border-radius: 3px;
                     }
                     .cm-tool-testable:hover {
-                      background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(37, 99, 235, 0.6));
-                      box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
-                      transform: translateY(-1px);
+                      background: rgba(59, 130, 246, 0.15);
+                      border-bottom-color: rgba(59, 130, 246, 0.6);
                     }
 
+                    /* Info tools - grey theme */
                     .cm-tool-info {
-                      background: linear-gradient(135deg, rgba(148, 163, 184, 0.4), rgba(100, 116, 139, 0.4));
-                      border: 1px solid rgba(148, 163, 184, 0.6);
-                      border-radius: 4px;
+                      background: rgba(100, 116, 139, 0.08);
+                      border-bottom: 2px solid rgba(100, 116, 139, 0.3);
                       padding: 2px 4px;
-                      font-weight: 700;
-                      color: rgb(51, 65, 85) !important;
+                      font-weight: 600;
+                      color: rgb(71, 85, 105) !important;
                       opacity: 1 !important;
-                      box-shadow: 0 0 8px rgba(100, 116, 139, 0.3);
-                      transition: all 0.2s ease;
+                      transition: all 0.15s ease;
+                      border-radius: 3px;
                     }
                     .cm-tool-info:hover {
-                      background: linear-gradient(135deg, rgba(148, 163, 184, 0.6), rgba(100, 116, 139, 0.6));
-                      box-shadow: 0 0 12px rgba(100, 116, 139, 0.5);
-                      transform: translateY(-1px);
+                      background: rgba(100, 116, 139, 0.12);
+                      border-bottom-color: rgba(100, 116, 139, 0.4);
                     }
                   `}</style>
                   <CodeMirror
                     value={code}
-                    height="400px"
+                    height="450px"
                     theme={vscodeDark}
                     extensions={[
                       javascript(),
@@ -765,64 +768,68 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
           </div>
         </div>
 
-        {/* Side Panel (slides in from right) */}
+        {/* Side Panel - Floating drawer that slides in from right */}
         <div
-          className={`overflow-hidden bg-gradient-to-b from-gray-50 to-white border-l border-gray-200 transition-all duration-300 ease-in-out ${
-            selectedCall ? 'w-2/5' : 'w-0'
+          className={`absolute top-0 right-0 h-full bg-white rounded-l-2xl shadow-2xl transition-all duration-300 ease-out ${
+            selectedCall ? 'w-[42%] translate-x-0' : 'w-[42%] translate-x-full'
           }`}
+          style={{ zIndex: 10 }}
         >
           {selectedCall && selectedToolConfig && (
-            <div className="h-full overflow-y-auto">
-              {/* Panel Header */}
-              <div className="sticky top-0 z-10 bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 shadow-md">
+            <div className="h-full overflow-y-auto flex flex-col">
+              {/* Panel Header - lighter style */}
+              <div className="flex-shrink-0 sticky top-0 z-10 bg-white border-b border-gray-200 p-4 rounded-tl-2xl">
                 <div className="flex justify-between items-start">
                   <div className="flex items-start gap-3 flex-1">
-                    {React.createElement(selectedToolConfig.icon, { className: 'w-6 h-6 flex-shrink-0 mt-0.5' })}
+                    {React.createElement(selectedToolConfig.icon, { className: 'w-5 h-5 flex-shrink-0 mt-0.5 text-indigo-600' })}
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold truncate">{selectedToolConfig.name}</h3>
-                      <p className="text-sm text-indigo-100 mt-0.5">{selectedToolConfig.description}</p>
+                      <h3 className="text-lg font-semibold text-gray-900 truncate">{selectedToolConfig.name}</h3>
+                      <p className="text-sm text-gray-600 mt-0.5">{selectedToolConfig.description}</p>
                     </div>
                   </div>
                   <button
                     onClick={handleClosePanel}
-                    className="p-1.5 rounded-full hover:bg-white/20 transition-colors flex-shrink-0 ml-2"
+                    className="p-1 rounded-md hover:bg-gray-100 transition-colors flex-shrink-0 ml-2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="flex-1 p-5 overflow-y-auto">
 
               {/* Testable Tool Panel */}
               {selectedToolConfig.isTestable && (
                 <>
                   {/* Show the actual call from code */}
-                  <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Code Reference</p>
-                    <code className="text-sm text-gray-800 font-mono block bg-gray-50 p-2 rounded border border-gray-200">
+                  <div className="mb-4 pb-3 border-b border-gray-100">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Code Reference</p>
+                    <code className="text-sm text-gray-700 font-mono block bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
                       {selectedCall.functionName}({selectedCall.args.join(', ')})
                     </code>
                   </div>
 
                   {/* Warning message */}
                   {selectedToolConfig.warning && (
-                    <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-md">
-                      <p className="text-sm text-yellow-800">{selectedToolConfig.warning}</p>
+                    <div className="mb-4 p-3 bg-amber-50 border-l-4 border-amber-400 rounded-md text-sm text-amber-800">
+                      {selectedToolConfig.warning}
                     </div>
                   )}
 
                   {/* Info message */}
                   {selectedToolConfig.infoMessage && (
-                    <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
-                      <p className="text-sm text-blue-800">{selectedToolConfig.infoMessage}</p>
+                    <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-md text-sm text-blue-700">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <span>{selectedToolConfig.infoMessage}</span>
+                      </div>
                     </div>
                   )}
 
                   {/* Editable Arguments */}
                   {selectedToolConfig.parameters && selectedToolConfig.parameters.length > 0 && (
-                    <div className="mb-6 space-y-4">
-                      <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Test Parameters</h4>
+                    <div className="mb-5 space-y-4">
+                      <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">Test Parameters</h4>
                       {selectedToolConfig.parameters.map((param, idx) => (
                         <div key={idx}>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -838,7 +845,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                               setTestInputs(newInputs);
                             }}
                             placeholder={param.description}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all shadow-sm hover:border-gray-400"
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
                           />
                         </div>
                       ))}
@@ -849,20 +856,20 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                   <button
                     onClick={handleTest}
                     disabled={testingTool}
-                    className={`w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-semibold transition-all shadow-md ${
+                    className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
                       testingTool
-                        ? 'bg-amber-500 text-white cursor-wait shadow-amber-200'
-                        : 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white hover:from-indigo-700 hover:to-blue-700 hover:shadow-lg active:scale-98'
+                        ? 'bg-gray-300 text-gray-600 cursor-wait'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow-md'
                     }`}
                   >
                     {testingTool ? (
                       <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                         Testing...
                       </>
                     ) : (
                       <>
-                        <PlayCircle className="w-5 h-5" />
+                        <PlayCircle className="w-4 h-4" />
                         Run Test
                       </>
                     )}
@@ -870,18 +877,18 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
 
                   {/* Test Results */}
                   {testResult && (
-                    <div className={`mt-6 p-4 rounded-lg border-l-4 shadow-sm ${
+                    <div className={`mt-4 p-3 rounded-lg border ${
                       testResult.success
-                        ? 'bg-green-50 border-green-500'
-                        : 'bg-red-50 border-red-500'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-red-50 border-red-200'
                     }`}>
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2">
                         {testResult.success ? (
-                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                         ) : (
-                          <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                         )}
-                        <p className={`text-sm font-medium ${
+                        <p className={`text-sm ${
                           testResult.success ? 'text-green-800' : 'text-red-800'
                         }`}>
                           {testResult.message}
@@ -896,23 +903,23 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
               {!selectedToolConfig.isTestable && (
                 <>
                   {/* Show the actual call from code */}
-                  <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Code Reference</p>
-                    <code className="text-sm text-gray-800 font-mono block bg-gray-50 p-2 rounded border border-gray-200">
+                  <div className="mb-4 pb-3 border-b border-gray-100">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Code Reference</p>
+                    <code className="text-sm text-gray-700 font-mono block bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
                       {selectedCall.functionName}({selectedCall.args.join(', ')})
                     </code>
                   </div>
 
                   {/* Parameters Info */}
                   {selectedToolConfig.parameters && selectedToolConfig.parameters.length > 0 && (
-                    <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                      <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Parameters</h4>
+                    <div className="mb-4 pb-4 border-b border-gray-100">
+                      <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Parameters</h4>
                       <div className="space-y-3">
                         {selectedToolConfig.parameters.map((param, idx) => (
-                          <div key={idx} className="flex gap-3 items-start">
-                            <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 flex-shrink-0"></div>
+                          <div key={idx} className="flex gap-2.5 items-start">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 flex-shrink-0"></div>
                             <div className="flex-1">
-                              <span className="text-sm font-mono font-semibold text-gray-800">{param.name}</span>
+                              <span className="text-sm font-mono font-medium text-gray-800">{param.name}</span>
                               <p className="text-sm text-gray-600 mt-0.5">{param.description}</p>
                             </div>
                           </div>
@@ -922,10 +929,10 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                   )}
 
                   {/* Info message */}
-                  <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg shadow-sm">
-                    <div className="flex gap-3">
-                      <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-blue-800 font-medium">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex gap-2.5">
+                      <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-blue-800">
                         This tool cannot be tested directly as it interacts with agent state or system resources.
                       </p>
                     </div>
@@ -939,7 +946,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
       </div>
 
       {/* Footer */}
-      <div className="flex-shrink-0 flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+      <div className="flex-shrink-0 flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50">
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
           <span className="font-medium">{toolCalls.length}</span>
@@ -947,7 +954,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
         </div>
         <button
           onClick={onClose}
-          className="px-6 py-2.5 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-lg text-sm font-medium hover:from-gray-800 hover:to-gray-900 transition-all shadow-md hover:shadow-lg"
+          className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700"
         >
           Close
         </button>
