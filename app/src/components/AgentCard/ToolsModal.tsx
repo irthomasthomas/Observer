@@ -55,309 +55,312 @@ interface TestResult {
   message: string;
 }
 
-// All tools configuration
-const ALL_TOOLS: ToolConfig[] = [
-  // Testable notification tools
-  {
-    id: 'sendEmail',
-    name: 'sendEmail()',
-    functionName: 'sendEmail',
-    icon: Mail,
-    description: 'Send an email notification',
-    isTestable: true,
-    parameters: [
-      { name: 'email', description: 'Email address' },
-      { name: 'message', description: 'Email message content' },
-      { name: 'images', description: 'Optional images array' }
-    ],
-    testMessage: 'This is a test from Observer!'
-  },
-  {
-    id: 'sendWhatsapp',
-    name: 'sendWhatsapp()',
-    functionName: 'sendWhatsapp',
-    icon: WhatsAppIcon,
-    description: 'Send a WhatsApp message',
-    isTestable: true,
-    parameters: [
-      { name: 'phone_number', description: 'Phone number with country code' },
-      { name: 'message', description: 'Message content' }
-    ],
-    testMessage: 'This is a test from Observer!',
-    warning: '⚠️ IMPORTANT: Send a message first to +1 (555) 783-4727 to use WhatsApp.'
-  },
-  {
-    id: 'sendPushover',
-    name: 'sendPushover()',
-    functionName: 'sendPushover',
-    icon: Bell,
-    description: 'Send a Pushover notification',
-    isTestable: true,
-    parameters: [
-      { name: 'user_token', description: 'Pushover user token' },
-      { name: 'message', description: 'Notification message' },
-      { name: 'images', description: 'Optional images' },
-      { name: 'title', description: 'Notification title' }
-    ],
-    testMessage: 'This is a test from Observer!'
-  },
-  {
-    id: 'sendDiscord',
-    name: 'sendDiscord()',
-    functionName: 'sendDiscord',
-    icon: DiscordIcon,
-    description: 'Send a Discord webhook message',
-    isTestable: true,
-    parameters: [
-      { name: 'webhook_url', description: 'Discord webhook URL' },
-      { name: 'message', description: 'Message content' },
-      { name: 'images', description: 'Optional images array' }
-    ],
-    testMessage: 'This is a test from Observer!'
-  },
-  {
-    id: 'sendTelegram',
-    name: 'sendTelegram()',
-    functionName: 'sendTelegram',
-    icon: MessageCircle,
-    description: 'Send a Telegram message',
-    isTestable: true,
-    parameters: [
-      { name: 'chat_id', description: 'Telegram chat ID' },
-      { name: 'message', description: 'Message content' },
-      { name: 'images', description: 'Optional images array' }
-    ],
-    testMessage: 'This is a test from Observer!',
-    infoMessage: 'ℹ️ Get your chat_id by messaging @observer_notification_bot'
-  },
-  {
-    id: 'sendSms',
-    name: 'sendSms()',
-    functionName: 'sendSms',
-    icon: MessageSquarePlus,
-    description: 'Send an SMS message',
-    isTestable: true,
-    parameters: [
-      { name: 'phone_number', description: 'Phone number with country code' },
-      { name: 'message', description: 'SMS content' },
-      { name: 'images', description: 'Optional images array' }
-    ],
-    testMessage: 'This is a test from Observer!',
-    warning: '⚠️ IMPORTANT: Due to A2P policy, some SMS messages are being blocked. Not recommended for US/Canada.'
-  },
-  {
-    id: 'notify',
-    name: 'notify()',
-    functionName: 'notify',
-    icon: Bell,
-    description: 'Send a browser notification',
-    isTestable: true,
-    parameters: [
-      { name: 'title', description: 'Notification title' },
-      { name: 'options', description: 'Notification options object' }
-    ],
-    testMessage: 'Browser notifications working!',
-    warning: '⚠️ IMPORTANT: Some browsers block notifications. Check your browser settings if this doesn\'t work.'
-  },
-  {
-    id: 'ask',
-    name: 'ask()',
-    functionName: 'ask',
-    icon: MessageSquareQuote,
-    description: 'Show a confirmation dialog',
-    isTestable: true,
-    parameters: [
-      { name: 'question', description: 'Question to ask' },
-      { name: 'title', description: 'Dialog title' }
-    ],
-    testMessage: 'Test confirmation - Is this working?'
-  },
-  {
-    id: 'message',
-    name: 'message()',
-    functionName: 'message',
-    icon: MessageSquare,
-    description: 'Show a system message dialog',
-    isTestable: true,
-    parameters: [
-      { name: 'message', description: 'Message content' },
-      { name: 'title', description: 'Dialog title' }
-    ],
-    testMessage: 'Test from Observer - Messages working!'
-  },
-  {
-    id: 'system_notify',
-    name: 'system_notify()',
-    functionName: 'system_notify',
-    icon: Bell,
-    description: 'Send a system notification',
-    isTestable: true,
-    parameters: [
-      { name: 'body', description: 'Notification body' },
-      { name: 'title', description: 'Notification title' }
-    ],
-    testMessage: 'System notifications working!'
-  },
-  {
-    id: 'overlay',
-    name: 'overlay()',
-    functionName: 'overlay',
-    icon: Monitor,
-    description: 'Show an overlay message',
-    isTestable: true,
-    parameters: [
-      { name: 'body', description: 'Overlay message content' }
-    ],
-    testMessage: 'Test from Observer - Overlay working!'
-  },
+// All tools configuration - wrapped in function to avoid module initialization issues
+function getAllTools(): ToolConfig[] {
+  return [
+    // Testable notification tools
+    {
+      id: 'sendEmail',
+      name: 'sendEmail()',
+      functionName: 'sendEmail',
+      icon: Mail,
+      description: 'Send an email notification',
+      isTestable: true,
+      parameters: [
+        { name: 'email', description: 'Email address' },
+        { name: 'message', description: 'Email message content' },
+        { name: 'images', description: 'Optional images array' }
+      ],
+      testMessage: 'This is a test from Observer!'
+    },
+    {
+      id: 'sendWhatsapp',
+      name: 'sendWhatsapp()',
+      functionName: 'sendWhatsapp',
+      icon: WhatsAppIcon,
+      description: 'Send a WhatsApp message',
+      isTestable: true,
+      parameters: [
+        { name: 'phone_number', description: 'Phone number with country code' },
+        { name: 'message', description: 'Message content' }
+      ],
+      testMessage: 'This is a test from Observer!',
+      warning: '⚠️ IMPORTANT: Send a message first to +1 (555) 783-4727 to use WhatsApp.'
+    },
+    {
+      id: 'sendPushover',
+      name: 'sendPushover()',
+      functionName: 'sendPushover',
+      icon: Bell,
+      description: 'Send a Pushover notification',
+      isTestable: true,
+      parameters: [
+        { name: 'user_token', description: 'Pushover user token' },
+        { name: 'message', description: 'Notification message' },
+        { name: 'images', description: 'Optional images' },
+        { name: 'title', description: 'Notification title' }
+      ],
+      testMessage: 'This is a test from Observer!'
+    },
+    {
+      id: 'sendDiscord',
+      name: 'sendDiscord()',
+      functionName: 'sendDiscord',
+      icon: DiscordIcon,
+      description: 'Send a Discord webhook message',
+      isTestable: true,
+      parameters: [
+        { name: 'webhook_url', description: 'Discord webhook URL' },
+        { name: 'message', description: 'Message content' },
+        { name: 'images', description: 'Optional images array' }
+      ],
+      testMessage: 'This is a test from Observer!'
+    },
+    {
+      id: 'sendTelegram',
+      name: 'sendTelegram()',
+      functionName: 'sendTelegram',
+      icon: MessageCircle,
+      description: 'Send a Telegram message',
+      isTestable: true,
+      parameters: [
+        { name: 'chat_id', description: 'Telegram chat ID' },
+        { name: 'message', description: 'Message content' },
+        { name: 'images', description: 'Optional images array' }
+      ],
+      testMessage: 'This is a test from Observer!',
+      infoMessage: 'ℹ️ Get your chat_id by messaging @observer_notification_bot'
+    },
+    {
+      id: 'sendSms',
+      name: 'sendSms()',
+      functionName: 'sendSms',
+      icon: MessageSquarePlus,
+      description: 'Send an SMS message',
+      isTestable: true,
+      parameters: [
+        { name: 'phone_number', description: 'Phone number with country code' },
+        { name: 'message', description: 'SMS content' },
+        { name: 'images', description: 'Optional images array' }
+      ],
+      testMessage: 'This is a test from Observer!',
+      warning: '⚠️ IMPORTANT: Due to A2P policy, some SMS messages are being blocked. Not recommended for US/Canada.'
+    },
+    {
+      id: 'notify',
+      name: 'notify()',
+      functionName: 'notify',
+      icon: Bell,
+      description: 'Send a browser notification',
+      isTestable: true,
+      parameters: [
+        { name: 'title', description: 'Notification title' },
+        { name: 'options', description: 'Notification options object' }
+      ],
+      testMessage: 'Browser notifications working!',
+      warning: '⚠️ IMPORTANT: Some browsers block notifications. Check your browser settings if this doesn\'t work.'
+    },
+    {
+      id: 'ask',
+      name: 'ask()',
+      functionName: 'ask',
+      icon: MessageSquareQuote,
+      description: 'Show a confirmation dialog',
+      isTestable: true,
+      parameters: [
+        { name: 'question', description: 'Question to ask' },
+        { name: 'title', description: 'Dialog title' }
+      ],
+      testMessage: 'Test confirmation - Is this working?'
+    },
+    {
+      id: 'message',
+      name: 'message()',
+      functionName: 'message',
+      icon: MessageSquare,
+      description: 'Show a system message dialog',
+      isTestable: true,
+      parameters: [
+        { name: 'message', description: 'Message content' },
+        { name: 'title', description: 'Dialog title' }
+      ],
+      testMessage: 'Test from Observer - Messages working!'
+    },
+    {
+      id: 'system_notify',
+      name: 'system_notify()',
+      functionName: 'system_notify',
+      icon: Bell,
+      description: 'Send a system notification',
+      isTestable: true,
+      parameters: [
+        { name: 'body', description: 'Notification body' },
+        { name: 'title', description: 'Notification title' }
+      ],
+      testMessage: 'System notifications working!'
+    },
+    {
+      id: 'overlay',
+      name: 'overlay()',
+      functionName: 'overlay',
+      icon: Monitor,
+      description: 'Show an overlay message',
+      isTestable: true,
+      parameters: [
+        { name: 'body', description: 'Overlay message content' }
+      ],
+      testMessage: 'Test from Observer - Overlay working!'
+    },
 
-  // Non-testable tools (info only)
-  {
-    id: 'getMemory',
-    name: 'getMemory()',
-    functionName: 'getMemory',
-    icon: Save,
-    description: 'Retrieve stored memory from an agent',
-    isTestable: false,
-    parameters: [
-      { name: 'agentId', description: 'Agent ID (defaults to current agent)' }
-    ]
-  },
-  {
-    id: 'setMemory',
-    name: 'setMemory()',
-    functionName: 'setMemory',
-    icon: SquarePen,
-    description: 'Replace stored memory for an agent',
-    isTestable: false,
-    parameters: [
-      { name: 'agentId', description: 'Agent ID (defaults to current agent)' },
-      { name: 'content', description: 'Memory content to store' }
-    ]
-  },
-  {
-    id: 'appendMemory',
-    name: 'appendMemory()',
-    functionName: 'appendMemory',
-    icon: SquarePen,
-    description: 'Add to existing memory for an agent',
-    isTestable: false,
-    parameters: [
-      { name: 'agentId', description: 'Agent ID (defaults to current agent)' },
-      { name: 'content', description: 'Content to append' }
-    ]
-  },
-  {
-    id: 'getImageMemory',
-    name: 'getImageMemory()',
-    functionName: 'getImageMemory',
-    icon: Save,
-    description: 'Retrieve stored images from an agent',
-    isTestable: false,
-    parameters: [
-      { name: 'agentId', description: 'Agent ID (defaults to current agent)' }
-    ]
-  },
-  {
-    id: 'setImageMemory',
-    name: 'setImageMemory()',
-    functionName: 'setImageMemory',
-    icon: Save,
-    description: 'Set images in agent memory',
-    isTestable: false,
-    parameters: [
-      { name: 'agentId', description: 'Agent ID (defaults to current agent)' },
-      { name: 'images', description: 'Array of base64 images' }
-    ]
-  },
-  {
-    id: 'appendImageMemory',
-    name: 'appendImageMemory()',
-    functionName: 'appendImageMemory',
-    icon: Save,
-    description: 'Add images to agent memory',
-    isTestable: false,
-    parameters: [
-      { name: 'agentId', description: 'Agent ID (defaults to current agent)' },
-      { name: 'images', description: 'Array of base64 images to append' }
-    ]
-  },
-  {
-    id: 'startAgent',
-    name: 'startAgent()',
-    functionName: 'startAgent',
-    icon: PlayCircle,
-    description: 'Start another agent',
-    isTestable: false,
-    parameters: [
-      { name: 'agentId', description: 'ID of agent to start' }
-    ]
-  },
-  {
-    id: 'stopAgent',
-    name: 'stopAgent()',
-    functionName: 'stopAgent',
-    icon: StopCircle,
-    description: 'Stop another agent',
-    isTestable: false,
-    parameters: [
-      { name: 'agentId', description: 'ID of agent to stop' }
-    ]
-  },
-  {
-    id: 'time',
-    name: 'time()',
-    functionName: 'time',
-    icon: Hourglass,
-    description: 'Get the current time',
-    isTestable: false,
-    parameters: []
-  },
-  {
-    id: 'sleep',
-    name: 'sleep()',
-    functionName: 'sleep',
-    icon: Hourglass,
-    description: 'Wait for specified milliseconds',
-    isTestable: false,
-    parameters: [
-      { name: 'ms', description: 'Milliseconds to wait' }
-    ]
-  },
-  {
-    id: 'startClip',
-    name: 'startClip()',
-    functionName: 'startClip',
-    icon: Video,
-    description: 'Start recording video',
-    isTestable: false,
-    parameters: []
-  },
-  {
-    id: 'stopClip',
-    name: 'stopClip()',
-    functionName: 'stopClip',
-    icon: VideoOff,
-    description: 'Stop recording video',
-    isTestable: false,
-    parameters: []
-  },
-  {
-    id: 'markClip',
-    name: 'markClip()',
-    functionName: 'markClip',
-    icon: Tag,
-    description: 'Add a label to active recording',
-    isTestable: false,
-    parameters: [
-      { name: 'label', description: 'Label text for the clip' }
-    ]
-  }
-];
+    // Non-testable tools (info only)
+    {
+      id: 'getMemory',
+      name: 'getMemory()',
+      functionName: 'getMemory',
+      icon: Save,
+      description: 'Retrieve stored memory from an agent',
+      isTestable: false,
+      parameters: [
+        { name: 'agentId', description: 'Agent ID (defaults to current agent)' }
+      ]
+    },
+    {
+      id: 'setMemory',
+      name: 'setMemory()',
+      functionName: 'setMemory',
+      icon: SquarePen,
+      description: 'Replace stored memory for an agent',
+      isTestable: false,
+      parameters: [
+        { name: 'agentId', description: 'Agent ID (defaults to current agent)' },
+        { name: 'content', description: 'Memory content to store' }
+      ]
+    },
+    {
+      id: 'appendMemory',
+      name: 'appendMemory()',
+      functionName: 'appendMemory',
+      icon: SquarePen,
+      description: 'Add to existing memory for an agent',
+      isTestable: false,
+      parameters: [
+        { name: 'agentId', description: 'Agent ID (defaults to current agent)' },
+        { name: 'content', description: 'Content to append' }
+      ]
+    },
+    {
+      id: 'getImageMemory',
+      name: 'getImageMemory()',
+      functionName: 'getImageMemory',
+      icon: Save,
+      description: 'Retrieve stored images from an agent',
+      isTestable: false,
+      parameters: [
+        { name: 'agentId', description: 'Agent ID (defaults to current agent)' }
+      ]
+    },
+    {
+      id: 'setImageMemory',
+      name: 'setImageMemory()',
+      functionName: 'setImageMemory',
+      icon: Save,
+      description: 'Set images in agent memory',
+      isTestable: false,
+      parameters: [
+        { name: 'agentId', description: 'Agent ID (defaults to current agent)' },
+        { name: 'images', description: 'Array of base64 images' }
+      ]
+    },
+    {
+      id: 'appendImageMemory',
+      name: 'appendImageMemory()',
+      functionName: 'appendImageMemory',
+      icon: Save,
+      description: 'Add images to agent memory',
+      isTestable: false,
+      parameters: [
+        { name: 'agentId', description: 'Agent ID (defaults to current agent)' },
+        { name: 'images', description: 'Array of base64 images to append' }
+      ]
+    },
+    {
+      id: 'startAgent',
+      name: 'startAgent()',
+      functionName: 'startAgent',
+      icon: PlayCircle,
+      description: 'Start another agent',
+      isTestable: false,
+      parameters: [
+        { name: 'agentId', description: 'ID of agent to start' }
+      ]
+    },
+    {
+      id: 'stopAgent',
+      name: 'stopAgent()',
+      functionName: 'stopAgent',
+      icon: StopCircle,
+      description: 'Stop another agent',
+      isTestable: false,
+      parameters: [
+        { name: 'agentId', description: 'ID of agent to stop' }
+      ]
+    },
+    {
+      id: 'time',
+      name: 'time()',
+      functionName: 'time',
+      icon: Hourglass,
+      description: 'Get the current time',
+      isTestable: false,
+      parameters: []
+    },
+    {
+      id: 'sleep',
+      name: 'sleep()',
+      functionName: 'sleep',
+      icon: Hourglass,
+      description: 'Wait for specified milliseconds',
+      isTestable: false,
+      parameters: [
+        { name: 'ms', description: 'Milliseconds to wait' }
+      ]
+    },
+    {
+      id: 'startClip',
+      name: 'startClip()',
+      functionName: 'startClip',
+      icon: Video,
+      description: 'Start recording video',
+      isTestable: false,
+      parameters: []
+    },
+    {
+      id: 'stopClip',
+      name: 'stopClip()',
+      functionName: 'stopClip',
+      icon: VideoOff,
+      description: 'Stop recording video',
+      isTestable: false,
+      parameters: []
+    },
+    {
+      id: 'markClip',
+      name: 'markClip()',
+      functionName: 'markClip',
+      icon: Tag,
+      description: 'Add a label to active recording',
+      isTestable: false,
+      parameters: [
+        { name: 'label', description: 'Label text for the clip' }
+      ]
+    }
+  ];
+}
 
 // Parse code to find all tool calls
 function parseToolCalls(code: string): ToolCall[] {
   const calls: ToolCall[] = [];
+  const ALL_TOOLS = getAllTools();
 
   ALL_TOOLS.forEach(tool => {
     // Match function calls: functionName(...args...)
@@ -471,7 +474,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
 
   // Get selected tool config
   const selectedToolConfig = selectedCall
-    ? ALL_TOOLS.find(t => t.id === selectedCall.toolId)
+    ? getAllTools().find(t => t.id === selectedCall.toolId)
     : null;
 
   // Mock context for evaluating arguments
