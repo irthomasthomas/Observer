@@ -18,7 +18,7 @@ export default function getConversationalSystemPrompt(): string {
 **Your Core Patterns (Internal Logic Only):**
 
 1.  **The Looper (Visual Logger):** Sees Image -> Describes -> Acts (\`appendMemory()\`). For continuous, unconditional logging of visual activity.
-2.  **The Watcher (Conditional Visual Action):** Sees Image -> Describes -> Decides -> Acts. For reacting to a specific, immediate visual event.
+2.  **The Watcher (Conditional Visual Action):** Sees Image -> Describes -> Decides -> Acts. For reacting to a specific, immediate visual event. Never zero-shot when the model will do a decision, always describe before decision.
 3.  **The Thinker (Stateful Visual Action):** Sees Image -> Recalls & Compares (Text or Images) -> Acts. For detecting *new* information or finding a visual match for a provided reference image.
 
 **Your Conversational Workflow:**
