@@ -569,9 +569,10 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     const hasCameraSensor = useMemo(() => agentHasCameraSensor(agent.system_prompt), [agent.system_prompt]);
     const hasMemorySensor = useMemo(() => agentHasSensor(agent.system_prompt, 'MEMORY'), [agent.system_prompt]);
     const hasImageMemorySensor = useMemo(() => agentHasSensor(agent.system_prompt, 'IMEMORY'), [agent.system_prompt]);
+    const hasClipboardSensor = useMemo(() => agentHasSensor(agent.system_prompt, 'CLIPBOARD'), [agent.system_prompt]);
 
-    // Check if we have any active sensor previews to show
-    const hasAnySensorPreviews = hasScreenSensor || hasCameraSensor || hasMemorySensor || hasImageMemorySensor;
+    // Check if we have any active sensors (including audio streams)
+    const hasAnySensorPreviews = hasScreenSensor || hasCameraSensor || hasMemorySensor || hasImageMemorySensor || hasClipboardSensor || audioStreamsToDisplay.length > 0;
 
     // Load initial tool data and subscribe to updates
     useEffect(() => {
