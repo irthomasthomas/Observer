@@ -92,6 +92,69 @@ const SensorButton = ({ icon: Icon, label, colorClass, onClick }: { icon: React.
   </button>
 );
 
+// --- NEW HELPER COMPONENT: Sensor Dropdown Button ---
+const SensorDropdownButton = ({
+  icon: Icon,
+  label,
+  colorClass,
+  agents,
+  onSelect
+}: {
+  icon: React.ElementType;
+  label: string;
+  colorClass?: string;
+  agents: { id: string; name: string }[];
+  onSelect: (agentId: string) => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  if (agents.length === 0) return null;
+
+  return (
+    <div ref={dropdownRef} className="relative flex-grow md:flex-grow-0">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-center space-x-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors ${colorClass || 'text-gray-700'}`}
+      >
+        <Icon className="h-5 w-5" />
+        <span className="text-sm font-medium">{label}</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-30 mt-1 w-full min-w-[200px] max-h-60 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto">
+          {agents.map((agent) => (
+            <button
+              key={agent.id}
+              onClick={() => {
+                onSelect(agent.id);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+            >
+              {agent.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 /* ───────────────────────── REFACTORED CONTENT COMPONENTS ───────────────────────── */
 
@@ -260,25 +323,21 @@ const PromptContent: React.FC<PromptContentProps> = ({
             <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSystemPromptText('$SCREEN_AUDIO')} colorClass="text-slate-600" />
             <SensorButton icon={Blend} label="All Audio" onClick={() => insertSystemPromptText('$ALL_AUDIO')} colorClass="text-slate-600" />
 
-            {availableAgentsForBlocks.map(agent => (
-                <SensorButton
-                  key={agent.id}
-                  icon={Save}
-                  label={`Memory: ${agent.name}`}
-                  onClick={() => insertSystemPromptText(`$MEMORY@${agent.id}`)}
-                  colorClass="text-green-600"
-                />
-            ))}
-            
-            {availableAgentsForBlocks.map(agent => (
-                <SensorButton
-                  key={`imemory-${agent.id}`}
-                  icon={Images}
-                  label={`Image Memory: ${agent.name}`}
-                  onClick={() => insertSystemPromptText(`$IMEMORY@${agent.id}`)}
-                  colorClass="text-purple-600"
-                />
-            ))}
+            <SensorDropdownButton
+              icon={Save}
+              label="Memory"
+              colorClass="text-green-600"
+              agents={availableAgentsForBlocks}
+              onSelect={(agentId) => insertSystemPromptText(`$MEMORY@${agentId}`)}
+            />
+
+            <SensorDropdownButton
+              icon={Images}
+              label="Image Memory"
+              colorClass="text-purple-600"
+              agents={availableAgentsForBlocks}
+              onSelect={(agentId) => insertSystemPromptText(`$IMEMORY@${agentId}`)}
+            />
         </div>
     </div>
 
