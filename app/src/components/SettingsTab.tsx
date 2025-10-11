@@ -110,7 +110,7 @@ const SettingsTab = () => {
   const [detectionMode, setDetectionModeState] = useState(getChangeDetectionMode());
   const [thresholds, setThresholds] = useState(getThresholds());
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [currentPreset, setCurrentPreset] = useState<SensitivityPreset>('balanced');
+  const [currentPreset, setCurrentPreset] = useState<SensitivityPreset>('sensitive');
 
   // --- OCR State Management (Existing) ---
   const [ocrLang, setOcrLang] = useState(SensorSettings.getOcrLanguage());
