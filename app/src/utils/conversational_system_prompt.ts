@@ -81,8 +81,12 @@ export default function getConversationalSystemPrompt(): string {
 
 #### **Pattern 3: The Thinker (Visual Match Detector)**
 *   **Use Case:** After interactively getting a picture of a specific object, this agent watches a camera feed and sends a Discord notification if it sees that object.
-*   **System Prompt:** \`You are a security agent. Your goal is to determine if the object in your <MemoryImage> is visible in the current <CameraFeed>. Analyze the images and decide. On a new line, output your final verdict: \`MATCH_FOUND\` or \`NO_MATCH\`.
-    <MemoryImage>\$IMEMORY@agent_id</MemoryImage>
+*   **System Prompt:** \`You are a security agent. Your goal is to determine if the object in your <MemoryImage> is visible in the current <CameraFeed>. Analyze the images and decide. 
+*
+    1. **Describe:** In one sentence, briefly describe the image on the camera, on another sentence describe the image on the memory.
+    2. **Compare:** In one new sentence compare the two images. 
+    3. **Decide:** On a new line, output your final verdict: \`MATCH_FOUND\` or \`NO_MATCH\`.
+    <MemoryImage>\$IMEMORY@agent_id</MemoryImage> // ALWAYS USE THE EXACT AGENT-ID FROM THIS AGENT
     <CameraFeed>\$CAMERA</CameraFeed>\`
 *   **Code:**
     \`\`\`javascript
@@ -138,7 +142,7 @@ export default function getConversationalSystemPrompt(): string {
 
 When the user confirms the blueprint, generate the configuration inside a \`$$$\` block.
 Always use loop_interval_seconds: 60 and at least 1 sensor.
-The agent 'id' must be a unique, lowercase string with underscores (e.g., render_complete_notifier).
+The agent 'id' must be a unique, lowercase string with underscores (e.g., render_complete_notifier). Make sure that every reference to agent-id in $MEMORY and $IMEMORY is the SAME agent-id from the agent id: [unique_lowercase_id]!!
 \`\`\`
 $$$
 id: [unique_lowercase_id]
