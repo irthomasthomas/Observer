@@ -1,7 +1,7 @@
 // components/AgentCard/SensorPreviewPanel.tsx
 import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
-import { Mic, Volume2, Crop, RotateCcw, Save, Images, AlertTriangle } from 'lucide-react';
-import { StreamState, AudioStreamType } from '@utils/streamManager';
+import { Mic, Volume2, Crop, RotateCcw, Save, Images, AlertTriangle, Monitor, Camera, Play } from 'lucide-react';
+import { StreamState, AudioStreamType, StreamManager } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
 import { agentHasScreenSensor, agentHasCameraSensor, agentHasSensor } from './agentCapabilities';
@@ -142,6 +142,80 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, exist
           Drag to select crop area
         </div>
       )}
+    </div>
+  );
+};
+
+// --- Sensor Placeholder Component ---
+
+interface SensorPlaceholderProps {
+  sensorName: string;
+  icon: ReactNode;
+  onStart: () => void;
+  isLoading?: boolean;
+}
+
+const SensorPlaceholder: React.FC<SensorPlaceholderProps> = ({ sensorName, icon, onStart, isLoading = false }) => {
+  return (
+    <div className="bg-black rounded-lg aspect-video flex-1 min-w-0 flex flex-col items-center justify-center gap-3 text-gray-400 border border-gray-800">
+      <div className="flex items-center gap-2 text-gray-500">
+        {icon}
+        <span className="text-sm">{sensorName} not active</span>
+      </div>
+      <button
+        onClick={onStart}
+        disabled={isLoading}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isLoading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Starting...
+          </>
+        ) : (
+          <>
+            <Play className="w-4 h-4" />
+            Start {sensorName}
+          </>
+        )}
+      </button>
+    </div>
+  );
+};
+
+// --- Audio Sensor Placeholder Component ---
+
+interface AudioPlaceholderProps {
+  sensorName: string;
+  icon: ReactNode;
+  onStart: () => void;
+  isLoading?: boolean;
+}
+
+const AudioPlaceholder: React.FC<AudioPlaceholderProps> = ({ sensorName, icon, onStart, isLoading = false }) => {
+  return (
+    <div className="bg-gray-800 rounded-lg p-3 flex-1 min-w-0 flex flex-col items-center justify-center gap-3 border border-gray-700">
+      <div className="flex items-center gap-2 text-gray-400">
+        {icon}
+        <span className="text-sm">{sensorName} not active</span>
+      </div>
+      <button
+        onClick={onStart}
+        disabled={isLoading}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isLoading ? (
+          <>
+            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Starting...
+          </>
+        ) : (
+          <>
+            <Play className="w-3 h-3" />
+            Start
+          </>
+        )}
+      </button>
     </div>
   );
 };
@@ -532,21 +606,109 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
 }) => {
   const audioStreamsToDisplay = useMemo(() => getActiveAudioStreamsForDisplay(streams), [streams]);
 
+  // Loading states for start buttons
+  const [isStartingScreen, setIsStartingScreen] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [isStartingMicrophone, setIsStartingMicrophone] = useState(false);
+  const [isStartingScreenAudio, setIsStartingScreenAudio] = useState(false);
+  const [isStartingAllAudio, setIsStartingAllAudio] = useState(false);
+
   // Detect which sensors this agent actually uses
   const hasScreenSensor = useMemo(() => agentHasScreenSensor(systemPrompt), [systemPrompt]);
   const hasCameraSensor = useMemo(() => agentHasCameraSensor(systemPrompt), [systemPrompt]);
   const hasMemorySensor = useMemo(() => agentHasSensor(systemPrompt, 'MEMORY'), [systemPrompt]);
   const hasImageMemorySensor = useMemo(() => agentHasSensor(systemPrompt, 'IMEMORY'), [systemPrompt]);
   const hasClipboardSensor = useMemo(() => agentHasSensor(systemPrompt, 'CLIPBOARD'), [systemPrompt]);
+  const hasMicrophoneSensor = useMemo(() => agentHasSensor(systemPrompt, 'MICROPHONE'), [systemPrompt]);
+  const hasScreenAudioSensor = useMemo(() => agentHasSensor(systemPrompt, 'SCREEN_AUDIO'), [systemPrompt]);
+  const hasAllAudioSensor = useMemo(() => agentHasSensor(systemPrompt, 'ALL_AUDIO'), [systemPrompt]);
 
-  // Check if we have any active sensors (including audio streams)
-  const hasAnySensorPreviews = hasScreenSensor || hasCameraSensor || hasMemorySensor || hasImageMemorySensor || hasClipboardSensor || audioStreamsToDisplay.length > 0;
+  // Check if we have any sensors configured (not necessarily active)
+  const hasAnySensorsConfigured = hasScreenSensor || hasCameraSensor || hasMemorySensor || hasImageMemorySensor || hasClipboardSensor || hasMicrophoneSensor || hasScreenAudioSensor || hasAllAudioSensor;
+
+  // Start handler functions
+  const handleStartScreen = async () => {
+    setIsStartingScreen(true);
+    try {
+      await StreamManager.requestStreamsForAgent(agentId, ['screenVideo']);
+    } catch (error) {
+      console.error('Failed to start screen share:', error);
+    } finally {
+      setIsStartingScreen(false);
+    }
+  };
+
+  const handleStartCamera = async () => {
+    setIsStartingCamera(true);
+    try {
+      await StreamManager.requestStreamsForAgent(agentId, ['camera']);
+    } catch (error) {
+      console.error('Failed to start camera:', error);
+    } finally {
+      setIsStartingCamera(false);
+    }
+  };
+
+  const handleStartMicrophone = async () => {
+    setIsStartingMicrophone(true);
+    try {
+      await StreamManager.requestStreamsForAgent(agentId, ['microphone']);
+    } catch (error) {
+      console.error('Failed to start microphone:', error);
+    } finally {
+      setIsStartingMicrophone(false);
+    }
+  };
+
+  const handleStartScreenAudio = async () => {
+    setIsStartingScreenAudio(true);
+    try {
+      await StreamManager.requestStreamsForAgent(agentId, ['screenAudio']);
+    } catch (error) {
+      console.error('Failed to start system audio:', error);
+    } finally {
+      setIsStartingScreenAudio(false);
+    }
+  };
+
+  const handleStartAllAudio = async () => {
+    setIsStartingAllAudio(true);
+    try {
+      await StreamManager.requestStreamsForAgent(agentId, ['allAudio']);
+    } catch (error) {
+      console.error('Failed to start all audio:', error);
+    } finally {
+      setIsStartingAllAudio(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
       {/* Video Streams */}
-      {hasScreenSensor && streams.screenVideoStream && <VideoStream stream={streams.screenVideoStream} streamType="screen" agentId={agentId} />}
-      {hasCameraSensor && streams.cameraStream && <VideoStream stream={streams.cameraStream} streamType="camera" agentId={agentId} />}
+      {hasScreenSensor && (
+        streams.screenVideoStream ? (
+          <VideoStream stream={streams.screenVideoStream} streamType="screen" agentId={agentId} />
+        ) : (
+          <SensorPlaceholder
+            sensorName="Screen Share"
+            icon={<Monitor className="w-8 h-8" />}
+            onStart={handleStartScreen}
+            isLoading={isStartingScreen}
+          />
+        )
+      )}
+      {hasCameraSensor && (
+        streams.cameraStream ? (
+          <VideoStream stream={streams.cameraStream} streamType="camera" agentId={agentId} />
+        ) : (
+          <SensorPlaceholder
+            sensorName="Camera"
+            icon={<Camera className="w-8 h-8" />}
+            onStart={handleStartCamera}
+            isLoading={isStartingCamera}
+          />
+        )
+      )}
 
       {/* Memory Sensor Previews */}
       {(hasMemorySensor || hasImageMemorySensor) && (
@@ -557,13 +719,40 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
       )}
 
       {/* Show warning if no sensors are configured */}
-      {!hasAnySensorPreviews && <NoSensorsWarning />}
+      {!hasAnySensorsConfigured && <NoSensorsWarning />}
 
       {/* Audio Streams */}
       <div className="grid grid-cols-1 gap-2">
+        {/* Active audio streams */}
         {audioStreamsToDisplay.map(({ type, stream, title, icon }) => (
           <AudioWaveform key={type} stream={stream} title={title} icon={icon} type={type} />
         ))}
+
+        {/* Placeholders for inactive audio sensors */}
+        {hasAllAudioSensor && !streams.allAudioStream && (
+          <AudioPlaceholder
+            sensorName="All Audio (Mixed)"
+            icon={<><Volume2 className="w-4 h-4" /><Mic className="w-4 h-4 -ml-1" /></>}
+            onStart={handleStartAllAudio}
+            isLoading={isStartingAllAudio}
+          />
+        )}
+        {hasMicrophoneSensor && !streams.microphoneStream && !streams.allAudioStream && (
+          <AudioPlaceholder
+            sensorName="Microphone"
+            icon={<Mic className="w-4 h-4" />}
+            onStart={handleStartMicrophone}
+            isLoading={isStartingMicrophone}
+          />
+        )}
+        {hasScreenAudioSensor && !streams.screenAudioStream && !streams.allAudioStream && (
+          <AudioPlaceholder
+            sensorName="System Audio"
+            icon={<Volume2 className="w-4 h-4" />}
+            onStart={handleStartScreenAudio}
+            isLoading={isStartingScreenAudio}
+          />
+        )}
       </div>
     </div>
   );
