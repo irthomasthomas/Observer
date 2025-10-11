@@ -96,6 +96,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
     }
   };
 
+  const handleSystemPromptChange = async (newPrompt: string) => {
+    if (onSave && code !== undefined) {
+      await onSave({ ...agent, system_prompt: newPrompt }, code);
+    }
+  };
+
   useEffect(() => {
     StreamManager.addListener(setStreams);
     return () => StreamManager.removeListener(setStreams);
@@ -257,6 +263,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               currentModel={currentModel}
               onModelChange={setCurrentModel}
               onToggleSignificantChange={handleToggleSignificantChange}
+              onSystemPromptChange={handleSystemPromptChange}
               startWarning={startWarning}
               isProUser={isProUser}
               hostingContext={hostingContext}

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from '@components/EditAgent/Modal';
 import SensorInputText from '@components/EditAgent/SensorInputText';
 import SensorPreviewPanel from './SensorPreviewPanel';
 import { StreamManager, StreamState } from '@utils/streamManager';
-import { Eye, X } from 'lucide-react';
+import { listAgents } from '@utils/agent_database';
+import { Eye, X, Monitor, ScanText, Camera, Clipboard, Mic, Volume2, Blend, Save, Images, ChevronDown } from 'lucide-react';
 
 interface SensorModalProps {
   isOpen: boolean;
@@ -11,10 +12,85 @@ interface SensorModalProps {
   systemPrompt: string;
   agentName: string;
   agentId: string;
+  onSystemPromptChange?: (newPrompt: string) => void;
 }
 
-const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt, agentName, agentId }) => {
+// Sensor Button Helper Component
+const SensorButton = ({ icon: Icon, label, colorClass, onClick }: { icon: React.ElementType, label: string, colorClass?: string, onClick: () => void }) => (
+  <button onClick={onClick} className={`flex-grow md:flex-grow-0 flex items-center justify-center space-x-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors ${colorClass || 'text-gray-700'}`}>
+    <Icon className="h-5 w-5" />
+    <span className="text-sm font-medium">{label}</span>
+  </button>
+);
+
+// Sensor Dropdown Button Component
+const SensorDropdownButton = ({
+  icon: Icon,
+  label,
+  colorClass,
+  agents,
+  onSelect
+}: {
+  icon: React.ElementType;
+  label: string;
+  colorClass?: string;
+  agents: { id: string; name: string }[];
+  onSelect: (agentId: string) => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  if (agents.length === 0) return null;
+
+  return (
+    <div ref={dropdownRef} className="relative flex-grow md:flex-grow-0">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-center space-x-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors ${colorClass || 'text-gray-700'}`}
+      >
+        <Icon className="h-5 w-5" />
+        <span className="text-sm font-medium">{label}</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-30 mt-1 w-full min-w-[200px] max-h-60 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto">
+          {agents.map((agent) => (
+            <button
+              key={agent.id}
+              onClick={() => {
+                onSelect(agent.id);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+            >
+              {agent.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt, agentName, agentId, onSystemPromptChange }) => {
   const [streams, setStreams] = useState<StreamState>(() => StreamManager.getCurrentState());
+  const [editedPrompt, setEditedPrompt] = useState(systemPrompt);
+  const [availableAgents, setAvailableAgents] = useState<{ id: string; name: string }[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Listen to stream state changes
   useEffect(() => {
@@ -24,12 +100,52 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
     return () => StreamManager.removeListener(handleStreamUpdate);
   }, [isOpen]);
 
+  // Load available agents for memory sensor dropdowns
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadAgents = async () => {
+      try {
+        const agents = await listAgents();
+        setAvailableAgents(agents.map(a => ({ id: a.id, name: a.name })));
+      } catch (error) {
+        console.error('Failed to load agents:', error);
+      }
+    };
+    loadAgents();
+  }, [isOpen]);
+
+  // Reset edited prompt when modal opens or systemPrompt changes
+  useEffect(() => {
+    setEditedPrompt(systemPrompt);
+  }, [systemPrompt, isOpen]);
+
+  // Insert sensor variable at cursor position
+  const insertSystemPromptText = (text: string) => {
+    if (!textareaRef.current) return;
+    const { selectionStart, selectionEnd, value } = textareaRef.current;
+    const newPrompt = `${value.substring(0, selectionStart)} ${text} ${value.substring(selectionEnd)}`;
+    setEditedPrompt(newPrompt);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      const newPos = selectionStart + text.length + 2;
+      textareaRef.current?.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
+  // Handle modal close with save
+  const handleClose = () => {
+    if (onSystemPromptChange && editedPrompt !== systemPrompt) {
+      onSystemPromptChange(editedPrompt);
+    }
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <Modal
       open={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       className="w-full max-w-6xl max-h-[90vh] flex flex-col"
     >
       {/* Header */}
@@ -42,7 +158,7 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
           </div>
         </div>
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="p-1.5 rounded-full hover:bg-blue-700 hover:bg-opacity-50 text-indigo-100 hover:text-white"
         >
           <X className="h-5 w-5" />
@@ -58,16 +174,44 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 System Prompt with Sensors
               </label>
-              <p className="text-xs text-gray-500 mb-3">
-                Sensor variables are highlighted in color. This prompt is read-only.
-              </p>
             </div>
             <SensorInputText
-              value={systemPrompt}
-              onChange={() => {}} // Read-only
+              value={editedPrompt}
+              onChange={setEditedPrompt}
+              textareaRef={textareaRef}
               className="h-96 bg-white"
               placeholder="No system prompt defined"
             />
+
+            {/* Sensor Insertion Buttons */}
+            <div className="mt-4">
+              <label className="block text-xs text-gray-500 mb-2 font-medium">INSERT SENSOR:</label>
+              <div className="flex flex-wrap gap-2">
+                <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSystemPromptText('$SCREEN_OCR')} colorClass="text-blue-600" />
+                <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSystemPromptText('$SCREEN_64')} colorClass="text-purple-600" />
+                <SensorButton icon={Camera} label="Camera" onClick={() => insertSystemPromptText('$CAMERA')} colorClass="text-purple-600" />
+                <SensorButton icon={Clipboard} label="Clipboard" onClick={() => insertSystemPromptText('$CLIPBOARD_TEXT')} colorClass="text-sky-600" />
+                <SensorButton icon={Mic} label="Microphone" onClick={() => insertSystemPromptText('$MICROPHONE')} colorClass="text-amber-600" />
+                <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSystemPromptText('$SCREEN_AUDIO')} colorClass="text-amber-600" />
+                <SensorButton icon={Blend} label="All Audio" onClick={() => insertSystemPromptText('$ALL_AUDIO')} colorClass="text-orange-600" />
+
+                <SensorDropdownButton
+                  icon={Save}
+                  label="Memory"
+                  colorClass="text-emerald-600"
+                  agents={availableAgents}
+                  onSelect={(agentId) => insertSystemPromptText(`$MEMORY@${agentId}`)}
+                />
+
+                <SensorDropdownButton
+                  icon={Images}
+                  label="Image Memory"
+                  colorClass="text-purple-600"
+                  agents={availableAgents}
+                  onSelect={(agentId) => insertSystemPromptText(`$IMEMORY@${agentId}`)}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Right Column: Live Sensor Preview */}
@@ -76,14 +220,11 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Live Sensor Preview
               </label>
-              <p className="text-xs text-gray-500 mb-3">
-                View and configure live sensor feeds below.
-              </p>
             </div>
             <SensorPreviewPanel
               agentId={agentId}
               streams={streams}
-              systemPrompt={systemPrompt}
+              systemPrompt={editedPrompt}
             />
           </div>
         </div>
@@ -92,7 +233,7 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
       {/* Footer */}
       <div className="flex-shrink-0 flex justify-end p-4 border-t border-gray-200 bg-gray-50">
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700"
         >
           Close

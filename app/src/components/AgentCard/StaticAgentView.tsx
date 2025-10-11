@@ -120,6 +120,7 @@ interface StaticAgentViewProps {
     currentModel: string;
     onModelChange: (modelName: string) => void;
     onToggleSignificantChange: (enabled: boolean) => void;
+    onSystemPromptChange?: (newPrompt: string) => void;
     startWarning: string | null;
     isProUser?: boolean;
     hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
@@ -133,6 +134,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     currentModel,
     onModelChange,
     onToggleSignificantChange,
+    onSystemPromptChange,
     startWarning,
     isProUser = false,
     hostingContext,
@@ -276,6 +278,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 systemPrompt={agent.system_prompt || ''}
                 agentName={agent.name || 'Unnamed Agent'}
                 agentId={agent.id}
+                onSystemPromptChange={onSystemPromptChange}
             />
 
             {/* Tools Modal */}
