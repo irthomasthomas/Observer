@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Modal from '@components/EditAgent/Modal';
 import {
   X, Mail, MessageSquare, MessageSquareQuote, Bell, Monitor, MessageCircle,
@@ -20,6 +20,7 @@ interface ToolsModalProps {
   agentName: string;
   agentId: string;
   getToken?: TokenProvider;
+  onCodeChange?: (newCode: string) => void;
 }
 
 // Tool type definitions
@@ -352,31 +353,182 @@ function getAllTools(): ToolConfig[] {
   ];
 }
 
+// Helper: Smart argument parser that respects strings and nested structures
+function parseArguments(argsString: string): string[] {
+  if (!argsString || argsString.trim().length === 0) {
+    return [];
+  }
+
+  const args: string[] = [];
+  let currentArg = '';
+  let inString = false;
+  let stringChar = '';
+  let depth = 0; // Track nesting of (), [], {}
+  let escapeNext = false;
+
+  for (let i = 0; i < argsString.length; i++) {
+    const char = argsString[i];
+
+    // Handle escape sequences
+    if (escapeNext) {
+      currentArg += char;
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      currentArg += char;
+      escapeNext = true;
+      continue;
+    }
+
+    // Handle string boundaries
+    if ((char === '"' || char === "'" || char === '`') && !inString) {
+      inString = true;
+      stringChar = char;
+      currentArg += char;
+      continue;
+    }
+
+    if (char === stringChar && inString) {
+      inString = false;
+      stringChar = '';
+      currentArg += char;
+      continue;
+    }
+
+    // If we're inside a string, just add the character
+    if (inString) {
+      currentArg += char;
+      continue;
+    }
+
+    // Track nesting depth for parentheses, brackets, braces
+    if (char === '(' || char === '[' || char === '{') {
+      depth++;
+      currentArg += char;
+      continue;
+    }
+
+    if (char === ')' || char === ']' || char === '}') {
+      depth--;
+      currentArg += char;
+      continue;
+    }
+
+    // Split on comma only if we're at top level and not in a string
+    if (char === ',' && depth === 0 && !inString) {
+      const trimmed = currentArg.trim();
+      if (trimmed.length > 0) {
+        args.push(trimmed);
+      }
+      currentArg = '';
+      continue;
+    }
+
+    // Add character to current argument
+    currentArg += char;
+  }
+
+  // Add the last argument
+  const trimmed = currentArg.trim();
+  if (trimmed.length > 0) {
+    args.push(trimmed);
+  }
+
+  return args;
+}
+
+// Helper: Extract full function call including nested parentheses
+function extractFunctionCall(code: string, startPos: number): { argsString: string; endPos: number } | null {
+  // Find the opening parenthesis
+  let pos = startPos;
+  while (pos < code.length && code[pos] !== '(') {
+    pos++;
+  }
+
+  if (pos >= code.length) return null;
+
+  const openParenPos = pos;
+  pos++; // Move past opening paren
+
+  let depth = 1;
+  let inString = false;
+  let stringChar = '';
+  let escapeNext = false;
+
+  // Find the matching closing parenthesis
+  while (pos < code.length && depth > 0) {
+    const char = code[pos];
+
+    if (escapeNext) {
+      escapeNext = false;
+      pos++;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      pos++;
+      continue;
+    }
+
+    // Handle string boundaries
+    if ((char === '"' || char === "'" || char === '`') && !inString) {
+      inString = true;
+      stringChar = char;
+    } else if (char === stringChar && inString) {
+      inString = false;
+      stringChar = '';
+    } else if (!inString) {
+      // Only count parens outside of strings
+      if (char === '(') {
+        depth++;
+      } else if (char === ')') {
+        depth--;
+      }
+    }
+
+    pos++;
+  }
+
+  if (depth !== 0) return null; // Unmatched parentheses
+
+  // Extract the arguments string (between the parentheses)
+  const argsString = code.substring(openParenPos + 1, pos - 1);
+
+  return { argsString, endPos: pos };
+}
+
 // Parse code to find all tool calls
 function parseToolCalls(code: string): ToolCall[] {
   const calls: ToolCall[] = [];
   const ALL_TOOLS = getAllTools();
 
   ALL_TOOLS.forEach(tool => {
-    // Match function calls: functionName(...args...)
-    const regex = new RegExp(`\\b${tool.functionName}\\s*\\(([^)]*)\\)`, 'g');
+    // Find function name occurrences
+    const regex = new RegExp(`\\b${tool.functionName}\\s*\\(`, 'g');
     let match;
 
     while ((match = regex.exec(code)) !== null) {
-      const fullMatch = match[0];
-      const argsString = match[1];
+      const startIndex = match.index;
+
+      // Extract the full function call with nested parens
+      const extraction = extractFunctionCall(code, startIndex + tool.functionName.length);
+
+      if (!extraction) continue;
+
+      const { argsString, endPos } = extraction;
 
       // Find line number
-      const beforeMatch = code.substring(0, match.index);
+      const beforeMatch = code.substring(0, startIndex);
       const lineNumber = beforeMatch.split('\n').length;
 
-      // Parse arguments (simple split by comma, handles basic cases)
-      const args = argsString
-        ? argsString.split(',').map(arg => arg.trim()).filter(arg => arg.length > 0)
-        : [];
+      // Parse arguments using smart parser
+      const args = parseArguments(argsString);
 
       // Create unique ID for this call
-      const callId = `${tool.id}_line${lineNumber}_${match.index}`;
+      const callId = `${tool.id}_line${lineNumber}_${startIndex}`;
 
       calls.push({
         id: callId,
@@ -384,8 +536,8 @@ function parseToolCalls(code: string): ToolCall[] {
         functionName: tool.functionName,
         args,
         lineNumber,
-        startIndex: match.index,
-        endIndex: match.index + fullMatch.length,
+        startIndex: startIndex,
+        endIndex: endPos,
         isTestable: tool.isTestable
       });
     }
@@ -396,7 +548,7 @@ function parseToolCalls(code: string): ToolCall[] {
 }
 
 // Create CodeMirror extension for highlighting and clicking tools
-function createToolHighlightExtension(toolCalls: ToolCall[], onToolClick: (call: ToolCall) => void) {
+function createToolHighlightExtension(toolCalls: ToolCall[], onToolClick: (call: ToolCall, event?: MouseEvent) => void) {
   const toolDecorations = ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;
@@ -446,7 +598,7 @@ function createToolHighlightExtension(toolCalls: ToolCall[], onToolClick: (call:
         const toolId = toolElement.getAttribute('data-tool-id');
         const tool = toolCalls.find(t => t.id === toolId);
         if (tool) {
-          onToolClick(tool);
+          onToolClick(tool, event);
           event.preventDefault();
           return true;
         }
@@ -458,14 +610,109 @@ function createToolHighlightExtension(toolCalls: ToolCall[], onToolClick: (call:
   return [toolDecorations, clickHandler];
 }
 
-const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentName, getToken }) => {
+// Helper: Intelligently format argument based on its content
+function formatArg(value: string): string {
+  // Only these specific variables stay unquoted
+  if (value === 'response' || value === 'agentId') {
+    return value;
+  }
+  // Everything else gets quoted (including screen, camera, images, etc.)
+  return `"${value.replace(/"/g, '\\"')}"`;
+}
+
+// Helper: Update a specific tool call on a given line
+function updateCallOnLine(
+  code: string,
+  lineNumber: number,
+  functionName: string,
+  newArgs: string[]
+): string {
+  const lines = code.split('\n');
+  const lineIndex = lineNumber - 1;
+
+  if (lineIndex < 0 || lineIndex >= lines.length) {
+    return code; // Safety check
+  }
+
+  const line = lines[lineIndex];
+
+  // Find where the function name starts on this line
+  const funcNameRegex = new RegExp(`\\b${functionName}\\s*\\(`);
+  const match = line.match(funcNameRegex);
+
+  if (!match || match.index === undefined) {
+    return code; // No match found
+  }
+
+  // Calculate the position in the full code string
+  const lineStartPos = lines.slice(0, lineIndex).join('\n').length + (lineIndex > 0 ? 1 : 0);
+  const funcStartPosInLine = match.index;
+  const funcStartPosInCode = lineStartPos + funcStartPosInLine;
+
+  // Extract the full function call using smart extraction
+  const extraction = extractFunctionCall(code, funcStartPosInCode + functionName.length);
+
+  if (!extraction) {
+    return code; // Couldn't extract function call
+  }
+
+  const { argsString } = extraction;
+
+  // Parse existing arguments to preserve 3rd+ parameters (e.g., images)
+  const existingArgs = parseArguments(argsString);
+
+  // Build new arguments array:
+  // - First 2 args from newArgs (formatted)
+  // - Rest from existing args (preserved as-is)
+  const finalArgs = [
+    ...newArgs.slice(0, 2).map(formatArg),  // First 2 from user input
+    ...existingArgs.slice(2)                 // 3rd+ preserved from original code
+  ];
+
+  const newCall = `${functionName}(${finalArgs.join(', ')})`;
+
+  // Replace on this line only - find the function call pattern and replace
+  const lineBeforeFunc = line.substring(0, funcStartPosInLine);
+  const lineAfterMatch = funcNameRegex.exec(line);
+  if (lineAfterMatch) {
+    // Use extractFunctionCall to find exact end position
+    const lineExtraction = extractFunctionCall(line, funcStartPosInLine + functionName.length);
+    if (lineExtraction) {
+      const callEnd = lineExtraction.endPos;
+      const lineAfterFunc = line.substring(callEnd);
+      lines[lineIndex] = lineBeforeFunc + newCall + lineAfterFunc;
+    }
+  }
+
+  return lines.join('\n');
+}
+
+const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentName, agentId, getToken, onCodeChange }) => {
   const [selectedCall, setSelectedCall] = useState<ToolCall | null>(null);
   const [testInputs, setTestInputs] = useState<string[]>([]);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [testingTool, setTestingTool] = useState<boolean>(false);
+  const [showHelp, setShowHelp] = useState<boolean>(false);
+  const [bubblePosition, setBubblePosition] = useState<{ top: number; left: number } | null>(null);
+  const [modifiedCode, setModifiedCode] = useState<string>(code);
 
-  // Parse tool calls from code
-  const toolCalls = useMemo(() => parseToolCalls(code), [code]);
+  // Sync modifiedCode when code prop changes (prevents empty code bug)
+  useEffect(() => {
+    if (code && code !== modifiedCode) {
+      setModifiedCode(code);
+    }
+  }, [code]);
+
+  // Handle modal close with save (following SensorModal pattern)
+  const handleClose = () => {
+    if (onCodeChange && modifiedCode !== code) {
+      onCodeChange(modifiedCode);
+    }
+    onClose();
+  };
+
+  // Parse tool calls from modified code (re-parse when code changes)
+  const toolCalls = useMemo(() => parseToolCalls(modifiedCode), [modifiedCode]);
 
   // Get selected tool config
   const selectedToolConfig = selectedCall
@@ -475,20 +722,60 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
   // Mock context for evaluating arguments
   const mockContext = useMemo(() => ({
     response: "This is the model's response from Observer AI",
-    agentId: "current-agent-id",
-    screen: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", // 1x1 red pixel placeholder
-    camera: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", // 1x1 red pixel placeholder
-    images: [] as string[],
-    imemory: [] as string[]
+    agentId: agentId
   }), []);
 
   // When a tool is clicked, evaluate its arguments and populate inputs
-  const handleToolClick = (call: ToolCall) => {
-    setSelectedCall(call);
-    setTestResult(null);
+  const handleToolClick = (call: ToolCall, event?: MouseEvent) => {
+    // Re-parse modified code to get fresh tool calls with updated indices
+    const freshCalls = parseToolCalls(modifiedCode);
 
-    // Evaluate arguments with mock context
-    const evaluatedArgs = call.args.map(arg => {
+    // Find the corresponding call by line number (stable identifier)
+    const freshCall = freshCalls.find(
+      c => c.lineNumber === call.lineNumber &&
+           c.functionName === call.functionName
+    ) || call; // Fallback to original if not found
+
+    setSelectedCall(freshCall);
+    setTestResult(null);
+    setShowHelp(false);
+
+    // Calculate bubble position based on click event
+    if (event) {
+      const clickX = event.clientX;
+      const clickY = event.clientY;
+
+      // Position bubble to the right of the click, with some offset
+      const bubbleWidth = 300;
+      const offset = 20;
+
+      // Ensure bubble stays within viewport
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let left = clickX + offset;
+      let top = clickY;
+
+      // If bubble would go off right edge, position to the left instead
+      if (left + bubbleWidth > viewportWidth - 20) {
+        left = clickX - bubbleWidth - offset;
+      }
+
+      // Ensure top doesn't go below viewport
+      if (top > viewportHeight - 400) {
+        top = viewportHeight - 400;
+      }
+
+      // Ensure top doesn't go above viewport
+      if (top < 100) {
+        top = 100;
+      }
+
+      setBubblePosition({ top, left });
+    }
+
+    // Evaluate only first 2 arguments with mock context (ignore 3rd+ params like images)
+    const evaluatedArgs = freshCall.args.slice(0, 2).map(arg => {
       try {
         // Create a function that evaluates the argument with mock context
         const func = new Function(...Object.keys(mockContext), `return ${arg}`);
@@ -650,7 +937,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
   return (
     <Modal
       open={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       className="w-full max-w-7xl max-h-[90vh] flex flex-col"
     >
       {/* Header */}
@@ -663,7 +950,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
           </div>
         </div>
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="p-1.5 rounded-full hover:bg-blue-700 hover:bg-opacity-50 text-indigo-100 hover:text-white transition-colors"
         >
           <X className="h-5 w-5" />
@@ -672,169 +959,169 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
 
       {/* Content */}
       <div className="flex-grow flex overflow-hidden bg-gray-50 relative">
-        {/* Backdrop overlay when drawer is open */}
-        {selectedCall && (
-          <div
-            className="absolute inset-0 bg-black/5 z-[5] transition-opacity duration-300"
-            onClick={handleClosePanel}
-          />
-        )}
-
-        {/* Code Display Panel - Fixed width */}
+        {/* Code Display Panel - Full width */}
         <div className="flex-1 overflow-y-auto bg-white">
           <div className="p-6 space-y-4">
+            {/* Show info message when no tools detected */}
             {!hasTools && (
-              <div className="text-center py-16">
-                <Info className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium text-lg">No Observer tools detected</p>
-                <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
-                  Add tools like <code className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">sendEmail()</code>, <code className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">notify()</code>, or <code className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">getMemory()</code> to test them here
-                </p>
+              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900">No Observer tools detected</p>
+                  <p className="text-xs text-blue-700 mt-0.5">
+                    Add tools like <code className="px-1 py-0.5 bg-blue-100 rounded text-xs">sendEmail()</code>, <code className="px-1 py-0.5 bg-blue-100 rounded text-xs">notify()</code>, or <code className="px-1 py-0.5 bg-blue-100 rounded text-xs">getMemory()</code> to test them
+                  </p>
+                </div>
               </div>
             )}
 
+            {/* Show legend only when tools exist */}
             {hasTools && (
-              <>
-                <div className="mb-4 flex items-center gap-6 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300"></div>
-                    <span className="text-gray-600">Click <span className="font-medium text-blue-600">blue tools</span> to test</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-slate-100 border border-slate-300"></div>
-                    <span className="text-gray-600"><span className="font-medium text-slate-600">Grey tools</span> for reference</span>
-                  </div>
+              <div className="mb-4 flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300"></div>
+                  <span className="text-gray-600">Click <span className="font-medium text-blue-600">blue tools</span> to test</span>
                 </div>
-
-                <div className="rounded-lg overflow-hidden border border-gray-300 shadow-sm">
-                  <style>{`
-                    /* Clean code display */
-                    .cm-editor .cm-content {
-                      opacity: 0.7;
-                    }
-
-                    /* Testable tools - blue theme */
-                    .cm-tool-testable {
-                      background: rgba(59, 130, 246, 0.1);
-                      border-bottom: 2px solid rgba(59, 130, 246, 0.4);
-                      padding: 2px 4px;
-                      font-weight: 600;
-                      color: rgb(37, 99, 235) !important;
-                      opacity: 1 !important;
-                      transition: all 0.15s ease;
-                      border-radius: 3px;
-                    }
-                    .cm-tool-testable:hover {
-                      background: rgba(59, 130, 246, 0.15);
-                      border-bottom-color: rgba(59, 130, 246, 0.6);
-                    }
-
-                    /* Info tools - grey theme */
-                    .cm-tool-info {
-                      background: rgba(100, 116, 139, 0.08);
-                      border-bottom: 2px solid rgba(100, 116, 139, 0.3);
-                      padding: 2px 4px;
-                      font-weight: 600;
-                      color: rgb(71, 85, 105) !important;
-                      opacity: 1 !important;
-                      transition: all 0.15s ease;
-                      border-radius: 3px;
-                    }
-                    .cm-tool-info:hover {
-                      background: rgba(100, 116, 139, 0.12);
-                      border-bottom-color: rgba(100, 116, 139, 0.4);
-                    }
-                  `}</style>
-                  <CodeMirror
-                    value={code}
-                    height="450px"
-                    theme={vscodeDark}
-                    extensions={[
-                      javascript(),
-                      ...createToolHighlightExtension(toolCalls, handleToolClick),
-                      EditorView.editable.of(false)
-                    ]}
-                    basicSetup={{
-                      lineNumbers: true,
-                      foldGutter: false,
-                      highlightActiveLine: false,
-                      highlightActiveLineGutter: false
-                    }}
-                    className="text-sm"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded bg-slate-100 border border-slate-300"></div>
+                  <span className="text-gray-600"><span className="font-medium text-slate-600">Grey tools</span> for reference</span>
                 </div>
-              </>
+              </div>
             )}
+
+            {/* Always show code editor */}
+            <div className="rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+              <style>{`
+                /* Clean code display */
+                .cm-editor .cm-content {
+                  opacity: 0.7;
+                }
+
+                /* Testable tools - blue theme */
+                .cm-tool-testable {
+                  background: rgba(59, 130, 246, 0.1);
+                  border-bottom: 2px solid rgba(59, 130, 246, 0.4);
+                  padding: 2px 4px;
+                  font-weight: 600;
+                  color: rgb(37, 99, 235) !important;
+                  opacity: 1 !important;
+                  transition: all 0.15s ease;
+                  border-radius: 3px;
+                }
+                .cm-tool-testable:hover {
+                  background: rgba(59, 130, 246, 0.15);
+                  border-bottom-color: rgba(59, 130, 246, 0.6);
+                }
+
+                /* Info tools - grey theme */
+                .cm-tool-info {
+                  background: rgba(100, 116, 139, 0.08);
+                  border-bottom: 2px solid rgba(100, 116, 139, 0.3);
+                  padding: 2px 4px;
+                  font-weight: 600;
+                  color: rgb(71, 85, 105) !important;
+                  opacity: 1 !important;
+                  transition: all 0.15s ease;
+                  border-radius: 3px;
+                }
+                .cm-tool-info:hover {
+                  background: rgba(100, 116, 139, 0.12);
+                  border-bottom-color: rgba(100, 116, 139, 0.4);
+                }
+              `}</style>
+              <CodeMirror
+                value={modifiedCode}
+                height="450px"
+                theme={vscodeDark}
+                extensions={[
+                  javascript(),
+                  ...createToolHighlightExtension(toolCalls, handleToolClick),
+                  EditorView.editable.of(false)
+                ]}
+                basicSetup={{
+                  lineNumbers: true,
+                  foldGutter: false,
+                  highlightActiveLine: false,
+                  highlightActiveLineGutter: false
+                }}
+                className="text-sm"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Side Panel - Floating drawer that slides in from right */}
-        <div
-          className={`absolute top-0 right-0 h-full bg-white rounded-l-2xl shadow-2xl transition-all duration-300 ease-out ${
-            selectedCall ? 'w-[42%] translate-x-0' : 'w-[42%] translate-x-full'
-          }`}
-          style={{ zIndex: 10 }}
-        >
-          {selectedCall && selectedToolConfig && (
-            <div className="h-full overflow-y-auto flex flex-col">
-              {/* Panel Header - lighter style */}
-              <div className="flex-shrink-0 sticky top-0 z-10 bg-white border-b border-gray-200 p-4 rounded-tl-2xl">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-start gap-3 flex-1">
-                    {React.createElement(selectedToolConfig.icon, { className: 'w-5 h-5 flex-shrink-0 mt-0.5 text-indigo-600' })}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">{selectedToolConfig.name}</h3>
-                      <p className="text-sm text-gray-600 mt-0.5">{selectedToolConfig.description}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleClosePanel}
-                    className="p-1 rounded-md hover:bg-gray-100 transition-colors flex-shrink-0 ml-2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
+        {/* Compact Floating Bubble - Appears near clicked tool */}
+        {selectedCall && selectedToolConfig && bubblePosition && (
+          <div
+            className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 w-72 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+            style={{
+              top: `${bubblePosition.top}px`,
+              left: `${bubblePosition.left}px`,
+            }}
+          >
+            {/* Compact Header */}
+            <div className="flex items-center justify-between p-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                {React.createElement(selectedToolConfig.icon, { className: 'w-4 h-4 text-indigo-600 flex-shrink-0' })}
+                <span className="font-semibold text-sm text-gray-900">{selectedToolConfig.name.replace('()', '')}</span>
               </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowHelp(!showHelp)}
+                  className="p-1 rounded-md hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+                  title="Help"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={handleClosePanel}
+                  className="p-1 rounded-md hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
 
-              <div className="flex-1 p-5 overflow-y-auto">
+            {/* Collapsible Help Section */}
+            {showHelp && (
+              <div className="p-3 bg-gray-50 border-b border-gray-100 text-xs space-y-2">
+                <p className="text-gray-700">{selectedToolConfig.description}</p>
 
-              {/* Testable Tool Panel */}
-              {selectedToolConfig.isTestable && (
-                <>
-                  {/* Show the actual call from code */}
-                  <div className="mb-4 pb-3 border-b border-gray-100">
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Code Reference</p>
-                    <code className="text-sm text-gray-700 font-mono block bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
-                      {selectedCall.functionName}({selectedCall.args.join(', ')})
-                    </code>
-                  </div>
-
-                  {/* Warning message */}
-                  {selectedToolConfig.warning && (
-                    <div className="mb-4 p-3 bg-amber-50 border-l-4 border-amber-400 rounded-md text-sm text-amber-800">
-                      {selectedToolConfig.warning}
-                    </div>
-                  )}
-
-                  {/* Info message */}
-                  {selectedToolConfig.infoMessage && (
-                    <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-md text-sm text-blue-700">
-                      <div className="flex items-start gap-2">
-                        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                        <span>{selectedToolConfig.infoMessage}</span>
+                {selectedToolConfig.parameters && selectedToolConfig.parameters.length > 0 && (
+                  <div className="space-y-1">
+                    {selectedToolConfig.parameters.map((param, idx) => (
+                      <div key={idx} className="text-gray-600">
+                        <span className="font-mono font-semibold">{param.name}:</span> {param.description}
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                )}
 
-                  {/* Editable Arguments */}
+                {selectedToolConfig.warning && (
+                  <div className="p-2 bg-amber-50 border border-amber-200 rounded text-amber-800">
+                    {selectedToolConfig.warning}
+                  </div>
+                )}
+
+                {selectedToolConfig.infoMessage && (
+                  <div className="p-2 bg-blue-50 border border-blue-200 rounded text-blue-700">
+                    {selectedToolConfig.infoMessage}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Bubble Content */}
+            <div className="p-3">
+              {selectedToolConfig.isTestable ? (
+                <>
+                  {/* Compact Parameter Inputs - Only show first 2 parameters */}
                   {selectedToolConfig.parameters && selectedToolConfig.parameters.length > 0 && (
-                    <div className="mb-5 space-y-4">
-                      <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">Test Parameters</h4>
-                      {selectedToolConfig.parameters.map((param, idx) => (
+                    <div className="space-y-2 mb-3">
+                      {selectedToolConfig.parameters.slice(0, 2).map((param, idx) => (
                         <div key={idx}>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
                             {param.name}
-                            <span className="text-xs text-gray-500 font-normal ml-2">({param.description})</span>
                           </label>
                           <input
                             type="text"
@@ -843,106 +1130,91 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                               const newInputs = [...testInputs];
                               newInputs[idx] = e.target.value;
                               setTestInputs(newInputs);
+
+                              // Live update the code (only first 2 params)
+                              if (selectedCall) {
+                                const updatedCode = updateCallOnLine(
+                                  modifiedCode,
+                                  selectedCall.lineNumber,
+                                  selectedCall.functionName,
+                                  newInputs
+                                );
+                                setModifiedCode(updatedCode);
+                              }
                             }}
                             placeholder={param.description}
-                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                           />
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {/* Test Button */}
+                  {/* Inline Test Button with States */}
                   <button
                     onClick={handleTest}
                     disabled={testingTool}
-                    className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
-                      testingTool
+                    className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                      testResult
+                        ? testResult.success
+                          ? 'bg-green-600 text-white'
+                          : 'bg-red-600 text-white'
+                        : testingTool
                         ? 'bg-gray-300 text-gray-600 cursor-wait'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow-md'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
                     }`}
                   >
                     {testingTool ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-3 h-3 animate-spin" />
                         Testing...
                       </>
+                    ) : testResult ? (
+                      testResult.success ? (
+                        <>
+                          <CheckCircle className="w-3 h-3" />
+                          Success!
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-3 h-3" />
+                          Failed
+                        </>
+                      )
                     ) : (
-                      <>
-                        <PlayCircle className="w-4 h-4" />
-                        Run Test
-                      </>
+                      <>Test</>
                     )}
                   </button>
 
-                  {/* Test Results */}
-                  {testResult && (
-                    <div className={`mt-4 p-3 rounded-lg border ${
-                      testResult.success
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                    }`}>
-                      <div className="flex items-start gap-2">
-                        {testResult.success ? (
-                          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                        )}
-                        <p className={`text-sm ${
-                          testResult.success ? 'text-green-800' : 'text-red-800'
-                        }`}>
-                          {testResult.message}
-                        </p>
-                      </div>
+                  {/* Brief Error Message */}
+                  {testResult && !testResult.success && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                      {testResult.message}
                     </div>
                   )}
                 </>
-              )}
-
-              {/* Info Tool Panel (non-testable) */}
-              {!selectedToolConfig.isTestable && (
+              ) : (
                 <>
-                  {/* Show the actual call from code */}
-                  <div className="mb-4 pb-3 border-b border-gray-100">
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Code Reference</p>
-                    <code className="text-sm text-gray-700 font-mono block bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
-                      {selectedCall.functionName}({selectedCall.args.join(', ')})
-                    </code>
+                  {/* Info Only Badge and Parameters */}
+                  <div className="mb-2 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs text-slate-700 text-center font-medium">
+                    Info Only
                   </div>
 
-                  {/* Parameters Info */}
                   {selectedToolConfig.parameters && selectedToolConfig.parameters.length > 0 && (
-                    <div className="mb-4 pb-4 border-b border-gray-100">
-                      <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Parameters</h4>
-                      <div className="space-y-3">
-                        {selectedToolConfig.parameters.map((param, idx) => (
-                          <div key={idx} className="flex gap-2.5 items-start">
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 flex-shrink-0"></div>
-                            <div className="flex-1">
-                              <span className="text-sm font-mono font-medium text-gray-800">{param.name}</span>
-                              <p className="text-sm text-gray-600 mt-0.5">{param.description}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="space-y-1.5 text-xs">
+                      {selectedToolConfig.parameters.map((param, idx) => (
+                        <div key={idx} className="text-gray-600">
+                          <span className="font-mono font-semibold text-gray-800">{param.name}</span>
+                          <p className="text-gray-500 ml-2">{param.description}</p>
+                        </div>
+                      ))}
                     </div>
                   )}
-
-                  {/* Info message */}
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex gap-2.5">
-                      <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-blue-800">
-                        This tool cannot be tested directly as it interacts with agent state or system resources.
-                      </p>
-                    </div>
-                  </div>
                 </>
               )}
-              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -953,7 +1225,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
           <span>tool call{toolCalls.length !== 1 ? 's' : ''} detected</span>
         </div>
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700"
         >
           Close

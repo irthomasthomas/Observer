@@ -121,6 +121,7 @@ interface StaticAgentViewProps {
     onModelChange: (modelName: string) => void;
     onToggleSignificantChange: (enabled: boolean) => void;
     onSystemPromptChange?: (newPrompt: string) => void;
+    onCodeChange?: (newCode: string) => void;
     startWarning: string | null;
     isProUser?: boolean;
     hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
@@ -135,6 +136,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     onModelChange,
     onToggleSignificantChange,
     onSystemPromptChange,
+    onCodeChange,
     startWarning,
     isProUser = false,
     hostingContext,
@@ -160,6 +162,10 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 
         loadCapabilities();
     }, [agent.system_prompt, code, hostingContext]);
+
+    const handleOpenToolsModal = () => {
+        setIsToolsModalOpen(true);
+    };
 
     return (
         <div className="animate-fade-in">
@@ -237,7 +243,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 {/* Column 3: Tools */}
                 <div className="flex flex-col flex-1 w-full md:w-auto">
                     <button
-                        onClick={() => setIsToolsModalOpen(true)}
+                        onClick={handleOpenToolsModal}
                         className="flex md:flex-col items-start md:items-center w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
                         title="View agent code"
                     >
@@ -289,6 +295,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 agentName={agent.name || 'Unnamed Agent'}
                 agentId={agent.id}
                 getToken={getToken}
+                onCodeChange={onCodeChange}
             />
         </div>
     );

@@ -102,6 +102,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
     }
   };
 
+  const handleCodeChange = async (newCode: string) => {
+    if (onSave) {
+      await onSave(agent, newCode);
+    }
+  };
+
   useEffect(() => {
     StreamManager.addListener(setStreams);
     return () => StreamManager.removeListener(setStreams);
@@ -264,6 +270,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               onModelChange={setCurrentModel}
               onToggleSignificantChange={handleToggleSignificantChange}
               onSystemPromptChange={handleSystemPromptChange}
+              onCodeChange={handleCodeChange}
               startWarning={startWarning}
               isProUser={isProUser}
               hostingContext={hostingContext}
