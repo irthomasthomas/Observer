@@ -1,15 +1,27 @@
 import React from 'react';
 
 const SENSOR_COLORS: Record<string, string> = {
-  SCREEN_OCR: 'text-blue-500 bg-blue-50',
-  SCREEN_64: 'text-purple-500 bg-purple-50',
-  CAMERA: 'text-purple-500 bg-purple-50',
-  CLIPBOARD_TEXT: 'text-slate-500 bg-slate-50',
-  MICROPHONE: 'text-slate-500 bg-slate-50',
-  SCREEN_AUDIO: 'text-slate-500 bg-slate-50',
-  ALL_AUDIO: 'text-slate-500 bg-slate-50',
-  IMEMORY: 'text-purple-500 bg-purple-50',
-  MEMORY: 'text-green-500 bg-green-50',
+  // Vision/Multimodal Sensors (Purple Spectrum)
+  CAMERA: 'text-purple-700 bg-purple-100',
+  SCREEN_64: 'text-purple-700 bg-purple-100',
+
+  // Visual Memory Hybrid (Purple-Teal)
+  IMEMORY: 'text-purple-700 bg-teal-50',
+
+  // Text Extraction/Data (Blue Spectrum)
+  SCREEN_OCR: 'text-blue-700 bg-blue-100',
+
+  // Audio Sensors (Amber Spectrum)
+  MICROPHONE: 'text-amber-700 bg-amber-100',
+  SCREEN_AUDIO: 'text-amber-700 bg-amber-100',
+  ALL_AUDIO: 'text-orange-700 bg-orange-100',
+
+  // Text Memory (Emerald)
+  MEMORY: 'text-emerald-700 bg-emerald-100',
+
+  // Input Sensors (Sky Blue)
+  CLIPBOARD_TEXT: 'text-sky-700 bg-sky-100',
+  CLIPBOARD: 'text-sky-700 bg-sky-100',
 };
 
 const highlightPrompt = (text: string) => {

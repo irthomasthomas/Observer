@@ -153,19 +153,38 @@ interface SensorPlaceholderProps {
   icon: ReactNode;
   onStart: () => void;
   isLoading?: boolean;
+  colorClasses?: {
+    border: string;
+    bg: string;
+    text: string;
+    button: string;
+    buttonHover: string;
+  };
 }
 
-const SensorPlaceholder: React.FC<SensorPlaceholderProps> = ({ sensorName, icon, onStart, isLoading = false }) => {
+const SensorPlaceholder: React.FC<SensorPlaceholderProps> = ({
+  sensorName,
+  icon,
+  onStart,
+  isLoading = false,
+  colorClasses = {
+    border: 'border-gray-800',
+    bg: 'bg-gray-500/10',
+    text: 'text-gray-400',
+    button: 'bg-gray-600',
+    buttonHover: 'hover:bg-gray-700'
+  }
+}) => {
   return (
-    <div className="bg-black rounded-lg aspect-video flex-1 min-w-0 flex flex-col items-center justify-center gap-3 text-gray-400 border border-gray-800">
-      <div className="flex items-center gap-2 text-gray-500">
+    <div className={`bg-black rounded-lg aspect-video flex-1 min-w-0 flex flex-col items-center justify-center gap-3 border ${colorClasses.border} ${colorClasses.bg}`}>
+      <div className={`flex items-center gap-2 ${colorClasses.text}`}>
         {icon}
         <span className="text-sm">{sensorName} not active</span>
       </div>
       <button
         onClick={onStart}
         disabled={isLoading}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`${colorClasses.button} ${colorClasses.buttonHover} text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {isLoading ? (
           <>
@@ -190,19 +209,38 @@ interface AudioPlaceholderProps {
   icon: ReactNode;
   onStart: () => void;
   isLoading?: boolean;
+  colorClasses?: {
+    border: string;
+    bg: string;
+    text: string;
+    button: string;
+    buttonHover: string;
+  };
 }
 
-const AudioPlaceholder: React.FC<AudioPlaceholderProps> = ({ sensorName, icon, onStart, isLoading = false }) => {
+const AudioPlaceholder: React.FC<AudioPlaceholderProps> = ({
+  sensorName,
+  icon,
+  onStart,
+  isLoading = false,
+  colorClasses = {
+    border: 'border-gray-700',
+    bg: 'bg-gray-500/10',
+    text: 'text-gray-400',
+    button: 'bg-gray-600',
+    buttonHover: 'hover:bg-gray-700'
+  }
+}) => {
   return (
-    <div className="bg-gray-800 rounded-lg p-3 flex-1 min-w-0 flex flex-col items-center justify-center gap-3 border border-gray-700">
-      <div className="flex items-center gap-2 text-gray-400">
+    <div className={`bg-gray-800 rounded-lg p-3 flex-1 min-w-0 flex flex-col items-center justify-center gap-3 border ${colorClasses.border} ${colorClasses.bg}`}>
+      <div className={`flex items-center gap-2 ${colorClasses.text}`}>
         {icon}
         <span className="text-sm">{sensorName} not active</span>
       </div>
       <button
         onClick={onStart}
         disabled={isLoading}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`${colorClasses.button} ${colorClasses.buttonHover} text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {isLoading ? (
           <>
@@ -476,28 +514,28 @@ const MemoryPreview: React.FC<{ agentId: string }> = ({ agentId }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-        <Save className="w-4 h-4 text-blue-600 flex-shrink-0" />
-        <span className="text-blue-700 text-sm italic">Loading memory...</span>
+      <div className="flex items-center gap-2 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200 flex-1 min-w-0">
+        <Save className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+        <span className="text-emerald-700 text-sm italic">Loading memory...</span>
       </div>
     );
   }
 
   if (!memory.trim()) {
     return (
-      <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-        <Save className="w-4 h-4 text-blue-600 flex-shrink-0" />
-        <span className="text-blue-700 text-sm italic">No memory data yet</span>
+      <div className="flex items-center gap-2 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200 flex-1 min-w-0">
+        <Save className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+        <span className="text-emerald-700 text-sm italic">No memory data yet</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-start gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-1 min-w-0">
-      <Save className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+    <div className="flex items-start gap-2 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200 flex-1 min-w-0">
+      <Save className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-blue-600 mb-1">Memory</div>
-        <div className="text-blue-700 text-sm leading-relaxed break-words line-clamp-3 overflow-hidden">
+        <div className="text-xs font-medium text-emerald-600 mb-1">Memory</div>
+        <div className="text-emerald-700 text-sm leading-relaxed break-words line-clamp-3 overflow-hidden">
           {memory}
         </div>
       </div>
@@ -694,6 +732,13 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
             icon={<Monitor className="w-8 h-8" />}
             onStart={handleStartScreen}
             isLoading={isStartingScreen}
+            colorClasses={{
+              border: 'border-purple-500/50',
+              bg: 'bg-purple-500/10',
+              text: 'text-purple-400',
+              button: 'bg-purple-600',
+              buttonHover: 'hover:bg-purple-700'
+            }}
           />
         )
       )}
@@ -706,6 +751,13 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
             icon={<Camera className="w-8 h-8" />}
             onStart={handleStartCamera}
             isLoading={isStartingCamera}
+            colorClasses={{
+              border: 'border-purple-500/50',
+              bg: 'bg-purple-500/10',
+              text: 'text-purple-400',
+              button: 'bg-purple-600',
+              buttonHover: 'hover:bg-purple-700'
+            }}
           />
         )
       )}
@@ -735,6 +787,13 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
             icon={<><Volume2 className="w-4 h-4" /><Mic className="w-4 h-4 -ml-1" /></>}
             onStart={handleStartAllAudio}
             isLoading={isStartingAllAudio}
+            colorClasses={{
+              border: 'border-orange-500/50',
+              bg: 'bg-orange-500/10',
+              text: 'text-orange-400',
+              button: 'bg-orange-600',
+              buttonHover: 'hover:bg-orange-700'
+            }}
           />
         )}
         {hasMicrophoneSensor && !streams.microphoneStream && !streams.allAudioStream && (
@@ -743,6 +802,13 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
             icon={<Mic className="w-4 h-4" />}
             onStart={handleStartMicrophone}
             isLoading={isStartingMicrophone}
+            colorClasses={{
+              border: 'border-amber-500/50',
+              bg: 'bg-amber-500/10',
+              text: 'text-amber-400',
+              button: 'bg-amber-600',
+              buttonHover: 'hover:bg-amber-700'
+            }}
           />
         )}
         {hasScreenAudioSensor && !streams.screenAudioStream && !streams.allAudioStream && (
@@ -751,6 +817,13 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
             icon={<Volume2 className="w-4 h-4" />}
             onStart={handleStartScreenAudio}
             isLoading={isStartingScreenAudio}
+            colorClasses={{
+              border: 'border-amber-500/50',
+              bg: 'bg-amber-500/10',
+              text: 'text-amber-400',
+              button: 'bg-amber-600',
+              buttonHover: 'hover:bg-amber-700'
+            }}
           />
         )}
       </div>

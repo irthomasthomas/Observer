@@ -301,14 +301,14 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               placeholder="e.g., Look at the screen for 'ERROR'..."
             />
             <div className="flex flex-wrap gap-2 mt-4">
-              <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSensor('$SCREEN_OCR')} />
+              <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSensor('$SCREEN_OCR')} colorClass="text-blue-600" />
               <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSensor('$SCREEN_64')} colorClass="text-purple-600" />
               <SensorButton icon={Camera} label="Camera" onClick={() => insertSensor('$CAMERA')} colorClass="text-purple-600" />
-              <SensorButton icon={Clipboard} label="Clipboard" onClick={() => insertSensor('$CLIPBOARD_TEXT')} />
-              <SensorButton icon={Mic} label="Microphone" onClick={() => insertSensor('$MICROPHONE')} colorClass="text-slate-600" />
-              <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSensor('$SCREEN_AUDIO')} colorClass="text-slate-600" />
-              <SensorButton icon={Blend} label="All Audio" onClick={() => insertSensor('$ALL_AUDIO')} colorClass="text-slate-600" />
-              <SensorButton icon={Save} label="Memory" onClick={() => insertSensor('$MEMORY@agent_id')} />
+              <SensorButton icon={Clipboard} label="Clipboard" onClick={() => insertSensor('$CLIPBOARD_TEXT')} colorClass="text-sky-600" />
+              <SensorButton icon={Mic} label="Microphone" onClick={() => insertSensor('$MICROPHONE')} colorClass="text-amber-600" />
+              <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSensor('$SCREEN_AUDIO')} colorClass="text-amber-600" />
+              <SensorButton icon={Blend} label="All Audio" onClick={() => insertSensor('$ALL_AUDIO')} colorClass="text-orange-600" />
+              <SensorButton icon={Save} label="Memory" onClick={() => insertSensor('$MEMORY@agent_id')} colorClass="text-emerald-600" />
               <SensorButton icon={Images} label="Image Memory" onClick={() => insertSensor('$IMEMORY@agent_id')} colorClass="text-purple-600" />
             </div>
             {visionValidationError && <div className="mt-2 p-2 bg-yellow-50 rounded-md flex items-center text-xs text-yellow-800"><AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />{visionValidationError}</div>}
