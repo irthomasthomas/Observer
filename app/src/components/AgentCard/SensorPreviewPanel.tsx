@@ -1,6 +1,6 @@
 // components/AgentCard/SensorPreviewPanel.tsx
 import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
-import { Eye, Mic, Volume2, Crop, RotateCcw, Save, Images, AlertTriangle } from 'lucide-react';
+import { Mic, Volume2, Crop, RotateCcw, Save, Images, AlertTriangle } from 'lucide-react';
 import { StreamState, AudioStreamType } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
