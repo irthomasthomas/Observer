@@ -275,6 +275,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 onClose={() => setIsSensorModalOpen(false)}
                 systemPrompt={agent.system_prompt || ''}
                 agentName={agent.name || 'Unnamed Agent'}
+                agentId={agent.id}
             />
 
             {/* Tools Modal */}
