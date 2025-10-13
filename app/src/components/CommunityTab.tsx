@@ -5,6 +5,8 @@ import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/a
 import { Logger } from '@utils/logging';
 import { useAuth0 } from '@auth0/auth0-react';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
+import PersonalInfoWarningModal from '@components/PersonalInfoWarningModal';
+import { detectSensitiveFunctions } from '@utils/code_sanitizer';
 
 
 // Type for marketplace agents matching CompleteAgent structure
@@ -52,7 +54,19 @@ const CommunityTab: React.FC = () => {
   // New state for edit modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState<MarketplaceAgent | null>(null);
-  
+
+  // State for personal info warning modal
+  const [showPersonalInfoWarning, setShowPersonalInfoWarning] = useState(false);
+  const [detectedFunctions, setDetectedFunctions] = useState<string[]>([]);
+  const [warningLineNumbers, setWarningLineNumbers] = useState<Record<string, number[]>>({});
+  const [warningCodePreview, setWarningCodePreview] = useState('');
+  const [pendingUpload, setPendingUpload] = useState<{
+    type: 'existing' | 'file' | 'edit';
+    agent: CompleteAgent;
+    code: string;
+    memory: string;
+  } | null>(null);
+
   // File input ref for direct file uploads
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -153,6 +167,111 @@ const CommunityTab: React.FC = () => {
     return user.sub === agent.author_id;
   };
 
+  // Check for sensitive functions in code and show warning if found
+  const checkForSensitiveData = (
+    code: string,
+    agent: CompleteAgent,
+    memory: string,
+    uploadType: 'existing' | 'file' | 'edit'
+  ): boolean => {
+    const detection = detectSensitiveFunctions(code);
+
+    if (detection.hasSensitiveData) {
+      // Store upload data for later
+      setPendingUpload({
+        type: uploadType,
+        agent,
+        code,
+        memory
+      });
+
+      // Set warning modal data
+      setDetectedFunctions(detection.detectedFunctions);
+      setWarningLineNumbers(detection.lineNumbers);
+      setWarningCodePreview(code);
+      setShowPersonalInfoWarning(true);
+
+      return true; // Sensitive data found
+    }
+
+    return false; // No sensitive data
+  };
+
+  // Handle warning modal cancel
+  const handleWarningCancel = () => {
+    setShowPersonalInfoWarning(false);
+    setPendingUpload(null);
+    setDetectedFunctions([]);
+    setWarningLineNumbers({});
+    setWarningCodePreview('');
+  };
+
+  // Handle warning modal "Edit Agent" button
+  const handleWarningEditAgent = () => {
+    if (!pendingUpload) return;
+
+    // Close warning modal
+    setShowPersonalInfoWarning(false);
+
+    // Set up editing agent for EditAgentModal
+    setEditingAgent({
+      id: pendingUpload.agent.id,
+      name: pendingUpload.agent.name,
+      description: pendingUpload.agent.description,
+      model_name: pendingUpload.agent.model_name,
+      system_prompt: pendingUpload.agent.system_prompt,
+      loop_interval_seconds: pendingUpload.agent.loop_interval_seconds,
+      code: pendingUpload.code,
+      memory: pendingUpload.memory
+    });
+
+    // Open edit modal
+    setShowEditModal(true);
+  };
+
+  // Handle warning modal "Upload Anyway" button
+  const handleWarningUploadAnyway = async () => {
+    if (!pendingUpload) return;
+
+    try {
+      setShowPersonalInfoWarning(false);
+      setIsUploading(true);
+
+      // Proceed with upload based on type
+      await completePendingUpload(pendingUpload);
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to upload agent: ${errorMessage}`);
+      Logger.error('COMMUNITY', `Error uploading agent: ${errorMessage}`, err);
+    } finally {
+      setPendingUpload(null);
+      setDetectedFunctions([]);
+      setWarningLineNumbers({});
+      setWarningCodePreview('');
+      setIsUploading(false);
+    }
+  };
+
+  // Complete the pending upload after warning confirmation
+  const completePendingUpload = async (upload: NonNullable<typeof pendingUpload>) => {
+    const agentData: AgentUpload = {
+      id: upload.agent.id,
+      name: upload.agent.name,
+      description: upload.agent.description,
+      model_name: upload.agent.model_name,
+      system_prompt: upload.agent.system_prompt,
+      loop_interval_seconds: upload.agent.loop_interval_seconds,
+      code: upload.code,
+      memory: upload.memory,
+      author: '', // Will be filled in uploadAgentToServer
+      author_id: '', // Will be filled in uploadAgentToServer
+      date_added: '' // Will be filled in uploadAgentToServer
+    };
+
+    await uploadAgentToServer(agentData);
+  };
+
   const handleImport = async (agent: MarketplaceAgent) => {
     try {
       setError(null);
@@ -214,18 +333,26 @@ const CommunityTab: React.FC = () => {
     try {
       setIsUploading(true);
       setError(null);
-      
+
       if (!isAuthenticated || !user) {
         throw new Error('You must be logged in to edit agents');
       }
-      
+
       if (!editingAgent) {
         throw new Error('No agent selected for editing');
       }
-      
+
       // Get memory from the editing agent
       const memory = editingAgent.memory || '';
-      
+
+      // Check for sensitive data before uploading
+      const hasSensitiveData = checkForSensitiveData(code, completeAgent, memory, 'edit');
+      if (hasSensitiveData) {
+        setIsUploading(false);
+        setShowEditModal(false); // Close edit modal, warning modal will take over
+        return; // Stop here, warning modal will handle next steps
+      }
+
       // Prepare agent data for upload, maintaining original ID and author info
       const agentData: AgentUpload = {
         id: editingAgent.id,
@@ -241,13 +368,13 @@ const CommunityTab: React.FC = () => {
         author_id: editingAgent.author_id || user.sub || '',
         date_added: editingAgent.date_added || new Date().toISOString()
       };
-      
+
       // Upload to server (will replace existing agent with same ID)
       await uploadAgentToServer(agentData);
-      
+
       setEditingAgent(null);
       setShowEditModal(false);
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to update agent: ${errorMessage}`);
@@ -281,19 +408,19 @@ const CommunityTab: React.FC = () => {
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
-    
+
     try {
       setIsUploading(true);
       setError(null);
-      
+
       if (!isAuthenticated) {
         throw new Error('You must be logged in to upload agents');
       }
-      
+
       const file = files[0];
       const fileContent = await file.text();
       let agentData: Partial<AgentUpload>;
-      
+
       // Try to parse as JSON first
       try {
         agentData = JSON.parse(fileContent);
@@ -306,30 +433,50 @@ const CommunityTab: React.FC = () => {
           throw new Error('Invalid file format. Must be JSON or YAML.');
         }
       }
-      
+
       // Validate the required fields
       if (!agentData.id || !agentData.name || !agentData.code) {
         throw new Error('Invalid agent file. Missing required fields (id, name, code).');
       }
-      
-      // Create a proper AgentUpload object with author info
-      const fullAgentData: AgentUpload = {
+
+      // Create CompleteAgent for checking
+      const agent: CompleteAgent = {
         id: agentData.id,
         name: agentData.name,
         description: agentData.description || '',
         model_name: agentData.model_name || 'unknown',
         system_prompt: agentData.system_prompt || '',
-        loop_interval_seconds: agentData.loop_interval_seconds || 10,
-        code: agentData.code,
-        memory: agentData.memory || '',
+        loop_interval_seconds: agentData.loop_interval_seconds || 10
+      };
+
+      const code = agentData.code;
+      const memory = agentData.memory || '';
+
+      // Check for sensitive data before uploading
+      const hasSensitiveData = checkForSensitiveData(code, agent, memory, 'file');
+      if (hasSensitiveData) {
+        setIsUploading(false);
+        return; // Stop here, warning modal will handle next steps
+      }
+
+      // Create a proper AgentUpload object with author info
+      const fullAgentData: AgentUpload = {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+        model_name: agent.model_name,
+        system_prompt: agent.system_prompt,
+        loop_interval_seconds: agent.loop_interval_seconds,
+        code,
+        memory,
         author: '', // Will be filled in uploadAgentToServer
         author_id: '', // Will be filled in uploadAgentToServer
         date_added: '' // Will be filled in uploadAgentToServer
       };
-      
+
       // Send to server
       await uploadAgentToServer(fullAgentData);
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to upload agent: ${errorMessage}`);
@@ -385,30 +532,37 @@ const CommunityTab: React.FC = () => {
       setError('Please select an agent to upload');
       return;
     }
-    
+
     if (!isAuthenticated) {
       setError('You must be logged in to upload agents');
       return;
     }
-    
+
     try {
       setIsUploading(true);
       setError(null);
-      
+
       // Get agent details
       const agent = myAgents.find(a => a.id === selectedUploadAgent);
       if (!agent) {
         throw new Error('Selected agent not found');
       }
-      
+
       // Get agent code and memory
       const code = await getAgentCode(agent.id);
       if (!code) {
         throw new Error('Agent code not found');
       }
-      
+
       const memory = await getAgentMemory(agent.id);
-      
+
+      // Check for sensitive data before uploading
+      const hasSensitiveData = checkForSensitiveData(code, agent, memory, 'existing');
+      if (hasSensitiveData) {
+        setIsUploading(false);
+        return; // Stop here, warning modal will handle next steps
+      }
+
       // Prepare agent data for upload with empty author fields
       // (they will be filled in by uploadAgentToServer)
       const agentData: AgentUpload = {
@@ -424,10 +578,10 @@ const CommunityTab: React.FC = () => {
         author_id: '', // Will be filled in uploadAgentToServer
         date_added: '' // Will be filled in uploadAgentToServer
       };
-      
+
       // Upload to server
       await uploadAgentToServer(agentData);
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to upload agent: ${errorMessage}`);
@@ -582,7 +736,7 @@ const CommunityTab: React.FC = () => {
 
       {/* Agent Details Modal */}
       {selectedAgent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
           <div className="bg-white rounded-lg shadow-lg w-3/4 max-w-4xl max-h-3/4 flex flex-col">
             <div className="flex justify-between items-center p-4 border-b">
               <h2 className="text-xl font-semibold">{selectedAgent.name}</h2>
@@ -654,7 +808,7 @@ const CommunityTab: React.FC = () => {
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
           <div className="bg-white rounded-lg shadow-lg w-1/2 max-w-lg flex flex-col">
             <div className="flex justify-between items-center p-4 border-b">
               <h2 className="text-xl font-semibold">Upload Agent</h2>
@@ -757,6 +911,18 @@ const CommunityTab: React.FC = () => {
           getToken={getToken}
         />
       )}
+
+      {/* Personal Info Warning Modal */}
+      <PersonalInfoWarningModal
+        isOpen={showPersonalInfoWarning}
+        onClose={handleWarningCancel}
+        detectedFunctions={detectedFunctions}
+        codePreview={warningCodePreview}
+        lineNumbers={warningLineNumbers}
+        onCancel={handleWarningCancel}
+        onEditAgent={handleWarningEditAgent}
+        onUploadAnyway={handleWarningUploadAnyway}
+      />
     </div>
   );
 };
