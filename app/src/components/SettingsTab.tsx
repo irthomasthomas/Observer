@@ -83,6 +83,14 @@ interface ModeCardConfig {
 const SettingsTab = () => {
   const MODE_CARDS: ModeCardConfig[] = [
     {
+      mode: DetectionMode.Hybrid,
+      IconComponent: Zap,
+      title: "Smart (Auto)",
+      description: "Intelligently adapts to what you're monitoring",
+      bestFor: ["Mixed content", "Unsure", "General use"],
+      isRecommended: true,
+    },
+    {
       mode: DetectionMode.DHashOnly,
       IconComponent: Camera,
       title: "Camera Feed",
@@ -95,14 +103,6 @@ const SettingsTab = () => {
       title: "Screen UI",
       description: "Detects pixel-perfect changes in applications",
       bestFor: ["Apps", "Websites", "UI testing"],
-    },
-    {
-      mode: DetectionMode.Hybrid,
-      IconComponent: Zap,
-      title: "Smart (Auto)",
-      description: "Intelligently adapts to what you're monitoring",
-      bestFor: ["Mixed content", "Unsure", "General use"],
-      isRecommended: true,
     },
   ];
 
