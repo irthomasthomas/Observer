@@ -31,7 +31,7 @@ const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeCli
   </div>
 );
 
-type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'WAITING' | 'SKIPPED' | 'IDLE';
+type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'RESPONDING' | 'WAITING' | 'SKIPPED' | 'IDLE';
 
 interface AgentCardProps {
   agent: CompleteAgent;
@@ -160,17 +160,17 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
     const handleIterationStart = (event: CustomEvent) => {
       if (event.detail.agentId !== agent.id) return;
-      
+
       // Clear any existing timer
       if (progressTimer) clearInterval(progressTimer);
-      
+
       console.log('Event fired!! for agent: ', agent.id);
-      
+
       // Capture fixed reference values
       startTime = event.detail.iterationStartTime;
       duration = event.detail.intervalMs;
       setLoopProgress(0);
-      
+
       // Simple progress timer using fixed references
       progressTimer = setInterval(() => {
         const elapsed = Date.now() - startTime;
@@ -187,6 +187,20 @@ const AgentCard: React.FC<AgentCardProps> = ({
       window.removeEventListener('agentIterationStart' as any, handleIterationStart);
     };
   }, []); // Empty deps - runs once on mount
+
+  // Listen for stream start to transition from THINKING to RESPONDING
+  useEffect(() => {
+    const handleStreamStart = (event: CustomEvent) => {
+      if (event.detail.agentId !== agent.id) return;
+      // Transition from THINKING to RESPONDING when first token arrives
+      setLiveStatus('RESPONDING');
+    };
+
+    window.addEventListener('agentStreamStart' as any, handleStreamStart);
+    return () => {
+      window.removeEventListener('agentStreamStart' as any, handleStreamStart);
+    };
+  }, [agent.id]);
 
   const handleToggle = async () => {
     if (isRunning) {
