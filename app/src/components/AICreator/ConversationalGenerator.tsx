@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { sendPrompt, fetchResponse, UnauthorizedError } from '@utils/sendApi';
+import { fetchResponse, UnauthorizedError } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
 import MediaUploadMessage from '../MediaUploadMessage';
