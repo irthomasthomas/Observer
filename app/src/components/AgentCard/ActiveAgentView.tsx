@@ -31,12 +31,53 @@ const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
   );
 };
 
-const LastResponse: React.FC<{ response: string, responseKey: number }> = ({ response, responseKey }) => (
-  <div key={responseKey} className="bg-white border border-gray-200 rounded-lg shadow-sm animate-fade-in min-h-0">
-    <h4 className="text-xs font-semibold text-gray-500 mb-1 px-3 pt-2">Last Response</h4>
-    <p className="text-sm text-gray-700 whitespace-pre-wrap max-h-40 overflow-y-auto scrollbar-thin px-3 pb-2">{response}</p>
-  </div>
-);
+const LastResponse: React.FC<{ response: string, responseKey: number }> = ({ response, responseKey }) => {
+  const scrollRef = React.useRef<HTMLParagraphElement>(null);
+  const [autoScroll, setAutoScroll] = React.useState(true);
+  const prevScrollHeightRef = React.useRef<number>(0);
+
+  // Handle scroll events to detect user interaction
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
+
+    // Enable auto-scroll if user scrolled to bottom, disable if scrolled up
+    setAutoScroll(isAtBottom);
+  };
+
+  // Auto-scroll effect when content changes
+  useEffect(() => {
+    if (!scrollRef.current || !autoScroll) return;
+
+    const { scrollHeight } = scrollRef.current;
+
+    // Only scroll if content actually changed (new content added)
+    if (scrollHeight !== prevScrollHeightRef.current) {
+      scrollRef.current.scrollTop = scrollHeight;
+      prevScrollHeightRef.current = scrollHeight;
+    }
+  }, [response, autoScroll]);
+
+  // Reset auto-scroll when responseKey changes (new response started)
+  useEffect(() => {
+    setAutoScroll(true);
+  }, [responseKey]);
+
+  return (
+    <div key={responseKey} className="bg-white border border-gray-200 rounded-lg shadow-sm animate-fade-in min-h-0">
+      <h4 className="text-xs font-semibold text-gray-500 mb-1 px-3 pt-2">Last Response</h4>
+      <p
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="text-sm text-gray-700 whitespace-pre-wrap max-h-40 overflow-y-auto scrollbar-thin px-3 pb-2"
+      >
+        {response}
+      </p>
+    </div>
+  );
+};
 
 
 // --- Main Component ---
