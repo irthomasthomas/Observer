@@ -123,6 +123,94 @@ code: |
 memory: ""
 \$\$\$
 
+\$\$\$
+id: document_writer
+name: document writer
+description: An agent created with the Simple Creator.
+model_name: gemini-2.5-flash-lite
+loop_interval_seconds: 60
+system_prompt: |
+  [TASK]
+  You are a document editor and writer. Your task is to keep an updated document based on the new information provided. Your goal is to maintain an accurate, up-to-date version of what's passed to you.
+  
+  [CURRENT DOCUMENT]
+  $MEMORY@document_writer
+  
+  [NEW INFORMATION]
+  $MEMORY@screen_watcher
+  
+  [RESPONSE RULES]
+  - Your output must ONLY be the lines you want to change or add.
+  - To ADD or REWRITE a line, use the format: {line_number} {new text}
+  - You do NOT need to output lines that are not changing.
+code: |
+  stopAgent();
+  
+  try {
+      (async () => {
+          // --- Sparse Document Updater ---
+          // Implements a simple, elegant git-diff-like pattern for updating a document.
+  
+          // Pattern:
+          // \`{line_number} {new text}\` -> Adds or rewrites a line.
+          // \`{line_number}\`              -> Blanks a line (creating whitespace).
+  
+          // 1. Get the current document from this agent's memory.
+          //    Use 'await' because getMemory() is asynchronous and returns a Promise.
+          const currentDocument = await getMemory("document_writer") || "";
+  
+          // 2. The LLM's response contains the lines to change.
+          const patch = response;
+  
+          // 3. Parse the current document into an array of lines.
+          const docLines = currentDocument.split('\\n').map(line => {
+              const firstSpaceIndex = line.indexOf(' ');
+              if (firstSpaceIndex === -1) return '';
+              return line.substring(firstSpaceIndex + 1);
+          });
+  
+          if (currentDocument === "" && docLines.length === 1) {
+              docLines.shift();
+          }
+  
+          // 4. Apply the patch from the LLM's response.
+          const patchLines = patch.split('\\n').filter(line => line.trim() !== '');
+  
+          for (const line of patchLines) {
+              const match = line.trim().match(/^(\\d+)\\s*(.*)/);
+  
+              if (match) {
+                  const lineNumber = parseInt(match[1], 10);
+                  const newText = match[2] || "";
+                  const index = lineNumber - 1;
+  
+                  while (docLines.length < lineNumber) {
+                      docLines.push("");
+                  }
+                  
+                  docLines[index] = newText;
+              }
+          }
+  
+          // 5. Reconstruct the document string with updated line numbers.
+          const updatedDocument = docLines.map((content, index) => {
+              return \`\${index + 1} \${content}\`;
+          }).join('\\n');
+  
+          // 6. Save the new document state back into memory.
+          //    Use 'await' here too for good practice.
+          await setMemory("document_writer", updatedDocument);
+  
+      })();
+  } catch (e) {
+      console.error("FATAL ERROR in Document Writer Agent:", e);
+      // You could also send a notification on error
+      // system_notify("Agent Error", \`Document writer failed: \${e.message}\`);
+  }
+memory: ""
+\$\$\$
+
+
 Or create powerful single agents with powerfull patterns like this one:
 
 \$\$\$
@@ -260,72 +348,30 @@ memory: |
   UNKNOWN
 \$\$\$
 
-
-**Available Components (Complete Reference):**
-
 #### Models
-| Model Name       | Size | Type | When to Use                                    |
-| ---------------- | ---- | ---- | ---------------------------------------------- |
-| \`gemma-3-4b-it\`  | 4B | Vision | **(Default)** For simple visual recognition (multimodal) |
-| \`gemma-3-12b-it\` | 12B | Vision | For more nuanced visual understanding (multimodal) |
-| \`gemma-3n-e4b-it\` | 4B | Text | For simple text-only tasks |
-| \`gemma-3-27b-it\` | 27B | Vision | For complex visual understanding (multimodal) |
-| \`gemini-1.5-flash-8b\` | 8B | Vision | Fast Google model for visual tasks (multimodal) |
-| \`gemini-1.5-flash\` | - | Vision | Balanced Google model for visual tasks (multimodal) |
-| \`gemini-2.0-flash\` | - | Vision | Latest Google model for visual tasks (multimodal) |
-| \`gemini-2.5-flash-lite\` | - | Vision | Lightweight Google model for visual tasks (multimodal) |
-| \`llama4-scout\` | 109B | Vision | Large Meta model for complex visual reasoning (multimodal) |
-| \`llama4-maverick\` | 400B | Vision | Massive Meta model for advanced visual reasoning (multimodal) |
-| \`gpt-oss-120b\` | 120B | Text | Large text model for complex reasoning |
-| \`deepseek-r1\` | 671B | Text | **Best for reasoning/thinking** - Massive DeepSeek reasoning model |
-| \`deepseek-v3\` | 671B | Text | Large DeepSeek model for complex text tasks |
-| \`qwq\` | 32B | Text | Medium reasoning model |
-| \`deepseek-llama-70b\` | 70B | Text | Large text model for advanced reasoning |
+A range of models are available to power your agents, from small and fast to large and powerful.
+
+*   **Vision Models (Multimodal):** Use these models for tasks involving screen or camera input.
+    *   **Gemma & Gemini Series:** A versatile collection of Google models suitable for most visual recognition and understanding tasks. Start with \`gemma-3-4b-it\` or \`gemini-1.5-flash\` for general use.
+    *   **Llama4 Series:** Very large Meta models (\`llama4-maverick\`, \`llama4-scout\`) for advanced and complex visual reasoning.
+*   **Text-Only Models:** Use these for tasks that only require text processing, reasoning, or generation.
+    *   **DeepSeek Series:** Includes \`deepseek-r1\`, which is the best and largest model available for pure reasoning and complex problem-solving.
+    *   **Other Text Models:** A variety of other models like \`gpt-oss-120b\` and \`qwq\` are available for different scales of text-based tasks.
 
 #### SENSORS (Agent Eyes and Memory)
-| User Term       | Technical Sensor    | Description                                       |
-| --------------- | ------------------- | ------------------------------------------------- |
-| **Screen Image**    | \`$SCREEN_64\`        | Captures the screen as an image. **Use this as the general default.** (multimodal models only) |
-| **Screen OCR**      | \`$SCREEN_OCR\`       | Captures screen content as text via OCR           |
-| **Camera**        | \`$CAMERA\`           | Captures an image from the webcam. (multimodal models only)                |
-| **Text Memory**   | \`$MEMORY@agent_id\`  | Provides the agent's past text logs as context. Can be shared between agents.    |
-| **Image Memory**  | \`$IMEMORY@agent_id\` | Provides the agent's stored reference images. Can be shared between agents.     |
-| **Clipboard**     | \`$CLIPBOARD\`        | Pastes the clipboard contents                     |
-| **Microphone**    | \`$MICROPHONE\`       | Captures the microphone and adds a transcription (uses whisper model) |
-| **Screen Audio**  | \`$SCREEN_AUDIO\`     | Captures the audio transcription of screen sharing a tab (uses whisper model) |
-| **All Audio**     | \`$ALL_AUDIO\`        | Mixes the microphone and screen audio and provides a complete transcription of both (used for meetings) |
+Sensors allow agents to perceive the user's environment and access stored information.
+
+*   **Visual Input:** Use \`$SCREEN_64\` (the default) to see the screen as an image, or \`$CAMERA\` for webcam input. For text-based screen reading, use \`$SCREEN_OCR\`.
+*   **Audio Input:** Capture audio from the \`$MICROPHONE\`, screen sharing with \`$SCREEN_AUDIO\`, or both combined with \`$ALL_AUDIO\`.
+*   **Memory & Clipboard:** Access information from the user's clipboard with \`$CLIPBOARD\` or from another agent's memory using \`$MEMORY@agent_id\`.
 
 #### TOOLS (Agent Hands)
-| Tool Call                                | Description                                       |
-| ---------------------------------------- | ------------------------------------------------- |
-| **Memory Tools**                         |                                                   |
-| \`getMemory(agentId)\`                   | Retrieve stored text memory.                       |
-| \`setMemory(agentId, content)\`          | Replace stored text memory.                        |
-| \`appendMemory(agentId, content)\`       | Add to existing text memory.                       |
-| \`getImageMemory(agentId)\`              | Retrieve images stored in memory.                  |
-| \`setImageMemory(agentId, images)\`      | Set images to memory.                              |
-| \`appendImageMemory(agentId, images)\`   | Add images to memory.                              |
-| \`startAgent(agentId)\`                  | Starts an agent                                    |
-| \`stopAgent(agentId)\`                   | Stops an agent                                     |
-| \`time()\`                               | Gets the current time as a string.                 |
-| \`sleep(ms)\`                            | Waits that amount of milliseconds                  |
-| **Notification Tools**                   |                                                   |
-| \`sendEmail(email, message, images?)\`   | Sends an email with optional images.              |
-| \`sendPushover(user_token, message, images?, title?)\`| Sends a Pushover notification.             |
-| \`sendDiscord(discord_webhook, message, images?)\`| Sends a Discord message to a server.              |
-| \`sendTelegram(chat_id, message, images?)\`| Sends a Telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.  |
-| \`sendSms(phone_number, message, images?)\`| Sends an SMS to a phone number, format as e.g. sendSms("hello","+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada. |
-| \`sendWhatsapp(phone_number, message)\` | Sends a whatsapp message, ⚠️IMPORTANT: Due to anti-spam rules, it is recommended to send a Whatsapp Message to the number "+1 (555) 783 4727", this opens up a 24 hour window where Meta won't block message alerts sent by this number. TEMPORARILY BLOCKED due to spam. |
-| \`notify(title, options)\`               | Send browser notification ⚠️IMPORTANT: Some browsers block notifications |
-| \`system_notify(body, title="Observer AI")\` | Sends a system notification                   |
-| **Video Recording Tools**                |                                                   |
-| \`startClip()\`                          | Starts a recording of any video media and saves it to the recording Tab. |
-| \`stopClip()\`                           | Stops an active recording                          |
-| \`markClip(label)\`                      | Adds a label to any active recording that will be displayed in the recording Tab. |
-| **App Tools**                            |                                                   |
-| \`ask(question, title="Confirmation")\`  | Pops up a system confirmation dialog               |
-| \`message(message, title="Agent Message")\` | Pops up a system message                       |
-| \`overlay(body)\`                        | Pushes a message to the overlay                    |
+Tools enable agents to perform actions and interact with the system or the user.
+
+*   **Agent & Memory Control:** Manage agent behavior with \`startAgent()\`, \`stopAgent()\`, and \`sleep()\`. Store and retrieve information using \`setMemory()\`, \`getMemory()\`, and \`appendMemory()\`.
+*   **Notifications & Communication:** Send alerts through various channels, including email (\`sendEmail\`), system notifications (\`system_notify\`), and messaging apps like Discord (\`sendDiscord\`) and Telegram (\`sendTelegram\`).
+*   **User Interaction:** Directly engage with the user by showing a message (\`message\`), displaying information on the screen (\`overlay\`), or asking for confirmation with a dialog box (\`ask\`).
+*   **Video Recording:** Programmatically start, stop, and mark video recordings of on-screen activity using \`startClip()\`, \`stopClip()\`, and \`markClip()\`.
 
 
 **Final Output Format:**

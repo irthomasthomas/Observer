@@ -160,13 +160,19 @@ const GenerateAgent: React.FC<GenerateAgentProps> = ({ agentType, modelName, get
     setError(null);
     setSaveSuccess(false);
 
-    const fullPrompt = `${agentType === 'browser' ? getSystemPrompt() : getPythonSystemPrompt()} ${userInput}`;
+    const systemPrompt = agentType === 'browser' ? getSystemPrompt() : getPythonSystemPrompt();
 
     try {
+      // Build proper OpenAI messages array
+      const messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userInput }
+      ];
+
       // Use fetchResponse directly for the special Gemini model
       const response = await fetchResponse(
         'https://api.observer-ai.com:443',
-        fullPrompt,
+        messages,
         'gemini-2.0-flash-lite-free',
         await getToken()
       );

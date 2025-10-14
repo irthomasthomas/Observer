@@ -10,9 +10,9 @@ import {
   parseAgentResponse,
   extractImageRequest,
   extractAgentReferencesWithPositions,
-  extractUniqueAgentReferencesFromConversation,
+  extractAgentReferences,
   fetchAgentReferenceData,
-  buildSystemPromptWithAgentContext,
+  formatAgentReferenceContext,
   AgentReferenceData
 } from '@utils/agentParser';
 import MediaUploadMessage from '../MediaUploadMessage';
@@ -305,62 +305,104 @@ What kind of agent team would you like me to create today?`
   const sendConversation = async (allMessages: Message[]) => {
     setIsLoading(true);
 
-    // Extract all message texts for agent reference scanning
-    const messageTexts = allMessages.map(msg => msg.text);
+    // Build proper OpenAI messages array
+    const openaiMessages: Array<{role: string, content: any}> = [
+      // System message first - static, no agent context
+      { role: "system", content: getMultiAgentSystemPrompt() }
+    ];
 
-    // Extract unique agent references from entire conversation
-    const uniqueReferences = extractUniqueAgentReferencesFromConversation(messageTexts);
-
-    // Fetch agent data for all unique references
-    let referenceData: AgentReferenceData[] = [];
-    if (uniqueReferences.length > 0) {
-      try {
-        referenceData = await fetchAgentReferenceData(uniqueReferences);
-      } catch (error) {
-        console.error('Failed to fetch agent references:', error);
+    // Convert conversation messages to OpenAI format with per-message agent references
+    for (const msg of allMessages) {
+      // Skip non-conversational message types
+      if (msg.sender === 'system' || msg.sender === 'image-request' || msg.sender === 'multi-agent-system') {
+        continue;
       }
-    }
 
-    // Build enhanced system prompt with agent context
-    const enhancedSystemPrompt = buildSystemPromptWithAgentContext(
-      getMultiAgentSystemPrompt(),
-      referenceData
-    );
+      // Map sender to OpenAI role
+      const role = msg.sender === 'user' ? 'user' : 'assistant';
 
-    // Keep conversation history clean (no agent data injected)
-    const conversationHistory = allMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
-    const fullPrompt = `${enhancedSystemPrompt}\n\n${conversationHistory}\nai:`;
+      // For user messages, check for agent references and append context
+      let messageContent = msg.text;
+      let messageImages: string[] = [];
 
-    // Collect images from conversation messages
-    const conversationImages = allMessages
-      .filter(msg => msg.imageData)
-      .map(msg => msg.imageData!);
+      if (msg.sender === 'user') {
+        // Extract agent references from this specific message
+        const referencesInMessage = extractAgentReferences(msg.text);
 
-    // Collect images from iteration store runs of referenced agents
-    const iterationImages: string[] = [];
-    referenceData.forEach(data => {
-      data.recentRuns.forEach(run => {
-        // Add model images (base64 images sent to model)
-        if (run.modelImages) {
-          iterationImages.push(...run.modelImages);
+        if (referencesInMessage.length > 0) {
+          try {
+            // Fetch agent data for references in this message
+            const referenceData = await fetchAgentReferenceData(referencesInMessage);
+
+            // Append agent context to the message
+            const agentContext = formatAgentReferenceContext(referenceData);
+            messageContent = msg.text + agentContext;
+
+            // Also collect iteration images from referenced agents
+            referenceData.forEach(data => {
+              data.recentRuns.forEach(run => {
+                // Add model images (base64 images sent to model)
+                if (run.modelImages) {
+                  messageImages.push(...run.modelImages);
+                }
+
+                // Add screenshot and camera sensor images
+                run.sensors.forEach(sensor => {
+                  if ((sensor.type === 'screenshot' || sensor.type === 'camera') && sensor.content) {
+                    // Handle both base64 and raw image data
+                    if (typeof sensor.content === 'string') {
+                      messageImages.push(sensor.content);
+                    } else if (sensor.content.data) {
+                      messageImages.push(sensor.content.data);
+                    }
+                  }
+                });
+              });
+            });
+          } catch (error) {
+            console.error('Failed to fetch agent references:', error);
+          }
+        }
+      }
+
+      // Build content with images if present
+      if (msg.imageData || messageImages.length > 0) {
+        const contentParts: any[] = [
+          { type: "text", text: messageContent }
+        ];
+
+        // Add user-uploaded image
+        if (msg.imageData) {
+          contentParts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:image/png;base64,${msg.imageData}`
+            }
+          });
         }
 
-        // Add screenshot and camera sensor images
-        run.sensors.forEach(sensor => {
-          if ((sensor.type === 'screenshot' || sensor.type === 'camera') && sensor.content) {
-            // Handle both base64 and raw image data
-            if (typeof sensor.content === 'string') {
-              iterationImages.push(sensor.content);
-            } else if (sensor.content.data) {
-              iterationImages.push(sensor.content.data);
+        // Add iteration images from referenced agents
+        messageImages.forEach(imageBase64Data => {
+          contentParts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:image/png;base64,${imageBase64Data}`
             }
-          }
+          });
         });
-      });
-    });
 
-    // Combine all images
-    const images = [...conversationImages, ...iterationImages];
+        openaiMessages.push({
+          role: role,
+          content: contentParts
+        });
+      } else {
+        // Text-only message
+        openaiMessages.push({
+          role: role,
+          content: messageContent
+        });
+      }
+    }
 
     const streamingMessageId = Date.now() + Math.random();
     const streamingMessage: Message = {
@@ -380,22 +422,9 @@ What kind of agent team would you like me to create today?`
         const token = await getToken();
         if (!token) throw new Error("Authentication failed.");
 
-        let content: any = fullPrompt;
-        if (images && images.length > 0) {
-          content = [
-            { type: "text", text: fullPrompt },
-            ...images.map(imageBase64Data => ({
-              type: "image_url",
-              image_url: {
-                url: `data:image/png;base64,${imageBase64Data}`
-              }
-            }))
-          ];
-        }
-
         responseText = await fetchResponse(
           'https://api.observer-ai.com:443',
-          content,
+          openaiMessages,
           'gemini-2.5-flash-lite-free',
           token,
           true,
@@ -410,15 +439,32 @@ What kind of agent team would you like me to create today?`
         );
       } else {
         // --- LOCAL PATH ---
-        const { sendPrompt } = await import('@utils/sendApi');
-        responseText = await sendPrompt(selectedLocalModel, { modifiedPrompt: fullPrompt, images }, undefined, true, (chunk: string) => {
-          accumulatedResponse += chunk;
-          setMessages(prev => prev.map(msg =>
-            msg.id === streamingMessageId
-              ? { ...msg, text: accumulatedResponse }
-              : msg
-          ));
-        });
+        // Use fetchResponse directly with messages array for local models
+        const { listModels } = await import('@utils/inferenceServer');
+        const modelsResponse = listModels();
+        const model = modelsResponse.models.find(m => m.name === selectedLocalModel);
+
+        if (!model) {
+          throw new Error(`Model '${selectedLocalModel}' not found in available models`);
+        }
+
+        const serverAddress = model.server;
+
+        responseText = await fetchResponse(
+          serverAddress,
+          openaiMessages,
+          selectedLocalModel,
+          undefined,
+          true,
+          (chunk: string) => {
+            accumulatedResponse += chunk;
+            setMessages(prev => prev.map(msg =>
+              msg.id === streamingMessageId
+                ? { ...msg, text: accumulatedResponse }
+                : msg
+            ));
+          }
+        );
       }
 
       // Convert streaming message to final message

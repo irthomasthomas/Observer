@@ -96,7 +96,7 @@ export class UnauthorizedError extends Error {
 /**
  * Direct fetch to a specific server without model discovery
  * @param serverAddress Full server address (e.g., 'https://api.observer-ai.com:443')
- * @param content The prompt content (string or multimodal content array)
+ * @param messages Array of OpenAI-format messages with role and content
  * @param modelName Name of the model to use
  * @param token Optional authorization token
  * @param enableStreaming Whether to enable streaming response (default: false)
@@ -105,7 +105,7 @@ export class UnauthorizedError extends Error {
  */
 export async function fetchResponse(
   serverAddress: string,
-  content: any,
+  messages: Array<{role: string, content: any}>,
   modelName: string,
   token?: string,
   enableStreaming: boolean = false,
@@ -127,12 +127,7 @@ export async function fetchResponse(
 
     const requestBody = JSON.stringify({
       model: modelName,
-      messages: [
-        {
-          role: "user",
-          content: content
-        }
-      ],
+      messages: messages,
       stream: enableStreaming
     });
 
@@ -213,29 +208,37 @@ export async function sendPrompt(
 
     const serverAddress = model.server;
 
+    // Convert single-turn request to messages array format
     let content: any = preprocessResult.modifiedPrompt;
     const hasImages = preprocessResult.images && preprocessResult.images.length > 0;
 
     if (hasImages) {
-      // Ensure preprocessResult.images contains an array of base64 strings
+      // Multimodal content with images
       content = [
         { type: "text", text: preprocessResult.modifiedPrompt },
-        // Add the non-null assertion operator (!) after images
-        ...preprocessResult.images!.map(imageBase64Data => ({ // Iterate through base64 strings
+        ...preprocessResult.images!.map(imageBase64Data => ({
           type: "image_url",
-          image_url: { // image_url is an object
-            url: `data:image/png;base64,${imageBase64Data}` // url's value is the full data URI
+          image_url: {
+            url: `data:image/png;base64,${imageBase64Data}`
           }
         }))
       ];
     }
 
+    // Build messages array (single user message for agent loop)
+    const messages = [
+      {
+        role: "user",
+        content: content
+      }
+    ];
+
     if (serverAddress.includes('api.observer-ai.com') && token) {
       optimisticUpdateQuota();
     }
 
-    // Use the new fetchResponse function
-    return await fetchResponse(serverAddress, content, modelName, token, enableStreaming, onStreamChunk);
+    // Use the new fetchResponse function with messages array
+    return await fetchResponse(serverAddress, messages, modelName, token, enableStreaming, onStreamChunk);
 
   } catch (error) {
     console.error('Error calling API:', error);

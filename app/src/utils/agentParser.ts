@@ -311,6 +311,98 @@ export function detectPartialAgentTyping(text: string, cursorPosition: number): 
 }
 
 /**
+ * Formats agent reference context for appending to a message
+ * Uses the official Observer agent file format ($$$...$$$)
+ * @param referenceData Array of fetched agent reference data
+ * @returns Formatted agent context string
+ */
+export function formatAgentReferenceContext(
+  referenceData: AgentReferenceData[]
+): string {
+  if (referenceData.length === 0) return '';
+
+  let context = "\n\n=== REFERENCED AGENTS ===\n";
+  context += "The user has referenced the following agents. Here are their current configurations:\n\n";
+
+  referenceData.forEach(data => {
+    const { reference, agent, code, memory, recentRuns } = data;
+
+    if (!agent) {
+      context += `@${reference.agentId} - AGENT NOT FOUND\n`;
+      context += `The user referenced @${reference.agentId} but this agent doesn't exist.\n\n`;
+      return;
+    }
+
+    // Format in official Observer agent file format
+    context += `$$$\n`;
+    context += `id: ${agent.id}\n`;
+    context += `name: ${agent.name}\n`;
+    context += `description: ${agent.description}\n`;
+    context += `model_name: ${agent.model_name}\n`;
+    context += `loop_interval_seconds: ${agent.loop_interval_seconds}\n`;
+    context += `system_prompt: |\n`;
+
+    // Indent system prompt lines
+    const systemPromptLines = agent.system_prompt.split('\n');
+    systemPromptLines.forEach(line => {
+      context += `  ${line}\n`;
+    });
+
+    context += `code: |\n`;
+
+    // Indent code lines if available
+    if (code) {
+      const codeLines = code.split('\n');
+      codeLines.forEach(line => {
+        context += `  ${line}\n`;
+      });
+    }
+
+    // Add memory (truncate if too long)
+    if (memory.trim()) {
+      const memoryContent = memory.length > 500 ? memory.substring(0, 500) + '...' : memory;
+      context += `memory: |\n`;
+      const memoryLines = memoryContent.split('\n');
+      memoryLines.forEach(line => {
+        context += `  ${line}\n`;
+      });
+    } else {
+      context += `memory: ""\n`;
+    }
+
+    context += `$$$\n\n`;
+
+    // Add recent performance data after the agent config
+    if (recentRuns.length > 0) {
+      context += `Recent Performance for @${agent.id} (last ${recentRuns.length} runs):\n`;
+
+      const successCount = recentRuns.filter(run => !run.hasError).length;
+      context += `Success Rate: ${successCount}/${recentRuns.length}\n`;
+
+      if (recentRuns.some(run => run.duration)) {
+        const avgDuration = recentRuns
+          .filter(run => run.duration)
+          .reduce((sum, run) => sum + (run.duration || 0), 0) / recentRuns.length;
+        context += `Average Duration: ${avgDuration.toFixed(1)}s\n`;
+      }
+
+      // Add summary of recent runs
+      recentRuns.forEach((run, i) => {
+        context += `\nRun ${i + 1}: ${run.hasError ? 'FAILED' : 'SUCCESS'}`;
+        if (run.hasError && run.tools.some(tool => tool.status === 'error')) {
+          const errorTools = run.tools.filter(tool => tool.status === 'error');
+          context += ` - Errors: ${errorTools.map(tool => tool.error).join(', ')}`;
+        }
+        context += '\n';
+      });
+      context += "\n";
+    }
+  });
+
+  return context;
+}
+
+/**
  * Builds enhanced system prompt with agent reference context
  * @param baseSystemPrompt Base system prompt
  * @param referenceData Array of fetched agent reference data

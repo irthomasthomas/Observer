@@ -76,14 +76,43 @@ What would you like to create today?`
   const sendConversation = async (allMessages: Message[]) => {
     setIsLoading(true);
 
-    // Build conversation history and collect images
-    const conversationHistory = allMessages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
-    const fullPrompt = `${getConversationalSystemPrompt()}\n${conversationHistory}\nai:`;
+    // Build proper OpenAI messages array
+    const openaiMessages: Array<{role: string, content: any}> = [
+      // System message first
+      { role: "system", content: getConversationalSystemPrompt() }
+    ];
 
-    // Collect all images from the conversation
-    const images = allMessages
-      .filter(msg => msg.imageData)
-      .map(msg => msg.imageData!);
+    // Convert conversation messages to OpenAI format
+    for (const msg of allMessages) {
+      // Skip non-conversational message types
+      if (msg.sender === 'system' || msg.sender === 'image-request') {
+        continue;
+      }
+
+      // Map sender to OpenAI role
+      const role = msg.sender === 'user' ? 'user' : 'assistant';
+
+      // Handle images in multimodal content format
+      if (msg.imageData) {
+        openaiMessages.push({
+          role: role,
+          content: [
+            { type: "text", text: msg.text },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${msg.imageData}`
+              }
+            }
+          ]
+        });
+      } else {
+        openaiMessages.push({
+          role: role,
+          content: msg.text
+        });
+      }
+    }
 
     // Create streaming message immediately
     const streamingMessageId = Date.now() + Math.random();
@@ -104,23 +133,10 @@ What would you like to create today?`
         const token = await getToken();
         if (!token) throw new Error("Authentication failed.");
         // if you think of spamming this model somehow te voy a jalar las patas en la noche >:(
-        // Prepare content for fetchResponse
-        let content: any = fullPrompt;
-        if (images && images.length > 0) {
-          content = [
-            { type: "text", text: fullPrompt },
-            ...images.map(imageBase64Data => ({
-              type: "image_url",
-              image_url: {
-                url: `data:image/png;base64,${imageBase64Data}`
-              }
-            }))
-          ];
-        }
 
         responseText = await fetchResponse(
           'https://api.observer-ai.com:443',
-          content,
+          openaiMessages,
           'gemini-2.0-flash-lite-free',
           token,
           true,
@@ -135,14 +151,32 @@ What would you like to create today?`
         );
       } else {
         // --- LOCAL PATH ---
-        responseText = await sendPrompt(selectedLocalModel, { modifiedPrompt: fullPrompt, images }, undefined, true, (chunk: string) => {
-          accumulatedResponse += chunk;
-          setMessages(prev => prev.map(msg =>
-            msg.id === streamingMessageId
-              ? { ...msg, text: accumulatedResponse }
-              : msg
-          ));
-        });
+        // Use fetchResponse directly with messages array for local models
+        const { listModels } = await import('@utils/inferenceServer');
+        const modelsResponse = listModels();
+        const model = modelsResponse.models.find(m => m.name === selectedLocalModel);
+
+        if (!model) {
+          throw new Error(`Model '${selectedLocalModel}' not found in available models`);
+        }
+
+        const serverAddress = model.server;
+
+        responseText = await fetchResponse(
+          serverAddress,
+          openaiMessages,
+          selectedLocalModel,
+          undefined,
+          true,
+          (chunk: string) => {
+            accumulatedResponse += chunk;
+            setMessages(prev => prev.map(msg =>
+              msg.id === streamingMessageId
+                ? { ...msg, text: accumulatedResponse }
+                : msg
+            ));
+          }
+        );
       }
 
       // Convert streaming message to final message
