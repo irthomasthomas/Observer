@@ -391,7 +391,14 @@ export function formatAgentReferenceContext(
         context += `\nRun ${i + 1}: ${run.hasError ? 'FAILED' : 'SUCCESS'}`;
         if (run.hasError && run.tools.some(tool => tool.status === 'error')) {
           const errorTools = run.tools.filter(tool => tool.status === 'error');
-          context += ` - Errors: ${errorTools.map(tool => tool.error).join(', ')}`;
+          context += ` - Errors:\n`;
+          errorTools.forEach(tool => {
+            context += `  - ${tool.name}: ${tool.error}`;
+            if (tool.params) {
+              context += ` (params: ${JSON.stringify(tool.params)})`;
+            }
+            context += '\n';
+          });
         }
         context += '\n';
       });
@@ -479,7 +486,14 @@ export function buildSystemPromptWithAgentContext(
 
           if (run.hasError && run.tools.some(tool => tool.status === 'error')) {
             const errorTools = run.tools.filter(tool => tool.status === 'error');
-            systemPrompt += `Errors: ${errorTools.map(tool => tool.error).join(', ')}\n`;
+            systemPrompt += `Errors:\n`;
+            errorTools.forEach(tool => {
+              systemPrompt += `  - ${tool.name}: ${tool.error}`;
+              if (tool.params) {
+                systemPrompt += ` (params: ${JSON.stringify(tool.params)})`;
+              }
+              systemPrompt += '\n';
+            });
           }
 
           if (run.tools.length > 0) {

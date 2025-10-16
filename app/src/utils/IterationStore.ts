@@ -217,6 +217,7 @@ class IterationStoreClass {
       toolCall.params = content?.params;
     } else {
       toolCall.error = content?.error;
+      toolCall.params = content?.params; // Also save params for failed tools
     }
 
     iteration.tools.push(toolCall);

@@ -3,13 +3,15 @@ import React, { useState } from 'react';
 import {
   CheckCircle, XCircle, Send, MessageSquare, MessageSquarePlus, MessageSquareQuote,
   MessageCircle, Mail, Bell, Save, SquarePen, PlayCircle, StopCircle, Hourglass,
-  Video, VideoOff, Hammer, Tag
+  Video, VideoOff, Hammer, Tag, AlertTriangle, HelpCircle
 } from 'lucide-react';
 import { ToolCall } from '@utils/IterationStore';
 
 // Tool icon mapping
 const getToolIcon = (toolName: string) => {
   const iconMap: Record<string, React.ElementType> = {
+    'code-execution': AlertTriangle,
+    'unknown': HelpCircle,
     sendDiscordBot: () => <Send className="w-4 h-4" />,
     sendWhatsapp: () => <MessageSquare className="w-4 h-4" />,
     sendSms: () => <MessageSquarePlus className="w-4 h-4" />,
@@ -30,7 +32,7 @@ const getToolIcon = (toolName: string) => {
     ask: MessageSquareQuote,
     message: MessageSquare,
   };
-  return iconMap[toolName] || CheckCircle;
+  return iconMap[toolName] || HelpCircle;
 };
 
 interface ToolStatusProps {
@@ -48,7 +50,7 @@ const ToolStatus: React.FC<ToolStatusProps> = ({
   maxTools,
   className = ''
 }) => {
-  const [hoveredTool, setHoveredTool] = useState<{ index: string; name: string; status: string } | null>(null);
+  const [hoveredTool, setHoveredTool] = useState<{ index: string; name: string; status: string; error?: string } | null>(null);
 
   // Limit tools if maxTools is specified
   const displayTools = maxTools ? tools.slice(-maxTools) : tools;
@@ -83,13 +85,13 @@ const ToolStatus: React.FC<ToolStatusProps> = ({
     const countColorClass = hasErrors ? 'text-red-500' : 'text-green-500';
 
     return (
-      <div className={`${sectionColorClass} px-3 py-2 rounded-lg border flex-1 min-w-0 ${className}`}>
+      <div className={`${sectionColorClass} px-3 py-2 rounded-lg border flex-1 min-w-0 overflow-visible ${className}`}>
         <div className="flex items-center gap-2 mb-2">
           <Hammer className={`w-4 h-4 ${iconColorClass} flex-shrink-0`} />
           <div className={`text-xs font-medium ${labelColorClass}`}>Tools</div>
           <span className={`text-xs ${countColorClass}`}>({displayTools.length} tool{displayTools.length !== 1 ? 's' : ''})</span>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap overflow-visible">
           {displayTools.map((tool, index) => {
             const isSuccess = tool.status === 'success';
             const ToolIcon = getToolIcon(tool.name);
@@ -106,7 +108,8 @@ const ToolStatus: React.FC<ToolStatusProps> = ({
                   onMouseEnter={showTooltip ? () => setHoveredTool({
                     index: toolId,
                     name: tool.name,
-                    status: isSuccess ? 'Success' : 'Failed'
+                    status: isSuccess ? 'Success' : 'Failed',
+                    error: tool.error
                   }) : undefined}
                   onMouseLeave={showTooltip ? () => setHoveredTool(null) : undefined}
                 >
@@ -120,8 +123,20 @@ const ToolStatus: React.FC<ToolStatusProps> = ({
 
                 {/* Tooltip */}
                 {showTooltip && hoveredTool?.index === toolId && (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-10">
-                    {hoveredTool.name} - {hoveredTool.status}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg z-10 max-w-xs">
+                    <div className="font-medium whitespace-nowrap">
+                      {hoveredTool.name} - {hoveredTool.status}
+                    </div>
+                    {hoveredTool.error && (
+                      <>
+                        <div className="border-t border-gray-700 my-1"></div>
+                        <div className="text-gray-300 break-words">
+                          {hoveredTool.error.length > 120
+                            ? `${hoveredTool.error.substring(0, 120)}...`
+                            : hoveredTool.error}
+                        </div>
+                      </>
+                    )}
                     <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                   </div>
                 )}
@@ -169,7 +184,7 @@ const ToolStatus: React.FC<ToolStatusProps> = ({
 
   // Inline variant for iteration cards (default)
   return (
-    <div className={`flex items-center gap-3 relative ${className}`}>
+    <div className={`flex items-center gap-3 relative overflow-visible ${className}`}>
       {displayTools.map((tool, index) => {
         const isSuccess = tool.status === 'success';
         const ToolIcon = getToolIcon(tool.name);
@@ -186,7 +201,8 @@ const ToolStatus: React.FC<ToolStatusProps> = ({
               onMouseEnter={showTooltip ? () => setHoveredTool({
                 index: toolId,
                 name: tool.name,
-                status: isSuccess ? 'Success' : 'Failed'
+                status: isSuccess ? 'Success' : 'Failed',
+                error: tool.error
               }) : undefined}
               onMouseLeave={showTooltip ? () => setHoveredTool(null) : undefined}
             >
@@ -200,8 +216,20 @@ const ToolStatus: React.FC<ToolStatusProps> = ({
 
             {/* Tooltip */}
             {showTooltip && hoveredTool?.index === toolId && (
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-10">
-                {hoveredTool.name} - {hoveredTool.status}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg z-10 max-w-xs">
+                <div className="font-medium whitespace-nowrap">
+                  {hoveredTool.name} - {hoveredTool.status}
+                </div>
+                {hoveredTool.error && (
+                  <>
+                    <div className="border-t border-gray-700 my-1"></div>
+                    <div className="text-gray-300 break-words">
+                      {hoveredTool.error.length > 120
+                        ? `${hoveredTool.error.substring(0, 120)}...`
+                        : hoveredTool.error}
+                    </div>
+                  </>
+                )}
                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
               </div>
             )}
