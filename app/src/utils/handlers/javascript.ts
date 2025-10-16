@@ -26,8 +26,7 @@ export async function executeJavaScript(
   getToken?: TokenProvider,
   preprocessResult?: PreProcessorResult
 ): Promise<boolean> {
-  try {
-    const context = {
+  const context = {
       response,
       agentId,
       // Image variables from preprocessing
@@ -583,27 +582,48 @@ export async function executeJavaScript(
     };
 
     const wrappedCode = `
-      (async function() {
-        try {
-          ${code}
-          return true;
-        } catch (e) {
-          console.error('Error in handler:', e);
-          return false;
-        }
+      return (async function() {
+        ${code}
+        return true;
       })()
     `;
 
-    const handler = new Function(...Object.keys(context), wrappedCode);
-    return await handler(...Object.values(context));
+    let result;
+    try {
+      const handler = new Function(...Object.keys(context), wrappedCode);
+      result = await handler(...Object.values(context));
+    } catch (error) {
+      // This catches syntax errors, runtime errors, tool errors that bubble up, etc.
+      Logger.error(agentId, `Error executing JavaScript: ${error}`, {
+        logType: 'tool-error',
+        iterationId,
+        content: {
+          tool: 'code-execution',
+          error: extractErrorMessage(error),
+          success: false
+        }
+      });
+      throw error;
+    }
 
-  } catch (error) {
-    Logger.error(agentId, `Error executing JavaScript: ${error}`,
-    {
-      logType: 'tool-error', 
-      iterationId,
-      content: { error: extractErrorMessage(error), success: false }
-    });
-    return false;
-  }
+    // DEBUG: See what we're actually getting back
+    Logger.debug(agentId, `Code execution result: ${result}`, { iterationId, result });
+
+    // If code executed successfully, it should return true
+    // If we got anything else, something went wrong
+    if (result !== true) {
+      const error = new Error('Code execution failed or did not complete');
+      Logger.error(agentId, `Error executing JavaScript: ${error.message}`, {
+        logType: 'tool-error',
+        iterationId,
+        content: {
+          tool: 'code-execution',
+          error: error.message,
+          success: false
+        }
+      });
+      throw error;
+    }
+
+    return true;
 }

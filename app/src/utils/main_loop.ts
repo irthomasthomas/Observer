@@ -267,16 +267,27 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     try {
       await postProcess(agentId, response, agentCode, iterationId, loopData.getToken, preprocessResult);
       Logger.debug(agentId, `postProcess completed successfully`, { iterationId });
-    } catch (postProcessError) {
-      Logger.error(agentId, `Error in postProcess: ${postProcessError}`, { iterationId, error: postProcessError });
-    } finally {
+
+      // Success path
       if (isAgentLoopRunning(agentId)) {
         recordingManager.handleEndOfLoop();
       }
-      Logger.info(agentId, `Iteration completed`, { 
-        logType: 'iteration-end', 
+      Logger.info(agentId, `Iteration completed`, {
+        logType: 'iteration-end',
         iterationId,
         content: { success: true }
+      });
+    } catch (postProcessError) {
+      Logger.error(agentId, `Error in postProcess: ${postProcessError}`, { iterationId, error: postProcessError });
+
+      // Error path - still clean up but log failure
+      if (isAgentLoopRunning(agentId)) {
+        recordingManager.handleEndOfLoop();
+      }
+      Logger.info(agentId, `Iteration completed`, {
+        logType: 'iteration-end',
+        iterationId,
+        content: { success: false }
       });
     }
 
