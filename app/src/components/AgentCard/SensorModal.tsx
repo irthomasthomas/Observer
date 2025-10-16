@@ -4,7 +4,7 @@ import SensorInputText from '@components/EditAgent/SensorInputText';
 import SensorPreviewPanel from './SensorPreviewPanel';
 import { StreamManager, StreamState } from '@utils/streamManager';
 import { listAgents } from '@utils/agent_database';
-import { Eye, X, Monitor, ScanText, Camera, Clipboard, Mic, Volume2, Blend, Save, Images, ChevronDown } from 'lucide-react';
+import { Eye, X, Monitor, ScanText, Camera, Clipboard, Mic, Volume2, Blend, Save, Images, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface SensorModalProps {
   isOpen: boolean;
@@ -90,6 +90,7 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
   const [streams, setStreams] = useState<StreamState>(() => StreamManager.getCurrentState());
   const [editedPrompt, setEditedPrompt] = useState(systemPrompt);
   const [availableAgents, setAvailableAgents] = useState<{ id: string; name: string }[]>([]);
+  const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Listen to stream state changes
@@ -165,57 +166,11 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
         </button>
       </div>
 
-      {/* Content - Two Column Layout */}
-      <div className="flex-grow p-6 overflow-y-auto bg-gray-50">
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Left Column: System Prompt */}
-          <div>
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                System Prompt with Sensors
-              </label>
-            </div>
-            <SensorInputText
-              value={editedPrompt}
-              onChange={setEditedPrompt}
-              textareaRef={textareaRef}
-              className="h-96 bg-white"
-              placeholder="No system prompt defined"
-            />
-
-            {/* Sensor Insertion Buttons */}
-            <div className="mt-4">
-              <label className="block text-xs text-gray-500 mb-2 font-medium">INSERT SENSOR:</label>
-              <div className="flex flex-wrap gap-2">
-                <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSystemPromptText('$SCREEN_OCR')} colorClass="text-blue-600" />
-                <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSystemPromptText('$SCREEN_64')} colorClass="text-purple-600" />
-                <SensorButton icon={Camera} label="Camera" onClick={() => insertSystemPromptText('$CAMERA')} colorClass="text-purple-600" />
-                <SensorButton icon={Clipboard} label="Clipboard" onClick={() => insertSystemPromptText('$CLIPBOARD_TEXT')} colorClass="text-sky-600" />
-                <SensorButton icon={Mic} label="Microphone" onClick={() => insertSystemPromptText('$MICROPHONE')} colorClass="text-amber-600" />
-                <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSystemPromptText('$SCREEN_AUDIO')} colorClass="text-amber-600" />
-                <SensorButton icon={Blend} label="All Audio" onClick={() => insertSystemPromptText('$ALL_AUDIO')} colorClass="text-orange-600" />
-
-                <SensorDropdownButton
-                  icon={Save}
-                  label="Memory"
-                  colorClass="text-emerald-600"
-                  agents={availableAgents}
-                  onSelect={(agentId) => insertSystemPromptText(`$MEMORY@${agentId}`)}
-                />
-
-                <SensorDropdownButton
-                  icon={Images}
-                  label="Image Memory"
-                  colorClass="text-purple-600"
-                  agents={availableAgents}
-                  onSelect={(agentId) => insertSystemPromptText(`$IMEMORY@${agentId}`)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Live Sensor Preview */}
-          <div>
+      {/* Content - Responsive Layout */}
+      <div className="flex-grow p-4 md:p-6 overflow-y-auto bg-gray-50">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+          {/* Mobile: Live Sensor Preview First */}
+          <div className="md:order-2">
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Live Sensor Preview
@@ -226,6 +181,76 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
               streams={streams}
               systemPrompt={editedPrompt}
             />
+          </div>
+
+          {/* Mobile: Collapsible System Prompt / Desktop: Normal Left Column */}
+          <div className="md:order-1">
+            {/* Mobile: Expandable Header with Preview */}
+            <button
+              onClick={() => setIsPromptExpanded(!isPromptExpanded)}
+              className="md:hidden w-full flex flex-col p-3 mb-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="flex items-center justify-between w-full mb-2">
+                <div className="flex items-center space-x-2">
+                  <Eye className="h-4 w-4 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">System Prompt & Sensors</span>
+                </div>
+                <ChevronRight className={`h-5 w-5 text-gray-500 transition-transform flex-shrink-0 ${isPromptExpanded ? 'rotate-90' : ''}`} />
+              </div>
+              {!isPromptExpanded && (
+                <div className="text-sm text-gray-600 italic line-clamp-2">
+                  {editedPrompt || "No system prompt defined"}
+                </div>
+              )}
+            </button>
+
+            {/* Desktop: Always visible label */}
+            <div className="hidden md:block mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                System Prompt with Sensors
+              </label>
+            </div>
+
+            {/* Content (expanded on mobile, always visible on desktop) */}
+            <div className={`${isPromptExpanded ? 'block' : 'hidden'} md:block`}>
+              <SensorInputText
+                value={editedPrompt}
+                onChange={setEditedPrompt}
+                textareaRef={textareaRef}
+                className="h-64 md:h-96 bg-white"
+                placeholder="No system prompt defined"
+              />
+
+              {/* Sensor Insertion Buttons */}
+              <div className="mt-4">
+                <label className="block text-xs text-gray-500 mb-2 font-medium">INSERT SENSOR:</label>
+                <div className="flex flex-wrap gap-2">
+                  <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSystemPromptText('$SCREEN_OCR')} colorClass="text-blue-600" />
+                  <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSystemPromptText('$SCREEN_64')} colorClass="text-purple-600" />
+                  <SensorButton icon={Camera} label="Camera" onClick={() => insertSystemPromptText('$CAMERA')} colorClass="text-purple-600" />
+                  <SensorButton icon={Clipboard} label="Clipboard" onClick={() => insertSystemPromptText('$CLIPBOARD_TEXT')} colorClass="text-sky-600" />
+                  <SensorButton icon={Mic} label="Microphone" onClick={() => insertSystemPromptText('$MICROPHONE')} colorClass="text-amber-600" />
+                  <SensorButton icon={Volume2} label="Screen Audio" onClick={() => insertSystemPromptText('$SCREEN_AUDIO')} colorClass="text-amber-600" />
+                  <SensorButton icon={Blend} label="All Audio" onClick={() => insertSystemPromptText('$ALL_AUDIO')} colorClass="text-orange-600" />
+
+                  <SensorDropdownButton
+                    icon={Save}
+                    label="Memory"
+                    colorClass="text-emerald-600"
+                    agents={availableAgents}
+                    onSelect={(agentId) => insertSystemPromptText(`$MEMORY@${agentId}`)}
+                  />
+
+                  <SensorDropdownButton
+                    icon={Images}
+                    label="Image Memory"
+                    colorClass="text-purple-600"
+                    agents={availableAgents}
+                    onSelect={(agentId) => insertSystemPromptText(`$IMEMORY@${agentId}`)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
