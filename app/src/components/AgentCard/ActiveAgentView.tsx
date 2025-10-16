@@ -243,7 +243,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     }, [agentId]);
 
     return (
-        <div className="grid md:grid-cols-2 md:gap-6 animate-fade-in">
+        <div className="grid md:grid-cols-2 md:gap-6 animate-fade-in overflow-visible">
             {/* Left Column: Sensor Previews */}
             <SensorPreviewPanel
                 agentId={agentId}
@@ -252,7 +252,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
             />
 
             {/* Right Column: Status and Response */}
-            <div className="space-y-4 flex flex-col justify-start">
+            <div className="space-y-4 flex flex-col justify-start overflow-visible">
                 <StateTicker status={liveStatus} />
                 <LastResponse
                     response={isStreaming ? streamingResponse : lastResponse}
@@ -260,12 +260,10 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                 />
                 {/* Tool Status - Show below last response only if there are tools */}
                 {lastTools.length > 0 && (
-                    <div className="max-h-32 overflow-y-auto">
-                        <ToolStatus
-                            tools={lastTools}
-                            variant="compact"
-                        />
-                    </div>
+                    <ToolStatus
+                        tools={lastTools}
+                        variant="compact"
+                    />
                 )}
             </div>
         </div>

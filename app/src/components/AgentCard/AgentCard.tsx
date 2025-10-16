@@ -251,7 +251,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
         </div>
       )}
 
-      <div className="p-5 flex-grow">
+      <div className="p-5 flex-grow overflow-visible">
         <AgentCardHeader
           agentName={agent.name}
           agentDescription={agent.description}
@@ -262,7 +262,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
           onToggle={handleToggle}
         />
 
-        <div>
+        <div className="overflow-visible">
           {hasQuotaError ? (
             <QuotaErrorView onUpgradeClick={onUpgradeClick} />
           ) : isLive ? (
