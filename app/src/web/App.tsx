@@ -518,6 +518,13 @@ function AppContent() {
     }
   }, [serverStatus, hasCompletedStartupCheck, isLoading, isAuthenticated]);
 
+  // Reload agents when switching to My Agents tab
+  useEffect(() => {
+    if (activeTab === 'myAgents') {
+      fetchAgents();
+    }
+  }, [activeTab, fetchAgents]);
+
   // --- NEW: Memoized sorting logic ---
   // This will sort the agents array to bring active ones to the top.
   // useMemo ensures this only runs when the dependencies (agents, running, starting) change.
