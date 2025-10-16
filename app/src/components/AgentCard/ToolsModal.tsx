@@ -986,18 +986,21 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
 
                 /* Testable tools - blue theme */
                 .cm-tool-testable {
-                  background: rgba(59, 130, 246, 0.1);
-                  border-bottom: 2px solid rgba(59, 130, 246, 0.4);
+                  background: rgba(59, 130, 246, 0.25);
+                  border-bottom: 2px solid rgba(59, 130, 246, 0.7);
                   padding: 2px 4px;
                   font-weight: 600;
-                  color: rgb(37, 99, 235) !important;
+                  color: rgb(29, 78, 216) !important;
                   opacity: 1 !important;
                   transition: all 0.15s ease;
                   border-radius: 3px;
+                  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
                 }
                 .cm-tool-testable:hover {
-                  background: rgba(59, 130, 246, 0.15);
-                  border-bottom-color: rgba(59, 130, 246, 0.6);
+                  background: rgba(59, 130, 246, 0.35);
+                  border-bottom-color: rgba(59, 130, 246, 0.9);
+                  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+                  transform: translateY(-1px);
                 }
 
                 /* Info tools - grey theme */
