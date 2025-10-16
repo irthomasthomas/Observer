@@ -607,9 +607,8 @@ function AppContent() {
 
           {error && <ErrorDisplay message={error} />}
 
-          {activeTab === 'myAgents' ? (
-          <>
-
+          {/* My Agents Tab - Always rendered, hidden when not active */}
+          <div className={activeTab !== 'myAgents' ? 'hidden' : ''}>
             <AgentImportHandler
               onAddAgent={handleAddAgentClick}
               agentCount={agents.length}
@@ -681,19 +680,35 @@ function AppContent() {
                 />
               }
             </div>
+          </div>
 
-          </>
-          ) : activeTab === 'community' ? (
+          {/* Community Tab */}
+          <div className={activeTab !== 'community' ? 'hidden' : ''}>
             <CommunityTab />
-          ) : activeTab === 'models' ? (
+          </div>
+
+          {/* Models Tab */}
+          <div className={activeTab !== 'models' ? 'hidden' : ''}>
             <AvailableModels isProUser={isProUser} />
-          ) : activeTab === 'recordings' ? (
+          </div>
+
+          {/* Recordings Tab */}
+          <div className={activeTab !== 'recordings' ? 'hidden' : ''}>
             <RecordingsViewer />
-          ) : activeTab === 'settings' ? (
+          </div>
+
+          {/* Settings Tab */}
+          <div className={activeTab !== 'settings' ? 'hidden' : ''}>
             <SettingsTab />
-          ) : activeTab === 'obServer' ? (
+          </div>
+
+          {/* ObServer Tab */}
+          <div className={activeTab !== 'obServer' ? 'hidden' : ''}>
             <ObServerTab />
-          ) : (
+          </div>
+
+          {/* Fallback for unknown tabs */}
+          {!['myAgents', 'community', 'models', 'recordings', 'settings', 'obServer'].includes(activeTab) && (
             <div className="text-center p-8">
               <p className="text-gray-500">This feature is coming soon!</p>
             </div>
