@@ -45,10 +45,10 @@ const GetStarted: React.FC<GetStartedProps> = ({
 
   return (
     <div className="w-full max-w-6xl mx-auto">
-      <div className="flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-6 h-full">
+      <div className="flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-4 lg:gap-6 h-full">
         {/* Main Create Agent Card - Full width on mobile */}
         <div className="flex flex-col md:col-span-2 order-1">
-          <div className="h-full bg-white shadow-sm flex flex-col border border-gray-200 rounded-xl">
+          <div className="h-full bg-white shadow-sm flex flex-col border-0 md:border border-gray-200 rounded-none md:rounded-xl">
             <div className="border-b border-gray-200 shrink-0 p-4 md:p-6">
               <div className="flex items-center justify-between">
                 {/* Left: Icon and Title */}
@@ -93,7 +93,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex-1 p-4 md:p-6">
+            <div className="flex-1 p-0 md:p-6">
               {mode === 'single' ? (
                 <ConversationalGenerator
                   onAgentGenerated={onAgentGenerated}
@@ -121,7 +121,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
         </div>
         
         {/* Side Cards - Stack below on mobile */}
-        <div className="flex flex-row md:flex-col gap-2 md:gap-4 order-2">
+        <div className="flex flex-row md:flex-col gap-2 md:gap-4 order-2 px-4 md:px-0">
           {/* Community Card */}
           <div
             onClick={onExploreCommunity}

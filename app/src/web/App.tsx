@@ -603,24 +603,25 @@ function AppContent() {
           onClose={() => setIsJupyterModalOpen(false)}
         />
 
-        <main className="pt-24 pb-16 px-4 pl-2 md:pl-20 wide:px-4 max-w-7xl mx-auto">
+        <main className="pt-24 pb-16 px-0 md:px-4 pl-2 md:pl-20 wide:px-4 max-w-7xl mx-auto">
 
           {error && <ErrorDisplay message={error} />}
 
           {/* My Agents Tab - Always rendered, hidden when not active */}
           <div className={activeTab !== 'myAgents' ? 'hidden' : ''}>
-            <AgentImportHandler
-              onAddAgent={handleAddAgentClick}
-              agentCount={agents.length}
-              activeAgentCount={runningAgents.size}
-              isRefreshing={isRefreshing}
-              onRefresh={fetchAgents}
-              onGenerateAgent={() => setIsConversationalModalOpen(true)}
-            />
+            {sortedAgents.length > 0 ? (
+              <div className="px-4">
+                <AgentImportHandler
+                  onAddAgent={handleAddAgentClick}
+                  agentCount={agents.length}
+                  activeAgentCount={runningAgents.size}
+                  isRefreshing={isRefreshing}
+                  onRefresh={fetchAgents}
+                  onGenerateAgent={() => setIsConversationalModalOpen(true)}
+                />
 
-            <div className="flex flex-wrap gap-6 items-start">
-              {/* MODIFIED: We now map over the newly created 'sortedAgents' array */}
-              {sortedAgents.length > 0 ? sortedAgents.map(agent => {
+                <div className="flex flex-wrap gap-6 items-start">
+                  {sortedAgents.map(agent => {
                 const isAgentLive = runningAgents.has(agent.id) || startingAgents.has(agent.id);
                 return (
                   <div
@@ -657,7 +658,10 @@ function AppContent() {
                     />
                   </div>
                 );
-              }) :
+              })}
+                </div>
+              </div>
+            ) : (
                 <GetStarted
                   onExploreCommunity={() => setActiveTab('community')}
                   onCreateNewAgent={handleAddAgentClick}
@@ -678,32 +682,31 @@ function AppContent() {
                     setIsUpgradeModalOpen(true);
                   }}
                 />
-              }
-            </div>
+            )}
           </div>
 
           {/* Community Tab */}
-          <div className={activeTab !== 'community' ? 'hidden' : ''}>
+          <div className={`px-4 ${activeTab !== 'community' ? 'hidden' : ''}`}>
             <CommunityTab />
           </div>
 
           {/* Models Tab */}
-          <div className={activeTab !== 'models' ? 'hidden' : ''}>
+          <div className={`px-4 ${activeTab !== 'models' ? 'hidden' : ''}`}>
             <AvailableModels isProUser={isProUser} />
           </div>
 
           {/* Recordings Tab */}
-          <div className={activeTab !== 'recordings' ? 'hidden' : ''}>
+          <div className={`px-4 ${activeTab !== 'recordings' ? 'hidden' : ''}`}>
             <RecordingsViewer />
           </div>
 
           {/* Settings Tab */}
-          <div className={activeTab !== 'settings' ? 'hidden' : ''}>
+          <div className={`px-4 ${activeTab !== 'settings' ? 'hidden' : ''}`}>
             <SettingsTab />
           </div>
 
           {/* ObServer Tab */}
-          <div className={activeTab !== 'obServer' ? 'hidden' : ''}>
+          <div className={`px-4 ${activeTab !== 'obServer' ? 'hidden' : ''}`}>
             <ObServerTab />
           </div>
 
