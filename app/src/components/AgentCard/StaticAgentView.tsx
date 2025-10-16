@@ -200,12 +200,12 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 
                 {/* Column 2: Model */}
                 <div className="flex flex-col flex-1 w-full md:w-auto">
-                    {/* Mobile: horizontal layout with icon on left */}
-                    <div className="flex md:flex-col items-start md:items-center">
-                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0">
+                    {/* Desktop: vertical layout */}
+                    <div className="hidden md:flex flex-col items-center">
+                        <div className="flex justify-center mb-4">
                             <Brain className="w-5 h-5 text-gray-500" />
                         </div>
-                        <div className="flex items-center justify-between md:flex-col md:items-center md:justify-center w-full md:w-auto ml-12 md:ml-0 md:space-y-3">
+                        <div className="flex flex-col items-center space-y-3">
                             <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-2">
@@ -229,6 +229,48 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                                         Only run model when there's significant change in inputs
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mobile: 3-column grid */}
+                    <div className="grid md:hidden grid-cols-[auto_1fr_auto] gap-3 items-center w-full">
+                        {/* Column 1: Brain icon */}
+                        <div className="flex items-center justify-center">
+                            <Brain className="w-5 h-5 text-gray-500" />
+                        </div>
+
+                        {/* Column 2: Model dropdown */}
+                        <div className="flex items-center justify-center">
+                            <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
+                        </div>
+
+                        {/* Column 3: Timer and Flash button stacked */}
+                        <div className="flex flex-col gap-1.5 items-center">
+                            {/* Timer */}
+                            <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
+                            </div>
+
+                            {/* Flash button */}
+                            <div className="relative group">
+                                <button
+                                    onClick={() => onToggleSignificantChange(!(agent.only_on_significant_change ?? true))}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
+                                        (agent.only_on_significant_change ?? true)
+                                            ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <Zap className="w-4 h-4" />
+                                    <span className="text-xs font-medium">
+                                        {(agent.only_on_significant_change ?? true) ? 'On' : 'Off'}
+                                    </span>
+                                </button>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Only run model when there's significant change in inputs
                                 </div>
                             </div>
                         </div>
