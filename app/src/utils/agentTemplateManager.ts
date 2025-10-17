@@ -2,7 +2,7 @@
 
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'telegram' | 'ask' | 'system_notify' | 'message' | 'overlay';
+export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'telegram' | 'ask' | 'system_notify' | 'message' | 'overlay' | 'click';
 
 export interface ToolData {
   smsPhoneNumber?: string;
@@ -105,6 +105,12 @@ message(response);
 // --- OVERLAY TOOL ---
 // Displays a message in the translucent overlay window.
 overlay(response);
+`,
+  click: () => `
+// --- MOUSE CLICK TOOL ---
+// Triggers a mouse click at the current cursor position.
+// IMPORTANT: Position the mouse before the agent runs.
+click();
 `,
 };
 

@@ -146,10 +146,11 @@ Video Recording Tools:
   * `markClip(label)` - Adds a label to any active recording that will be displayed in the recording Tab.
 
 App Tools:
-  * `ask(question, title="Confirmation")` - Pops up a system confirmation dialog 
+  * `ask(question, title="Confirmation")` - Pops up a system confirmation dialog
   * `message(message, title="Agent Message")` - Pops up a system message
   * `system_notify(body, title="Observer AI")` - Sends a system notification
   * `overlay(body)` - Pushes a message to the overlay
+  * `click()` - Triggers a mouse click at the current cursor position ⚠️IMPORTANT: Position mouse before agent runs
 
 
 

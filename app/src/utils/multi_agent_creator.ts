@@ -370,7 +370,7 @@ Tools enable agents to perform actions and interact with the system or the user.
 
 *   **Agent & Memory Control:** Manage agent behavior with \`startAgent()\`, \`stopAgent()\`, and \`sleep()\`. Store and retrieve information using \`setMemory()\`, \`getMemory()\`, and \`appendMemory()\`.
 *   **Notifications & Communication:** Send alerts through various channels, including email (\`sendEmail\`), system notifications (\`system_notify\`), and messaging apps like Discord (\`sendDiscord\`) and Telegram (\`sendTelegram\`).
-*   **User Interaction:** Directly engage with the user by showing a message (\`message\`), displaying information on the screen (\`overlay\`), or asking for confirmation with a dialog box (\`ask\`).
+*   **User Interaction:** Directly engage with the user by showing a message (\`message\`), displaying information on the screen (\`overlay\`), or asking for confirmation with a dialog box (\`ask\`). Control the user's mouse with \`click()\` to trigger a click at the cursor position.
 *   **Video Recording:** Programmatically start, stop, and mark video recordings of on-screen activity using \`startClip()\`, \`stopClip()\`, and \`markClip()\`.
 
 

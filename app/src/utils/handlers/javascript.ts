@@ -579,6 +579,28 @@ export async function executeJavaScript(
         }
       },
 
+      click: async (): Promise<void> => {
+        try {
+          const appUrl = "http://localhost:3838";
+
+          if (!appUrl) throw new Error("Could not determine the local app server address.");
+
+          await utils.click(appUrl);
+          Logger.info(agentId, `Mouse click executed`, {
+            logType: 'tool-success',
+            iterationId,
+            content: { tool: 'click', params: {}, success: true }
+          });
+        } catch (error) {
+          Logger.error(agentId, `Failed to execute mouse click`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'click', params: {}, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
+
     };
 
     const wrappedCode = `

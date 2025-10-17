@@ -3,7 +3,7 @@ import Modal from '@components/EditAgent/Modal';
 import {
   X, Mail, MessageSquare, MessageSquareQuote, Bell, Monitor, MessageCircle,
   MessageSquarePlus, CheckCircle, XCircle, Loader2, Save, SquarePen, PlayCircle,
-  StopCircle, Hourglass, Video, VideoOff, Tag, Info
+  StopCircle, Hourglass, Video, VideoOff, Tag, Info, MousePointer
 } from 'lucide-react';
 import { WhatsAppIcon, DiscordIcon } from './icons';
 import type { TokenProvider } from '@utils/main_loop';
@@ -206,6 +206,17 @@ function getAllTools(): ToolConfig[] {
         { name: 'body', description: 'Overlay message content' }
       ],
       testMessage: 'Test from Observer - Overlay working!'
+    },
+    {
+      id: 'click',
+      name: 'click()',
+      functionName: 'click',
+      icon: MousePointer,
+      description: 'Trigger mouse click at cursor position',
+      isTestable: true,
+      parameters: [],
+      testMessage: '',
+      warning: '⚠️ IMPORTANT: Position mouse before agent runs.'
     },
 
     // Non-testable tools (info only)
@@ -906,6 +917,12 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
           const appUrl = 'http://localhost:3838';
           const message = selectedToolConfig.testMessage || '';
           await utils.overlay(appUrl, message);
+          break;
+        }
+
+        case 'click': {
+          const appUrl = 'http://localhost:3838';
+          await utils.click(appUrl);
           break;
         }
 

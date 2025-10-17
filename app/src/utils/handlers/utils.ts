@@ -566,3 +566,19 @@ export async function overlay(appUrl: string, message: string): Promise<void> {
 export async function sleep(ms: number = 2000): Promise<void> {
   await new Promise(r => setTimeout(r, ms));
 }
+
+/**
+ * Triggers a mouse click at the current cursor position.
+ * User must position the mouse before calling this function.
+ * @param appUrl The base URL of the local Tauri server.
+ */
+export async function click(appUrl: string): Promise<void> {
+  const response = await fetch(`${appUrl}/click`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Server responded with status: ${response.status}`);
+  }
+}

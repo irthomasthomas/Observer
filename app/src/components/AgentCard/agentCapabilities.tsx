@@ -76,6 +76,7 @@ export const TOOL_CONFIG: Record<string, ToolConfigEntry> = {
     message: { label: 'Message Dialog', iconName: 'MessageSquare', iconType: 'lucide', regex: /message\s*\(/g },
     system_notify: { label: 'Sys Notify', iconName: 'Bell', iconType: 'lucide', regex: /system_notify\s*\(/g },
     overlay: { label: 'Overlay', iconName: 'Monitor', iconType: 'lucide', regex: /overlay\s*\(/g },
+    click: { label: 'Mouse Click', iconName: 'MousePointer', iconType: 'lucide', regex: /\bclick\s*\(/g, warning: 'Position mouse before agent runs' },
 };
 
 // --- Icon Loading Helpers ---
@@ -138,7 +139,7 @@ export async function detectAgentTools(code: string, hostingContext?: 'official-
     const foundTools: DetectedTool[] = [];
 
     // Tools that don't work in official web environment
-    const webIncompatibleTools = ['overlay', 'message', 'ask', 'system_notify'];
+    const webIncompatibleTools = ['overlay', 'message', 'ask', 'system_notify', 'click'];
 
     for (const [key, tool] of Object.entries(TOOL_CONFIG)) {
         if (code.match(tool.regex)) {

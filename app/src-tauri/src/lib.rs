@@ -6,6 +6,7 @@ mod notifications;
 mod overlay;
 mod shortcuts;
 mod commands;
+mod controls;
 
 // Import unified shortcut types
 use shortcuts::{UnifiedShortcutState, UnifiedShortcutConfig};
@@ -292,6 +293,7 @@ fn start_static_server(app_handle: tauri::AppHandle) {
             .route("/message", axum::routing::post(notifications::message_handler))
             .route("/notification", axum::routing::post(notifications::notification_handler))
             .route("/overlay", axum::routing::post(overlay::overlay_handler))
+            .route("/click", axum::routing::post(controls::click_handler))
             .route("/commands-stream", axum::routing::get(commands::commands_stream_handler))
             // Legacy HTTP endpoints (for backward compatibility during migration)
             .route("/commands", axum::routing::get(commands::get_commands_handler))

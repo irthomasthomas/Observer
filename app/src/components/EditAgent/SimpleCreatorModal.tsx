@@ -6,7 +6,7 @@ import { Model, listModels } from '@utils/inferenceServer';
 // Removed getOllamaServerAddress import - no longer needed
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
-  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server
+  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server, MousePointer
 } from 'lucide-react';
 
 
@@ -390,6 +390,8 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                       <button type="button" onClick={() => toggleTool('message')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('message') ? 'border-purple-500 bg-purple-50' : 'border-gray-300 hover:border-gray-400'}`}><MessageCircle className={`h-8 w-8 transition-colors ${selectedTools.has('message') ? 'text-purple-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Show Message</h3><p className="text-sm text-gray-500">Shows a dialog message to the user.</p></div></button>
                       {/* Overlay Tool */}
                       <button type="button" onClick={() => toggleTool('overlay')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('overlay') ? 'border-teal-500 bg-teal-50' : 'border-gray-300 hover:border-gray-400'}`}><Monitor className={`h-8 w-8 transition-colors ${selectedTools.has('overlay') ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Show Overlay</h3><p className="text-sm text-gray-500">Displays message in translucent overlay.</p></div></button>
+                      {/* Click Tool */}
+                      <button type="button" onClick={() => toggleTool('click')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('click') ? 'border-pink-500 bg-pink-50' : 'border-gray-300 hover:border-gray-400'}`}><MousePointer className={`h-8 w-8 transition-colors ${selectedTools.has('click') ? 'text-pink-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Mouse Click</h3><p className="text-sm text-gray-500">Clicks at current cursor position.</p></div></button>
                     </div>
                   </div>
                 )}
