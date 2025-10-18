@@ -216,7 +216,7 @@ function getAllTools(): ToolConfig[] {
       isTestable: true,
       parameters: [],
       testMessage: '',
-      warning: '⚠️ IMPORTANT: Position mouse before agent runs.'
+      warning: '⚠️ IMPORTANT: Position mouse on a button that the agent will click.'
     },
 
     // Non-testable tools (info only)
