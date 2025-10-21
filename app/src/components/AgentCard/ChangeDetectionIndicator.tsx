@@ -30,6 +30,7 @@ interface ChangeDetectionData {
 
 interface ChangeDetectionIndicatorProps {
   data: ChangeDetectionData;
+  onSettingsClick?: (focusedThreshold: 'text' | 'dhash' | 'pixel' | 'suspicious') => void;
 }
 
 // --- Individual Image Pill Component ---
@@ -37,9 +38,10 @@ interface ImagePillProps {
   details: ImageDetails;
   thresholds?: Thresholds;
   detectionMode?: DetectionMode;
+  onSettingsClick?: (focusedThreshold: 'text' | 'dhash' | 'pixel' | 'suspicious') => void;
 }
 
-const ImagePill: React.FC<ImagePillProps> = ({ details, thresholds, detectionMode }) => {
+const ImagePill: React.FC<ImagePillProps> = ({ details, thresholds, detectionMode, onSettingsClick }) => {
   const { dhashSimilarity, pixelSimilarity, triggeredPixelCheck, contentType } = details;
 
   if (!thresholds) {
@@ -109,10 +111,37 @@ const ImagePill: React.FC<ImagePillProps> = ({ details, thresholds, detectionMod
     return null;
   }
 
+  // Determine which threshold to focus on when clicked
+  const getFocusedThreshold = (): 'text' | 'dhash' | 'pixel' | 'suspicious' => {
+    if (detectionMode === DetectionMode.PixelDifferenceOnly) {
+      return 'pixel';
+    } else if (detectionMode === DetectionMode.DHashOnly) {
+      return 'dhash';
+    } else if (detectionMode === DetectionMode.Hybrid) {
+      if (triggeredPixelCheck) {
+        // In hybrid mode with pixel check, the final decision is based on pixel similarity
+        return 'pixel';
+      } else {
+        // In hybrid mode without pixel check, it's based on dhash
+        return 'dhash';
+      }
+    }
+    // Fallback
+    return 'dhash';
+  };
+
+  // Enhance tooltip to indicate clickability
+  const enhancedTooltip = `${tooltipText}\n\n💡 Click to adjust sensitivity settings`;
+
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${bgColorClass} ${textColorClass} ml-1`}
-      title={tooltipText}
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${bgColorClass} ${textColorClass} ml-1 cursor-pointer hover:shadow-lg hover:scale-105 transition-all`}
+      title={enhancedTooltip}
+      onClick={(e) => {
+        e.stopPropagation();
+        const threshold = getFocusedThreshold();
+        onSettingsClick?.(threshold);
+      }}
     >
       <IconComponent className="w-3.5 h-3.5" />
       <span className="font-mono">{displayText}</span>
@@ -121,7 +150,7 @@ const ImagePill: React.FC<ImagePillProps> = ({ details, thresholds, detectionMod
 };
 
 // --- Main Component: Renders pills for all images ---
-const ChangeDetectionIndicator: React.FC<ChangeDetectionIndicatorProps> = ({ data }) => {
+const ChangeDetectionIndicator: React.FC<ChangeDetectionIndicatorProps> = ({ data, onSettingsClick }) => {
   // Don't render anything for first iteration
   if (data.isFirstIteration) {
     return null;
@@ -140,6 +169,7 @@ const ChangeDetectionIndicator: React.FC<ChangeDetectionIndicatorProps> = ({ dat
           details={details}
           thresholds={data.thresholds}
           detectionMode={data.detectionMode}
+          onSettingsClick={onSettingsClick}
         />
       ))}
     </>

@@ -8,6 +8,7 @@ import { DetectionMode } from '@utils/change_detector';
 import ToolStatus from '@components/AgentCard/ToolStatus';
 import SensorPreviewPanel from './SensorPreviewPanel';
 import ChangeDetectionIndicator from './ChangeDetectionIndicator';
+import ChangeDetectionSettings from '@components/ChangeDetectionSettings';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -46,7 +47,8 @@ interface ChangeDetectionData {
 const StateTicker: React.FC<{
   status: AgentLiveStatus;
   changeDetectionData?: ChangeDetectionData | null;
-}> = ({ status, changeDetectionData }) => {
+  onSettingsClick?: (threshold: 'text' | 'dhash' | 'pixel' | 'suspicious') => void;
+}> = ({ status, changeDetectionData, onSettingsClick }) => {
   const statusInfo = useMemo(() => {
     switch (status) {
       case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
@@ -65,6 +67,7 @@ const StateTicker: React.FC<{
       {changeDetectionData && (
         <ChangeDetectionIndicator
           data={changeDetectionData}
+          onSettingsClick={onSettingsClick}
         />
       )}
       {(status === 'THINKING' || status === 'RESPONDING' || status === 'STARTING') && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin ml-auto" />}
@@ -224,6 +227,20 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     const [isStreaming, setIsStreaming] = useState(false);
     const [lastTools, setLastTools] = useState<ToolCall[]>([]);
     const [changeDetectionData, setChangeDetectionData] = useState<ChangeDetectionData | null>(null);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [focusedThreshold, setFocusedThreshold] = useState<'text' | 'dhash' | 'pixel' | 'suspicious' | undefined>(undefined);
+
+    // ESC key to close modal
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isSettingsModalOpen) {
+                setIsSettingsModalOpen(false);
+                setFocusedThreshold(undefined);
+            }
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [isSettingsModalOpen]);
 
     // Load initial tool data and subscribe to updates
     useEffect(() => {
@@ -302,6 +319,10 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                 <StateTicker
                     status={liveStatus}
                     changeDetectionData={changeDetectionData}
+                    onSettingsClick={(threshold) => {
+                        setFocusedThreshold(threshold);
+                        setIsSettingsModalOpen(true);
+                    }}
                 />
                 <LastResponse
                     response={isStreaming ? streamingResponse : lastResponse}
@@ -315,6 +336,43 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                     />
                 )}
             </div>
+
+            {/* Change Detection Settings Modal */}
+            {isSettingsModalOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
+                    onClick={() => {
+                        setIsSettingsModalOpen(false);
+                        setFocusedThreshold(undefined);
+                    }}
+                >
+                    <div
+                        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto m-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-gray-900">Change Detection Settings</h2>
+                            <button
+                                onClick={() => {
+                                    setIsSettingsModalOpen(false);
+                                    setFocusedThreshold(undefined);
+                                }}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <ChangeDetectionSettings
+                                compact={true}
+                                focusedThreshold={focusedThreshold}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
