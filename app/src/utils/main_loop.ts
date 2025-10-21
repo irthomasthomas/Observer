@@ -18,6 +18,7 @@ const activeLoops: Record<string, {
   isExecuting: boolean,
   intervalMs: number,
   getToken?: TokenProvider;
+  lastResponse?: string;
 }> = {};
 
 // Event constants removed - Logger now dispatches all events based on logType
@@ -209,60 +210,77 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
 
     const preprocessResult = await preProcess(agentId, agent.system_prompt, iterationId);
 
-    // Check for significant change if enabled
-    if (agent.only_on_significant_change) {
-      const isSignificant = await detectSignificantChange(agentId, preprocessResult);
-      if (!isSignificant) {
-        // No significant change - skip model call but still do cleanup
-        if (isAgentLoopRunning(agentId)) {
-          recordingManager.handleEndOfLoop();
-        }
-        Logger.info(agentId, `Skipped - no significant change detected`, {
-          logType: 'iteration-skipped',
-          iterationId,
-          content: { success: true }
-        });
-        return;
+    // Determine response source: cached or from model
+    let response: string;
+    let fromCache = false;
+
+    // Check if we should use cached response (no significant change detected)
+    const shouldUseCache = agent.only_on_significant_change &&
+                          !(await detectSignificantChange(agentId, preprocessResult));
+
+    if (shouldUseCache) {
+      // Use cached response
+      const cachedResponse = activeLoops[agentId]?.lastResponse;
+      if (!cachedResponse) {
+        throw new Error("No cached response available - this shouldn't happen after first iteration");
       }
-    }
+      response = cachedResponse;
+      fromCache = true;
+    } else {
+      // Call the model
+      Logger.info(agentId, `Prompt`, { logType: 'model-prompt', iterationId, content: preprocessResult });
 
-    Logger.info(agentId, `Prompt`, { logType: 'model-prompt', iterationId, content: preprocessResult });
+      let token: string | undefined;
+      if (loopData.getToken) {
+          try {
+            Logger.debug(agentId, 'Requesting fresh API token...', { iterationId });
+            token = await loopData.getToken();
+          } catch (error) {
+            Logger.warn(agentId, `Could not retrieve auth token: ${error}. Continuing without it.`, { iterationId });
+          }
+      }
 
-    let token: string | undefined;
-    if (loopData.getToken) {
+      Logger.debug(agentId, `Sending prompt to inference server (model: ${agent.model_name})`, { iterationId });
+
+      // Streaming callback that logs chunks - Logger dispatches events automatically
+      let isFirstChunk = true;
+      const onStreamChunk = (chunk: string) => {
         try {
-          Logger.debug(agentId, 'Requesting fresh API token...', { iterationId });
-          token = await loopData.getToken();
+          if (isFirstChunk) {
+            Logger.debug(agentId, 'Stream started', {
+              logType: 'stream-start',
+              iterationId
+            });
+            isFirstChunk = false;
+          }
+          Logger.debug(agentId, 'Stream chunk', {
+            logType: 'stream-chunk',
+            iterationId,
+            content: { chunk }
+          });
         } catch (error) {
-          Logger.warn(agentId, `Could not retrieve auth token: ${error}. Continuing without it.`, { iterationId });
+          Logger.debug(agentId, `Failed to log streaming event: ${error}`, { iterationId });
         }
+      };
+
+      response = await sendPrompt(agent.model_name, preprocessResult, token, true, onStreamChunk);
+
+      // Cache new response for potential reuse on next iteration
+      if (activeLoops[agentId]) {
+        activeLoops[agentId].lastResponse = response;
+      }
     }
 
-    Logger.debug(agentId, `Sending prompt to inference server (model: ${agent.model_name})`, { iterationId });
-
-    // Streaming callback that logs chunks - Logger dispatches events automatically
-    let isFirstChunk = true;
-    const onStreamChunk = (chunk: string) => {
-      try {
-        if (isFirstChunk) {
-          Logger.debug(agentId, 'Stream started', {
-            logType: 'stream-start',
-            iterationId
-          });
-          isFirstChunk = false;
-        }
-        Logger.debug(agentId, 'Stream chunk', {
-          logType: 'stream-chunk',
-          iterationId,
-          content: { chunk }
-        });
-      } catch (error) {
-        Logger.debug(agentId, `Failed to log streaming event: ${error}`, { iterationId });
-      }
-    };
-
-    const response = await sendPrompt(agent.model_name, preprocessResult, token, true, onStreamChunk);
-    Logger.info(agentId, `Response`, { logType: 'model-response', iterationId, content: response });
+    // Log based on source
+    if (fromCache) {
+      Logger.info(agentId, `Using cached response - no significant change detected`, {
+        logType: 'iteration-cached-response',
+        iterationId,
+        content: { usingCache: true }
+      });
+    } else {
+      Logger.info(agentId, `Response`, { logType: 'model-response', iterationId, content: response });
+    }
 
     try {
       await postProcess(agentId, response, agentCode, iterationId, loopData.getToken, preprocessResult);
@@ -275,7 +293,7 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       Logger.info(agentId, `Iteration completed`, {
         logType: 'iteration-end',
         iterationId,
-        content: { success: true }
+        content: { success: true, cached: fromCache }
       });
     } catch (postProcessError) {
       Logger.error(agentId, `Error in postProcess: ${postProcessError}`, { iterationId, error: postProcessError });
@@ -287,7 +305,7 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       Logger.info(agentId, `Iteration completed`, {
         logType: 'iteration-end',
         iterationId,
-        content: { success: false }
+        content: { success: false, cached: fromCache }
       });
     }
 
