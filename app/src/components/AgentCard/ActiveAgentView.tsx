@@ -26,7 +26,7 @@ const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
       case 'CAPTURING': return { icon: <Eye className="w-5 h-5 animate-subtle-pulse" />, text: 'Capturing Inputs...', color: 'text-cyan-600' };
       case 'THINKING': return { icon: <Activity className="w-5 h-5" />, text: 'Model is thinking...', color: 'text-purple-600' };
       case 'RESPONDING': return { icon: <Activity className="w-5 h-5 animate-pulse" />, text: 'Model is responding...', color: 'text-blue-600' };
-      case 'SKIPPED': return { icon: <Clock className="w-5 h-5" />, text: 'No Change, Skipped Iteration...', color: 'text-orange-500' };
+      case 'SKIPPED': return { icon: <Clock className="w-5 h-5" />, text: 'Skipped Model Call, Waiting...', color: 'text-orange-500' };
       case 'WAITING': return { icon: <Clock className="w-5 h-5" />, text: 'Waiting for next cycle...', color: 'text-gray-500' };
       default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };
     }

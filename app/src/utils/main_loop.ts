@@ -274,7 +274,7 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     // Log based on source
     if (fromCache) {
       Logger.info(agentId, `Using cached response - no significant change detected`, {
-        logType: 'iteration-cached-response',
+        logType: 'iteration-response',
         iterationId,
         content: { usingCache: true }
       });
@@ -290,12 +290,24 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       if (isAgentLoopRunning(agentId)) {
         recordingManager.handleEndOfLoop();
       }
-      Logger.info(agentId, `Iteration completed`, {
-        logType: 'iteration-end',
-        iterationId,
-        content: { success: true, cached: fromCache }
-      });
-    } catch (postProcessError) {
+
+      // Dispach to UI that we skipped the model call and completed iteration
+      if (fromCache){
+        Logger.info(agentId, `Iteration completed - no significant change detected`, {
+          logType: 'iteration-skipped',
+          iterationId,
+          content: { success: true, cached: fromCache }
+        });
+      }
+      // Dispach we completed with model call
+      else{
+        Logger.info(agentId, `Iteration completed`, {
+          logType: 'iteration-end',
+          iterationId,
+          content: { success: true, cached: fromCache }
+        });
+       }
+      } catch (postProcessError) {
       Logger.error(agentId, `Error in postProcess: ${postProcessError}`, { iterationId, error: postProcessError });
 
       // Error path - still clean up but log failure
