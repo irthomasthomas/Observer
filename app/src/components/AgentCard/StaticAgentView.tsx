@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
-    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap
+    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap, Settings
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/inferenceServer';
@@ -8,6 +8,7 @@ import { getInferenceAddresses } from '@utils/inferenceServer';
 import { detectAgentCapabilities } from './agentCapabilities';
 import SensorModal from './SensorModal';
 import ToolsModal from './ToolsModal';
+import ChangeDetectionSettings from '@components/ChangeDetectionSettings';
 
 
 
@@ -146,6 +147,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     const [detectedTools, setDetectedTools] = useState<any[]>([]);
     const [isSensorModalOpen, setIsSensorModalOpen] = useState(false);
     const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
     useEffect(() => {
         const loadCapabilities = async () => {
@@ -162,6 +164,17 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 
         loadCapabilities();
     }, [agent.system_prompt, code, hostingContext]);
+
+    // ESC key to close settings modal
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isSettingsModalOpen) {
+                setIsSettingsModalOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [isSettingsModalOpen]);
 
     const handleOpenToolsModal = () => {
         setIsToolsModalOpen(true);
@@ -194,7 +207,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 </div>
 
                 {/* Arrow 1 - Responsive: down on mobile, right on desktop */}
-                <div className="flex items-center justify-start md:justify-center py-2 md:pt-2 pl-1 md:pl-0">
+                <div className="flex items-center justify-start md:justify-center py-2 md:py-0 pl-1 md:pl-0">
                     <ChevronRight className="w-4 h-4 text-gray-400 rotate-90 md:rotate-0" />
                 </div>
 
@@ -208,26 +221,40 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                         <div className="flex flex-col items-center space-y-3">
                             <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
                             <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
                                     <Clock className="w-4 h-4 text-gray-500" />
                                     <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
                                 </div>
-                                <div className="relative group">
-                                    <button
-                                        onClick={() => onToggleSignificantChange(!(agent.only_on_significant_change ?? true))}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
-                                            (agent.only_on_significant_change ?? true)
-                                                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                    >
-                                        <Zap className="w-4 h-4" />
-                                        <span className="text-xs font-medium">
-                                            {(agent.only_on_significant_change ?? true) ? 'On' : 'Off'}
-                                        </span>
-                                    </button>
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                        Only run model when there's significant change in inputs
+                                <div className="flex items-center gap-1.5">
+                                    <div className="relative group">
+                                        <button
+                                            onClick={() => onToggleSignificantChange(!(agent.only_on_significant_change ?? true))}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
+                                                (agent.only_on_significant_change ?? true)
+                                                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            <Zap className="w-4 h-4" />
+                                            <span className="text-xs font-medium">
+                                                {(agent.only_on_significant_change ?? true) ? 'On' : 'Off'}
+                                            </span>
+                                        </button>
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                            Only run model when there's significant change in inputs
+                                        </div>
+                                    </div>
+                                    <div className="relative group">
+                                        <button
+                                            onClick={() => setIsSettingsModalOpen(true)}
+                                            className="p-0.5 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-indigo-600 transition-colors"
+                                            title="Change detection settings"
+                                        >
+                                            <Settings className="w-3 h-3" />
+                                        </button>
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                            Configure change detection sensitivity
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -246,31 +273,45 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                             <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
                         </div>
 
-                        {/* Column 3: Timer and Flash button stacked */}
+                        {/* Column 3: Timer, Flash button, and Settings button stacked */}
                         <div className="flex flex-col gap-1.5 items-center">
                             {/* Timer */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                                 <Clock className="w-4 h-4 text-gray-500" />
                                 <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
                             </div>
 
-                            {/* Flash button */}
-                            <div className="relative group">
-                                <button
-                                    onClick={() => onToggleSignificantChange(!(agent.only_on_significant_change ?? true))}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
-                                        (agent.only_on_significant_change ?? true)
-                                            ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    <Zap className="w-4 h-4" />
-                                    <span className="text-xs font-medium">
-                                        {(agent.only_on_significant_change ?? true) ? 'On' : 'Off'}
-                                    </span>
-                                </button>
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                    Only run model when there's significant change in inputs
+                            {/* Flash button and Settings button side by side */}
+                            <div className="flex items-center gap-1.5">
+                                <div className="relative group">
+                                    <button
+                                        onClick={() => onToggleSignificantChange(!(agent.only_on_significant_change ?? true))}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
+                                            (agent.only_on_significant_change ?? true)
+                                                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        <Zap className="w-4 h-4" />
+                                        <span className="text-xs font-medium">
+                                            {(agent.only_on_significant_change ?? true) ? 'On' : 'Off'}
+                                        </span>
+                                    </button>
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                        Only run model when there's significant change in inputs
+                                    </div>
+                                </div>
+                                <div className="relative group">
+                                    <button
+                                        onClick={() => setIsSettingsModalOpen(true)}
+                                        className="p-0.5 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-indigo-600 transition-colors"
+                                        title="Change detection settings"
+                                    >
+                                        <Settings className="w-3 h-3" />
+                                    </button>
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                        Configure change detection sensitivity
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -278,7 +319,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 </div>
 
                 {/* Arrow 2 - Responsive: down on mobile, right on desktop */}
-                <div className="flex items-center justify-start md:justify-center py-2 md:pt-2 pl-1 md:pl-0">
+                <div className="flex items-center justify-start md:justify-center py-2 md:py-0 pl-1 md:pl-0">
                     <ChevronRight className="w-4 h-4 text-gray-400 rotate-90 md:rotate-0" />
                 </div>
 
@@ -339,6 +380,37 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 getToken={getToken}
                 onCodeChange={onCodeChange}
             />
+
+            {/* Change Detection Settings Modal */}
+            {isSettingsModalOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
+                    onClick={() => setIsSettingsModalOpen(false)}
+                >
+                    <div
+                        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto m-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-gray-900">Change Detection Settings</h2>
+                            <button
+                                onClick={() => setIsSettingsModalOpen(false)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <ChangeDetectionSettings
+                                compact={true}
+                                focusedThreshold="dhash"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

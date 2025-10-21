@@ -50,31 +50,6 @@ interface ModeCardConfig {
   isRecommended?: boolean;
 }
 
-const MODE_CARDS: ModeCardConfig[] = [
-  {
-    mode: DetectionMode.Hybrid,
-    IconComponent: Zap,
-    title: "Smart (Auto)",
-    description: "Intelligently adapts to what you're monitoring",
-    bestFor: ["Mixed content", "Unsure", "General use"],
-    isRecommended: true,
-  },
-  {
-    mode: DetectionMode.DHashOnly,
-    IconComponent: Camera,
-    title: "Camera Feed",
-    description: "Handles lighting changes, compression, and movement",
-    bestFor: ["Webcams", "Video streams", "Live feeds"],
-  },
-  {
-    mode: DetectionMode.PixelDifferenceOnly,
-    IconComponent: Monitor,
-    title: "Screen UI",
-    description: "Detects pixel-perfect changes in applications",
-    bestFor: ["Apps", "Websites", "UI testing"],
-  },
-];
-
 interface ChangeDetectionSettingsProps {
   compact?: boolean; // For modal view
   useTextInputs?: boolean; // Use text inputs instead of sliders
@@ -86,8 +61,34 @@ const ChangeDetectionSettings: React.FC<ChangeDetectionSettingsProps> = ({
   useTextInputs = compact, // Default to text inputs in compact mode
   focusedThreshold,
 }) => {
+  const MODE_CARDS: ModeCardConfig[] = [
+    {
+      mode: DetectionMode.Hybrid,
+      IconComponent: Zap,
+      title: "Smart (Auto)",
+      description: "Intelligently adapts to what you're monitoring",
+      bestFor: ["Mixed content", "Unsure", "General use"],
+      isRecommended: true,
+    },
+    {
+      mode: DetectionMode.DHashOnly,
+      IconComponent: Camera,
+      title: "Camera Feed",
+      description: "Handles lighting changes, compression, and movement",
+      bestFor: ["Webcams", "Video streams", "Live feeds"],
+    },
+    {
+      mode: DetectionMode.PixelDifferenceOnly,
+      IconComponent: Monitor,
+      title: "Screen UI",
+      description: "Detects pixel-perfect changes in applications",
+      bestFor: ["Apps", "Websites", "UI testing"],
+    },
+  ];
   const [detectionMode, setDetectionModeState] = useState(getChangeDetectionMode());
   const [thresholds, setThresholds] = useState(getThresholds());
+  // Track which threshold to show in focused mode (can change based on mode selection)
+  const [activeFocusedThreshold, setActiveFocusedThreshold] = useState(focusedThreshold);
 
   // Sync with global state changes
   useEffect(() => {
@@ -109,6 +110,18 @@ const ChangeDetectionSettings: React.FC<ChangeDetectionSettingsProps> = ({
     setPixelSimilarityThreshold(defaults.pixelImageSimilarity);
     setSuspiciousSimilarityThreshold(defaults.suspiciousSimilarity);
     setThresholds(defaults);
+
+    // Update focused threshold based on mode (for focused modal view)
+    if (focusedThreshold) {
+      if (mode === DetectionMode.DHashOnly) {
+        setActiveFocusedThreshold('dhash');
+      } else if (mode === DetectionMode.PixelDifferenceOnly) {
+        setActiveFocusedThreshold('pixel');
+      } else if (mode === DetectionMode.Hybrid) {
+        // In hybrid mode, keep the original focused threshold or default to suspicious
+        setActiveFocusedThreshold(focusedThreshold);
+      }
+    }
   };
 
   const handleTextSimilarityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,7 +188,7 @@ const ChangeDetectionSettings: React.FC<ChangeDetectionSettingsProps> = ({
   };
 
   // If focused mode, render simplified view
-  if (focusedThreshold) {
+  if (activeFocusedThreshold) {
     const thresholdConfig = {
       text: {
         label: '📝 Text Changes',
@@ -211,8 +224,8 @@ const ChangeDetectionSettings: React.FC<ChangeDetectionSettingsProps> = ({
       },
     };
 
-    const config = thresholdConfig[focusedThreshold];
-    const currentPercent = (config.value * 100).toFixed(focusedThreshold === 'suspicious' ? 2 : 0);
+    const config = thresholdConfig[activeFocusedThreshold];
+    const currentPercent = (config.value * 100).toFixed(activeFocusedThreshold === 'suspicious' ? 2 : 0);
 
     return (
       <div className="space-y-4">
@@ -222,8 +235,8 @@ const ChangeDetectionSettings: React.FC<ChangeDetectionSettingsProps> = ({
             const isSelected = detectionMode === card.mode;
             // Show checkmark in Hybrid mode based on what was detected
             const showCheckmark = detectionMode === DetectionMode.Hybrid && (
-              (focusedThreshold === 'dhash' && card.mode === DetectionMode.DHashOnly) ||
-              (focusedThreshold === 'pixel' && card.mode === DetectionMode.PixelDifferenceOnly)
+              (activeFocusedThreshold === 'dhash' && card.mode === DetectionMode.DHashOnly) ||
+              (activeFocusedThreshold === 'pixel' && card.mode === DetectionMode.PixelDifferenceOnly)
             );
 
             return (
