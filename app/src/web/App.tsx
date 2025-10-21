@@ -629,7 +629,7 @@ function AppContent() {
                     className={`flex-shrink-0 transition-all duration-700 ease-in-out ${
                       isAgentLive
                         ? 'w-full'
-                        : 'w-full lg:w-[calc(50%-12px)]' // Use your preferred spacing, adjust if needed
+                        : 'w-full xl:w-[calc(50%-12px)]' // Use your preferred spacing, adjust if needed
                     }`}
                   >
                     <AgentCard
