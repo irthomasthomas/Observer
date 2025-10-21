@@ -91,6 +91,11 @@ export async function detectSignificantChange(
   if (!previous) {
     Logger.debug('CHANGE_DETECTOR', 'First iteration - storing baseline data');
     previousIterationData.set(agentId, currentData);
+    // Emit event indicating first iteration (no change detection performed)
+    Logger.info('CHANGE_DETECTOR', 'First iteration - no change detection performed', {
+      logType: 'change-detection-result',
+      content: { agentId, isFirstIteration: true }
+    });
     return true;
   }
 
@@ -99,11 +104,12 @@ export async function detectSignificantChange(
 
   // Compare images using the configured strategy
   Logger.debug('CHANGE_DETECTOR', `Starting image comparison with mode: "${currentDetectionMode}"`);
-  const isSameImages = await compareImages(
+  const imageComparisonResult = await compareImages(
     previous.images || [],
     currentData.images || []
   );
 
+  const isSameImages = imageComparisonResult.isSame;
   Logger.debug('CHANGE_DETECTOR', `Change detection: text=${isSameText ? 'same' : 'changed'}, images=${isSameImages ? 'same' : 'changed'}`);
 
   // Only skip if BOTH text AND images are the same
@@ -113,6 +119,27 @@ export async function detectSignificantChange(
   if (isSignificant) {
     previousIterationData.set(agentId, currentData);
   }
+
+  // Emit detailed change detection result for UI display
+  Logger.info('CHANGE_DETECTOR', 'Change detection completed', {
+    logType: 'change-detection-result',
+    content: {
+      agentId,
+      textChanged: !isSameText,
+      imagesChanged: !isSameImages,
+      isSignificant,
+      detectionMode: currentDetectionMode,
+      // Include thresholds for UI display
+      thresholds: {
+        textSimilarity: TEXT_SIMILARITY_THRESHOLD,
+        dhashSimilarity: IMAGE_DHASH_SIMILARITY_THRESHOLD,
+        pixelSimilarity: PIXEL_SIMILARITY_THRESHOLD,
+        suspiciousSimilarity: SUSPICIOUS_SIMILARITY_THRESHOLD,
+      },
+      // Image comparison details (if images exist)
+      imageDetails: imageComparisonResult.metadata,
+    }
+  });
 
   return isSignificant;
 }
@@ -167,13 +194,13 @@ async function loadImage(base64Image: string, label: string): Promise<HTMLImageE
 
 /**
  * Compares two images pixel by pixel for exact differences.
- * Returns true if they are similar enough based on PIXEL_SIMILARITY_THRESHOLD.
+ * Returns result with similarity value for metadata.
  */
 async function compareImagesByPixelDifference(
   base64Image1: string,
   base64Image2: string,
   imageIndex: number
-): Promise<boolean> {
+): Promise<{ isSame: boolean; similarity: number }> {
   Logger.debug('CHANGE_DETECTOR', `Performing high-precision pixel difference check for image ${imageIndex + 1}`);
   try {
     const [img1, img2] = await Promise.all([
@@ -183,7 +210,7 @@ async function compareImagesByPixelDifference(
 
     if (img1.width !== img2.width || img1.height !== img2.height) {
       Logger.warn('CHANGE_DETECTOR', `Pixel diff: Image dimensions mismatch (${img1.width}x${img1.height} vs ${img2.width}x${img2.height}) - considered different`);
-      return false;
+      return { isSame: false, similarity: 0 };
     }
 
     const canvas = document.createElement('canvas');
@@ -213,35 +240,61 @@ async function compareImagesByPixelDifference(
 
     const similarity = 1 - (differentPixels / totalPixels);
     Logger.info('CHANGE_DETECTOR', `Pixel diff similarity: ${(similarity * 100).toFixed(4)}% (threshold: ${PIXEL_SIMILARITY_THRESHOLD * 100}%)`);
-    return similarity >= PIXEL_SIMILARITY_THRESHOLD;
+    return { isSame: similarity >= PIXEL_SIMILARITY_THRESHOLD, similarity };
   } catch (error) {
     Logger.error('CHANGE_DETECTOR', `Error during pixel difference comparison: ${error}`);
-    return false; // Assume different on error
+    return { isSame: false, similarity: 0 }; // Assume different on error
   }
+}
+
+// --- Image Comparison Metadata ---
+interface ImageComparisonMetadata {
+  dhashSimilarity?: number;
+  pixelSimilarity?: number;
+  triggeredPixelCheck: boolean;
+  contentType: 'camera' | 'ui' | 'unknown';
+}
+
+interface ImageComparisonResult {
+  isSame: boolean;
+  metadata: ImageComparisonMetadata[]; // Array to capture all image pairs
 }
 
 // --- REWRITTEN: Main Image Comparison Router ---
 
 /**
  * Compares images based on the currently selected detection mode.
- * Returns true if images are considered the same, false otherwise.
+ * Returns comparison result with metadata for ALL image pairs for UI display.
  */
-async function compareImages(images1: string[], images2: string[]): Promise<boolean> {
+async function compareImages(images1: string[], images2: string[]): Promise<ImageComparisonResult> {
   if (images1.length !== images2.length) {
     Logger.debug("CHANGE_DETECTOR", `Different number of images: ${images1.length} vs ${images2.length} - considered different`);
-    return false;
+    return { isSame: false, metadata: [] };
   }
   if (images1.length === 0) {
     Logger.debug("CHANGE_DETECTOR", 'No images to compare - considered same');
-    return true;
+    return { isSame: true, metadata: [] }; // No metadata when no images
   }
 
+  // Collect metadata for ALL image pairs
+  const allMetadata: ImageComparisonMetadata[] = [];
+
   for (let i = 0; i < images1.length; i++) {
+    // Create metadata for this specific image pair
+    let pairMetadata: ImageComparisonMetadata = {
+      triggeredPixelCheck: false,
+      contentType: 'unknown'
+    };
     let isPairTheSame: boolean;
     try {
       switch (currentDetectionMode) {
         case DetectionMode.PixelDifferenceOnly:
-          isPairTheSame = await compareImagesByPixelDifference(images1[i], images2[i], i);
+          const pixelResult = await compareImagesByPixelDifference(images1[i], images2[i], i);
+          isPairTheSame = pixelResult.isSame;
+          // Store metadata for this pair
+          pairMetadata.contentType = 'ui';
+          pairMetadata.triggeredPixelCheck = true;
+          pairMetadata.pixelSimilarity = pixelResult.similarity;
           break;
 
         case DetectionMode.DHashOnly:
@@ -250,10 +303,13 @@ async function compareImages(images1: string[], images2: string[]): Promise<bool
           if (isInvalidHash(hash1_d) || isInvalidHash(hash2_d)) {
              Logger.warn("CHANGE_DETECTOR", `Invalid hash in DHashOnly mode - considered different.`);
              isPairTheSame = false;
+             pairMetadata.contentType = 'unknown';
           } else {
             const similarity = compareHashes(hash1_d, hash2_d);
             Logger.debug("CHANGE_DETECTOR", `DHashOnly similarity: ${(similarity * 100).toFixed(2)}%`);
             isPairTheSame = similarity >= IMAGE_DHASH_SIMILARITY_THRESHOLD;
+            pairMetadata.dhashSimilarity = similarity;
+            pairMetadata.contentType = 'camera';
           }
           break;
 
@@ -264,7 +320,11 @@ async function compareImages(images1: string[], images2: string[]): Promise<bool
 
           if (isInvalidHash(hash1_h) || isInvalidHash(hash2_h)) {
             Logger.warn("CHANGE_DETECTOR", `Invalid dhash detected in Hybrid mode. Falling back to pixel check.`);
-            isPairTheSame = await compareImagesByPixelDifference(images1[i], images2[i], i);
+            const pixelFallback = await compareImagesByPixelDifference(images1[i], images2[i], i);
+            isPairTheSame = pixelFallback.isSame;
+            pairMetadata.triggeredPixelCheck = true;
+            pairMetadata.pixelSimilarity = pixelFallback.similarity;
+            pairMetadata.contentType = 'unknown';
           } else {
             const dhashSimilarity = compareHashes(hash1_h, hash2_h);
             Logger.info("CHANGE_DETECTOR", `Hybrid dhash similarity: ${(dhashSimilarity * 100).toFixed(2)}%`);
@@ -272,12 +332,21 @@ async function compareImages(images1: string[], images2: string[]): Promise<bool
             if (dhashSimilarity < IMAGE_DHASH_SIMILARITY_THRESHOLD) { // e.g. < 95%
               Logger.debug("CHANGE_DETECTOR", `Hybrid: DHash similarity is low - considered different.`);
               isPairTheSame = false; // Clearly different
+              pairMetadata.dhashSimilarity = dhashSimilarity;
+              pairMetadata.contentType = 'camera';
             } else if (dhashSimilarity < SUSPICIOUS_SIMILARITY_THRESHOLD) { // e.g. 95% - 99.8%
               Logger.debug("CHANGE_DETECTOR", `Hybrid: DHash in noise-zone - considered same.`);
               isPairTheSame = true; // Broadly the same (camera noise)
+              pairMetadata.dhashSimilarity = dhashSimilarity;
+              pairMetadata.contentType = 'camera';
             } else { // e.g. >= 99.8% (suspiciously perfect match)
               Logger.debug("CHANGE_DETECTOR", `Hybrid: DHash is nearly identical. Triggering pixel check for UI changes.`);
-              isPairTheSame = await compareImagesByPixelDifference(images1[i], images2[i], i);
+              const pixelCheck = await compareImagesByPixelDifference(images1[i], images2[i], i);
+              isPairTheSame = pixelCheck.isSame;
+              pairMetadata.dhashSimilarity = dhashSimilarity;
+              pairMetadata.triggeredPixelCheck = true;
+              pairMetadata.pixelSimilarity = pixelCheck.similarity;
+              pairMetadata.contentType = 'ui';
             }
           }
           break;
@@ -287,14 +356,17 @@ async function compareImages(images1: string[], images2: string[]): Promise<bool
         isPairTheSame = false; // On any error, assume change
     }
 
+    // Add this pair's metadata to the collection
+    allMetadata.push(pairMetadata);
+
     if (!isPairTheSame) {
       Logger.debug("CHANGE_DETECTOR", `Image pair ${i + 1} determined to be different. Stopping comparison.`);
-      return false; // A single different pair makes the whole set different
+      return { isSame: false, metadata: allMetadata };
     }
   }
 
   Logger.debug("CHANGE_DETECTOR", 'All image pairs were determined to be the same.');
-  return true;
+  return { isSame: true, metadata: allMetadata };
 }
 
 

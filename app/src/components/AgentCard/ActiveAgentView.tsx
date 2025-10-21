@@ -4,8 +4,10 @@ import { Clock, Power, Activity, Eye } from 'lucide-react';
 import { StreamState } from '@utils/streamManager';
 import { CompleteAgent } from '@utils/agent_database';
 import { IterationStore, ToolCall } from '@utils/IterationStore';
+import { DetectionMode } from '@utils/change_detector';
 import ToolStatus from '@components/AgentCard/ToolStatus';
 import SensorPreviewPanel from './SensorPreviewPanel';
+import ChangeDetectionIndicator from './ChangeDetectionIndicator';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -17,9 +19,34 @@ import 'katex/dist/katex.min.css';
 
 type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'RESPONDING' | 'WAITING' | 'SKIPPED' | 'IDLE';
 
+// Define the type for change detection data
+interface ChangeDetectionData {
+  agentId: string;
+  isFirstIteration?: boolean;
+  textChanged?: boolean;
+  imagesChanged?: boolean;
+  isSignificant?: boolean;
+  detectionMode?: DetectionMode;
+  thresholds?: {
+    textSimilarity: number;
+    dhashSimilarity: number;
+    pixelSimilarity: number;
+    suspiciousSimilarity: number;
+  };
+  imageDetails?: Array<{
+    dhashSimilarity?: number;
+    pixelSimilarity?: number;
+    triggeredPixelCheck: boolean;
+    contentType: 'camera' | 'ui' | 'unknown';
+  }>;
+}
+
 // --- Helper Components ---
 
-const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
+const StateTicker: React.FC<{
+  status: AgentLiveStatus;
+  changeDetectionData?: ChangeDetectionData | null;
+}> = ({ status, changeDetectionData }) => {
   const statusInfo = useMemo(() => {
     switch (status) {
       case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
@@ -35,6 +62,11 @@ const StateTicker: React.FC<{ status: AgentLiveStatus }> = ({ status }) => {
     <div className={`flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 ${statusInfo.color}`}>
       <div className="flex-shrink-0">{statusInfo.icon}</div>
       <span className="font-medium text-sm">{statusInfo.text}</span>
+      {changeDetectionData && (
+        <ChangeDetectionIndicator
+          data={changeDetectionData}
+        />
+      )}
       {(status === 'THINKING' || status === 'RESPONDING' || status === 'STARTING') && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin ml-auto" />}
     </div>
   );
@@ -191,6 +223,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     const [streamingResponse, setStreamingResponse] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
     const [lastTools, setLastTools] = useState<ToolCall[]>([]);
+    const [changeDetectionData, setChangeDetectionData] = useState<ChangeDetectionData | null>(null);
 
     // Load initial tool data and subscribe to updates
     useEffect(() => {
@@ -231,14 +264,27 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
             }
         };
 
+        const handleChangeDetection = (event: CustomEvent) => {
+            if (event.detail.agentId === agentId) {
+                // Only store if not first iteration
+                if (!event.detail.isFirstIteration) {
+                    setChangeDetectionData(event.detail);
+                } else {
+                    setChangeDetectionData(null);
+                }
+            }
+        };
+
         window.addEventListener('agentStreamStart', handleStreamStart as EventListener);
         window.addEventListener('agentResponseChunk', handleStreamChunk as EventListener);
         window.addEventListener('agentIterationStart', handleIterationStart as EventListener);
+        window.addEventListener('agentChangeDetectionResult', handleChangeDetection as EventListener);
 
         return () => {
             window.removeEventListener('agentStreamStart', handleStreamStart as EventListener);
             window.removeEventListener('agentResponseChunk', handleStreamChunk as EventListener);
             window.removeEventListener('agentIterationStart', handleIterationStart as EventListener);
+            window.removeEventListener('agentChangeDetectionResult', handleChangeDetection as EventListener);
         };
     }, [agentId]);
 
@@ -253,7 +299,10 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
 
             {/* Right Column: Status and Response */}
             <div className="space-y-4 flex flex-col justify-start overflow-visible">
-                <StateTicker status={liveStatus} />
+                <StateTicker
+                    status={liveStatus}
+                    changeDetectionData={changeDetectionData}
+                />
                 <LastResponse
                     response={isStreaming ? streamingResponse : lastResponse}
                     responseKey={isStreaming ? -1 : responseKey}

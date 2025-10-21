@@ -277,6 +277,14 @@ class LoggingService {
             })
           );
           break;
+
+        case 'change-detection-result':
+          window.dispatchEvent(
+            new CustomEvent('agentChangeDetectionResult', {
+              detail: entry.details.content
+            })
+          );
+          break;
       }
     } catch (error) {
       console.error('Error dispatching window event from logger:', error);
