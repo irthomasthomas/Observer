@@ -30,11 +30,11 @@ RUN pip3 install --break-system-packages .
 EXPOSE 3838
 
 # --- Tell user webpage is available ---
-COPY ./print_info.sh /usr/local/bin/print_info.sh
+COPY docker/print_info.sh /usr/local/bin/print_info.sh
 RUN chmod +x /usr/local/bin/print_info.sh
 
 # --- Supervisor Setup ---
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf 
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf 
 WORKDIR /
 
 # Command to run Supervisor

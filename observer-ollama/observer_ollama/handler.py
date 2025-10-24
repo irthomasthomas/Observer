@@ -33,6 +33,8 @@ class OllamaProxyHandler(CorsMixin, http.server.BaseHTTPRequestHandler):
         """Routes GET requests."""
         if self.path == '/favicon.ico':
             self._handle_favicon_request()
+        elif self.path == '/commands-stream':
+            self._handle_commands_stream_stub()
         else:
             # All other GETs use the simple, modern proxy
             self._handle_modern_proxy('GET')
@@ -124,9 +126,22 @@ class OllamaProxyHandler(CorsMixin, http.server.BaseHTTPRequestHandler):
                 logger.warning("Client disconnected during legacy stream.")
 
     # --- Your Original Helper Methods (Unchanged) ---
-    
+
     def _handle_favicon_request(self):
         self.send_response(204)
         self.send_cors_headers()
         self.end_headers()
         logger.debug("Responded 204 No Content for /favicon.ico")
+
+    def _handle_commands_stream_stub(self):
+        """Stub handler for /commands-stream SSE endpoint (not needed in headless mode)."""
+        logger.debug("Responding to /commands-stream with stub SSE stream")
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/event-stream')
+        self.send_header('Cache-Control', 'no-cache')
+        self.send_header('Connection', 'keep-alive')
+        self.send_cors_headers()
+        self.end_headers()
+
+        # Send a single comment to keep connection valid, then close
+        self.wfile.write(b': stub SSE stream\n\n')

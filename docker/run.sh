@@ -20,7 +20,7 @@ echo "✅ Node.js and npm found."
 export VITE_DISABLE_AUTH=false
 
 # Navigate to the app directory
-cd app || { echo "Error: 'app' directory not found. Make sure you are in the project root."; exit 1; }
+cd ../app || { echo "Error: 'app' directory not found. Make sure you are in the docker/ directory."; exit 1; }
 
 # Check if node_modules exists, if not, install dependencies
 if [ ! -d "node_modules" ]; then

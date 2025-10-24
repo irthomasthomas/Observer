@@ -217,7 +217,7 @@ This method uses Docker Compose to run everything you need in containers: the Ob
 1.  **Clone the repository and start the services:**
     ```bash
     git clone https://github.com/Roy3838/Observer.git
-    cd Observer
+    cd Observer/docker
     docker-compose up --build
     ```
 
@@ -234,8 +234,8 @@ This method uses Docker Compose to run everything you need in containers: the Ob
         ollama run gemma3:4b # <- highly recommended model!
         ```
         
-For NVIDIA GPUs: it's recommended to edit `docker-compose.yml` and explicitly add gpu runtime to the ollama docker container.
-Add these to the ollama section of `docker-compose.yml`:
+For NVIDIA GPUs: it's recommended to edit `docker/docker-compose.yml` and explicitly add gpu runtime to the ollama docker container.
+Add these to the ollama section of `docker/docker-compose.yml`:
 ```
     volumes:
       - ollama_data:/root/.ollama
@@ -255,13 +255,13 @@ Add these to the ollama section of `docker-compose.yml`:
 
 **To Stop the Docker Setup:**
 ```bash
-docker-compose down
+cd docker && docker-compose down
 ```
 
 ---
 ### ⚙️ Configuration (Docker)
 
-To customize your setup (e.g., enable SSL to access from `app.observer-ai.com`, disabling docker exec feature), simply edit the `environment:` section in your `docker-compose.yml` file. All options are explained with comments directly in the file.
+To customize your setup (e.g., enable SSL to access from `app.observer-ai.com`, disabling docker exec feature), simply edit the `environment:` section in your `docker/docker-compose.yml` file. All options are explained with comments directly in the file.
 
 
 ### Setting Up Python (Jupyter Server)
