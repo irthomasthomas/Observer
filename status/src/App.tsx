@@ -6,6 +6,19 @@ import { ErrorState } from './components/ErrorState';
 const API_URL = 'https://api.observer-ai.com/status';
 const REFRESH_INTERVAL = 60000; // 60 seconds
 
+// Normalize null values to 100 (assume 100% if no data)
+const normalizeStatusData = (data: StatusResponse): StatusResponse => ({
+  ...data,
+  models: data.models.map(model => ({
+    ...model,
+    overall_success_rate: model.overall_success_rate ?? 100,
+    hourly_stats: model.hourly_stats.map(stat => ({
+      ...stat,
+      success_rate: stat.success_rate ?? 100,
+    })),
+  })),
+});
+
 function App() {
   const [data, setData] = useState<StatusResponse | null>(null);
   const [error, setError] = useState<boolean>(false);
@@ -20,7 +33,7 @@ function App() {
       }
 
       const json: StatusResponse = await response.json();
-      setData(json);
+      setData(normalizeStatusData(json));
       setError(false);
     } catch (err) {
       console.error('Error fetching status:', err);

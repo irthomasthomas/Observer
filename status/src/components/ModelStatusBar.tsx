@@ -5,15 +5,13 @@ interface ModelStatusBarProps {
   model: ModelStatus;
 }
 
-const getBarColor = (successRate: number | null): string => {
-  if (successRate === null) return 'bg-success'; // Assume 100% if null
+const getBarColor = (successRate: number): string => {
   if (successRate >= 100) return 'bg-success';
   if (successRate >= 50) return 'bg-warning';
   return 'bg-danger';
 };
 
-const getBarOpacity = (successRate: number | null): string => {
-  if (successRate === null) return 'opacity-100';
+const getBarOpacity = (successRate: number): string => {
   if (successRate >= 100) return 'opacity-100';
   if (successRate >= 95) return 'opacity-90';
   if (successRate >= 90) return 'opacity-80';
@@ -27,7 +25,7 @@ export const ModelStatusBar: React.FC<ModelStatusBarProps> = ({ model }) => {
 
   // Get the last hour's success rate (most recent)
   const lastHourStat = model.hourly_stats[model.hourly_stats.length - 1];
-  const lastHourSuccessRate = lastHourStat?.success_rate ?? 100;
+  const lastHourSuccessRate = lastHourStat.success_rate;
 
   // Determine if model is down (0% overall uptime OR last hour < 20%)
   const isDown = model.overall_success_rate === 0 || lastHourSuccessRate < 20;
@@ -47,17 +45,16 @@ export const ModelStatusBar: React.FC<ModelStatusBarProps> = ({ model }) => {
       {/* 24-hour status bar */}
       <div className="flex gap-[2px] h-12 items-end">
         {model.hourly_stats.map((stat) => {
-          const successRate = stat.success_rate ?? 100;
           const barColor = getBarColor(stat.success_rate);
           const barOpacity = getBarOpacity(stat.success_rate);
-          const height = successRate > 0 ? `${successRate}%` : '4px';
+          const height = stat.success_rate > 0 ? `${stat.success_rate}%` : '4px';
 
           return (
             <div
               key={stat.hour}
               className={`flex-1 ${barColor} ${barOpacity} rounded-sm transition-all hover:opacity-100 cursor-pointer`}
               style={{ height }}
-              title={`${stat.hour}: ${successRate.toFixed(1)}%`}
+              title={`${stat.hour}: ${stat.success_rate.toFixed(1)}%`}
             />
           );
         })}

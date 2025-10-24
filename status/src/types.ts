@@ -5,7 +5,7 @@ export interface HourlyStat {
 
 export interface ModelStatus {
   name: string;
-  overall_success_rate: number;
+  overall_success_rate: number | null;
   hourly_stats: HourlyStat[];
 }
 
