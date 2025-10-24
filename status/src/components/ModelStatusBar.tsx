@@ -21,14 +21,14 @@ const getBarOpacity = (successRate: number): string => {
 };
 
 export const ModelStatusBar: React.FC<ModelStatusBarProps> = ({ model }) => {
-  const uptimePercentage = model.overall_success_rate.toFixed(3);
+  const uptimePercentage = (model.overall_success_rate ?? 0).toFixed(3);
 
   // Get the last hour's success rate (most recent)
   const lastHourStat = model.hourly_stats[model.hourly_stats.length - 1];
-  const lastHourSuccessRate = lastHourStat.success_rate;
+  const lastHourSuccessRate = lastHourStat.success_rate ?? 0;
 
   // Determine if model is down (0% overall uptime OR last hour < 20%)
-  const isDown = model.overall_success_rate === 0 || lastHourSuccessRate < 20;
+  const isDown = (model.overall_success_rate ?? 0) === 0 || lastHourSuccessRate < 20;
   const dotColor = isDown ? 'bg-danger' : 'bg-success';
   const cardBg = isDown ? 'bg-danger/10 border-danger/30' : 'bg-dark-card border-dark-border';
 
@@ -45,16 +45,17 @@ export const ModelStatusBar: React.FC<ModelStatusBarProps> = ({ model }) => {
       {/* 24-hour status bar */}
       <div className="flex gap-[2px] h-12 items-end">
         {model.hourly_stats.map((stat) => {
-          const barColor = getBarColor(stat.success_rate);
-          const barOpacity = getBarOpacity(stat.success_rate);
-          const height = stat.success_rate > 0 ? `${stat.success_rate}%` : '4px';
+          const successRate = stat.success_rate ?? 0;
+          const barColor = getBarColor(successRate);
+          const barOpacity = getBarOpacity(successRate);
+          const height = successRate > 0 ? `${successRate}%` : '4px';
 
           return (
             <div
               key={stat.hour}
               className={`flex-1 ${barColor} ${barOpacity} rounded-sm transition-all hover:opacity-100 cursor-pointer`}
               style={{ height }}
-              title={`${stat.hour}: ${stat.success_rate.toFixed(1)}%`}
+              title={`${stat.hour}: ${successRate.toFixed(1)}%`}
             />
           );
         })}

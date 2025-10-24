@@ -18,7 +18,7 @@ export const StatusGrid: React.FC<StatusGridProps> = ({ data }) => {
     });
   };
 
-  const allOperational = data.models.every(model => model.overall_success_rate >= 99);
+  const allOperational = data.models.every(model => (model.overall_success_rate ?? 0) >= 99);
 
   return (
     <div className="min-h-screen bg-dark-bg py-12 px-4">
