@@ -691,9 +691,11 @@ function AppContent() {
           </div>
 
           {/* Models Tab */}
-          <div className={`px-4 ${activeTab !== 'models' ? 'hidden' : ''}`}>
-            <AvailableModels isProUser={isProUser} />
-          </div>
+          {activeTab === 'models' && (
+            <div className="px-4">
+              <AvailableModels isProUser={isProUser} />
+            </div>
+          )}
 
           {/* Recordings Tab */}
           <div className={`px-4 ${activeTab !== 'recordings' ? 'hidden' : ''}`}>

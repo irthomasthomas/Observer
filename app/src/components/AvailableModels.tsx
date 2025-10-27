@@ -17,6 +17,37 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
+  const [ollamaServers, setOllamaServers] = useState<string[]>([]);
+
+  // Check if a server supports Ollama by probing /api/tags endpoint
+  const checkOllamaSupport = async (address: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${address}/api/tags`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // Detect which addresses support Ollama
+  const detectOllamaServers = async () => {
+    const addresses = getInferenceAddresses();
+    const ollamaChecks = await Promise.all(
+      addresses.map(async (addr) => ({
+        address: addr,
+        isOllama: await checkOllamaSupport(addr)
+      }))
+    );
+    const detectedServers = ollamaChecks
+      .filter(check => check.isOllama)
+      .map(check => check.address);
+
+    setOllamaServers(detectedServers);
+    Logger.info('MODELS', `Detected Ollama servers: ${detectedServers.join(', ')}`);
+  };
 
   const fetchModels = async () => {
     setLoading(true);
@@ -46,12 +77,15 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
   };
 
   useEffect(() => {
+    // This runs on mount
     fetchModels();
+    detectOllamaServers();
   }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchModels();
+    detectOllamaServers();
   };
 
   if (loading && !refreshing) {
@@ -71,7 +105,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Available Models</h2>
         <div className="flex items-center gap-2">
-          {getInferenceAddresses().some(addr => addr.includes('localhost')) && (
+          {ollamaServers.length > 0 && (
             <button
               onClick={() => setShowTerminal(true)}
               className="px-3 py-2 rounded-md bg-green-50 text-green-600 hover:bg-green-100"
@@ -144,8 +178,8 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
                         Vision
                       </span>
                     )}
-                    {/* Conditionally render the Local tag if server is localhost or http */}
-                    {(model.server.includes('localhost') || model.server.includes('http://')) && (
+                    {/* Conditionally render the Local tag if server is not the official API */}
+                    {!model.server.includes('api.observer-ai.com') && (
                       <span title="Running Locally" className="inline-block text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
                         <Server className="h-3.5 w-3.5 inline-block mr-1 -mt-px" />
                         Local
@@ -166,10 +200,11 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
            You can use them in your agents by specifying their name.
          </p>
       </div>
-      <TerminalModal 
-      isOpen={showTerminal} 
+      <TerminalModal
+      isOpen={showTerminal}
       onClose={() => setShowTerminal(false)}
       onPullComplete={handleRefresh}
+      ollamaServers={ollamaServers}
       />
     </div>
   );

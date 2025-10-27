@@ -10,6 +10,7 @@ interface TerminalModalProps {
   onClose: () => void;
   onPullComplete?: () => void;
   noModels?: boolean;
+  ollamaServers?: string[];
 }
 
 const suggestedModels = [
@@ -32,13 +33,41 @@ const formatBytes = (bytes: number, decimals = 2) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 };
 
-const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullComplete, noModels = false }) => {
+const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullComplete, noModels = false, ollamaServers }) => {
   // Local state is now only for the user's input
   const [modelToPull, setModelToPull] = useState('');
   // All display state comes from the manager
   const [downloadState, setDownloadState] = useState<PullState>(pullModelManager.getInitialState());
   // State to control showing welcome screen for no-models case
   const [showWelcomeScreen, setShowWelcomeScreen] = useState(noModels);
+  // State for detected servers when not provided
+  const [detectedServers, setDetectedServers] = useState<string[]>([]);
+  // Use provided servers or detected servers
+  const availableServers = ollamaServers || detectedServers;
+  // State for selected Ollama server
+  const [selectedServer, setSelectedServer] = useState<string>(availableServers[0] || '');
+
+  // Detect Ollama servers when modal opens (if not provided)
+  useEffect(() => {
+    if (isOpen && !ollamaServers && noModels) {
+      // First-time user path: check localhost:3838
+      const checkLocalhost = async () => {
+        try {
+          const response = await fetch('http://localhost:3838/api/tags', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (response.ok) {
+            setDetectedServers(['http://localhost:3838']);
+          }
+        } catch (error) {
+          // Not Ollama or not reachable
+          setDetectedServers([]);
+        }
+      };
+      checkLocalhost();
+    }
+  }, [isOpen, ollamaServers, noModels]);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,15 +84,17 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullCo
   }, [isOpen, onPullComplete]);
   
   const handleStartPull = () => {
-    if (modelToPull.trim()) {
-      pullModelManager.pullModel(modelToPull.trim());
+    if (modelToPull.trim() && selectedServer) {
+      pullModelManager.pullModel(modelToPull.trim(), selectedServer);
     }
   };
 
   const handlePullModelClick = () => {
     setModelToPull('gemma3:4b'); // Pre-fill with recommended model
     setShowWelcomeScreen(false); // Switch to input screen
-    pullModelManager.pullModel('gemma3:4b'); // Start pulling immediately
+    if (selectedServer) {
+      pullModelManager.pullModel('gemma3:4b', selectedServer); // Start pulling immediately
+    }
   };
 
   const handleSkipForNow = () => {
@@ -92,6 +123,13 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullCo
       setShowWelcomeScreen(noModels);
     }
   }, [isOpen, noModels]);
+
+  // Update selected server when availableServers changes
+  useEffect(() => {
+    if (availableServers.length > 0 && !selectedServer) {
+      setSelectedServer(availableServers[0]);
+    }
+  }, [availableServers, selectedServer]);
 
   return (
     <Modal open={isOpen} onClose={handleDone} className="w-full max-w-xl">
@@ -138,14 +176,32 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullCo
             <p className="text-gray-600 mb-5">
               Enter a model name from the Ollama library (e.g., <code className="bg-gray-100 px-1 rounded text-sm">gemma3:4b</code>).
             </p>
+            {availableServers.length > 1 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Ollama Server:
+                </label>
+                <select
+                  value={selectedServer}
+                  onChange={(e) => setSelectedServer(e.target.value)}
+                  className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  {availableServers.map((server) => (
+                    <option key={server} value={server}>
+                      {server}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-2">
               <input
-                type="text" list="model-suggestions" value={modelToPull}
+                type="text" list="ollama-model-suggestions" value={modelToPull}
                 onChange={(e) => setModelToPull(e.target.value)}
                 placeholder="Enter model name..."
                 className="flex-grow p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               />
-              <datalist id="model-suggestions">
+              <datalist id="ollama-model-suggestions">
                 {suggestedModels.map(model => <option key={model} value={model} />)}
               </datalist>
               <button
