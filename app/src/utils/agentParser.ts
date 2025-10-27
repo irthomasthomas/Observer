@@ -187,7 +187,8 @@ async function getRecentAgentRuns(agentId: string, count: number): Promise<Itera
 
   // Add runs from most recent sessions until we have enough
   for (const session of historicalSessions) {
-    const sessionRuns = session.iterations.slice().reverse(); // Most recent first
+    const needed = count - allRuns.length;
+    const sessionRuns = session.iterations.slice(-needed); // Take LAST needed iterations
     allRuns.unshift(...sessionRuns);
 
     if (allRuns.length >= count) break;
