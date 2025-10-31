@@ -1,7 +1,7 @@
 // src/components/MediaUploadMessage.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Camera, X } from 'lucide-react';
+import { Upload, Camera, X, Monitor } from 'lucide-react';
 import { createLoggerDecorator } from '../utils/logging';
 
 interface MediaUploadMessageProps {
@@ -12,9 +12,10 @@ interface MediaUploadMessageProps {
 const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, onResponse }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [captureMode, setCaptureMode] = useState<'camera' | 'screen' | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const logger = createLoggerDecorator('MediaUploadMessage');
   
   useEffect(() => {
@@ -80,58 +81,82 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
     try {
       const constraints = { video: { facingMode: 'user' } };
       logger.info('Requesting user media', constraints);
-      
+
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      logger.info('Media stream obtained', { 
+      logger.info('Media stream obtained', {
         tracks: mediaStream.getTracks().length,
         videoTracks: mediaStream.getVideoTracks().length,
         audioTracks: mediaStream.getAudioTracks().length
       });
-      
+
+      setCaptureMode('camera');
       setStream(mediaStream);
       setShowPreview(true);
       logger.info('Stream set and preview enabled');
-      
+
     } catch (error) {
       logger.error('Camera access failed', error);
     }
   };
 
+  const handleStartScreenShare = async () => {
+    logger.info('Starting screen share');
+    try {
+      const constraints = { video: true };
+      logger.info('Requesting display media', constraints);
+
+      const mediaStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      logger.info('Display media stream obtained', {
+        tracks: mediaStream.getTracks().length,
+        videoTracks: mediaStream.getVideoTracks().length,
+        audioTracks: mediaStream.getAudioTracks().length
+      });
+
+      setCaptureMode('screen');
+      setStream(mediaStream);
+      setShowPreview(true);
+      logger.info('Screen share stream set and preview enabled');
+
+    } catch (error) {
+      logger.error('Screen share access failed', error);
+    }
+  };
+
   const handleTakePicture = () => {
     logger.info('Take picture button clicked');
-    
+
     if (!videoRef.current) {
       logger.error('Video ref is null');
       return;
     }
-    
+
     if (!stream) {
       logger.error('Stream is null');
       return;
     }
-    
+
     logger.info('Video dimensions', {
       videoWidth: videoRef.current.videoWidth,
       videoHeight: videoRef.current.videoHeight,
       readyState: videoRef.current.readyState,
       paused: videoRef.current.paused
     });
-    
+
     // Create canvas to capture the frame
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
-    
+
     logger.info('Canvas created', { width: canvas.width, height: canvas.height });
-    
+
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      
+
       // Get base64 image data
       const base64Image = canvas.toDataURL('image/png').split(',')[1];
       logger.info('Image captured', { base64Length: base64Image.length });
-      
+
       // Stop the stream and hide preview
       stream.getTracks().forEach(track => {
         logger.info('Stopping track', { kind: track.kind, label: track.label });
@@ -139,7 +164,8 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
       });
       setStream(null);
       setShowPreview(false);
-      
+      setCaptureMode(null);
+
       onResponse({ type: 'image', data: base64Image });
     } else {
       logger.error('Failed to get canvas context');
@@ -154,6 +180,7 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
       setStream(null);
     }
     setShowPreview(false);
+    setCaptureMode(null);
   };
 
   const handleDecline = () => {
@@ -165,6 +192,7 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
       setStream(null);
     }
     setShowPreview(false);
+    setCaptureMode(null);
     onResponse("User declined sending a picture");
   };
 
@@ -182,21 +210,29 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
         <p className="text-purple-900 font-semibold mb-6 text-lg">{requestText}</p>
         
         {!showPreview ? (
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <button
               onClick={handleUploadImage}
-              className="flex-1 px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
               <Upload className="h-5 w-5 mr-2" />
               Upload Image
             </button>
-            
+
             <button
               onClick={handleStartCamera}
-              className="flex-1 px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
               <Camera className="h-5 w-5 mr-2" />
               Open Camera
+            </button>
+
+            <button
+              onClick={handleStartScreenShare}
+              className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            >
+              <Monitor className="h-5 w-5 mr-2" />
+              Share Screen
             </button>
           </div>
         ) : (
@@ -228,8 +264,17 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
                 onClick={handleTakePicture}
                 className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg"
               >
-                <Camera className="h-4 w-4 mr-2" />
-                Take Photo
+                {captureMode === 'screen' ? (
+                  <>
+                    <Monitor className="h-4 w-4 mr-2" />
+                    Take Screenshot
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-4 w-4 mr-2" />
+                    Take Photo
+                  </>
+                )}
               </button>
             </div>
           </div>
