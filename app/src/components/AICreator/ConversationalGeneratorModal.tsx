@@ -1,6 +1,6 @@
 // src/components/AICreator/ConversationalGeneratorModal.tsx
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
-import { X, Sparkles, User, Users } from 'lucide-react';
+import { X, Sparkles, Bell, FlaskConical } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';
 import MultiAgentCreator from './MultiAgentCreator';
 import { CompleteAgent } from '@utils/agent_database';
@@ -111,8 +111,8 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
                         : 'text-white/80 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <User className="h-4 w-4 mr-2" />
-                    Single Agent
+                    <Bell className="h-4 w-4 mr-2" />
+                    Alert Builder 
                   </button>
                   <button
                     onClick={() => handleModeChange('multi')}
@@ -123,8 +123,8 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
                     }`}
                     title={!isPro ? 'Pro feature - Upgrade to access Multi-Agent creation' : ''}
                   >
-                    <Users className="h-4 w-4 mr-2" />
-                    Multi-Agent
+                    <FlaskConical className="h-4 w-4 mr-2" />
+                    AI-Studio
                   </button>
                 </div>
               </div>
@@ -149,8 +149,8 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
                     : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <User className="h-4 w-4 mr-2" />
-                Single Agent
+                <Bell className="h-4 w-4 mr-2" />
+                Alert Builder
               </button>
               <button
                 onClick={() => handleModeChange('multi')}
@@ -161,8 +161,8 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
                 }`}
                 title={!isPro ? 'Pro feature - Upgrade to access Multi-Agent creation' : ''}
               >
-                <Users className="h-4 w-4 mr-2" />
-                Multi-Agent
+                <FlaskConical className="h-4 w-4 mr-2" />
+                AI-Studio
               </button>
             </div>
           </div>

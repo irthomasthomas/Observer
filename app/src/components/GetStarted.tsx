@@ -1,6 +1,6 @@
 // src/components/GetStarted.tsx
 import React, { useState } from 'react';
-import { Users, MessageCircle, Code, User } from 'lucide-react';
+import { Users, FlaskConical, MessageCircle, Code, Bell } from 'lucide-react';
 import ConversationalGenerator from './AICreator/ConversationalGenerator';
 import MultiAgentCreator from './AICreator/MultiAgentCreator';
 import { CompleteAgent } from '@utils/agent_database';
@@ -76,8 +76,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
                         : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
                     }`}
                   >
-                    <User className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">Single Agent</span>
+                    <Bell className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Alert Builder</span>
                   </button>
                   <button
                     onClick={() => handleModeChange('multi')}
@@ -87,8 +87,8 @@ const GetStarted: React.FC<GetStartedProps> = ({
                         : 'text-gray-600 hover:text-purple-600 hover:bg-white/50'
                     }`}
                   >
-                    <Users className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">Multi-Agent</span>
+                    <FlaskConical className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">AI Studio</span>
                   </button>
                 </div>
               </div>

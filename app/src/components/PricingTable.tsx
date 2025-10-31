@@ -50,7 +50,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <p className={isTriggeredByQuotaError ? "text-base sm:text-lg text-gray-600 mb-3" : "text-sm sm:text-base text-gray-600 mb-2"}>{subheadline}</p>
           {isTriggeredByQuotaError && (
             <div className="flex items-center space-x-3 text-xs text-gray-500">
-              <span>🚀 600+ users</span>
+              <span>🚀 800+ users</span>
               <span>•</span>
               <span>⭐ 1k+ GitHub stars</span>
               <span>•</span>
@@ -75,7 +75,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           </div>
           <ul className="space-y-4 mb-8 flex-grow">
             <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Cost:</strong> Free To Try Out!</span></li>
-            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Single Agent Creator:</strong> Limited builds</span></li>
+            <li className="flex items-start"><Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" /><span><strong>Alert Builder:</strong> Limited builds</span></li>
             <li className="flex items-start">
               <Check className="h-6 w-6 text-green-500 mr-3 flex-shrink-0" />
               <span>
@@ -104,8 +104,8 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <p className="text-purple-700">+ Local Server</p>
           </div>
           <ul className="space-y-2 mt-7 mb-8 flex-grow">
-            <li className="flex items-start"><Sparkles className="h-5 w-5 text-purple-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlock Multi-Agent Creator and Editor</strong></span></li>
-            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited Single Agent Creator</strong></span></li>
+            <li className="flex items-start"><Sparkles className="h-5 w-5 text-purple-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlock AI-Studio</strong></span></li>
+            <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited Alert Builder</strong></span></li>
             <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited Cloud Model Usage + Pro Models</strong></span></li>
             <li className="flex items-start"><Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>Unlimited Telegram, Discord, SMS, WhatsApp, Email & Pushover notifications</strong></span></li>
             <li className="flex items-start"><Heart className="h-5 w-5 text-pink-500 mr-3 flex-shrink-0 mt-0.5" /><span><strong>$20/month</strong></span></li>

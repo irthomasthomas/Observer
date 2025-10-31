@@ -50,12 +50,12 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({
     {
       id: 1,
       sender: 'ai',
-      text: `Hi there! I'm Observer's agent builder. I can help you create agents to automate tasks by watching your screen.
+      text: `Hi there! I'm Observer's **alert builder**. 
 
-For example, I can build an agent to:
+I can build an agent to:
 *   Record 🎥 when something specific happens.
 *   Log 🧠 important information to memory.
-*   Send alerts 🚀 via Discord, Email, or Pushover.
+*   Send alerts 🚀 via Discord, Email, or Telegram.
 
 What would you like to create today?`
     }

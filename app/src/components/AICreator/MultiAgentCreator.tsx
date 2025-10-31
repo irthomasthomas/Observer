@@ -631,7 +631,7 @@ What kind of agent team would you like me to create today?`
 
   const getPlaceholderText = () => {
     if (!isPro && isUsingObServer) {
-      return "Upgrade to Pro to use Multi-Agent Builder";
+      return "Upgrade to Pro to use AI-Studio";
     }
     if (isUsingObServer) {
       return isAuthenticated ? "Describe the agent team you want to build..." : "Enable Ob-Server and log in to use Multi-Agent Builder";
@@ -661,7 +661,7 @@ What kind of agent team would you like me to create today?`
                   </div>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  🔒 Multi-Agent Builder is a Pro Feature
+                  🔒 AI-Studio is a Pro Feature
                 </h3>
                 <p className="text-gray-600 mb-4">
                   Upgrade to Pro to create and edit coordinated agent teams with AI collaboration
