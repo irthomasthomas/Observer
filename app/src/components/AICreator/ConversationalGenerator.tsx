@@ -50,7 +50,7 @@ const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({
     {
       id: 1,
       sender: 'ai',
-      text: `Hi there! I'm Observer's **alert builder**. 
+      text: `Hi there! I'm Observer's **Alert Builder**. 
 
 I can build an agent to:
 *   Record 🎥 when something specific happens.
