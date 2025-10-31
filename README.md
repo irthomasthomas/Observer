@@ -157,6 +157,7 @@ App Tools:
 ## Code Tab
 
 The "Code" tab receives the following variables as context before running: 
+`prompt` - The model's prompt
 `response` - The model's response
 `agentId` - The id of the agent running the code
 `screen` - The screen as base64 if captured 

@@ -27,6 +27,7 @@ export async function executeJavaScript(
   preprocessResult?: PreProcessorResult
 ): Promise<boolean> {
   const context = {
+      prompt: preprocessResult.modifiedPrompt,
       response,
       agentId,
       // Image variables from preprocessing
