@@ -37,13 +37,20 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      # It no workie
+      # Pin webkit to older version to avoid EGL_BAD_PARAMETER in AppImage
       - name: Install Linux dependencies
         if: matrix.platform.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          # ADDED libglib2.0-dev TO THE LIST
-          sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          # Pin libwebkit2gtk to 2.44.x to avoid EGL issues on Fedora/Arch
+          sudo apt-get install -y libglib2.0-dev libgtk-3-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y --allow-downgrades \
+            libwebkit2gtk-4.1-dev=2.44.* \
+            libwebkit2gtk-4.1-0=2.44.* \
+            gir1.2-webkit2-4.1=2.44.* \
+            libjavascriptcoregtk-4.1-dev=2.44.* \
+            libjavascriptcoregtk-4.1-0=2.44.* \
+            gir1.2-javascriptcoregtk-4.1=2.44.*
       #
       # - name: Workaround for AppImage project migration
       #   if: matrix.platform.os == 'ubuntu-latest'
