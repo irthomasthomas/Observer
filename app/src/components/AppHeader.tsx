@@ -28,9 +28,9 @@ const LOCAL_SERVER_ADDRESS = 'http://localhost:3838';
 // --- The rest of your component ---
 type QuotaInfo = {
   used: number;
-  remaining: number | 'unlimited';
-  limit: number | 'unlimited';
-  pro_status: boolean;
+  remaining: number;
+  limit: number;
+  tier: string;
 } | null;
 
 interface AuthState {
@@ -56,6 +56,7 @@ interface AppHeaderProps {
   quotaInfo: QuotaInfo;
   setQuotaInfo: React.Dispatch<React.SetStateAction<QuotaInfo>>;
   onToggleMobileMenu?: () => void;
+  isProUser?: boolean;
 }
 
 
@@ -72,6 +73,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   quotaInfo,
   setQuotaInfo,
   onToggleMobileMenu,
+  isProUser,
 }) => {
   const [localServerOnline, setLocalServerOnline] = useState(false);
   const [customServers, setCustomServers] = useState<CustomServer[]>([]);
@@ -94,8 +96,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const isAuthenticated = authState?.isAuthenticated ?? false;
   const user = authState?.user;
-
-  const isProUser = quotaInfo?.pro_status === true;
 
   // Calculate overall server status based on all enabled servers
   const computedServerStatus: 'unchecked' | 'online' | 'offline' = (() => {
@@ -143,9 +143,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         setIsSessionExpired(false);
         if (data && typeof data.remaining === 'number') {
           localStorage.setItem('observer-quota-remaining', data.remaining.toString());
-          
+
           // Trigger upgrade modal at 50% usage for non-pro users
-          if (!data.pro_status && typeof data.limit === 'number' && data.limit > 0) {
+          if (data.tier !== 'pro' && data.tier !== 'max' && typeof data.limit === 'number' && data.limit > 0) {
             const usagePercentage = ((data.limit - data.remaining) / data.limit) * 100;
             console.log(`Usage: ${usagePercentage.toFixed(1)}%, Remaining: ${data.remaining}/${data.limit}, Warning shown: ${has70PercentWarningBeenShown}`);
             if (usagePercentage >= 50 && !has70PercentWarningBeenShown && onUpgradeClick) {
@@ -180,14 +180,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   // Check for 50% usage threshold whenever quotaInfo updates
   useEffect(() => {
-    if (!quotaInfo || quotaInfo.pro_status || has70PercentWarningBeenShown || !onUpgradeClick) {
+    if (!quotaInfo || quotaInfo.tier === 'pro' || quotaInfo.tier === 'max' || has70PercentWarningBeenShown || !onUpgradeClick) {
       return;
     }
-    
+
     if (typeof quotaInfo.remaining === 'number' && typeof quotaInfo.limit === 'number' && quotaInfo.limit > 0) {
       const usagePercentage = ((quotaInfo.limit - quotaInfo.remaining) / quotaInfo.limit) * 100;
       console.log(`Real-time usage check: ${usagePercentage.toFixed(1)}%, Remaining: ${quotaInfo.remaining}/${quotaInfo.limit}`);
-      
+
       if (usagePercentage >= 50) {
         console.log('Triggering upgrade modal at 50% usage (real-time)');
         setHas70PercentWarningBeenShown(true);
@@ -399,8 +399,22 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
 
     if (quotaInfo) {
-      if (quotaInfo.pro_status) {
-        return <span className="font-semibold text-green-600">Unlimited Access</span>;
+      if (quotaInfo.tier === 'max') {
+        return <span className="font-semibold text-green-600">MAX unlimited</span>;
+      }
+      if (quotaInfo.tier === 'pro') {
+        return (
+          <div
+            className="font-semibold text-green-600 cursor-help"
+            onMouseEnter={() => setIsQuotaHovered(true)}
+            onMouseLeave={() => setIsQuotaHovered(false)}
+          >
+            {isQuotaHovered && typeof quotaInfo.remaining === 'number' && typeof quotaInfo.limit === 'number'
+              ? `${quotaInfo.remaining} / ${quotaInfo.limit} Credits left`
+              : 'Pro extended'
+            }
+          </div>
+        );
       }
       if (typeof quotaInfo.remaining === 'number') {
         if (quotaInfo.remaining <= 0) {
@@ -461,7 +475,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               <a href="https://observer-ai.com" target="_blank" rel="noopener noreferrer" className="text-xl font-semibold">
                 <h1>Observer</h1>
               </a>
-              {isProUser && (
+              {quotaInfo?.tier === 'max' && (
+                <span className="absolute top-0.5 -right-5 text-xs font-semibold text-black">
+                  MAX
+                </span>
+              )}
+              {quotaInfo?.tier === 'pro' && (
                 <span className="absolute top-0.5 -right-5 text-xs font-semibold text-black">
                   pro
                 </span>

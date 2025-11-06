@@ -109,16 +109,16 @@ function AppContent() {
   // --- STATE FOR QUOTA INFO ---
   const [quotaInfo, setQuotaInfo] = useState<{
     used: number;
-    remaining: number | 'unlimited';
-    limit: number | 'unlimited';
-    pro_status: boolean;
+    remaining: number;
+    limit: number;
+    tier: string;
   } | null>(null);
 
   // --- STATE FOR MOBILE SIDEBAR ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // --- DERIVED STATE ---
-  const isProUser = quotaInfo?.pro_status === true;
+  const isProUser = quotaInfo?.tier === 'pro' || quotaInfo?.tier === 'max';
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -589,6 +589,7 @@ function AppContent() {
           quotaInfo={quotaInfo}
           setQuotaInfo={setQuotaInfo}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isProUser={isProUser}
         />
 
         <PersistentSidebar
