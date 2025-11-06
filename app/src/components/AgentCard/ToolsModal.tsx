@@ -862,10 +862,9 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
         }
 
         case 'sendDiscord': {
-          const token = await getAuthToken();
           const webhookUrl = testInputs[0] || '';
           const message = testInputs[1] || selectedToolConfig.testMessage || '';
-          await utils.sendDiscord(message, webhookUrl, token);
+          await utils.sendDiscord(message, webhookUrl);
           break;
         }
 
