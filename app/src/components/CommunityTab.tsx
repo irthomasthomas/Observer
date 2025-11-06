@@ -22,6 +22,8 @@ interface MarketplaceAgent {
   author?: string;
   author_id?: string;
   date_added?: string;
+  downloads?: number;
+  featured_order?: number | null;
 }
 
 // Simple type for uploading agents
@@ -127,13 +129,13 @@ const CommunityTab: React.FC = () => {
       setError(null);
       
       const response = await fetch(`${SERVER_URL}/agents`);
-      
+
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}`);
       }
-      
+
       const data = await response.json();
-      setAgents(data.reverse());
+      setAgents(data);
       
       Logger.info('COMMUNITY', `Fetched ${data.length} agents from marketplace`);
     } catch (err) {
@@ -272,12 +274,37 @@ const CommunityTab: React.FC = () => {
     await uploadAgentToServer(agentData);
   };
 
+  // Fetch full agent details from the server
+  const handleGetAgent = async (agentId: string): Promise<MarketplaceAgent | null> => {
+    try {
+      setError(null);
+      Logger.info('COMMUNITY', `Fetching full agent details for ${agentId}`);
+
+      const response = await fetch(`${SERVER_URL}/agents/${agentId}`);
+
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+
+      const fullAgent = await response.json();
+      Logger.info('COMMUNITY', `Fetched full agent ${fullAgent.name} (downloads: ${fullAgent.downloads})`);
+
+      return fullAgent;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to fetch agent details: ${errorMessage}`);
+      Logger.error('COMMUNITY', `Error fetching agent: ${errorMessage}`, err);
+      return null;
+    }
+  };
+
+  // Import a full agent object to local database (no API call)
   const handleImport = async (agent: MarketplaceAgent) => {
     try {
       setError(null);
       setImporting(agent.id);
       Logger.info('COMMUNITY', `Importing agent ${agent.name} (${agent.id})`);
-      
+
       // Prepare agent for local database using CompleteAgent structure
       const localAgent: CompleteAgent = {
         id: agent.id,
@@ -287,19 +314,19 @@ const CommunityTab: React.FC = () => {
         system_prompt: agent.system_prompt,
         loop_interval_seconds: agent.loop_interval_seconds
       };
-      
+
       // Save to local database
       await saveAgent(localAgent, agent.code);
-      
+
       // Import memory if available
       if (agent.memory) {
         const { updateAgentMemory } = await import('@utils/agent_database');
         await updateAgentMemory(localAgent.id, agent.memory);
       }
-      
+
       Logger.info('COMMUNITY', `Agent ${agent.name} imported successfully`);
       alert(`Agent "${agent.name}" imported successfully!`);
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to import agent: ${errorMessage}`);
@@ -309,8 +336,12 @@ const CommunityTab: React.FC = () => {
     }
   };
 
-  const viewDetails = (agent: MarketplaceAgent) => {
-    setSelectedAgent(agent);
+  const viewDetails = async (agent: MarketplaceAgent) => {
+    // Fetch full agent details from server (increments download counter)
+    const fullAgent = await handleGetAgent(agent.id);
+    if (fullAgent) {
+      setSelectedAgent(fullAgent);
+    }
   };
 
   const closeDetails = () => {
@@ -644,7 +675,14 @@ const CommunityTab: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {agents.map(agent => (
-            <div key={agent.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col">
+            <div
+              key={agent.id}
+              className={`bg-white rounded-lg shadow-md p-4 flex flex-col ${
+                agent.featured_order != null
+                  ? 'ring-2 ring-yellow-400 ring-offset-2'
+                  : ''
+              }`}
+            >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">{agent.name}</h3>
                 <div className="flex space-x-2">
@@ -665,7 +703,12 @@ const CommunityTab: React.FC = () => {
                     </button>
                   )}
                   <button
-                    onClick={() => handleImport(agent)}
+                    onClick={async () => {
+                      const fullAgent = await handleGetAgent(agent.id);
+                      if (fullAgent) {
+                        await handleImport(fullAgent);
+                      }
+                    }}
                     className="p-2 rounded-md hover:bg-blue-100 text-blue-600"
                     title="Import agent"
                     disabled={importing === agent.id}
@@ -677,10 +720,16 @@ const CommunityTab: React.FC = () => {
               
               <div className="flex-1">
                 <div className="mb-4">
-                  <span className="inline-block px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-700">
+                  {agent.featured_order != null && (
+                    <span className="inline-block px-2 py-1 rounded-full text-sm bg-yellow-100 text-yellow-700 font-semibold">
+                      ⭐ Featured
+                    </span>
+                  )}
+
+                  <span className={`inline-block px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-700 ${agent.featured_order != null ? 'ml-2' : ''}`}>
                     Community
                   </span>
-                  
+
                   {isAuthorOfAgent(agent) && (
                     <span className="inline-block ml-2 px-2 py-1 rounded-full text-sm bg-green-100 text-green-700">
                       Your Agent
@@ -706,7 +755,12 @@ const CommunityTab: React.FC = () => {
               
               <div className="mt-auto pt-4 flex items-center space-x-4">
                 <button
-                  onClick={() => handleImport(agent)}
+                  onClick={async () => {
+                    const fullAgent = await handleGetAgent(agent.id);
+                    if (fullAgent) {
+                      await handleImport(fullAgent);
+                    }
+                  }}
                   className={`px-4 py-2 rounded-md ${
                     importing === agent.id
                       ? 'bg-yellow-500 text-white hover:bg-yellow-600'
