@@ -316,20 +316,20 @@ export async function sendPushover(message: string, userKey: string, authToken: 
 }
 
 /**
- * Sends a Discord notification via a user-provided webhook by calling the backend API.
+ * Sends a Discord notification directly to a user-provided webhook.
  * @param message The main content of the notification.
  * @param webhookUrl The user's unique Discord Webhook URL.
- * @param authToken The authentication token for the Observer AI API.
  * @param images Optional array of base64-encoded images (without data:image prefix).
  */
-export async function sendDiscord(message: string, webhookUrl: string, authToken: string, images?: string[]): Promise<void> {
-  const API_HOST = "https://api.observer-ai.com";
-
-  if (!authToken) {
-    throw new Error("Authentication error: Auth token is missing.");
-  }
+export async function sendDiscord(message: string, webhookUrl: string, images?: string[]): Promise<void> {
   if (!webhookUrl) {
     throw new Error("Discord webhook URL is missing.");
+  }
+
+  // Guard against images being a string instead of array (strings are iterable!)
+  if (images && typeof images === 'string') {
+    Logger.warn('utils', 'sendDiscord received a string for images parameter, wrapping in array');
+    images = [images];
   }
 
   const DISCORD_MESSAGE_LIMIT = 1900;
@@ -340,40 +340,72 @@ export async function sendDiscord(message: string, webhookUrl: string, authToken
   if (message.length > DISCORD_MESSAGE_LIMIT) {
       // Log a warning in the Observer AI logs so the developer knows this happened
       Logger.warn('utils', `Discord message was too long (${message.length} chars) and has been automatically truncated.`);
-      
+
       // Truncate the message and add a clear indicator that it was shortened
       messageToSend = message.substring(0, DISCORD_MESSAGE_LIMIT) + "... (msg trunc)";
   }
 
   try {
-    const requestBody: { message: string; webhook_url: string; images?: string[] } = {
-      message: messageToSend,
-      webhook_url: webhookUrl, // snake_case to match the Pydantic model
+    // Construct Discord embed payload
+    const embed = {
+      title: "Agent Notification",
+      color: 3447003,  // Blue color (#3498db)
+      description: messageToSend,
     };
 
+    const payload = {
+      username: "Observer AI",
+      avatar_url: "https://raw.githubusercontent.com/Roy3838/Observer/dev/app/public/logo.png",
+      embeds: [embed]
+    };
+
+    // Send images as file attachments if provided
     if (images && images.length > 0) {
-      requestBody.images = images;
-    }
+      // For images, we need to use multipart/form-data
+      const formData = new FormData();
 
-    const response = await fetch(`${API_HOST}/tools/send-discordbot`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`, 
-      },
-      body: JSON.stringify(requestBody),
-    });
+      // Add the payload as JSON string
+      formData.append('payload_json', JSON.stringify(payload));
 
-    if (!response.ok) {
-      try {
-        const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string' 
-          ? errorData.detail 
-          : `Failed to send Discord notification: ${response.status} ${response.statusText}`;
-        throw new Error(errorMessage);
-      } catch (parseError) {
-        // If JSON parsing fails, use the HTTP status
-        throw new Error(`Failed to send Discord notification: ${response.status} ${response.statusText}`);
+      // Add each image as a file
+      for (let i = 0; i < images.length; i++) {
+        try {
+          // Decode base64 image
+          const base64Data = images[i];
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let j = 0; j < binaryString.length; j++) {
+            bytes[j] = binaryString.charCodeAt(j);
+          }
+          const blob = new Blob([bytes], { type: 'image/png' });
+          formData.append(`file${i}`, blob, `image_${i+1}.png`);
+        } catch (error) {
+          Logger.warn('utils', `Failed to process image ${i+1} for Discord: ${error}`);
+        }
+      }
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`Failed to send Discord notification: ${response.status} ${errorText}`);
+      }
+    } else {
+      // Send as JSON if no images
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`Failed to send Discord notification: ${response.status} ${errorText}`);
       }
     }
   } catch (error) {

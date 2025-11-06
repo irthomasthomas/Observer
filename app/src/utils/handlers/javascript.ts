@@ -354,18 +354,9 @@ export async function executeJavaScript(
 
       sendDiscord: async (webhookUrl: string, message: string, images?: string[]) => {
         try {
-          if (!getToken) {
-              throw new Error("Authentication context not available for sendDiscord.");
-          }
-
-          const token = await getToken();
-          if (!token) {
-              throw new Error("Failed to retrieve authentication token for sendDiscord.");
-          }
-
-          await utils.sendDiscord(message, webhookUrl, token, images);
-          Logger.info(agentId, `Discord notification sent${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
-            logType: 'tool-success', 
+          await utils.sendDiscord(message, webhookUrl, images);
+          Logger.info(agentId, `Discord notification sent${images && images.length > 0 ? ` with ${images.length} images` : ''}`, {
+            logType: 'tool-success',
             iterationId,
             content: { tool: 'sendDiscord', params: { message: message.slice(0,100), imageCount: images?.length || 0 }, success: true }
           });
