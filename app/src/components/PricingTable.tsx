@@ -123,7 +123,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <Sparkles className="mx-auto h-12 w-12 text-purple-500 mb-3" />
             <h2 className="text-2xl font-bold text-purple-800">Observer Pro</h2>
             <p className="text-purple-700 text-sm">save 240 hours/month for</p>
-            <p className="text-3xl font-bold text-purple-900 mt-2">$15<span className="text-base font-normal">/month</span></p>
+            <p className="text-3xl font-bold text-purple-900 mt-2">$20<span className="text-base font-normal">/month</span></p>
           </div>
           <ul className="space-y-2.5 mb-6 flex-grow text-sm">
             <li className="flex items-start">
