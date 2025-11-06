@@ -93,7 +93,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Alert Builder:</strong> 2-3 builds/month</span>
+              <span><strong>Alert Builder:</strong> 2-3 builds/week</span>
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -144,6 +144,10 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
               <span><strong>Cloud Monitoring:</strong> 8 hours/day!<br/><span className="text-xs text-purple-600">Do you value your time more than 6¢/hour?</span></span>
+            </li>
+            <li className="flex items-start">
+              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span><strong>Premium Models</strong></span>
             </li>
             <li className="flex items-start">
               <Sparkles className="h-5 w-5 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -206,7 +210,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             </li>
             <li className="flex items-start">
               <Sparkles className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Premium Models:</strong> gemma3-27b, gemini-2.5-flash-lite, Grok 4, llama4, and more</span>
+              <span><strong>Unlimited Premium Models</strong></span>
             </li>
             <li className="flex items-start">
               <Sparkles className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
