@@ -474,7 +474,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 <h1>Observer</h1>
               </a>
               {quotaInfo?.tier === 'max' && (
-                <span className="absolute top-0.5 -right-5 text-xs font-semibold text-black">
+                <span className="absolute top-0.5 -right-7 text-xs font-semibold text-black">
                   MAX
                 </span>
               )}
