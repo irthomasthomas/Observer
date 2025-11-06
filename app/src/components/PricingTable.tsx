@@ -15,6 +15,7 @@ interface PricingTableProps {
   isAuthenticated: boolean;
   error: string | null;
   onCheckout: () => void;
+  onCheckoutMax: () => void;
   onManageSubscription: () => void;
   onLogin: () => void;
   isTriggeredByQuotaError?: boolean; // Optional prop for special styling
@@ -29,6 +30,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   isAuthenticated,
   error,
   onCheckout,
+  onCheckoutMax,
   onManageSubscription,
   onLogin,
   isTriggeredByQuotaError = false,
@@ -120,7 +122,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <div className="text-center mb-4">
             <Sparkles className="mx-auto h-12 w-12 text-purple-500 mb-3" />
             <h2 className="text-2xl font-bold text-purple-800">Observer Pro</h2>
-            <p className="text-purple-700 text-sm">save 150 hours/month for</p>
+            <p className="text-purple-700 text-sm">save 240 hours/month for</p>
             <p className="text-3xl font-bold text-purple-900 mt-2">$15<span className="text-base font-normal">/month</span></p>
           </div>
           <ul className="space-y-2.5 mb-6 flex-grow text-sm">
@@ -138,7 +140,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Cloud Monitoring:</strong> 5 hours/day!<br/><span className="text-xs text-purple-600">Do you value your time more than 10¢/hour?</span></span>
+              <span><strong>Cloud Monitoring:</strong> 8 hours/day!<br/><span className="text-xs text-purple-600">Do you value your time more than 6¢/hour?</span></span>
             </li>
             <li className="flex items-start">
               <Sparkles className="h-5 w-5 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -223,7 +225,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             </button>
           ) : (
             <button
-              onClick={isAuthenticated ? onCheckout : onLogin}
+              onClick={isAuthenticated ? onCheckoutMax : onLogin}
               disabled={isButtonLoading}
               className="w-full mt-auto inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 disabled:bg-gray-400 transition-all shadow-md"
             >

@@ -7,7 +7,7 @@ import { Logger } from '@utils/logging';
 import { PricingTable } from './PricingTable'; // Import our new reusable component
 
 export const ObServerTab: React.FC = () => {
-  const [status, setStatus] = useState<'loading' | 'pro' | 'free' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'pro' | 'max' | 'free' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   
@@ -29,7 +29,8 @@ export const ObServerTab: React.FC = () => {
         });
         if (!response.ok) throw new Error(`API request failed with status: ${response.status}`);
         const data = await response.json();
-        setStatus(data.pro_status ? 'pro' : 'free');
+        // Backend returns tier: 'free' | 'pro' | 'max'
+        setStatus(data.tier || (data.pro_status ? 'pro' : 'free'));
       } catch (err) {
         Logger.error('PAYMENTS', 'Failed to check pro status:', err);
         setError('Could not retrieve your subscription status.');
@@ -41,7 +42,7 @@ export const ObServerTab: React.FC = () => {
   }, [isAuthenticated, getAccessTokenSilently]);
 
   // This logic also stays here. The PricingTable component calls these functions via props.
-  const handleApiAction = async (endpoint: 'create-checkout-session' | 'create-customer-portal-session') => {
+  const handleApiAction = async (endpoint: 'create-checkout-session' | 'create-checkout-session-max' | 'create-customer-portal-session') => {
     setIsButtonLoading(true);
     setError(null);
     try {
@@ -63,6 +64,9 @@ export const ObServerTab: React.FC = () => {
       setIsButtonLoading(false);
     }
   };
+
+  const handleCheckout = () => handleApiAction('create-checkout-session');
+  const handleMaxCheckout = () => handleApiAction('create-checkout-session-max');
 
   // --- RENDER LOGIC ---
 
@@ -98,7 +102,8 @@ export const ObServerTab: React.FC = () => {
           isButtonLoading={isButtonLoading}
           isAuthenticated={isAuthenticated}
           error={error}
-          onCheckout={() => handleApiAction('create-checkout-session')}
+          onCheckout={handleCheckout}
+          onCheckoutMax={handleMaxCheckout}
           onManageSubscription={() => handleApiAction('create-customer-portal-session')}
           onLogin={loginWithRedirect}
           isTriggeredByQuotaError={true}
