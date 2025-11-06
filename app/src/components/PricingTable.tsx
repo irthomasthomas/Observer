@@ -86,7 +86,10 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Notifications:</strong> 3 per day</span>
+              <span>
+                <strong>Unlimited Notifications:</strong> Discord, Browser, System & Overlay!
+                <span className="block text-gray-600 text-xs mt-1">Premium channels (SMS, Email, WhatsApp, Telegram, Pushover): 3/day</span>
+              </span>
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
