@@ -589,7 +589,6 @@ function AppContent() {
           quotaInfo={quotaInfo}
           setQuotaInfo={setQuotaInfo}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          isProUser={isProUser}
         />
 
         <PersistentSidebar

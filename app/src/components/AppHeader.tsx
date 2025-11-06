@@ -56,7 +56,6 @@ interface AppHeaderProps {
   quotaInfo: QuotaInfo;
   setQuotaInfo: React.Dispatch<React.SetStateAction<QuotaInfo>>;
   onToggleMobileMenu?: () => void;
-  isProUser?: boolean;
 }
 
 
@@ -73,7 +72,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   quotaInfo,
   setQuotaInfo,
   onToggleMobileMenu,
-  isProUser,
 }) => {
   const [localServerOnline, setLocalServerOnline] = useState(false);
   const [customServers, setCustomServers] = useState<CustomServer[]>([]);

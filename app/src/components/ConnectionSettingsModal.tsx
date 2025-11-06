@@ -7,9 +7,9 @@ import type { CustomServer } from '@utils/inferenceServer';
 // Re-using the types from AppHeader. You might want to move these to a shared types file.
 type QuotaInfo = {
   used: number;
-  remaining: number | 'unlimited';
-  limit: number | 'unlimited';
-  pro_status: boolean;
+  remaining: number;
+  limit: number;
+  tier: string;
 } | null;
 
 interface ConnectionSettingsModalProps {
