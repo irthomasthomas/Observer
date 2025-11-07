@@ -19,14 +19,11 @@ const Modal: React.FC<ModalProps> = ({
   className = '',
   backdropClassName = 'bg-black/50'
 }) => {
-  // 1. Early exit
   if (!open) return null;
 
-  // 2. Target element for the portal
   const portalTarget =
     document.getElementById('modal-root') ?? document.body;
 
-  // 3. Close on <Esc>
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -35,17 +32,6 @@ const Modal: React.FC<ModalProps> = ({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // 4. Disable body scroll while any modal is open
-  useEffect(() => {
-    openCount += 1;
-    document.body.classList.add('overflow-hidden');
-    return () => {
-      openCount -= 1;
-      if (openCount === 0) document.body.classList.remove('overflow-hidden');
-    };
-  }, []);
-
-  // 5. Backdrop click only when the *originating* target *is* the backdrop
   const handleBackdropMouseDown = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
