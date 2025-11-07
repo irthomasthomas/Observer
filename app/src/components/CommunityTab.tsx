@@ -105,6 +105,23 @@ const CommunityTab: React.FC = () => {
     }
   }, [auth0IsAuthenticated, auth0User, isLoading]);
 
+  // Close modal on Escape key press
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && selectedAgent) {
+        closeDetails();
+      }
+    };
+
+    if (selectedAgent) {
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [selectedAgent]);
+
   const getToken = useCallback(async () => {
     if (isLoading || !auth0IsAuthenticated) {
       Logger.warn('AUTH', 'CommunityTab: getToken called but user not authenticated or auth is loading.');
@@ -790,8 +807,14 @@ const CommunityTab: React.FC = () => {
 
       {/* Agent Details Modal */}
       {selectedAgent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-lg shadow-lg w-3/4 max-w-4xl max-h-3/4 flex flex-col">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
+          onClick={closeDetails}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg w-3/4 max-w-4xl max-h-3/4 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center p-4 border-b">
               <h2 className="text-xl font-semibold">{selectedAgent.name}</h2>
               <button onClick={closeDetails} className="p-1 rounded-full hover:bg-gray-100">
