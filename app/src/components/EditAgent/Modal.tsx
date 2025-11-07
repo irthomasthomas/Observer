@@ -10,8 +10,6 @@ interface ModalProps {
   backdropClassName?: string;
 }
 
-let openCount = 0; // track how many modals are mounted for scroll-lock
-
 const Modal: React.FC<ModalProps> = ({
   open,
   onClose,
