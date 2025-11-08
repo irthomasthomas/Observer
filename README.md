@@ -33,28 +33,18 @@ Build powerful micro-agents that observe your digital world, remember what matte
 <br><sub>Screen • Camera • Mic • Audio</sub>
 
 </td>
-<td align="center" valign="middle" width="0">
-
-### →
-
-</td>
 <td align="center" valign="middle">
 
-### Models
+### → Models
 
 <img src="https://img.icons8.com/fluency/96/brain.png" width="64" height="64" alt="AI Brain"/>
 
 <br><sub>Local LLMs</sub>
 
 </td>
-<td align="center" valign="middle" width="0">
-
-### →
-
-</td>
 <td align="center" valign="middle">
 
-### Tools
+### → Tools
 
 <img src="https://cdn.simpleicons.org/whatsapp/25D366" width="40" height="40" alt="WhatsApp"/>
 <img src="https://cdn.simpleicons.org/discord/5865F2" width="40" height="40" alt="Discord"/>
