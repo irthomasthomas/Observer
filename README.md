@@ -17,71 +17,61 @@ Build powerful micro-agents that observe your digital world, remember what matte
 
 ## 👁️ How Observer Agents Work
 
-Observer agents follow a simple, powerful loop: **See** with sensors → **Think** with models → **Act** with tools.
+<div align="center">
 
-```mermaid
-graph LR
-    subgraph Sensors["🔵 1. See with Sensors<br/><i>Data Input Layer</i>"]
-        direction TB
-        S1[🖥️ Screen OCR]
-        S2[📸 Screenshot]
-        S3[📷 Camera]
-        S4[📋 Clipboard]
-        S5[🎤 Microphone]
-        S6[🔊 System Audio]
-        S7[🎧 All Audio Mix]
-        S8[🧠 Agent Memory]
-    end
+<table>
+<tr>
+<td align="center" valign="middle">
 
-    subgraph Models["🟣 2. Think with Models<br/><i>AI Processing Layer</i>"]
-        direction TB
-        M1[🤖 Local LLMs]
-        M2[👁️ Vision Models]
-        M3[💻 100% Private]
-        M4["<b>Powered by:</b><br/>Ollama • llama.cpp • vLLM"]
-    end
+### Sensors
 
-    subgraph Tools["🟢 3. Act with Tools<br/><i>Action Output Layer</i>"]
-        direction TB
-        subgraph Messaging["💬 Messaging"]
-            T1[📧 Email]
-            T2[💬 SMS]
-            T3[💚 WhatsApp]
-            T4[📱 Telegram]
-            T5[🎮 Discord]
-        end
-        subgraph Alerts["🔔 Notifications"]
-            T6[🖥️ System Notify]
-            T7[🔔 Push Alerts]
-            T8[📺 Overlay]
-        end
-        subgraph Recording["🎬 Recording"]
-            T9[🎥 Start/Stop Clip]
-            T10[🏷️ Label Events]
-        end
-        subgraph Memory["💾 Memory"]
-            T11[💾 Store Text]
-            T12[🖼️ Store Images]
-        end
-        subgraph Advanced["⚙️ Advanced"]
-            T13[💻 Run Code]
-            T14[🖱️ System Actions]
-            T15[🤖 Control Agents]
-        end
-    end
+<img src="https://img.icons8.com/fluency/96/monitor.png" width="48" height="48" alt="Screen"/>
+<img src="https://img.icons8.com/fluency/96/camera.png" width="48" height="48" alt="Camera"/>
+<img src="https://img.icons8.com/fluency/96/microphone.png" width="48" height="48" alt="Mic"/>
+<img src="https://img.icons8.com/fluency/96/speaker.png" width="48" height="48" alt="Audio"/>
 
-    Sensors ==> Models
-    Models ==> Tools
+<br><sub>Screen • Camera • Mic • Audio</sub>
 
-    style Sensors fill:#1e3a8a,stroke:#3b82f6,stroke-width:3px,color:#fff
-    style Models fill:#581c87,stroke:#a855f7,stroke-width:3px,color:#fff
-    style Tools fill:#065f46,stroke:#10b981,stroke-width:3px,color:#fff
-    style Messaging fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
-    style Alerts fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
-    style Recording fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
-    style Memory fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
-    style Advanced fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
-```
+</td>
+<td align="center" valign="middle" width="80">
+
+### →
+
+</td>
+<td align="center" valign="middle">
+
+### Models
+
+<img src="https://img.icons8.com/fluency/96/brain.png" width="64" height="64" alt="AI Brain"/>
+
+<br><sub>Local LLMs</sub>
+
+</td>
+<td align="center" valign="middle" width="80">
+
+### →
+
+</td>
+<td align="center" valign="middle">
+
+### Tools
+
+<img src="https://cdn.simpleicons.org/whatsapp/25D366" width="40" height="40" alt="WhatsApp"/>
+<img src="https://cdn.simpleicons.org/discord/5865F2" width="40" height="40" alt="Discord"/>
+<img src="https://cdn.simpleicons.org/telegram/26A5E4" width="40" height="40" alt="Telegram"/>
+<img src="https://cdn.simpleicons.org/iMessage/0084FF" width="40" height="40" alt="SMS"/>
+<img src="https://img.icons8.com/fluency/96/note.png" width="40" height="40" alt="Memory"/>
+<img src="https://img.icons8.com/fluency/96/code.png" width="40" height="40" alt="Code"/>
+
+<br><sub>Messaging • Notifications • Recording • Memory • Code</sub>
+
+</td>
+</tr>
+</table>
+
+<br>
+
+</div>
 
 </div>
 
@@ -96,13 +86,10 @@ graph LR
 ### 📊 **Intelligent Logging**
 
 🧠 **Text & Visual Memory**
-Store and retrieve images or text intelligently.
 
 🎥 **Smart Screen Recording**
-Start recording when something happens or analyze clips with custom labels
 
-💾 **Persistent Context**
-Agents remember what matters across sessions
+💾 **Inteligent Context**
 
 </td>
 <td width="50%" valign="top">
@@ -122,23 +109,10 @@ Custom on-screen messages
 </tr>
 </table>
 
-<div align="center">
-
-### *Build local agents that don't just watch—they **understand**, **remember**, and **act** intelligently on your behalf.*
-
-</div>
-
-## 📹 Why Observer AI?
-
-<div align="center">
-
-[![Observer AI Demo](https://img.youtube.com/vi/i5WDvQy0XJA/0.jpg)](https://www.youtube.com/watch?v=i5WDvQy0XJA)
-
-</div>
 
 # 🏗️ Building Your Own Agent
 
-Creating your own Observer AI agent is simple, and consist of three things:
+Creating your own Observer AI consist of three things:
 
 * SENSORS - input that your model will have
 * MODELS - models run by ollama or by Ob-Server
@@ -193,18 +167,19 @@ App Tools:
   * `overlay(body)` - Pushes a message to the overlay
   * `click()` - Triggers a mouse click at the current cursor position ⚠️IMPORTANT: Position mouse before agent runs
 
-
+> **Note:** any function marked with `*` takes an `agentId` argument.  
+> If you omit `agentId`, it defaults to the agent that’s running the code.
 
 ## Code Tab
 
 The "Code" tab receives the following variables as context before running: 
-`prompt` - The model's prompt
-`response` - The model's response
-`agentId` - The id of the agent running the code
-`screen` - The screen as base64 if captured 
-`camera` - The camera as base64 if captured 
-`imemory` - The agent's current image array
-`images` - All images in context
+* `prompt` - The model's prompt
+* `response` - The model's response
+* `agentId` - The id of the agent running the code
+* `screen` - The screen as base64 if captured 
+* `camera` - The camera as base64 if captured 
+* `imemory` - The agent's current image array
+* `images` - All images in context
 
 JavaScript agents run in the browser sandbox, making them ideal for passive monitoring and notifications:
 
@@ -218,12 +193,13 @@ const time = time();
 // Update memory with timestamp
 appendMemory(`[${time}] ${cleanedResponse}`);
 
-// Send to Telegram for notekeeping
-sendTelegram(cleanedResponse, "12345678") // Example chat_id
+// Send to Telegram if the model mentions a word
+if(response.includes("word")){
+  sendTelegram(cleanedResponse, "12345678") // Example chat_id
+}
 ```
 
-> **Note:** any function marked with `*` takes an `agentId` argument.  
-> If you omit `agentId`, it defaults to the agent that’s running the code.
+
 
 # 🚀 Getting Started with Local Inference
 
