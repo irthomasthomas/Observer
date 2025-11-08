@@ -23,28 +23,18 @@ Build powerful micro-agents that observe your digital world, remember what matte
 <tr>
 <td align="center" valign="middle">
 
-### Sensors
-
-</td>
-<td align="center" valign="middle" width="0">
-
-### →
+### Sensors →
 
 </td>
 <td align="center" valign="middle">
 
-### Models
-
-</td>
-<td align="center" valign="middle" width="0">
-
-### →
+### Models →
 
 </td>
 <td align="center" valign="middle">
 
 ### Tools
-
+<br>
 </td>
 </tr>
 <tr>
@@ -58,7 +48,6 @@ Build powerful micro-agents that observe your digital world, remember what matte
 <br><sub>Screen • Camera • Mic • Audio</sub>
 
 </td>
-<td></td>
 <td align="center" valign="middle">
 
 <img src="https://img.icons8.com/fluency/96/brain.png" width="64" height="64" alt="AI Brain"/>
@@ -66,7 +55,6 @@ Build powerful micro-agents that observe your digital world, remember what matte
 <br><sub>Local LLMs</sub>
 
 </td>
-<td></td>
 <td align="center" valign="middle">
 
 <img src="https://cdn.simpleicons.org/whatsapp/25D366" width="40" height="40" alt="WhatsApp"/>
