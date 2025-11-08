@@ -21,24 +21,24 @@ Build powerful micro-agents that observe your digital world, remember what matte
 
 <table>
 <tr>
-<td align="center" valign="middle">
+<td align="center" valign="top" width="33%">
 
 ### Sensors →
 
 </td>
-<td align="center" valign="middle">
+<td align="center" valign="top" width="33%">
 
 ### Models →
 
 </td>
-<td align="center" valign="middle">
+<td align="center" valign="top" width="33%">
 
 ### Tools
-<br>
+
 </td>
 </tr>
 <tr>
-<td align="center" valign="middle">
+<td align="center" valign="middle" width="33%">
 
 <img src="https://img.icons8.com/fluency/96/monitor.png" width="48" height="48" alt="Screen"/>
 <img src="https://img.icons8.com/fluency/96/camera.png" width="48" height="48" alt="Camera"/>
@@ -48,14 +48,14 @@ Build powerful micro-agents that observe your digital world, remember what matte
 <br><sub>Screen • Camera • Mic • Audio</sub>
 
 </td>
-<td align="center" valign="middle">
+<td align="center" valign="middle" width="33%">
 
 <img src="https://img.icons8.com/fluency/96/brain.png" width="64" height="64" alt="AI Brain"/>
 
 <br><sub>Local LLMs</sub>
 
 </td>
-<td align="center" valign="middle">
+<td align="center" valign="middle" width="33%">
 
 <img src="https://cdn.simpleicons.org/whatsapp/25D366" width="40" height="40" alt="WhatsApp"/>
 <img src="https://cdn.simpleicons.org/discord/5865F2" width="40" height="40" alt="Discord"/>
