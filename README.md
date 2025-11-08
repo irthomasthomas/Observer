@@ -207,47 +207,26 @@ There are a few ways to get Observer up and running with local inference. I reco
 
 ## Option 1: Just Install the Desktop App with any OpenAI compatible endpoint (Ollama, llama.cpp, vLLM)
 
+Download the Official App:
+
 [![Download App](https://img.shields.io/badge/⬇️_Download-Latest_Release-blue?style=for-the-badge&color=2196F3)](https://github.com/Roy3838/Observer/releases/latest/)
 
-Download Ollama for the best compatibility. 
+Download Ollama for the best compatibility. Observer can connect directly to any server that provides a `v1/chat/completions` endpoint.
 
-Observer can connect directly to any server that provides a `v1/chat/completions` endpoint.
-
-IMPORTANT: Set the `Custom Model Server URL` on the App to vLLM, llama.cpp or any OpenAI compatible endpoint if not using Ollama.
+### vLLM, llama.cpp, LMStudio etc: 
+Set the `Custom Model Server URL` on the App to any OpenAI compatible endpoint if not using Ollama.
 
 NOTE: Your browser app sends the request to `localhost:3838` which the ObserverApp proxies to your `Custom Model Server URL`, this is because of CORS. 
+
 
 ## Option 2: Full Docker Setup (Deprecated)
 
 For Docker setup instructions, see [docker/DOCKER.md](docker/DOCKER.md).
 
 
-### Setting Up Python (Jupyter Server)
+### Setting Up Python (Jupyter Server) 
 
-Python agents run on a Jupyter server with system-level access, enabling them to interact directly with your computer:
-
-```python
-#python <-- don't remove this!
-print("Hello World!", response, agentId)
-
-# Example: Analyze screen content and take action
-if "SHUTOFF" in response:
-    # System level commands can be executed here
-    import os
-    # os.system("command")  # Be careful with system commands!
-```
-
-## Jupyter Server Configuration
-
-To use Python agents:
-
-1. Run a Jupyter server on your machine with c.ServerApp.allow_origin = '*'
-2. Configure the connection in the Observer AI interface:
-   * Host: The server address (e.g., 127.0.0.1)
-   * Port: The server port (e.g., 8888)
-   * Token: Your Jupyter server authentication token
-3. Test the connection using the "Test Connection" button
-4. Switch to the Python tab in the code editor to write Python-based agents
+For Jupyter server setup instructions, see [app/JUPYTER.md](app/JUPYTER.md).
 
 
 ## Deploy & Share
