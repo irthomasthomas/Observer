@@ -109,6 +109,13 @@ Custom on-screen messages
 </tr>
 </table>
 
+---
+
+## 🎬 Quick Demo: Security Agent
+
+[![Security Agent Demo](https://img.youtube.com/vi/jsjr_zRWXG4/0.jpg)](https://www.youtube.com/watch?v=jsjr_zRWXG4)
+
+---
 
 # 🏗️ Building Your Own Agent
 
