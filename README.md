@@ -15,32 +15,73 @@ Build powerful micro-agents that observe your digital world, remember what matte
 
 ---
 
-## 👁️ Observer Agents See
+## 👁️ How Observer Agents Work
 
-<table>
-<tr>
-<td align="center" width="25%">
-<img src="https://img.icons8.com/fluency/96/000000/monitor.png" width="64" height="64" alt="Screen"/>
-<br><strong>Screen</strong>
-<br><sub>OCR & Vision</sub>
-</td>
-<td align="center" width="25%">
-<img src="https://img.icons8.com/fluency/96/000000/camera.png" width="64" height="64" alt="Camera"/>
-<br><strong>Camera</strong>
-<br><sub>Visual Input</sub>
-</td>
-<td align="center" width="25%">
-<img src="https://img.icons8.com/fluency/96/000000/microphone.png" width="64" height="64" alt="Audio"/>
-<br><strong>Audio</strong>
-<br><sub>Mic + Computer</sub>
-</td>
-<td align="center" width="25%">
-<img src="https://img.icons8.com/fluency/96/000000/brain.png" width="64" height="64" alt="Memory"/>
-<br><strong>Memory</strong>
-<br><sub>Text + Image</sub>
-</td>
-</tr>
-</table>
+Observer agents follow a simple, powerful loop: **See** with sensors → **Think** with models → **Act** with tools.
+
+```mermaid
+graph LR
+    subgraph Sensors["🔵 1. See with Sensors<br/><i>Data Input Layer</i>"]
+        direction TB
+        S1[🖥️ Screen OCR]
+        S2[📸 Screenshot]
+        S3[📷 Camera]
+        S4[📋 Clipboard]
+        S5[🎤 Microphone]
+        S6[🔊 System Audio]
+        S7[🎧 All Audio Mix]
+        S8[🧠 Agent Memory]
+    end
+
+    subgraph Models["🟣 2. Think with Models<br/><i>AI Processing Layer</i>"]
+        direction TB
+        M1[🤖 Local LLMs]
+        M2[👁️ Vision Models]
+        M3[💻 100% Private]
+        M4["<b>Powered by:</b><br/>Ollama • llama.cpp • vLLM"]
+    end
+
+    subgraph Tools["🟢 3. Act with Tools<br/><i>Action Output Layer</i>"]
+        direction TB
+        subgraph Messaging["💬 Messaging"]
+            T1[📧 Email]
+            T2[💬 SMS]
+            T3[💚 WhatsApp]
+            T4[📱 Telegram]
+            T5[🎮 Discord]
+        end
+        subgraph Alerts["🔔 Notifications"]
+            T6[🖥️ System Notify]
+            T7[🔔 Push Alerts]
+            T8[📺 Overlay]
+        end
+        subgraph Recording["🎬 Recording"]
+            T9[🎥 Start/Stop Clip]
+            T10[🏷️ Label Events]
+        end
+        subgraph Memory["💾 Memory"]
+            T11[💾 Store Text]
+            T12[🖼️ Store Images]
+        end
+        subgraph Advanced["⚙️ Advanced"]
+            T13[💻 Run Code]
+            T14[🖱️ System Actions]
+            T15[🤖 Control Agents]
+        end
+    end
+
+    Sensors ==> Models
+    Models ==> Tools
+
+    style Sensors fill:#1e3a8a,stroke:#3b82f6,stroke-width:3px,color:#fff
+    style Models fill:#581c87,stroke:#a855f7,stroke-width:3px,color:#fff
+    style Tools fill:#065f46,stroke:#10b981,stroke-width:3px,color:#fff
+    style Messaging fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    style Alerts fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    style Recording fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    style Memory fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    style Advanced fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+```
 
 </div>
 
