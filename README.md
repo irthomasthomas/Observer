@@ -33,7 +33,7 @@ Build powerful micro-agents that observe your digital world, remember what matte
 <br><sub>Screen • Camera • Mic • Audio</sub>
 
 </td>
-<td align="center" valign="middle" width="80">
+<td align="center" valign="middle" width="0">
 
 ### →
 
@@ -47,7 +47,7 @@ Build powerful micro-agents that observe your digital world, remember what matte
 <br><sub>Local LLMs</sub>
 
 </td>
-<td align="center" valign="middle" width="80">
+<td align="center" valign="middle" width="0">
 
 ### →
 
@@ -200,7 +200,6 @@ if(response.includes("word")){
 ```
 
 
-
 # 🚀 Getting Started with Local Inference
 
 
@@ -213,7 +212,10 @@ There are a few ways to get Observer up and running with local inference. I reco
 Download Ollama for the best compatibility. 
 
 Observer can connect directly to any server that provides a `v1/chat/completions` endpoint.
-Set the `Custom Model Server URL` on the App to vLLM, llama.cpp or any OpenAI compatible endpoint if not using Ollama.
+
+IMPORTANT: Set the `Custom Model Server URL` on the App to vLLM, llama.cpp or any OpenAI compatible endpoint if not using Ollama.
+
+NOTE: Your browser app sends the request to `localhost:3838` which the ObserverApp proxies to your `Custom Model Server URL`, this is because of CORS. 
 
 ## Option 2: Full Docker Setup (Deprecated)
 
@@ -250,7 +252,7 @@ To use Python agents:
 
 ## Deploy & Share
 
-Save your agent, test it from the dashboard, and export the configuration to share with others!
+Save your agent, test it from the dashboard, and upload to community to share with others!
 
 ## 🤝 Contributing
 
@@ -269,13 +271,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔗 Links
 
 - [Website](https://observer-ai.com)
-- [GitHub Repository](https://github.com/Roy3838/Observer)
-- [twitter](https://x.com/AppObserverAI)
-
-## 📧 Contact
-
-- GitHub: [@Roy3838](https://github.com/Roy3838)
-- Project Link: [https://observer-ai.com](https://observer-ai.com)
+- [Twitter](https://x.com/AppObserverAI)
+- [YouTube](https://www.youtube.com/@Observer-AI)
+- [Tiktok](https://www.tiktok.com/@observerai)
 
 ---
 
