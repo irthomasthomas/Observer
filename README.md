@@ -13,6 +13,13 @@ Build powerful micro-agents that observe your digital world, remember what matte
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+## 🔗 Links
+
+- [Landing Page](https://observer-ai.com)
+- [YouTube](https://www.youtube.com/@Observer-AI)
+- [Tiktok](https://www.tiktok.com/@observerai)
+- [Twitter](https://x.com/AppObserverAI)
+
 ---
 
 ## 👁️ How Observer Agents Work
@@ -255,12 +262,6 @@ We welcome contributions from the community! Here's how you can help:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Links
-
-- [Website](https://observer-ai.com)
-- [Twitter](https://x.com/AppObserverAI)
-- [YouTube](https://www.youtube.com/@Observer-AI)
-- [Tiktok](https://www.tiktok.com/@observerai)
 
 ---
 
