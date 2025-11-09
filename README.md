@@ -14,11 +14,7 @@ Build powerful micro-agents that observe your digital world, remember what matte
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## 🔗 Links
-
-- [Landing Page](https://observer-ai.com)
-- [YouTube](https://www.youtube.com/@Observer-AI)
-- [Tiktok](https://www.tiktok.com/@observerai)
-- [Twitter](https://x.com/AppObserverAI)
+ [Website](https://observer-ai.com) | [WebApp](https://app.observer-ai.com) | [YouTube](https://www.youtube.com/@Observer-AI) | [Tiktok](https://www.tiktok.com/@observerai) | [Twitter](https://x.com/AppObserverAI)
 
 ---
 
