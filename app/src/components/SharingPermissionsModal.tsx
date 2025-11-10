@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Monitor, Mic, Waves, Blend, Eye, Camera as CameraIcon, Play, Square, AlertTriangle, CheckCircle, Volume2, FileText } from 'lucide-react';
+import { X, Monitor, Mic, Waves, Blend, Eye, Camera as CameraIcon, Play, Square, AlertTriangle, CheckCircle, Volume2, FileText, RotateCw, ChevronDown } from 'lucide-react';
 import { StreamManager, StreamState } from '@utils/streamManager';
 import { Logger } from '@utils/logging';
 import { SensorPlaceholder, SENSOR_DESCRIPTIONS, getRequiredStreamsFromSensors } from '@utils/sensorMapping';
@@ -70,16 +70,135 @@ const SensorToggle: React.FC<{
 
 
 /**
- * Renders a live video stream.
+ * Renders a live video stream with camera selection (if applicable).
  */
-const VideoStream: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'screen' }> = ({ stream, streamType = 'screen' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
   }, [stream]);
+
+  // Load available camera devices (only for camera stream type)
+  useEffect(() => {
+    if (streamType !== 'camera') return;
+
+    const loadCameras = async () => {
+      const cameras = await StreamManager.getAvailableCameraDevices();
+      setAvailableCameras(cameras);
+    };
+
+    loadCameras();
+
+    // Refresh camera list when devices change
+    const handleDeviceChange = () => loadCameras();
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+  }, [streamType]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
+
+  const handleSwitchCamera = async (deviceId: string) => {
+    setIsSwitchingCamera(true);
+    setIsDropdownOpen(false);
+    try {
+      await StreamManager.switchCameraDevice(deviceId);
+    } catch (error) {
+      console.error('Failed to switch camera:', error);
+    } finally {
+      setIsSwitchingCamera(false);
+    }
+  };
+
+  const handleRotateCamera = async () => {
+    if (availableCameras.length !== 2) return;
+
+    const currentDeviceId = stream.getVideoTracks()[0]?.getSettings().deviceId;
+    const otherCamera = availableCameras.find(cam => cam.deviceId !== currentDeviceId);
+
+    if (otherCamera) {
+      await handleSwitchCamera(otherCamera.deviceId);
+    }
+  };
+
+  // Get current camera info
+  const getCurrentCameraLabel = (): string => {
+    const currentDeviceId = stream.getVideoTracks()[0]?.getSettings().deviceId;
+    const currentCamera = availableCameras.find(cam => cam.deviceId === currentDeviceId);
+    return currentCamera?.label || 'Camera';
+  };
+
   return (
-    <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0">
+    <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0 relative group">
       <video ref={videoRef} muted autoPlay playsInline className="w-full h-full object-contain"></video>
+
+      {/* Camera switcher - show on hover (only for camera streams with multiple devices) */}
+      {streamType === 'camera' && availableCameras.length >= 2 && (
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+          {availableCameras.length === 2 ? (
+            // Mobile mode: Simple rotate button for 2 cameras
+            <button
+              onClick={handleRotateCamera}
+              disabled={isSwitchingCamera}
+              className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white p-1.5 rounded transition-colors disabled:opacity-50"
+              title="Switch camera"
+            >
+              <RotateCw className={`w-3 h-3 ${isSwitchingCamera ? 'animate-spin' : ''}`} />
+            </button>
+          ) : (
+            // Desktop mode: Dropdown for 3+ cameras
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                disabled={isSwitchingCamera}
+                className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white px-2 py-1.5 rounded text-xs flex items-center gap-1 transition-colors disabled:opacity-50 min-w-[120px] justify-between"
+                title="Switch camera"
+              >
+                <span className="truncate">{getCurrentCameraLabel()}</span>
+                <ChevronDown className={`w-3 h-3 flex-shrink-0 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-1 w-64 bg-gray-900 bg-opacity-95 rounded shadow-lg overflow-hidden">
+                  {availableCameras.map((camera) => {
+                    const isCurrent = stream.getVideoTracks()[0]?.getSettings().deviceId === camera.deviceId;
+                    return (
+                      <button
+                        key={camera.deviceId}
+                        onClick={() => handleSwitchCamera(camera.deviceId)}
+                        disabled={isCurrent}
+                        className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+                          isCurrent
+                            ? 'bg-blue-600 bg-opacity-50 text-white cursor-default'
+                            : 'text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="truncate">{camera.label || `Camera ${camera.deviceId.slice(0, 8)}`}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -300,12 +419,12 @@ const SharingPermissionsModal: React.FC<SharingPermissionsModalProps> = ({ isOpe
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {streams.screenVideoStream ? (
-                <div className="animate-fade-in"><VideoStream stream={streams.screenVideoStream} /></div>
+                <div className="animate-fade-in"><VideoStream stream={streams.screenVideoStream} streamType="screen" /></div>
               ) : (
                 <StreamPlaceholder Icon={Eye} text="Screen Preview" />
               )}
               {streams.cameraStream ? (
-                <div className="animate-fade-in"><VideoStream stream={streams.cameraStream} /></div>
+                <div className="animate-fade-in"><VideoStream stream={streams.cameraStream} streamType="camera" /></div>
               ) : (
                 <StreamPlaceholder Icon={CameraIcon} text="Camera Preview" />
               )}

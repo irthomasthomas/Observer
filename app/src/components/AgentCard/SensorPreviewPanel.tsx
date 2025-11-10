@@ -1,6 +1,6 @@
 // components/AgentCard/SensorPreviewPanel.tsx
 import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
-import { Mic, Volume2, Crop, RotateCcw, Save, Images, AlertTriangle, Monitor, Camera, Play } from 'lucide-react';
+import { Mic, Volume2, Crop, RotateCcw, RotateCw, ChevronDown, Save, Images, AlertTriangle, Monitor, Camera, Play } from 'lucide-react';
 import { StreamState, AudioStreamType, StreamManager } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
@@ -397,12 +397,47 @@ const VideoStream: React.FC<{
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCropMode, setIsCropMode] = useState(false);
   const [currentCrop, setCurrentCrop] = useState<CropConfig | null>(null);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load existing crop config
   useEffect(() => {
     const existingCrop = getAgentCrop(agentId, streamType);
     setCurrentCrop(existingCrop);
   }, [agentId, streamType]);
+
+  // Load available camera devices (only for camera stream type)
+  useEffect(() => {
+    if (streamType !== 'camera') return;
+
+    const loadCameras = async () => {
+      const cameras = await StreamManager.getAvailableCameraDevices();
+      setAvailableCameras(cameras);
+    };
+
+    loadCameras();
+
+    // Refresh camera list when devices change
+    const handleDeviceChange = () => loadCameras();
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+  }, [streamType]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
 
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
@@ -417,6 +452,36 @@ const VideoStream: React.FC<{
   const handleClearCrop = () => {
     setAgentCrop(agentId, streamType, null);
     setCurrentCrop(null);
+  };
+
+  const handleSwitchCamera = async (deviceId: string) => {
+    setIsSwitchingCamera(true);
+    setIsDropdownOpen(false);
+    try {
+      await StreamManager.switchCameraDevice(deviceId);
+    } catch (error) {
+      console.error('Failed to switch camera:', error);
+    } finally {
+      setIsSwitchingCamera(false);
+    }
+  };
+
+  const handleRotateCamera = async () => {
+    if (availableCameras.length !== 2) return;
+
+    const currentDeviceId = stream.getVideoTracks()[0]?.getSettings().deviceId;
+    const otherCamera = availableCameras.find(cam => cam.deviceId !== currentDeviceId);
+
+    if (otherCamera) {
+      await handleSwitchCamera(otherCamera.deviceId);
+    }
+  };
+
+  // Get current camera info
+  const getCurrentCameraLabel = (): string => {
+    const currentDeviceId = stream.getVideoTracks()[0]?.getSettings().deviceId;
+    const currentCamera = availableCameras.find(cam => cam.deviceId === currentDeviceId);
+    return currentCamera?.label || 'Camera';
   };
 
   return (
@@ -450,6 +515,58 @@ const VideoStream: React.FC<{
           </>
         )}
       </div>
+
+      {/* Camera switcher - show on hover (only for camera streams with multiple devices) */}
+      {streamType === 'camera' && availableCameras.length >= 2 && (
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+          {availableCameras.length === 2 ? (
+            // Mobile mode: Simple rotate button for 2 cameras
+            <button
+              onClick={handleRotateCamera}
+              disabled={isSwitchingCamera}
+              className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white p-1.5 rounded transition-colors disabled:opacity-50"
+              title="Switch camera"
+            >
+              <RotateCw className={`w-3 h-3 ${isSwitchingCamera ? 'animate-spin' : ''}`} />
+            </button>
+          ) : (
+            // Desktop mode: Dropdown for 3+ cameras
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                disabled={isSwitchingCamera}
+                className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white px-2 py-1.5 rounded text-xs flex items-center gap-1 transition-colors disabled:opacity-50 min-w-[120px] justify-between"
+                title="Switch camera"
+              >
+                <span className="truncate">{getCurrentCameraLabel()}</span>
+                <ChevronDown className={`w-3 h-3 flex-shrink-0 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-1 w-64 bg-gray-900 bg-opacity-95 rounded shadow-lg overflow-hidden">
+                  {availableCameras.map((camera) => {
+                    const isCurrent = stream.getVideoTracks()[0]?.getSettings().deviceId === camera.deviceId;
+                    return (
+                      <button
+                        key={camera.deviceId}
+                        onClick={() => handleSwitchCamera(camera.deviceId)}
+                        disabled={isCurrent}
+                        className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+                          isCurrent
+                            ? 'bg-blue-600 bg-opacity-50 text-white cursor-default'
+                            : 'text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="truncate">{camera.label || `Camera ${camera.deviceId.slice(0, 8)}`}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Crop overlay */}
       <CropOverlay

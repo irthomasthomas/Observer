@@ -118,7 +118,58 @@ class Manager {
       allAudioStream: this.allAudioStream,
     };
   }
-  
+
+  // --- Camera Device Management ---
+
+  /** Get list of available camera devices */
+  public async getAvailableCameraDevices(): Promise<MediaDeviceInfo[]> {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      Logger.debug("StreamManager", `Found ${videoDevices.length} camera devices.`);
+      return videoDevices;
+    } catch (error) {
+      Logger.error("StreamManager", "Failed to enumerate camera devices.", error);
+      return [];
+    }
+  }
+
+  /** Get the stored preferred camera device ID from localStorage */
+  public getPreferredCameraDevice(): string | null {
+    return localStorage.getItem('observer_preferred_camera_device');
+  }
+
+  /** Set the preferred camera device ID in localStorage */
+  public setPreferredCameraDevice(deviceId: string): void {
+    localStorage.setItem('observer_preferred_camera_device', deviceId);
+    Logger.info("StreamManager", `Preferred camera device set to: ${deviceId}`);
+  }
+
+  /** Switch to a different camera device (stops current stream and re-acquires with new device) */
+  public async switchCameraDevice(deviceId: string): Promise<void> {
+    Logger.info("StreamManager", `Switching camera to device: ${deviceId}`);
+
+    // Save the preference
+    this.setPreferredCameraDevice(deviceId);
+
+    // Get all agents currently using the camera
+    const cameraUsers = Array.from(this.userSets.get('camera') || []);
+
+    // Teardown current camera stream
+    this.teardownCameraStream();
+
+    // Re-acquire camera with new device for all users
+    if (cameraUsers.length > 0) {
+      try {
+        await this.ensureMasterStream('camera');
+        Logger.info("StreamManager", "Camera switched successfully.");
+      } catch (error) {
+        Logger.error("StreamManager", "Failed to switch camera device.", error);
+        throw error;
+      }
+    }
+  }
+
   // --- Private Implementation ---
 
   private ensureMasterStream(type: MasterStreamType): Promise<void> {
@@ -152,10 +203,33 @@ class Manager {
           break;
         case 'camera':
           if (this.masterCameraStream) return;
-          const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-          this.masterCameraStream = cameraStream;
-          this.cameraStream = cameraStream;
-          cameraStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('camera'));
+
+          // Try to use preferred camera device, fallback to default
+          const preferredDeviceId = this.getPreferredCameraDevice();
+          let constraints: MediaStreamConstraints = { video: true };
+
+          if (preferredDeviceId) {
+            constraints = { video: { deviceId: { exact: preferredDeviceId } } };
+            Logger.debug("StreamManager", `Requesting camera with deviceId: ${preferredDeviceId}`);
+          }
+
+          try {
+            const cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.masterCameraStream = cameraStream;
+            this.cameraStream = cameraStream;
+            cameraStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('camera'));
+          } catch (error) {
+            // If preferred device fails, try default camera
+            if (preferredDeviceId) {
+              Logger.warn("StreamManager", `Preferred camera device failed, falling back to default.`, error);
+              const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+              this.masterCameraStream = fallbackStream;
+              this.cameraStream = fallbackStream;
+              fallbackStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('camera'));
+            } else {
+              throw error;
+            }
+          }
           break;
         case 'microphone':
           if (this.masterMicrophoneStream) return;
