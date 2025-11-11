@@ -181,13 +181,13 @@ App Tools:
 ## Code Tab
 
 The "Code" tab receives the following variables as context before running: 
-* `prompt` - The model's prompt
 * `response` - The model's response
 * `agentId` - The id of the agent running the code
-* `screen` - The screen as base64 if captured 
-* `camera` - The camera as base64 if captured 
-* `imemory` - The agent's current image array
-* `images` - All images in context
+* `screen` - The screen if captured 
+* `camera` - The camera if captured 
+* `imemory` - The agent's current image in memory
+* `images` - All images sent to the model 
+* `prompt` - The model's prompt
 
 JavaScript agents run in the browser sandbox, making them ideal for passive monitoring and notifications:
 
