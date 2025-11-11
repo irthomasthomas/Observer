@@ -5,6 +5,7 @@ import { Logger } from '../logging';
 import { startAgentLoop, stopAgentLoop } from '../main_loop';
 import type { TokenProvider } from '../main_loop';
 import type { PreProcessorResult } from '../pre-processor';
+import { getAgentImageMemory } from '../agent_database';
 
 // Helper function to extract error messages properly
 function extractErrorMessage(error: any): string {
@@ -26,6 +27,9 @@ export async function executeJavaScript(
   getToken?: TokenProvider,
   preprocessResult?: PreProcessorResult
 ): Promise<boolean> {
+  // Fetch current agent's image memory to make it always available
+  const currentAgentImageMemory = await getAgentImageMemory(agentId);
+
   const context = {
       prompt: preprocessResult?.modifiedPrompt || "",
       response,
@@ -34,7 +38,7 @@ export async function executeJavaScript(
       images: preprocessResult?.images || [],
       screen: preprocessResult?.imageSources?.screen ? [preprocessResult.imageSources.screen] : [],
       camera: preprocessResult?.imageSources?.camera ? [preprocessResult.imageSources.camera] : [],
-      imemory: preprocessResult?.imageSources?.imemory || [],
+      imemory: currentAgentImageMemory,
       getMemory: async (targetId = agentId) => {
         try {
           const result = await utils.getMemory(targetId);
