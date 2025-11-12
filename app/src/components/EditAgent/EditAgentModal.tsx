@@ -29,7 +29,7 @@ import {
   Info
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
-import { useEditAgentModalLogic, toolsReference } from './useEditAgentModalLogic';
+import { useEditAgentModalLogic } from './useEditAgentModalLogic';
 
 import LazyCodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
