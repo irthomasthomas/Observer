@@ -67,7 +67,7 @@ const SensorInputText: React.FC<SensorInputTextProps> = ({
     <div className={`relative ${className}`}>
       <div
         ref={overlayRef}
-        className="absolute inset-0 p-4 font-mono text-sm whitespace-pre-wrap pointer-events-none leading-relaxed overflow-hidden"
+        className="absolute inset-0 p-4 font-mono text-sm text-transparent whitespace-pre-wrap pointer-events-none leading-relaxed overflow-hidden"
         aria-hidden="true"
       >
         {highlightPrompt(value)}
@@ -78,7 +78,7 @@ const SensorInputText: React.FC<SensorInputTextProps> = ({
         onChange={(e) => onChange(e.target.value)}
         onScroll={handleScroll}
         rows={rows}
-        className="w-full h-full p-4 bg-transparent text-transparent caret-blue-500 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
+        className="w-full h-full p-4 bg-transparent text-gray-900 caret-blue-500 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
         placeholder={placeholder}
       />
     </div>
