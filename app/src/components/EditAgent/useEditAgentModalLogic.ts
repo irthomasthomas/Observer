@@ -16,46 +16,50 @@ import {
 import { postProcess } from '@utils/post-processor';
 import type { TokenProvider } from '@utils/main_loop';
 
-/* ───────────────────────── snippets ───────────────────────── */
-export const jsSnippets = [
-  {
-    name: 'Write to Memory',
-    description: 'Store response in memory',
-    code: 'setMemory(agentId, response);'
-  },
-  {
-    name: 'Read/Write Memory',
-    description: 'Append to memory',
-    code: 'setMemory(`${await getMemory()} \\n[${time()}] ${response}`);'
-  },
-  {
-    name: 'Clean Thought Tags',
-    description: 'Remove <think> tags',
-    code:
-      "const cleaned = response.replace(/<think>[\\s\\S]*?<\\/think>/g,'').trim();"
-  }
-];
+/* ───────────────────────── tools reference ───────────────────────── */
+export const toolsReference = {
+  intro: "This code does what you want with the `response` variable. You can parse it, log it, send it, whatever you want.",
 
-export const pythonSnippets = [
-  {
-    name: 'Write to Memory',
-    description: 'Store response in file',
-    code:
-      'import os\\nos.makedirs("memory", exist_ok=True)\\nwith open(f"memory/{agentId}.txt","w") as f:\\n    f.write(response)'
-  },
-  {
-    name: 'Read/Write Memory',
-    description: 'Append to memory file',
-    code:
-      'import os, datetime\\nos.makedirs("memory", exist_ok=True)\\nf="memory/{agentId}.txt"\\nold=open(f).read() if os.path.exists(f) else ""\\nopen(f,"w").write(old+"\\n["+datetime.datetime.now().isoformat()+"] "+response)'
-  },
-  {
-    name: 'Clean Thought Tags',
-    description: 'Remove <think> tags',
-    code:
-      'import re\\ncleaned=re.sub(r"<think>[\\s\\S]*?</think>","",response).strip()'
-  }
-];
+  sections: [
+    {
+      title: "Notification Tools",
+      tools: [
+        "sendEmail(email, message, images?) - Sends an email",
+        "sendPushover(user_token, message, images?, title?) - Sends a pushover notification",
+        "sendDiscord(discord_webhook, message, images?) - Sends a discord message to a server",
+        "sendTelegram(chat_id, message, images?) - Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot",
+        "sendWhatsapp(phone_number, message) - Sends a whatsapp message with the Observer bot. Send a message first to +1 (555)783-4727 to use",
+        "notify(title, options) – Send browser notification ⚠️IMPORTANT: Some browsers block notifications",
+        "sendSms(phone_number, message, images?) - Sends an SMS to a phone number, format as e.g. sendSms(\"hello\",+181429367\"). ⚠️IMPORTANT: Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada"
+      ]
+    },
+    {
+      title: "Video Recording Tools",
+      tools: [
+        "startClip() - Starts a recording of any video media and saves it to the recording Tab",
+        "stopClip() - Stops an active recording",
+        "markClip(label) - Adds a label to any active recording that will be displayed in the recording Tab"
+      ]
+    },
+    {
+      title: "Agent Tools",
+      tools: [
+        "getMemory(agentId)* – Retrieve stored memory",
+        "setMemory(agentId, content)* – Replace stored memory",
+        "appendMemory(agentId, content)* – Add to existing memory",
+        "getImageMemory(agentId)* - Retrieve images stored in memory",
+        "setImageMemory(agentId, images) - Set images to memory",
+        "appendImageMemory(agentId, images) - Add images to memory",
+        "startAgent(agentId)* – Starts an agent",
+        "stopAgent(agentId)* – Stops an agent",
+        "time() - Gets current time",
+        "sleep(ms) - Waits that amount of milliseconds"
+      ]
+    }
+  ],
+
+  note: "* If you omit agentId, it defaults to the agent that's running the code"
+};
 
 /* ───────────────────────── hook props ───────────────────────── */
 interface UseEditAgentModalLogicProps {
@@ -241,9 +245,6 @@ export const useEditAgentModalLogic = ({
     });
   };
 
-  const insertCodeSnippet = (snippet: string) => {
-    setAgentCode((c) => c + (c.endsWith('\\n') || c.length === 0 ? '' : '\\n') + snippet + '\\n');
-  };
 
   /* run model */
   const handleRunModel = async () => {
@@ -335,8 +336,6 @@ export const useEditAgentModalLogic = ({
     }
   };
 
-  const langSnippets = isPythonMode ? pythonSnippets : jsSnippets;
-
   return {
     agentId, setAgentId,
     name, setName,
@@ -363,12 +362,10 @@ export const useEditAgentModalLogic = ({
     testResponseRef,
     checkJupyter,
     insertSystemPromptText,
-    insertCodeSnippet,
     handleRunModel,
     handleRunCode,
     handleSave,
     handleExport,
-    langSnippets,
     visionValidationError,
   };
 };

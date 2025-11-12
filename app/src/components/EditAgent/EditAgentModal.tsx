@@ -25,10 +25,11 @@ import {
   AlertTriangle,
   Volume2,
   Blend,
-  Images
+  Images,
+  Info
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
-import { useEditAgentModalLogic } from './useEditAgentModalLogic';
+import { useEditAgentModalLogic, toolsReference } from './useEditAgentModalLogic';
 
 import LazyCodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
@@ -352,34 +353,155 @@ const PromptContent: React.FC<PromptContentProps> = ({
 
 
 
+// --- Draggable Reference Popup Component ---
+const DraggableReferencePopup: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [position, setPosition] = useState({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.popup-header')) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        setPosition({
+          x: e.clientX - dragOffset.x,
+          y: e.clientY - dragOffset.y
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragOffset]);
+
+  return (
+    <div
+      ref={popupRef}
+      className="fixed bg-white rounded-lg shadow-2xl border-2 border-indigo-400 z-50 max-w-md"
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        cursor: isDragging ? 'grabbing' : 'default'
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      <div className="popup-header bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center cursor-grab active:cursor-grabbing">
+        <h4 className="font-semibold text-sm">Tools Reference</h4>
+        <button
+          onClick={onClose}
+          className="p-1 rounded-full hover:bg-white/20 transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="p-4 text-xs text-gray-600 max-h-96 overflow-y-auto">
+        <p className="mb-3 font-medium text-gray-700">
+          This code does what you want with the <code className="bg-blue-100 px-1 rounded">response</code> variable. You can parse it, log it, send it, whatever you want.
+        </p>
+
+        <div className="space-y-3">
+          <div>
+            <p className="font-semibold text-gray-800 mb-1.5">Notification Tools:</p>
+            <ul className="space-y-0.5 pl-3">
+              <li>• <code>sendEmail(email, message, images?)</code></li>
+              <li>• <code>sendDiscord(discord_webhook, message, images?)</code></li>
+              <li>• <code>sendTelegram(chat_id, message, images?)</code></li>
+              <li>• <code>sendWhatsapp(phone_number, message)</code></li>
+              <li>• <code>sendPushover(user_token, message, images?, title?)</code></li>
+              <li>• <code>sendSms(phone_number, message, images?)</code></li>
+              <li>• <code>notify(title, options)</code></li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="font-semibold text-gray-800 mb-1.5">Agent Tools:</p>
+            <ul className="space-y-0.5 pl-3">
+              <li>• <code>getMemory(agentId)*</code> - Retrieve memory</li>
+              <li>• <code>setMemory(agentId, content)*</code> - Replace memory</li>
+              <li>• <code>appendMemory(agentId, content)*</code> - Add to memory</li>
+              <li>• <code>getImageMemory(agentId)*</code> - Retrieve images</li>
+              <li>• <code>setImageMemory(agentId, images)</code> - Set images</li>
+              <li>• <code>appendImageMemory(agentId, images)</code> - Add images</li>
+              <li>• <code>startAgent(agentId)*</code> - Start an agent</li>
+              <li>• <code>stopAgent(agentId)*</code> - Stop an agent</li>
+              <li>• <code>time()</code> - Get current time</li>
+              <li>• <code>sleep(ms)</code> - Wait milliseconds</li>
+            </ul>
+            <p className="text-xs text-gray-500 mt-1.5 italic pl-3">
+              * If you omit agentId, defaults to current agent
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-gray-800 mb-1.5">Video Recording Tools:</p>
+            <ul className="space-y-0.5 pl-3">
+              <li>• <code>startClip()</code> - Start recording</li>
+              <li>• <code>stopClip()</code> - Stop recording</li>
+              <li>• <code>markClip(label)</code> - Add label to recording</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Code Editor Content Component ---
 interface CodeEditorContentProps {
   isPythonMode: boolean;
   setIsPythonMode: (isPython: boolean) => void;
-  langSnippets: { name: string; code: string; description: string }[];
-  insertCodeSnippet: (code: string) => void;
   editorIsLoaded: boolean;
   agentCode: string;
   setAgentCode: (code: string) => void;
 }
 const CodeEditorContent: React.FC<CodeEditorContentProps> = ({
-  isPythonMode, setIsPythonMode, langSnippets, insertCodeSnippet,
+  isPythonMode, setIsPythonMode,
   editorIsLoaded, agentCode, setAgentCode
-}) => (
-   <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm flex-grow flex flex-col h-full">
+}) => {
+  const [showReference, setShowReference] = useState(false);
+
+  return (
+    <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm flex-grow flex flex-col h-full">
       <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-semibold text-indigo-700 mt-0.5">Agent Code</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-indigo-700 mt-0.5">Agent Code</h3>
+            <button
+              onClick={() => setShowReference(!showReference)}
+              className="p-1 rounded-full hover:bg-gray-100 text-indigo-600 transition-colors"
+              title="Show tools reference"
+            >
+              <Info className="h-5 w-5" />
+            </button>
+          </div>
           <div className="flex border border-gray-300 rounded-md overflow-hidden text-sm">
             <button onClick={() => setIsPythonMode(false)} className={`px-3 py-1 ${!isPythonMode ? 'bg-yellow-500 text-white' : 'bg-gray-50 text-gray-600'}`}>JS</button>
             <button onClick={() => setIsPythonMode(true)} className={`px-3 py-1 ${isPythonMode ? 'bg-blue-500 text-white' : 'bg-gray-50 text-gray-600'}`}>Py</button>
           </div>
       </div>
-      <div className="mb-2 flex flex-wrap items-center gap-1 text-xs">
-          <span className="text-gray-500 mr-1">Snippets:</span>
-          {langSnippets.map((s) => (
-            <button key={s.name} onClick={() => insertCodeSnippet(s.code)} title={s.description} className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200">{s.name}</button>
-          ))}
-      </div>
+
+      {showReference && <DraggableReferencePopup onClose={() => setShowReference(false)} />}
+
       <div className="flex-grow border border-gray-300 rounded-md overflow-hidden relative">
            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-sm">Loading editor…</div>}>
               {editorIsLoaded && (
@@ -387,8 +509,9 @@ const CodeEditorContent: React.FC<CodeEditorContentProps> = ({
               )}
            </Suspense>
       </div>
-   </div>
-);
+    </div>
+  );
+};
 
 
 /* ───────────────────────── MAIN COMPONENT ───────────────────────── */
@@ -548,8 +671,6 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
               <div className="flex-grow min-h-0">
                 <CodeEditorContent
                   isPythonMode={logic.isPythonMode} setIsPythonMode={logic.setIsPythonMode}
-                  langSnippets={logic.langSnippets}
-                  insertCodeSnippet={logic.insertCodeSnippet}
                   editorIsLoaded={editorIsLoaded}
                   agentCode={logic.agentCode} setAgentCode={logic.setAgentCode}
                 />
@@ -588,8 +709,6 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
             {activeTab === 'code' && (
                 <CodeEditorContent
                   isPythonMode={logic.isPythonMode} setIsPythonMode={logic.setIsPythonMode}
-                  langSnippets={logic.langSnippets}
-                  insertCodeSnippet={logic.insertCodeSnippet}
                   editorIsLoaded={editorIsLoaded}
                   agentCode={logic.agentCode} setAgentCode={logic.setAgentCode}
                 />
