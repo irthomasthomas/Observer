@@ -226,7 +226,7 @@ export const useEditAgentModalLogic = ({
   useEffect(() => {
     if (!isOpen) return;
     if (isPythonMode && !agentCode.startsWith('#python')) {
-      setAgentCode(prevCode => '#python <-- do not remove this!\\n' + prevCode);
+      setAgentCode(prevCode => '#python <-- do not remove this!\n' + prevCode);
     } else if (!isPythonMode && agentCode.startsWith('#python')) {
       setAgentCode(prevCode => prevCode.replace(/^#python.*?\n/, ''));
     }
