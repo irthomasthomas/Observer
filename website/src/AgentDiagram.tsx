@@ -3,7 +3,7 @@ import {
   ScanText, Monitor, Mic, Brain, Volume2, Camera, Clipboard,
   BrainCircuit, Cpu, Layers, Eye,
   Bell, Mail, MessageSquare, Terminal, Save, Clapperboard, Tag, Blend,
-  ArrowDown, RotateCcw, Clock,
+  ArrowDown, RotateCcw, Clock, Users, Image,
 } from 'lucide-react';
 
 // --- DATA (No changes) ---
@@ -19,14 +19,11 @@ const featureDescriptions = {
   LLMS: "Leverages powerful local language models for reasoning.",
   VISION: "Enables models to understand and interpret images.",
   LOCAL: "All processing happens on your device, ensuring privacy.",
-  MODELS: "Easily switch between different models like Llama3, Gemma, etc.",
-  NOTIFICATIONS: "Sends a desktop notification with the model's output.",
-  REMEMBERING: "Saves or appends text to the agent's long-term memory.",
-  RECORD: "Starts a screen recording session, saved to the Clips tab.",
-  LABELS: "Adds a timestamped label to an active recording for quick reference.",
-  'SMS/WA': "Sends the model's output as an SMS or WhatsApp message.",
-  EMAIL: "Sends the model's output as an email to a specified address.",
-  'RUN CODE': "Executes JavaScript or Python code to perform complex actions.",
+  MODELS: "Easily switch between different models via any OpenAI-compatible endpoint.",
+  MESSAGING: "Send notifications via WhatsApp, SMS, Email, Discord, Telegram, Pushover, and native system notifications.",
+  RECORDING: "Start and stop screen recordings. Add timestamped labels to recordings for quick reference in the Clips tab.",
+  INTERACTION: "Enable multi-agent collaboration to break down complex tasks. Execute JavaScript or Python code. Use system dialogs for user interaction.",
+  'MEMORY STORAGE': "Store and retrieve text memories and images. Agents can access their own or other agents' memories for contextual awareness.",
 };
 
 
@@ -74,6 +71,18 @@ const Popover = ({ content, position, onClose, popoverKey }) => {
 const FeatureChip = ({ icon: Icon, label, onChipClick }) => (
   <button onClick={(e) => onChipClick(e, label)} data-chip-key={label} className="flex cursor-pointer items-center gap-2 rounded-lg bg-gray-900/60 px-3 py-1.5 transition-all duration-200 hover:bg-gray-800/80 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500">
     <Icon className="h-4 w-4 flex-shrink-0" />
+    <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">{label}</span>
+  </button>
+);
+
+// --- CATEGORY CHIP (For tools with multiple icons) ---
+const CategoryChip = ({ icons, label, onChipClick }) => (
+  <button onClick={(e) => onChipClick(e, label)} data-chip-key={label} className="flex cursor-pointer items-center gap-2 rounded-lg bg-gray-900/60 px-3 py-1.5 transition-all duration-200 hover:bg-gray-800/80 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500">
+    <div className="flex items-center gap-1">
+      {icons.map((Icon, index) => (
+        <Icon key={index} className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
+      ))}
+    </div>
     <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">{label}</span>
   </button>
 );
@@ -268,12 +277,20 @@ export const AgentDiagram = () => {
           </DiagramNode>
           <DiagramNode title="2. Think with Models" color="purple" index={1} rotationAngle={rotationAngle}>
             <div className="space-y-3">
-              {renderChips([[BrainCircuit, 'LLMS'],[Eye, 'VISION'],[Cpu, 'LOCAL'],[Layers, 'MODELS']])}
-              <div className="text-center p-2 pt-3 rounded-lg bg-gray-900/50"><span className="font-bold text-lg text-gray-200">llava · llama3 · gemma</span><span className="text-sm text-gray-400 mt-1 block">Powered by <b className="font-bold text-gray-300">Ollama</b></span></div>
+              {renderChips([[Cpu, 'LOCAL'],[Eye, 'VISION'],[BrainCircuit, 'LLMS'],[Layers, 'MODELS']])}
+              <div className="text-center p-2 pt-3 rounded-lg bg-gray-900/50">
+                <span className="font-bold text-sm text-gray-200">ollama, vLLM, llama.cpp, LMStudio...</span>
+                <span className="text-xs text-gray-400 mt-1 block">Supports any OpenAI compatible endpoint</span>
+              </div>
             </div>
           </DiagramNode>
           <DiagramNode title="3. Act with Tools" color="emerald" index={2} rotationAngle={rotationAngle}>
-            {renderChips([[Bell, 'NOTIFICATIONS'],[Save, 'REMEMBERING'],[Clapperboard, 'RECORD'],[Tag, 'LABELS'],[MessageSquare, 'SMS/WA'],[Mail, 'EMAIL'],[Terminal, 'RUN CODE']])}
+            <div className="flex flex-wrap justify-center gap-2">
+              <CategoryChip icons={[Mail, MessageSquare, Bell]} label="MESSAGING" onChipClick={handleChipClick} />
+              <CategoryChip icons={[Clapperboard, Tag]} label="RECORDING" onChipClick={handleChipClick} />
+              <CategoryChip icons={[Users, Terminal]} label="INTERACTION" onChipClick={handleChipClick} />
+              <CategoryChip icons={[Save, Image]} label="MEMORY STORAGE" onChipClick={handleChipClick} />
+            </div>
           </DiagramNode>
         </div>
       ) : (
@@ -290,8 +307,11 @@ export const AgentDiagram = () => {
 
           <StaticNode title="2. Think with Models" color="purple">
             <div className="space-y-3">
-              {renderChips([[BrainCircuit, 'LLMS'],[Eye, 'VISION'],[Cpu, 'LOCAL'],[Layers, 'MODELS']])}
-              <div className="text-center p-2 pt-3 rounded-lg bg-gray-900/50"><span className="font-bold text-lg text-gray-200">llava · llama3 · gemma</span><span className="text-sm text-gray-400 mt-1 block">Powered by <b className="font-bold text-gray-300">Ollama</b></span></div>
+              {renderChips([[Cpu, 'LOCAL'],[Eye, 'VISION'],[BrainCircuit, 'LLMS'],[Layers, 'MODELS']])}
+              <div className="text-center p-2 pt-3 rounded-lg bg-gray-900/50">
+                <span className="font-bold text-sm text-gray-200">ollama, vLLM, llama.cpp, LMStudio...</span>
+                <span className="text-xs text-gray-400 mt-1 block">Supports any OpenAI compatible endpoint</span>
+              </div>
             </div>
           </StaticNode>
 
@@ -301,7 +321,12 @@ export const AgentDiagram = () => {
           </div>
 
           <StaticNode title="3. Act with Tools" color="emerald">
-            {renderChips([[Bell, 'NOTIFICATIONS'],[Save, 'REMEMBERING'],[Clapperboard, 'RECORD'],[Tag, 'LABELS'],[MessageSquare, 'SMS/WA'],[Mail, 'EMAIL'],[Terminal, 'RUN CODE']])}
+            <div className="flex flex-wrap justify-center gap-2">
+              <CategoryChip icons={[Mail, MessageSquare, Bell]} label="MESSAGING" onChipClick={handleChipClick} />
+              <CategoryChip icons={[Clapperboard, Tag]} label="RECORDING" onChipClick={handleChipClick} />
+              <CategoryChip icons={[Users, Terminal]} label="INTERACTION" onChipClick={handleChipClick} />
+              <CategoryChip icons={[Save, Image]} label="MEMORY STORAGE" onChipClick={handleChipClick} />
+            </div>
           </StaticNode>
 
           {/* Arrow 3 -> 1 (Loop back) */}
