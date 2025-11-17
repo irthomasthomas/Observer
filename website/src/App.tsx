@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Github, Terminal, Shield, Cpu, Box, ChevronRight, ArrowRight, Code, Clock, Brain } from 'lucide-react';
 import ObserverLanding from './ObserverLanding';
 import AgentDiagram from './AgentDiagram';
+import Monitoring from './Monitoring';
 
 
 const LandingPage = () => {
@@ -66,14 +67,10 @@ const LandingPage = () => {
         </nav>
 
         <ObserverLanding />
-        
-        <div className="container mx-auto px-6 py-24 max-w-4xl">
-          <h1 className="text-5xl font-bold mb-6">It's not spying... If it's for you.</h1>
-          <p className="text-xl text-gray-300 mb-8">
-            Open-source micro-agents that observe, log and react, 
-            all while keeping your data private and secure.
-          </p>
-          <div className="flex space-x-4">
+
+        <div className="container mx-auto px-6 py-16 max-w-4xl text-center">
+          <p className="text-gray-400 text-lg mb-8">Local AI Micro-Agents</p>
+          <div className="flex justify-center space-x-4">
             <a href="https://app.observer-ai.com" className="bg-white text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition flex items-center space-x-2">
               <span>Get Started</span>
               <ArrowRight className="w-4 h-4" />
@@ -83,10 +80,17 @@ const LandingPage = () => {
             </a>
           </div>
         </div>
-      <AgentDiagram />
 
       </header>
-      
+
+      {/* Monitoring Section */}
+      <Monitoring />
+
+      {/* How Agents Work */}
+      <div className="bg-gradient-to-b from-gray-900 to-gray-800 text-white">
+        <AgentDiagram />
+      </div>
+
       {/* Features Section */}
       <section className="py-20 bg-white" id="features">
         <div className="container mx-auto px-6">
