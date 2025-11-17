@@ -81,6 +81,24 @@ Build powerful micro-agents that observe your digital world, remember what matte
 
 ---
 
+## 🤖 Base Agent Example 
+Sends an email when the Observer logo is on screen
+
+System Prompt (uses $SCREEN_64 for screen input)
+```
+You are an Observer agent, watch the screen and if you see the Observer logo say OBSERVER, if you don't, say CONTINUE. 
+$SCREEN_64
+```
+
+Code using Email Tool if model identified an Observer logo
+```javascript
+if(response.includes("OBSERVER")){
+  sendEmail("your@email.com", response, screen); //sends the screen as an attached image
+}
+```
+
+---
+
 ## 🎯 What Observer AI Does Best
 
 <table>
@@ -93,31 +111,18 @@ Build powerful micro-agents that observe your digital world, remember what matte
 
 🎥 **Smart Screen Recording**
 
-💾 **Inteligent Context**
-
 </td>
 <td width="50%" valign="top">
 
 ### 🚨 **Powerful Notifications**
 
 📧 **Email** • 💬 **Discord** • 📱 **Telegram**
-📞 **SMS** • 💚 **WhatsApp**
-
-🖥️ **System Alerts**
-Native OS notifications and pop-ups
-
-📺 **Observer Overlay**
-Custom on-screen messages
+📞 **SMS** • 💚 **WhatsApp** • **Pushover**  
 
 </td>
 </tr>
 </table>
 
----
-
-## 🎬 Quick Demo: Security Agent
-
-[![Security Agent Demo](https://img.youtube.com/vi/jsjr_zRWXG4/0.jpg)](https://www.youtube.com/watch?v=jsjr_zRWXG4)
 
 ---
 
@@ -126,7 +131,7 @@ Custom on-screen messages
 Creating your own Observer AI consist of three things:
 
 * SENSORS - input that your model will have
-* MODELS - models run by ollama or by Ob-Server
+* MODELS - Small LLMs
 * TOOLS - functions for your model to use
 
 ## Quick Start
