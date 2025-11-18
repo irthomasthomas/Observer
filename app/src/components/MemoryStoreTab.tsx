@@ -39,17 +39,26 @@ const MemoryStoreTab: React.FC = () => {
       const allMemories = await getAllMemories();
       const allImageMemories = await getAllImageMemories();
 
-      // Create a map of image memories by ID
-      const imageMap = new Map(allImageMemories.map(img => [img.id, img.images]));
+      const memoryMap = new Map<string, MemoryEntry>();
 
-      // Merge text and image memories
-      const mergedMemories = allMemories.map(mem => ({
-        ...mem,
-        images: imageMap.get(mem.id) || []
-      }));
+      // Add text memories
+      allMemories.forEach(mem => {
+        memoryMap.set(mem.id, { id: mem.id, memory: mem.memory, images: [] });
+      });
 
+      // Add or update with image memories
+      allImageMemories.forEach(img => {
+        const existing = memoryMap.get(img.id);
+        if (existing) {
+          existing.images = img.images;
+        } else {
+          memoryMap.set(img.id, { id: img.id, memory: '', images: img.images });
+        }
+      });
+
+      const mergedMemories = Array.from(memoryMap.values());
       setMemories(mergedMemories);
-      Logger.debug('MEMORY_STORE', `Loaded ${allMemories.length} memories`);
+      Logger.debug('MEMORY_STORE', `Loaded ${mergedMemories.length} memories`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to load memories: ${errorMessage}`);
