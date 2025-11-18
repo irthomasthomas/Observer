@@ -34,6 +34,7 @@ import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
 import ConversationalGeneratorModal from '@components/AICreator/ConversationalGeneratorModal';
 import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
+import MemoryStoreTab from '@components/MemoryStoreTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming this path is correct
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
@@ -697,6 +698,11 @@ function AppContent() {
             </div>
           )}
 
+          {/* Memory Store Tab */}
+          <div className={`px-4 ${activeTab !== 'memoryStore' ? 'hidden' : ''}`}>
+            <MemoryStoreTab />
+          </div>
+
           {/* Recordings Tab */}
           <div className={`px-4 ${activeTab !== 'recordings' ? 'hidden' : ''}`}>
             <RecordingsViewer />
@@ -713,7 +719,7 @@ function AppContent() {
           </div>
 
           {/* Fallback for unknown tabs */}
-          {!['myAgents', 'community', 'models', 'recordings', 'settings', 'obServer'].includes(activeTab) && (
+          {!['myAgents', 'community', 'models', 'recordings', 'memoryStore', 'settings', 'obServer'].includes(activeTab) && (
             <div className="text-center p-8">
               <p className="text-gray-500">This feature is coming soon!</p>
             </div>

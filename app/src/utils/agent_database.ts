@@ -271,16 +271,30 @@ export async function getAgentCode(agentId: string): Promise<string | null> {
 // Get agent memory
 export async function getAgentMemory(agentId: string): Promise<string> {
   const db = await openDB();
-  
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(MEMORY_STORE, 'readonly');
     const store = tx.objectStore(MEMORY_STORE);
     const request = store.get(agentId);
-    
+
     request.onsuccess = () => {
       const result = request.result;
       resolve(result ? result.memory : '');
     };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Get all memory entries
+export async function getAllMemories(): Promise<Array<{ id: string; memory: string }>> {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(MEMORY_STORE, 'readonly');
+    const store = tx.objectStore(MEMORY_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
   });
 }
@@ -306,16 +320,30 @@ export async function updateAgentMemory(agentId: string, memory: string): Promis
 // Get agent image memory
 export async function getAgentImageMemory(agentId: string): Promise<string[]> {
   const db = await openDB();
-  
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(IMAGE_MEMORY_STORE, 'readonly');
     const store = tx.objectStore(IMAGE_MEMORY_STORE);
     const request = store.get(agentId);
-    
+
     request.onsuccess = () => {
       const result = request.result;
       resolve(result ? result.images : []);
     };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Get all image memory entries
+export async function getAllImageMemories(): Promise<Array<{ id: string; images: string[] }>> {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IMAGE_MEMORY_STORE, 'readonly');
+    const store = tx.objectStore(IMAGE_MEMORY_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
   });
 }
@@ -350,12 +378,38 @@ export async function clearAgentImageMemory(agentId: string): Promise<void> {
   await updateAgentImageMemory(agentId, []);
 }
 
+// Delete a memory entry (text and images only, not agent)
+export async function deleteMemory(memoryId: string): Promise<void> {
+  const db = await openDB();
+
+  const tx = db.transaction([MEMORY_STORE, IMAGE_MEMORY_STORE], 'readwrite');
+
+  await Promise.all([
+    new Promise<void>((resolve, reject) => {
+      const request = tx.objectStore(MEMORY_STORE).delete(memoryId);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    }),
+    new Promise<void>((resolve, reject) => {
+      const request = tx.objectStore(IMAGE_MEMORY_STORE).delete(memoryId);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    })
+  ]);
+
+  // Complete the transaction
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 // Delete an agent
 export async function deleteAgent(agentId: string): Promise<void> {
   const db = await openDB();
-  
+
   const tx = db.transaction([AGENT_STORE, CONFIG_STORE, CODE_STORE, MEMORY_STORE, IMAGE_MEMORY_STORE], 'readwrite');
-  
+
   // Delete from all stores
   await Promise.all([
     new Promise<void>((resolve, reject) => {
@@ -384,7 +438,7 @@ export async function deleteAgent(agentId: string): Promise<void> {
       request.onerror = () => reject(request.error);
     })
   ]);
-  
+
   // Complete the transaction
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
