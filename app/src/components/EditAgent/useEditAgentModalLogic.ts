@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   CompleteAgent,
   downloadAgent,
-  listAgents as dbListAgents
+  listAgents as dbListAgents,
+  getAllMemories,
+  getAllImageMemories
 } from '@utils/agent_database';
 import { listModels, Model } from '@utils/inferenceServer';
 import { executeTestIteration } from '@utils/main_loop';
@@ -137,7 +139,53 @@ export const useEditAgentModalLogic = ({
   }, [agent]);
 
   const loadAgents = useCallback(async () => {
-    setAvailableAgentsForBlocks(await dbListAgents());
+    // Get all sources of agent IDs
+    const agents = await dbListAgents();
+    const memories = await getAllMemories();
+    const imageMemories = await getAllImageMemories();
+
+    // De-duplicate by ID using Map
+    const idMap = new Map<string, CompleteAgent>();
+
+    // Add agents first (they have proper names)
+    agents.forEach(agent => {
+      idMap.set(agent.id, agent);
+    });
+
+    // Add memory-only IDs (use ID as name if no agent exists)
+    memories.forEach(mem => {
+      if (!idMap.has(mem.id)) {
+        idMap.set(mem.id, {
+          id: mem.id,
+          name: mem.id,
+          description: '',
+          model_name: '',
+          system_prompt: '',
+          loop_interval_seconds: 0
+        });
+      }
+    });
+
+    // Add image memory-only IDs
+    imageMemories.forEach(mem => {
+      if (!idMap.has(mem.id)) {
+        idMap.set(mem.id, {
+          id: mem.id,
+          name: mem.id,
+          description: '',
+          model_name: '',
+          system_prompt: '',
+          loop_interval_seconds: 0
+        });
+      }
+    });
+
+    // Convert to sorted array
+    const combined = Array.from(idMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    setAvailableAgentsForBlocks(combined);
   }, []);
 
   const checkJupyter = useCallback(async () => {
