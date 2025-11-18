@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Terminal } from 'lucide-react';
+import { Terminal, MessageSquare } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import {
@@ -40,6 +40,7 @@ import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import AgentActivityModal from '@components/AgentCard/AgentActivityModal';
 import TerminalModal from '@components/TerminalModal';
+import FeedbackDialog from '@components/FeedbackDialog';
 import { startCommandSSE, updateCommandSSEToken } from '@utils/commandSSE';
 import { fetchModels } from '@utils/inferenceServer';
 
@@ -117,6 +118,9 @@ function AppContent() {
 
   // --- STATE FOR MOBILE SIDEBAR ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // --- STATE FOR FEEDBACK DIALOG ---
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   // --- DERIVED STATE ---
   const isProUser = quotaInfo?.tier === 'pro' || quotaInfo?.tier === 'max';
@@ -813,6 +817,14 @@ function AppContent() {
             </div>
 
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setIsFeedbackOpen(true)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                title="Send feedback"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span>Feedback</span>
+              </button>
               <span className="text-xs text-gray-500">Support the Project!</span>
               <div className="flex items-center space-x-2">
                 <a
@@ -910,6 +922,13 @@ function AppContent() {
           await fetchModels();
         }}
         noModels={noModels}
+      />
+
+      <FeedbackDialog
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        getToken={getToken}
+        isAuthenticated={isAuthenticated}
       />
     </div>
   );
