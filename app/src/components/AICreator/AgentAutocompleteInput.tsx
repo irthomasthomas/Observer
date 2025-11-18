@@ -42,6 +42,13 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     loadAgentIds();
   }, [disableAutocomplete]);
 
+  // Collapse textarea to single line when disabled (better UX during model responses)
+  useEffect(() => {
+    if (disabled && inputRef.current) {
+      inputRef.current.style.height = '40px';
+    }
+  }, [disabled]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const newCursorPos = e.target.selectionStart || 0;
