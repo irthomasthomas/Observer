@@ -143,7 +143,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           localStorage.setItem('observer-quota-remaining', data.remaining.toString());
 
           // Trigger upgrade modal at 50% usage for non-pro users
-          if (data.tier !== 'pro' && data.tier !== 'max' && typeof data.limit === 'number' && data.limit > 0) {
+          if (data.tier !== 'pro' && data.tier !== 'max' && data.tier !== 'plus' && typeof data.limit === 'number' && data.limit > 0) {
             const usagePercentage = ((data.limit - data.remaining) / data.limit) * 100;
             console.log(`Usage: ${usagePercentage.toFixed(1)}%, Remaining: ${data.remaining}/${data.limit}, Warning shown: ${has70PercentWarningBeenShown}`);
             if (usagePercentage >= 50 && !has70PercentWarningBeenShown && onUpgradeClick) {
@@ -178,7 +178,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   // Check for 50% usage threshold whenever quotaInfo updates
   useEffect(() => {
-    if (!quotaInfo || quotaInfo.tier === 'pro' || quotaInfo.tier === 'max' || has70PercentWarningBeenShown || !onUpgradeClick) {
+    if (!quotaInfo || quotaInfo.tier === 'pro' || quotaInfo.tier === 'max' || quotaInfo.tier === 'plus' || has70PercentWarningBeenShown || !onUpgradeClick) {
       return;
     }
 
@@ -400,6 +400,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       if (quotaInfo.tier === 'max') {
         return <span className="font-semibold text-green-600">MAX unlimited</span>;
       }
+      if (quotaInfo.tier === 'plus') {
+        return (
+          <div
+            className="font-semibold text-blue-600 cursor-help"
+            onMouseEnter={() => setIsQuotaHovered(true)}
+            onMouseLeave={() => setIsQuotaHovered(false)}
+          >
+            {isQuotaHovered && typeof quotaInfo.remaining === 'number' && typeof quotaInfo.limit === 'number'
+              ? `${quotaInfo.remaining} / ${quotaInfo.limit} Credits left`
+              : 'Plus monitoring'
+            }
+          </div>
+        );
+      }
       if (quotaInfo.tier === 'pro') {
         return (
           <div
@@ -481,6 +495,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               {quotaInfo?.tier === 'pro' && (
                 <span className="absolute top-0.5 -right-5 text-xs font-semibold text-black">
                   pro
+                </span>
+              )}
+              {quotaInfo?.tier === 'plus' && (
+                <span className="absolute top-0.5 -right-6 text-xs font-semibold text-black">
+                  plus
                 </span>
               )}
             </div>

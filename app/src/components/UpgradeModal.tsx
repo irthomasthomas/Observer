@@ -13,7 +13,7 @@ interface UpgradeModalProps {
 }
 
 export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isHalfwayWarning = false }) => {
-  const [status, setStatus] = useState<'loading' | 'pro' | 'max' | 'free' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   
@@ -35,7 +35,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
         });
         if (!response.ok) throw new Error(`API request failed: ${response.statusText}`);
         const data = await response.json();
-        // Backend returns tier: 'free' | 'pro' | 'max'
+        // Backend returns tier: 'free' | 'plus' | 'pro' | 'max'
         setStatus(data.tier || (data.pro_status ? 'pro' : 'free'));
       } catch (err) {
         Logger.error('PAYMENTS', 'Failed to check pro status:', err);
@@ -47,7 +47,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
     checkProStatus();
   }, [isOpen, isAuthenticated, getAccessTokenSilently]);
 
-  const handleApiAction = async (endpoint: 'create-checkout-session' | 'create-checkout-session-max' | 'create-customer-portal-session') => {
+  const handleApiAction = async (endpoint: 'create-checkout-session' | 'create-checkout-session-plus' | 'create-checkout-session-max' | 'create-customer-portal-session') => {
     setIsButtonLoading(true);
     setError(null);
     try {
@@ -71,6 +71,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
   };
 
   const handleCheckout = () => handleApiAction('create-checkout-session');
+  const handlePlusCheckout = () => handleApiAction('create-checkout-session-plus');
   const handleMaxCheckout = () => handleApiAction('create-checkout-session-max');
 
   if (!isOpen) {
@@ -103,6 +104,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
             isAuthenticated={isAuthenticated}
             error={error}
             onCheckout={handleCheckout}
+            onCheckoutPlus={handlePlusCheckout}
             onCheckoutMax={handleMaxCheckout}
             onManageSubscription={() => handleApiAction('create-customer-portal-session')}
             onLogin={loginWithRedirect}
