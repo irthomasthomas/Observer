@@ -498,7 +498,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 </span>
               )}
               {quotaInfo?.tier === 'plus' && (
-                <span className="absolute top-0.5 -right-6 text-xs font-semibold text-black">
+                <span className="absolute top-0.5 -right-7 text-xs font-semibold text-black">
                   plus
                 </span>
               )}
