@@ -6,7 +6,7 @@ import { Model, listModels } from '@utils/inferenceServer';
 // Removed getOllamaServerAddress import - no longer needed
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
-  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server, MousePointer
+  Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server, MousePointer, Phone
 } from 'lucide-react';
 
 
@@ -88,6 +88,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const [selectedTools, setSelectedTools] = useState<Map<SimpleTool, ToolData>>(new Map());
   const [smsPhoneNumber, setSmsPhoneNumber] = useState('');
   const [whatsappPhoneNumber, setWhatsappPhoneNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [emailAddress, setEmailAddress] = useState('');
   const [pushoverUserKey, setPushoverUserKey] = useState('');
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
@@ -213,9 +214,10 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
           newMap.delete('mark_clip');
         }
       } else {
-        const initialData: ToolData = 
+        const initialData: ToolData =
             tool === 'sms' ? { smsPhoneNumber } :
             tool === 'whatsapp' ? { whatsappPhoneNumber } :
+            tool === 'call' ? { phoneNumber } :
             tool === 'email' ? { emailAddress } :
             tool === 'pushover' ? { pushoverUserKey } :
             tool === 'discord' ? { discordWebhookUrl } :
@@ -364,6 +366,8 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                     <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('pushover')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('pushover') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><Smartphone className={`h-8 w-8 transition-colors ${selectedTools.has('pushover') ? 'text-blue-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send to Pushover</h3><p className="text-sm text-gray-500">Sends a push notification.</p></div></div>{selectedTools.has('pushover') && (<div className="relative pl-12 pt-2"><input type="text" value={pushoverUserKey} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newKey = e.target.value; setPushoverUserKey(newKey); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('pushover', { pushoverUserKey: newKey }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Pushover User Key"/></div>)}</button>
                     {/* Telegram Tool */}
                     <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('telegram')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('telegram') ? 'border-sky-500 bg-sky-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><MessageCircle className={`h-8 w-8 transition-colors ${selectedTools.has('telegram') ? 'text-sky-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send to Telegram</h3><p className="text-sm text-gray-500">Sends a Telegram message.</p></div></div>{selectedTools.has('telegram') && (<div className="relative pl-12 pt-2"><input type="text" value={telegramChatId} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newChatId = e.target.value; setTelegramChatId(newChatId); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('telegram', { telegramChatId: newChatId }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500" placeholder="Telegram Chat ID"/></div>)}</button>
+                    {/* Call Tool */}
+                    <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('call')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('call') ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><Phone className={`h-8 w-8 transition-colors ${selectedTools.has('call') ? 'text-green-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Make a Phone Call</h3><p className="text-sm text-gray-500">Makes an automated phone call.</p></div></div>{selectedTools.has('call') && (<div className="relative pl-12 pt-2"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="tel" value={phoneNumber} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newNumber = e.target.value; setPhoneNumber(newNumber); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('call', { phoneNumber: newNumber }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500" placeholder="+1 555 123-4567"/></div>)}</button>
                   </div>
                 </div>
 

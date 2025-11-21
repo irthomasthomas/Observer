@@ -2,12 +2,13 @@
 
 import { CompleteAgent } from './agent_database';
 
-export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'telegram' | 'ask' | 'system_notify' | 'message' | 'overlay' | 'click';
+export type SimpleTool = 'notification' | 'memory' | 'sms' | 'email' | 'whatsapp' | 'call' | 'start_clip' | 'mark_clip' | 'pushover' | 'discord' | 'telegram' | 'ask' | 'system_notify' | 'message' | 'overlay' | 'click';
 
 export interface ToolData {
   smsPhoneNumber?: string;
   emailAddress?: string;
   whatsappPhoneNumber?: string;
+  phoneNumber?: string;
   pushoverUserKey?: string;
   discordWebhookUrl?: string;
   telegramChatId?: string;
@@ -112,6 +113,14 @@ overlay(response);
 // IMPORTANT: Position the mouse before the agent runs.
 click();
 `,
+  call: (data: ToolData) => {
+    const phoneNumber = data.phoneNumber ? JSON.stringify(data.phoneNumber) : '""';
+    return `
+// --- PHONE CALL TOOL ---
+// Makes an automated phone call with the model's response.
+call(${phoneNumber}, response);
+`;
+  },
 };
 
 interface SimpleConfig {
