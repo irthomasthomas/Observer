@@ -3,7 +3,7 @@ import Modal from '@components/EditAgent/Modal';
 import {
   X, Mail, MessageSquare, MessageSquareQuote, Bell, Monitor, MessageCircle,
   MessageSquarePlus, CheckCircle, XCircle, Loader2, Save, SquarePen, PlayCircle,
-  StopCircle, Hourglass, Video, VideoOff, Tag, Info, MousePointer
+  StopCircle, Hourglass, Video, VideoOff, Tag, Info, MousePointer, Phone
 } from 'lucide-react';
 import { WhatsAppIcon, DiscordIcon } from './icons';
 import type { TokenProvider } from '@utils/main_loop';
@@ -141,6 +141,19 @@ function getAllTools(): ToolConfig[] {
       ],
       testMessage: 'This is a test from Observer!',
       warning: '⚠️ IMPORTANT: Due to A2P policy, some SMS messages are being blocked. Not recommended for US/Canada.'
+    },
+    {
+      id: 'call',
+      name: 'call()',
+      functionName: 'call',
+      icon: Phone,
+      description: 'Make an automated phone call',
+      isTestable: true,
+      parameters: [
+        { name: 'phone_number', description: 'Phone number with country code' },
+        { name: 'message', description: 'Message to speak during call' }
+      ],
+      testMessage: 'This is a test call from Observer!'
     },
     {
       id: 'notify',
@@ -849,6 +862,14 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
           const number = testInputs[0] || '';
           const message = testInputs[1] || selectedToolConfig.testMessage || '';
           await utils.sendSms(message, number, token);
+          break;
+        }
+
+        case 'call': {
+          const token = await getAuthToken();
+          const number = testInputs[0] || '';
+          const message = testInputs[1] || selectedToolConfig.testMessage || '';
+          await utils.call(message, number, token);
           break;
         }
 
