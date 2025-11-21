@@ -77,6 +77,7 @@ export const TOOL_CONFIG: Record<string, ToolConfigEntry> = {
     system_notify: { label: 'Sys Notify', iconName: 'Bell', iconType: 'lucide', regex: /system_notify\s*\(/g },
     overlay: { label: 'Overlay', iconName: 'Monitor', iconType: 'lucide', regex: /overlay\s*\(/g },
     click: { label: 'Mouse Click', iconName: 'MousePointer', iconType: 'lucide', regex: /\bclick\s*\(/g, warning: 'Position mouse before agent runs' },
+    call: { label: 'Phone Call', iconName: 'Phone', iconType: 'lucide', regex: /\bcall\s*\(/g },
 };
 
 // --- Icon Loading Helpers ---

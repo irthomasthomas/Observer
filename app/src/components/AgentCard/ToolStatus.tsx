@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import {
   CheckCircle, XCircle, Send, MessageSquare, MessageSquarePlus, MessageSquareQuote,
   MessageCircle, Mail, Bell, Save, SquarePen, PlayCircle, StopCircle, Hourglass,
-  Video, VideoOff, Hammer, Tag, AlertTriangle, HelpCircle
+  Video, VideoOff, Hammer, Tag, AlertTriangle, HelpCircle, Phone
 } from 'lucide-react';
 import { ToolCall } from '@utils/IterationStore';
 
@@ -18,6 +18,7 @@ const getToolIcon = (toolName: string) => {
     sendPushover: () => <Send className="w-4 h-4" />,
     sendTelegram: MessageCircle,
     sendEmail: Mail,
+    call: Phone,
     notify: Bell,
     system_notify: Bell,
     getMemory: Save,
