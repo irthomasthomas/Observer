@@ -141,8 +141,8 @@ Creating your own Observer AI consist of three things:
 3. Give your model a system prompt and Sensors! The current Sensors that exist are:
    * **Screen OCR** ($SCREEN_OCR) Captures screen content as text via OCR
    * **Screenshot** ($SCREEN_64) Captures screen as an image for multimodal models
-   * **Agent Memory** ($MEMORY@agent_id) Accesses agents' stored information
-   * **Agent Image Memory** ($IMEMORY@agent_id) Accesses agents' stored images
+   * **Agent Memory** ($MEMORY or $MEMORY@agent_id) Accesses agents' stored information (defaults to current agent)
+   * **Agent Image Memory** ($IMEMORY or $IMEMORY@agent_id) Accesses agents' stored images (defaults to current agent)
    * **Clipboard** ($CLIPBOARD) It pastes the clipboard contents 
    * **Microphone**\* ($MICROPHONE) Captures the microphone and adds a transcription
    * **Screen Audio**\* ($SCREEN_AUDIO) Captures the audio transcription of screen sharing a tab.

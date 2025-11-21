@@ -58,10 +58,11 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
   
   // Memory processor
   'MEMORY': {
-    regex: /\$MEMORY@([a-zA-Z0-9_]+)/g,
+    regex: /\$MEMORY(?:@([a-zA-Z0-9_]+))?/g,
     handler: async (_agentId: string, _prompt: string, match: RegExpExecArray) => {
       try {
-        const referencedAgentId = match[1];
+        // match[1] will be undefined if no @agentId provided, so default to current agent
+        const referencedAgentId = match[1] || _agentId;
         const memory = await getAgentMemory(referencedAgentId);
         return { replacementText: memory };
       } catch (error) {
@@ -234,15 +235,16 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
 
   // Image memory processor
   'IMEMORY': {
-    regex: /\$IMEMORY@([a-zA-Z0-9_]+)/g,
+    regex: /\$IMEMORY(?:@([a-zA-Z0-9_]+))?/g,
     handler: async (agentId: string, _prompt: string, match: RegExpExecArray, iterationId?: string) => {
       try {
-        const referencedAgentId = match[1];
+        // match[1] will be undefined if no @agentId provided, so default to current agent
+        const referencedAgentId = match[1] || agentId;
         const imageMemory = await getAgentImageMemory(referencedAgentId);
         Logger.debug(agentId, `Retrieved image memory for agent ${referencedAgentId}: ${imageMemory.length} images`);
         // Enhanced logging: Log image memory access separately
-        Logger.info(agentId, `Image memory accessed (${imageMemory.length} images from ${referencedAgentId})`, { 
-          logType: 'sensor-imemory', 
+        Logger.info(agentId, `Image memory accessed (${imageMemory.length} images from ${referencedAgentId})`, {
+          logType: 'sensor-imemory',
           iterationId,
           content: { sourceAgent: referencedAgentId, imageCount: imageMemory.length }
         });

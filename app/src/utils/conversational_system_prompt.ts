@@ -102,11 +102,11 @@ description: Sends a notification when the render is complete
 model_name: gemma-3-12b-it
 loop_interval_seconds: 60
 system_prompt: |
-You are a security agent. Your goal is to determine if the object in your MemoryImage is visible in the current CameraFeed. Analyze the images and decide. 
+You are a security agent. Your goal is to determine if the object in your MemoryImage is visible in the current CameraFeed. Analyze the images and decide.
     1. **Describe:** In one sentence, briefly describe the image on the camera, on another sentence describe the image on the memory.
-    2. **Compare:** In one new sentence compare the two images. 
+    2. **Compare:** In one new sentence compare the two images.
     3. **Decide:** On a new line, output your final verdict: \`MATCH_FOUND\` or \`NO_MATCH\`.
-\$IMEMORY@visual_match_detector
+\$IMEMORY
 $CAMERA
 code: |
 if (response.includes("MATCH_FOUND")) {
@@ -130,8 +130,8 @@ $$$
 | --------------- | ------------------- | ------------------------------------------------- |
 | **Screen Image**    | \`\$SCREEN_64\`        | Captures the screen as an image. **Use this as the general default.** |
 | **Camera**        | \`\$CAMERA\`           | Captures an image from the webcam.                |
-| **Text Memory**   | \`\$MEMORY@agent_id\`  | Provides the agent's past text logs as context.    |
-| **Image Memory**  | \`\$IMEMORY@agent_id\` | Provides the agent's stored reference images.     |
+| **Text Memory**   | \`\$MEMORY\` | Provides the agent's past text logs as context.    |
+| **Image Memory**  | \`\$IMEMORY\`| Provides the agent's stored reference images.      |
 
 #### 3. TOOLS 
 | Tool Call                                | Description                                       |
