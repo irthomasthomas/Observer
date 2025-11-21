@@ -597,6 +597,29 @@ export async function executeJavaScript(
         }
       },
 
+      call: async (number: string, message: string): Promise<void> => {
+        try {
+          if (!getToken) throw new Error("Authentication context not available for call.");
+
+          const token = await getToken();
+          if (!token) throw new Error("Failed to retrieve authentication token for call.");
+
+          await utils.call(message, number, token);
+          Logger.info(agentId, `Phone call placed to ${number}`, {
+            logType: 'tool-success',
+            iterationId,
+            content: { tool: 'call', params: { message: message.slice(0, 100), number }, success: true }
+          });
+        } catch (error) {
+          Logger.error(agentId, `Failed to place call to ${number}`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'call', params: { message: message.slice(0, 100), number }, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
+
     };
 
     const wrappedCode = `

@@ -614,3 +614,48 @@ export async function click(appUrl: string): Promise<void> {
     throw new Error(`Server responded with status: ${response.status}`);
   }
 }
+
+/**
+ * Makes a phone call by calling the backend API.
+ * @param message The message content to speak during the call.
+ * @param number The phone number to call.
+ * @param authToken The authentication token for the Observer AI API.
+ */
+export async function call(message: string, number: string, authToken: string): Promise<void> {
+  const API_HOST = "https://api.observer-ai.com";
+
+  if (!authToken) {
+    throw new Error("Authentication error: Auth token is missing.");
+  }
+
+  try {
+    const requestBody: { to_number: string; message: string } = {
+      to_number: number,
+      message: message,
+    };
+
+    const response = await fetch(`${API_HOST}/tools/make-call`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      try {
+        const errorData = await response.json();
+        const errorMessage = typeof errorData.detail === 'string'
+          ? errorData.detail
+          : `Failed to make call: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If JSON parsing fails, use the HTTP status
+        throw new Error(`Failed to make call: ${response.status} ${response.statusText}`);
+      }
+    }
+  } catch (error) {
+    throw error;
+  }
+}
