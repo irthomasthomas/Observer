@@ -170,6 +170,7 @@ Notification Tools:
   * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message with the Observer bot. Send a message first to +1 (555)783-4727 to use.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
   * `sendSms(phone_number, message, images?)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
+  * `call(phone_number, message)` - Makes an automated phone call with text-to-speech message
 
 Video Recording Tools: 
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
