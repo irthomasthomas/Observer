@@ -31,13 +31,14 @@ Agent Tools:
   * \`time()\` 
   * \`sleep(ms)\` 
 Notification Tools:
-  * \`sendEmail(email, message, images?)\` 
-  * \`sendPushover(user_token, message, images?, title?)\` 
+  * \`sendEmail(email, message, images?)\`
+  * \`sendPushover(user_token, message, images?, title?)\`
   * \`sendDiscord(discord_webhook, message, images?)\`
   * \`sendTelegram(chat_id, message, images?)\` Ask user to get the chat_id messaging the bot @observer_notification_bot.
   * \`sendWhatsapp(phone_number, message)\` Ask user to end a message first to +1 (555)783-4727 to use.
   * \`notify(title, options)\` Some browsers block notifications
   * \`sendSms(phone_number, message, images?)\` Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
+  * \`call(phone_number, message)\` Makes an automated phone call with text-to-speech message.
 Video Recording Tools: 
   * \`startClip()\` 
   * \`stopClip()\` 
