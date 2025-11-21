@@ -4,7 +4,7 @@ This guide documents all the frontend integration points required when adding a 
 
 ## Overview
 
-When adding a new tool to Observer AI, you need to update **5 core frontend files**. This guide uses the `click()` and `type()` tools as concrete examples.
+When adding a new tool to Observer AI, you need to update **7 core frontend files**. This guide uses the `click()` and `type()` tools as concrete examples.
 
 ---
 
@@ -330,6 +330,43 @@ App Tools:
 
 ---
 
+### 7. Tool Execution Icon (`ToolStatus.tsx`)
+
+**File:** `app/src/components/AgentCard/ToolStatus.tsx`
+
+This component displays tool execution status in the ActiveAgentView. Add your tool's icon to the icon mapping.
+
+#### What to Update:
+
+**a) Import icon** (around line 3-7):
+
+```typescript
+import {
+  CheckCircle, XCircle, Send, MessageSquare, MessageSquarePlus, MessageSquareQuote,
+  MessageCircle, Mail, Bell, Save, SquarePen, PlayCircle, StopCircle, Hourglass,
+  Video, VideoOff, Hammer, Tag, AlertTriangle, HelpCircle, Phone  // <-- Add your icon here
+} from 'lucide-react';
+```
+
+**b) Add to iconMap** (around line 12-35):
+
+```typescript
+const iconMap: Record<string, React.ElementType> = {
+  // ... existing tools ...
+  sendEmail: Mail,
+  call: Phone,  // <-- Add your tool here
+  notify: Bell,
+  // ... more tools ...
+};
+```
+
+**Mapping guidelines:**
+- Use the same icon as in other UI components for consistency
+- Map the tool's function name (e.g., 'call', 'sendEmail') to the icon component
+- Icons appear next to success/error indicators when tools are executed
+
+---
+
 ## Important Notes
 
 ### Files to SKIP
@@ -365,7 +402,8 @@ After implementing a new tool, verify:
 - [ ] Code snippets generate correctly from Simple Creator
 - [ ] Multi-Agent Creator knows about the tool
 - [ ] README documentation is updated
-- [ ] Icons display correctly
+- [ ] Tool icon displays correctly in execution status (ToolStatus component)
+- [ ] Icons display correctly in all UI components
 - [ ] Warnings show appropriately
 - [ ] Tauri-only restrictions work (if applicable)
 
@@ -431,6 +469,20 @@ Here's a minimal example showing what changed for `click()`:
 +  * `click()` - Triggers a mouse click at the current cursor position ⚠️IMPORTANT: Position mouse before agent runs
 ```
 
+### ToolStatus.tsx
+```typescript
++ import {
++   // ... existing imports ...
++   Phone  // <-- Add new icon
++ } from 'lucide-react';
+
++ const iconMap: Record<string, React.ElementType> = {
++   // ... existing tools ...
++   call: Phone,  // <-- Add tool mapping
++   // ... more tools ...
++ };
+```
+
 ---
 
 ## Questions?
@@ -440,8 +492,8 @@ If you need to add a tool and encounter issues:
 1. Check that the backend implementation is complete first
 2. Follow this guide step-by-step for each file
 3. Use the `click()` and `type()` implementations as reference examples
-4. Verify the tool appears in all 6 integration points
+4. Verify the tool appears in all 7 integration points
 
 ---
 
-*Last updated: Based on click()/type() tool implementation*
+*Last updated: Based on click()/type()/call() tool implementations. Added ToolStatus.tsx integration point.*
