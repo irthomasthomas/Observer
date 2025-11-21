@@ -4,6 +4,22 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State, Emitter};
 use crate::CommandState;
 
+// Comprehensive app configuration
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct AppConfig {
+    pub shortcuts: UnifiedShortcutConfig,
+    pub ollama_url: Option<String>,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            shortcuts: UnifiedShortcutConfig::default(),
+            ollama_url: Some("http://localhost:11434".to_string()),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct UnifiedShortcutConfig {
     // Overlay shortcuts
@@ -16,7 +32,7 @@ pub struct UnifiedShortcutConfig {
     pub overlay_resize_down: Option<String>,
     pub overlay_resize_left: Option<String>,
     pub overlay_resize_right: Option<String>,
-    
+
     // Agent shortcuts: agent_id -> shortcut_key
     pub agent_shortcuts: HashMap<String, String>,
 }
@@ -58,7 +74,7 @@ impl Default for UnifiedShortcutConfig {
 }
 
 pub struct UnifiedShortcutState {
-    pub config: Mutex<UnifiedShortcutConfig>,
+    pub config: Mutex<AppConfig>,
     pub registered_shortcuts: Mutex<Vec<String>>,
 }
 
@@ -79,8 +95,8 @@ enum ShortcutAction {
 // Tauri commands
 #[tauri::command]
 pub async fn get_shortcut_config(shortcut_state: State<'_, UnifiedShortcutState>) -> Result<UnifiedShortcutConfig, String> {
-    let config = shortcut_state.config.lock().unwrap().clone();
-    Ok(config)
+    let app_config = shortcut_state.config.lock().unwrap().clone();
+    Ok(app_config.shortcuts)
 }
 
 #[tauri::command]
@@ -96,13 +112,21 @@ pub async fn set_shortcut_config(
     app_handle: AppHandle,
 ) -> Result<(), String> {
     log::info!("Setting unified shortcut config");
-    
+
+    // Preserve ollama_url from current config
+    let ollama_url = shortcut_state.config.lock().unwrap().ollama_url.clone();
+
+    let new_app_config = AppConfig {
+        shortcuts: config,
+        ollama_url,
+    };
+
     // Save to disk
-    save_config_to_disk(&app_handle, &config)?;
-    
+    save_config_to_disk(&app_handle, &new_app_config)?;
+
     // Update in-memory config
-    *shortcut_state.config.lock().unwrap() = config;
-    
+    *shortcut_state.config.lock().unwrap() = new_app_config;
+
     log::info!("Shortcut config saved. Application restart required for changes to take effect.");
     Ok(())
 }
@@ -114,19 +138,40 @@ fn get_settings_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, Box<d
     Ok(app_data_dir.join("settings.json"))
 }
 
-pub fn load_config_from_disk(app_handle: &AppHandle) -> UnifiedShortcutConfig {
+pub fn load_config_from_disk(app_handle: &AppHandle) -> AppConfig {
     match get_settings_path(app_handle) {
         Ok(settings_path) => {
             if settings_path.exists() {
                 match std::fs::read_to_string(&settings_path) {
                     Ok(content) => {
-                        match serde_json::from_str::<UnifiedShortcutConfig>(&content) {
+                        // Try to load as new AppConfig format first
+                        match serde_json::from_str::<AppConfig>(&content) {
                             Ok(config) => {
-                                log::info!("Loaded shortcut config from {:?}", settings_path);
+                                log::info!("Loaded app config from {:?}", settings_path);
                                 return config;
                             }
-                            Err(e) => {
-                                log::warn!("Failed to parse settings.json: {}", e);
+                            Err(_) => {
+                                // Try to load as old UnifiedShortcutConfig format (migration)
+                                log::info!("Attempting to migrate old settings format...");
+                                match serde_json::from_str::<UnifiedShortcutConfig>(&content) {
+                                    Ok(old_config) => {
+                                        log::info!("Migrating settings to new AppConfig format");
+                                        let new_config = AppConfig {
+                                            shortcuts: old_config,
+                                            ollama_url: None,
+                                        };
+                                        // Save the migrated config in new format
+                                        if let Err(e) = save_config_to_disk(app_handle, &new_config) {
+                                            log::warn!("Failed to save migrated config: {}", e);
+                                        } else {
+                                            log::info!("Migration successful");
+                                        }
+                                        return new_config;
+                                    }
+                                    Err(e) => {
+                                        log::warn!("Failed to parse settings.json (old or new format): {}", e);
+                                    }
+                                }
                             }
                         }
                     }
@@ -142,18 +187,18 @@ pub fn load_config_from_disk(app_handle: &AppHandle) -> UnifiedShortcutConfig {
             log::error!("Failed to get settings path: {}", e);
         }
     }
-    
-    UnifiedShortcutConfig::default()
+
+    AppConfig::default()
 }
 
-fn save_config_to_disk(app_handle: &AppHandle, config: &UnifiedShortcutConfig) -> Result<(), String> {
+fn save_config_to_disk(app_handle: &AppHandle, config: &AppConfig) -> Result<(), String> {
     match get_settings_path(app_handle) {
         Ok(settings_path) => {
             match serde_json::to_string_pretty(config) {
                 Ok(json_content) => {
                     match std::fs::write(&settings_path, json_content) {
                         Ok(_) => {
-                            log::info!("Saved shortcut config to {:?}", settings_path);
+                            log::info!("Saved app config to {:?}", settings_path);
                             Ok(())
                         }
                         Err(e) => {
@@ -176,6 +221,21 @@ fn save_config_to_disk(app_handle: &AppHandle, config: &UnifiedShortcutConfig) -
             Err(error_msg)
         }
     }
+}
+
+// Helper function to save ollama URL while preserving shortcuts
+pub fn save_ollama_url(app_handle: &AppHandle, shortcut_state: &State<UnifiedShortcutState>, ollama_url: Option<String>) -> Result<(), String> {
+    // Get current config and update ollama_url
+    let mut app_config = shortcut_state.config.lock().unwrap().clone();
+    app_config.ollama_url = ollama_url;
+
+    // Save to disk
+    save_config_to_disk(app_handle, &app_config)?;
+
+    // Update in-memory state
+    *shortcut_state.config.lock().unwrap() = app_config;
+
+    Ok(())
 }
 
 // Shortcut parsing
@@ -259,9 +319,10 @@ fn ensure_overlay_click_through(window: &tauri::WebviewWindow) {
 #[cfg(desktop)]
 pub fn register_shortcuts_on_startup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
-    
+
     let shortcut_state = app.state::<UnifiedShortcutState>();
-    let config = shortcut_state.config.lock().unwrap().clone();
+    let app_config = shortcut_state.config.lock().unwrap().clone();
+    let config = app_config.shortcuts;
     
     // Collect all shortcuts with their actions
     let mut shortcuts_to_register: Vec<(tauri_plugin_global_shortcut::Shortcut, String, ShortcutAction)> = Vec::new();

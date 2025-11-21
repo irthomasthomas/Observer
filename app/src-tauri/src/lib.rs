@@ -9,7 +9,7 @@ mod commands;
 mod controls;
 
 // Import unified shortcut types
-use shortcuts::{UnifiedShortcutState, UnifiedShortcutConfig};
+use shortcuts::{UnifiedShortcutState, AppConfig};
 
 // ---- Final, Corrected Imports ----
 use axum::{
@@ -73,10 +73,17 @@ struct CommandState {
 async fn set_ollama_url(
     new_url: Option<String>, // Can be a string or null from frontend
     settings: State<'_, AppSettings>,
+    shortcut_state: State<'_, UnifiedShortcutState>,
+    app_handle: AppHandle,
 ) -> Result<(), String> {
     log::info!("Setting Ollama URL to: {:?}", new_url);
-    // Lock the mutex to get exclusive access and update the value.
-    *settings.ollama_url.lock().unwrap() = new_url;
+
+    // Update in-memory AppSettings
+    *settings.ollama_url.lock().unwrap() = new_url.clone();
+
+    // Persist to disk (also updates UnifiedShortcutState)
+    shortcuts::save_ollama_url(&app_handle, &shortcut_state, new_url)?;
+
     Ok(()) // Return Ok to signal success to the frontend
 }
 
@@ -331,24 +338,32 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Mutex::new(ServerUrl("".to_string())))
-        .manage(AppSettings {
-            ollama_url: Mutex::new(None),
-        })
-        .manage(OverlayState {
-            messages: Mutex::new(Vec::new()),
-        })
-        .manage({
-            let (tx, _rx) = broadcast::channel(100); // Buffer up to 100 commands
-            CommandState {
-                pending_commands: Mutex::new(std::collections::HashMap::new()),
-                command_broadcaster: tx,
-            }
-        })
-        .manage(UnifiedShortcutState {
-            config: Mutex::new(UnifiedShortcutConfig::default()),
-            registered_shortcuts: Mutex::new(Vec::new()),
-        })
         .setup(|app| {
+            // Load app config early so we can initialize everything with persisted values
+            let loaded_config = shortcuts::load_config_from_disk(app.handle());
+
+            // Initialize AppSettings with loaded ollama_url
+            app.manage(AppSettings {
+                ollama_url: Mutex::new(loaded_config.ollama_url.clone()),
+            });
+
+            app.manage(OverlayState {
+                messages: Mutex::new(Vec::new()),
+            });
+
+            app.manage({
+                let (tx, _rx) = broadcast::channel(100); // Buffer up to 100 commands
+                CommandState {
+                    pending_commands: Mutex::new(std::collections::HashMap::new()),
+                    command_broadcaster: tx,
+                }
+            });
+
+            app.manage(UnifiedShortcutState {
+                config: Mutex::new(loaded_config),
+                registered_shortcuts: Mutex::new(Vec::new()),
+            });
+
             // We use the handle to call updater and restart
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -497,13 +512,9 @@ pub fn run() {
                 }
             }
 
-            // Load unified shortcuts config and register (startup only)
+            // Register shortcuts (config already loaded at app initialization)
             #[cfg(desktop)]
             {
-                let loaded_config = shortcuts::load_config_from_disk(app.handle());
-                let shortcut_state = app.state::<UnifiedShortcutState>();
-                *shortcut_state.config.lock().unwrap() = loaded_config;
-                
                 shortcuts::register_shortcuts_on_startup(app)?;
             }
             
