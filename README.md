@@ -151,26 +151,30 @@ Creating your own Observer AI consist of three things:
 \* Uses a whisper model with transformers.js
 
 Agent Tools:
-  * `getMemory(agentId)*` – Retrieve stored memory 
-  * `setMemory(agentId, content)*` – Replace stored memory  
-  * `appendMemory(agentId, content)*` – Add to existing memory  
-  * `getImageMemory(agentId)*` - Retrieve images stored in memory 
-  * `setImageMemory(agentId, images)` - Set images to memory
-  * `appendImageMemory(agentId, images)` - Add images to memory
-  * `startAgent(agentId)*` – Starts an agent  
-  * `stopAgent(agentId)*` – Stops an agent
+  * `getMemory(agentId?)*` – Retrieve stored memory 
+  * `setMemory(agentId?, content)*` – Replace stored memory  
+  * `appendMemory(agentId?, content)*` – Add to existing memory  
+  * `getImageMemory(agentId?)*` - Retrieve images stored in memory 
+  * `setImageMemory(agentId?, images)*` - Set images to memory
+  * `appendImageMemory(agentId?, images)*` - Add images to memory
+  * `startAgent(agentId?)*` – Starts an agent  
+  * `stopAgent(agentId?)*` – Stops an agent
   * `time()` - Gets current time
   * `sleep(ms)` - Waits that ammount of miliseconds
 
+`*` `agentId` is optional, deaults to agent running code
+
 Notification Tools:
+  * `sendDiscord(discord_webhook, message, images?)` - Directly sends a discord message to a server. 
+  * `sendTelegram(chat_id, message, images?)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
   * `sendEmail(email, message, images?)` - Sends an email
   * `sendPushover(user_token, message, images?, title?)` - Sends a pushover notification.
-  * `sendDiscord(discord_webhook, message, images?)`Sends a discord message to a server.
-  * `sendTelegram(chat_id, message, images?)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
-  * `sendWhatsapp(phone_number, message)` - Sends a whatsapp message with the Observer bot. Send a message first to +1 (555)783-4727 to use.
+  * `call(phone_number, message)*` - Makes an automated phone call with text-to-speech message.
+  * `sendWhatsapp(phone_number, message)*` - Sends a whatsapp message with the Observer bot.  
+  * `sendSms(phone_number, message, images?)*` - Sends an SMS to a phone number. Due to A2P policy, blocked for US/Canada.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
-  * `sendSms(phone_number, message, images?)` - Sends an SMS to a phone number, format as e.g. sendSms("hello",+181429367"). ⚠️IMPORTANT : Due to A2P policy, some SMS messages are being blocked, not recommended for US/Canada.
-  * `call(phone_number, message)` - Makes an automated phone call with text-to-speech message
+
+`*` To activate, SMS or call +1 (863)208-5341 or whatsapp +1 (555)783-4727
 
 Video Recording Tools: 
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
@@ -182,11 +186,7 @@ App Tools:
   * `message(message, title="Agent Message")` - Pops up a system message
   * `system_notify(body, title="Observer AI")` - Sends a system notification
   * `overlay(body)` - Pushes a message to the overlay
-  * `click()` - Triggers a mouse click at the current cursor position ⚠️IMPORTANT: Position mouse before agent runs
-
-> **Note:** any function marked with `*` takes an `agentId` argument.  
-> If you omit `agentId`, it defaults to the agent that’s running the code.
-
+  * `click()` - Triggers a mouse click at the current cursor position 
 ## Code Tab
 
 The "Code" tab receives the following variables as context before running: 
