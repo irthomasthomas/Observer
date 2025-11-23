@@ -285,6 +285,17 @@ class LoggingService {
             })
           );
           break;
+
+        case 'whitelist-required':
+          window.dispatchEvent(
+            new CustomEvent('whitelistRequired', {
+              detail: {
+                phoneNumber: entry.details.content?.phoneNumber,
+                toolName: entry.details.content?.toolName
+              }
+            })
+          );
+          break;
       }
     } catch (error) {
       console.error('Error dispatching window event from logger:', error);

@@ -118,10 +118,23 @@ export async function sendSms(message: string, number: string, authToken: string
     });
 
     if (!response.ok) {
+      // Check if this is a whitelist error (403 + user is authenticated)
+      if (response.status === 403 && authToken) {
+        Logger.error('whitelist', `Phone number ${number} not whitelisted for SMS`, {
+          logType: 'whitelist-required',
+          content: {
+            phoneNumber: number,
+            toolName: 'SMS',
+            timestamp: new Date().toISOString()
+          }
+        });
+        throw new Error(`Phone number ${number} is not whitelisted. Please verify your number first.`);
+      }
+
       try {
         const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string' 
-          ? errorData.detail 
+        const errorMessage = typeof errorData.detail === 'string'
+          ? errorData.detail
           : `Failed to send SMS: ${response.status} ${response.statusText}`;
         throw new Error(errorMessage);
       } catch (parseError) {
@@ -168,10 +181,23 @@ export async function sendWhatsapp(message: string, number: string, authToken: s
     });
 
     if (!response.ok) {
+      // Check if this is a whitelist error (403 + user is authenticated)
+      if (response.status === 403 && authToken) {
+        Logger.error('whitelist', `Phone number ${number} not whitelisted for WhatsApp`, {
+          logType: 'whitelist-required',
+          content: {
+            phoneNumber: number,
+            toolName: 'WhatsApp',
+            timestamp: new Date().toISOString()
+          }
+        });
+        throw new Error(`Phone number ${number} is not whitelisted. Please verify your number first.`);
+      }
+
       try {
         const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string' 
-          ? errorData.detail 
+        const errorMessage = typeof errorData.detail === 'string'
+          ? errorData.detail
           : `Failed to send WhatsApp message: ${response.status} ${response.statusText}`;
         throw new Error(errorMessage);
       } catch (parseError) {
@@ -644,6 +670,19 @@ export async function call(message: string, number: string, authToken: string): 
     });
 
     if (!response.ok) {
+      // Check if this is a whitelist error (403 + user is authenticated)
+      if (response.status === 403 && authToken) {
+        Logger.error('whitelist', `Phone number ${number} not whitelisted for calls`, {
+          logType: 'whitelist-required',
+          content: {
+            phoneNumber: number,
+            toolName: 'Call',
+            timestamp: new Date().toISOString()
+          }
+        });
+        throw new Error(`Phone number ${number} is not whitelisted. Please verify your number first.`);
+      }
+
       try {
         const errorData = await response.json();
         const errorMessage = typeof errorData.detail === 'string'

@@ -43,6 +43,7 @@ import TerminalModal from '@components/TerminalModal';
 import FeedbackDialog from '@components/FeedbackDialog';
 import { startCommandSSE, updateCommandSSEToken } from '@utils/commandSSE';
 import { fetchModels } from '@utils/inferenceServer';
+import WhitelistModal from '@components/WhitelistModal';
 
 
 function AppContent() {
@@ -121,6 +122,12 @@ function AppContent() {
 
   // --- STATE FOR FEEDBACK DIALOG ---
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+
+  // --- STATE FOR WHITELIST MODAL ---
+  const [whitelistModalInfo, setWhitelistModalInfo] = useState<{
+    phoneNumber: string;
+    toolName: 'WhatsApp' | 'SMS' | 'Call';
+  } | null>(null);
 
   // --- DERIVED STATE ---
   const isProUser = quotaInfo?.tier === 'pro' || quotaInfo?.tier === 'max';
@@ -269,6 +276,21 @@ function AppContent() {
 
     return () => {
       window.removeEventListener('agentRuntimeError', handleAgentRuntimeError as EventListener);
+    };
+  }, []);
+
+  // --- USEEFFECT FOR WHITELIST REQUIRED EVENT LISTENER ---
+  useEffect(() => {
+    const handleWhitelistRequired = (event: CustomEvent<{ phoneNumber: string; toolName: 'WhatsApp' | 'SMS' | 'Call' }>) => {
+      const { phoneNumber, toolName } = event.detail;
+      setWhitelistModalInfo({ phoneNumber, toolName });
+      Logger.info('APP', `Whitelist required for ${toolName}: ${phoneNumber}`);
+    };
+
+    window.addEventListener('whitelistRequired', handleWhitelistRequired as EventListener);
+
+    return () => {
+      window.removeEventListener('whitelistRequired', handleWhitelistRequired as EventListener);
     };
   }, []);
 
@@ -930,6 +952,14 @@ function AppContent() {
         getToken={getToken}
         isAuthenticated={isAuthenticated}
       />
+
+      {whitelistModalInfo && (
+        <WhitelistModal
+          phoneNumber={whitelistModalInfo.phoneNumber}
+          toolName={whitelistModalInfo.toolName}
+          onClose={() => setWhitelistModalInfo(null)}
+        />
+      )}
     </div>
   );
 }
