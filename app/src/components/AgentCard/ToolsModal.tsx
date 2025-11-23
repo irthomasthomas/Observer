@@ -734,44 +734,225 @@ function updateCallOnLine(
   return lines.join('\n');
 }
 
-// Tool Card Component for displaying individual tools
-interface ToolCardProps {
+// Expandable Tool Card Component - can be compact or expanded
+interface ExpandableToolCardProps {
   call: ToolCall;
   toolConfig: ToolConfig;
+  isExpanded: boolean;
   onClick: (call: ToolCall) => void;
+  onClose: () => void;
+  testInputs: string[];
+  setTestInputs: (inputs: string[]) => void;
+  testResult: TestResult | null;
+  testingTool: boolean;
+  showHelp: boolean;
+  setShowHelp: (show: boolean) => void;
+  onTest: () => void;
+  onInputChange: (newInputs: string[]) => void;
 }
 
-const ToolCard: React.FC<ToolCardProps> = ({ call, toolConfig, onClick }) => {
+const ExpandableToolCard: React.FC<ExpandableToolCardProps> = ({
+  call,
+  toolConfig,
+  isExpanded,
+  onClick,
+  onClose,
+  testInputs,
+  testResult,
+  testingTool,
+  showHelp,
+  setShowHelp,
+  onTest,
+  onInputChange
+}) => {
   const isTestable = call.isTestable;
 
+  if (!isExpanded) {
+    // Compact card view
+    return (
+      <button
+        onClick={() => onClick(call)}
+        className="relative w-full p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group text-center flex flex-col items-center justify-center gap-2 aspect-[4/3]"
+        title={toolConfig.description}
+      >
+        {/* Testability badge */}
+        {isTestable && (
+          <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-600 rounded-full group-hover:scale-110 transition-transform" />
+        )}
+
+        {/* Icon */}
+        <div className="flex items-center justify-center">
+          {React.createElement(toolConfig.icon, {
+            className: 'w-8 h-8 text-gray-500 group-hover:text-indigo-600 transition-colors'
+          })}
+        </div>
+
+        {/* Tool name */}
+        <div className="font-semibold text-sm text-gray-900">
+          {toolConfig.name.replace('()', '')}
+        </div>
+
+        {/* Description */}
+        <div className="text-xs text-gray-500 line-clamp-2 px-2">
+          {toolConfig.description}
+        </div>
+      </button>
+    );
+  }
+
+  // Expanded test interface view
   return (
-    <button
-      onClick={() => onClick(call)}
-      className="relative w-full p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group text-center flex flex-col items-center justify-center gap-2 aspect-[4/3]"
-      title={toolConfig.description}
-    >
-      {/* Testability badge */}
-      {isTestable && (
-        <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-600 rounded-full group-hover:scale-110 transition-transform" />
+    <div className="bg-white rounded-lg border-2 border-indigo-500 shadow-lg p-6 animate-in fade-in zoom-in-95 duration-200">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          {React.createElement(toolConfig.icon, { className: 'w-6 h-6 text-gray-500' })}
+          <h3 className="font-semibold text-lg text-gray-900">{toolConfig.name.replace('()', '')}</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+            title="Toggle help"
+          >
+            <Info className="h-5 w-5" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Help Section */}
+      {showHelp && (
+        <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 text-sm space-y-3">
+          <p className="text-gray-700">{toolConfig.description}</p>
+
+          {toolConfig.parameters && toolConfig.parameters.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-semibold text-gray-800">Parameters:</p>
+              {toolConfig.parameters.map((param, idx) => (
+                <div key={idx} className="text-gray-600 ml-2">
+                  <span className="font-mono font-semibold text-gray-800">{param.name}:</span> {param.description}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {toolConfig.warning && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-sm">
+              {toolConfig.warning}
+            </div>
+          )}
+
+          {toolConfig.infoMessage && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm">
+              {toolConfig.infoMessage}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Icon */}
-      <div className="flex items-center justify-center">
-        {React.createElement(toolConfig.icon, {
-          className: 'w-8 h-8 text-gray-500 group-hover:text-indigo-600 transition-colors'
-        })}
-      </div>
+      {/* Test Interface */}
+      {isTestable ? (
+        <div className="space-y-4">
+          {/* Parameter Inputs */}
+          {toolConfig.parameters && toolConfig.parameters.length > 0 && (
+            <div className="space-y-3">
+              {toolConfig.parameters.slice(0, 2).map((param, idx) => (
+                <div key={idx}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {param.name}
+                  </label>
+                  <input
+                    type="text"
+                    value={testInputs[idx] || ''}
+                    onChange={(e) => {
+                      const newInputs = [...testInputs];
+                      newInputs[idx] = e.target.value;
+                      onInputChange(newInputs);
+                    }}
+                    placeholder={param.description}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
-      {/* Tool name */}
-      <div className="font-semibold text-sm text-gray-900">
-        {toolConfig.name.replace('()', '')}
-      </div>
+          {/* Test Button */}
+          <button
+            onClick={onTest}
+            disabled={testingTool}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all ${
+              testResult
+                ? testResult.success
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+                : testingTool
+                ? 'bg-gray-200 text-gray-600 cursor-wait'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}
+          >
+            {testingTool ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Testing...
+              </>
+            ) : testResult ? (
+              testResult.success ? (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  Success!
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-5 h-5" />
+                  Failed
+                </>
+              )
+            ) : (
+              <>Test Tool</>
+            )}
+          </button>
 
-      {/* Description - show on hover or truncated */}
-      <div className="text-xs text-gray-500 line-clamp-2 px-2">
-        {toolConfig.description}
-      </div>
-    </button>
+          {/* Error Message */}
+          {testResult && !testResult.success && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
+              {testResult.message}
+            </div>
+          )}
+
+          {/* Success Message */}
+          {testResult && testResult.success && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
+              {testResult.message}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <div className="mb-4 px-4 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-700 text-center font-medium">
+            Info Only - Not Testable
+          </div>
+
+          {toolConfig.parameters && toolConfig.parameters.length > 0 && (
+            <div className="space-y-3 text-sm">
+              <p className="font-semibold text-gray-800">Parameters:</p>
+              {toolConfig.parameters.map((param, idx) => (
+                <div key={idx} className="text-gray-600 ml-2">
+                  <span className="font-mono font-semibold text-gray-800">{param.name}</span>
+                  <p className="text-gray-500 ml-2 mt-1">{param.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -785,6 +966,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
   const [modifiedCode, setModifiedCode] = useState<string>(code);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<'cards' | 'code'>('cards');
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
   // Sync modifiedCode when code prop changes (prevents empty code bug)
   useEffect(() => {
@@ -792,6 +974,13 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
       setModifiedCode(code);
     }
   }, [code]);
+
+  // Clear expanded card when switching views
+  useEffect(() => {
+    if (activeView === 'code') {
+      setExpandedCardId(null);
+    }
+  }, [activeView]);
 
   // Handle modal close with save (following SensorModal pattern)
   const handleClose = () => {
@@ -818,16 +1007,28 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
     agentId: agentId
   }), []);
 
-  // Handler for clicking tool cards (without event for card view)
+  // Handler for clicking tool cards (expands card in cards view)
   const handleCardClick = (call: ToolCall) => {
-    // Set a default centered position for the bubble in card view
-    const defaultPosition = {
-      top: window.innerHeight / 2 - 200,
-      left: window.innerWidth / 2 - 150
-    };
+    if (activeView === 'cards') {
+      // In cards view, expand the card itself
+      setExpandedCardId(call.id);
+      handleToolClick(call);
+    } else {
+      // In code view, use the floating bubble
+      const defaultPosition = {
+        top: window.innerHeight / 2 - 200,
+        left: window.innerWidth / 2 - 150
+      };
+      handleToolClick(call);
+      setBubblePosition(defaultPosition);
+    }
+  };
 
-    handleToolClick(call);
-    setBubblePosition(defaultPosition);
+  // Close expanded card
+  const handleCloseExpandedCard = () => {
+    setExpandedCardId(null);
+    setSelectedCall(null);
+    setTestResult(null);
   };
 
   // When a tool is clicked, evaluate its arguments and populate inputs
@@ -1132,7 +1333,35 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                     {groupedToolCalls.always.map(call => {
                       const toolConfig = getAllTools().find(t => t.id === call.toolId);
                       if (!toolConfig) return null;
-                      return <ToolCard key={call.id} call={call} toolConfig={toolConfig} onClick={handleCardClick} />;
+                      return (
+                        <ExpandableToolCard
+                          key={call.id}
+                          call={call}
+                          toolConfig={toolConfig}
+                          isExpanded={expandedCardId === call.id}
+                          onClick={handleCardClick}
+                          onClose={handleCloseExpandedCard}
+                          testInputs={testInputs}
+                          setTestInputs={setTestInputs}
+                          testResult={testResult}
+                          testingTool={testingTool}
+                          showHelp={showHelp}
+                          setShowHelp={setShowHelp}
+                          onTest={handleTest}
+                          onInputChange={(newInputs) => {
+                            setTestInputs(newInputs);
+                            if (selectedCall) {
+                              const updatedCode = updateCallOnLine(
+                                modifiedCode,
+                                selectedCall.lineNumber,
+                                selectedCall.functionName,
+                                newInputs
+                              );
+                              setModifiedCode(updatedCode);
+                            }
+                          }}
+                        />
+                      );
                     })}
                   </div>
                 </div>
@@ -1150,7 +1379,35 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                     {groupedToolCalls.conditional.map(call => {
                       const toolConfig = getAllTools().find(t => t.id === call.toolId);
                       if (!toolConfig) return null;
-                      return <ToolCard key={call.id} call={call} toolConfig={toolConfig} onClick={handleCardClick} />;
+                      return (
+                        <ExpandableToolCard
+                          key={call.id}
+                          call={call}
+                          toolConfig={toolConfig}
+                          isExpanded={expandedCardId === call.id}
+                          onClick={handleCardClick}
+                          onClose={handleCloseExpandedCard}
+                          testInputs={testInputs}
+                          setTestInputs={setTestInputs}
+                          testResult={testResult}
+                          testingTool={testingTool}
+                          showHelp={showHelp}
+                          setShowHelp={setShowHelp}
+                          onTest={handleTest}
+                          onInputChange={(newInputs) => {
+                            setTestInputs(newInputs);
+                            if (selectedCall) {
+                              const updatedCode = updateCallOnLine(
+                                modifiedCode,
+                                selectedCall.lineNumber,
+                                selectedCall.functionName,
+                                newInputs
+                              );
+                              setModifiedCode(updatedCode);
+                            }
+                          }}
+                        />
+                      );
                     })}
                   </div>
                 </div>
@@ -1245,8 +1502,8 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
         </div>
         )}
 
-        {/* Test Panel - Appears when tool is clicked */}
-        {selectedCall && selectedToolConfig && bubblePosition && (
+        {/* Test Panel - Appears when tool is clicked in code view */}
+        {activeView === 'code' && selectedCall && selectedToolConfig && bubblePosition && (
           <div
             className="fixed bg-white rounded-lg shadow-xl border border-gray-200 w-80 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
             style={{
