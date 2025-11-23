@@ -545,7 +545,7 @@ function AppContent() {
 
   // Check if user should see welcome modal (using localStorage)
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user?.sub) {
+    if (!isLoading && isAuthenticated && user && 'sub' in user) {
       const hasSeenWelcome = localStorage.getItem(`observer_welcome_dismissed_${user.sub}`);
 
       if (!hasSeenWelcome) {

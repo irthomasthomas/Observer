@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { X as CloseIcon, Loader2, Sparkles, Zap, Heart, Coffee, Star } from 'lucide-react';
+import { X as CloseIcon, Loader2, Sparkles, Zap, Heart, Star } from 'lucide-react';
 import { Logger } from '@utils/logging';
 
 interface WelcomeModalProps {
@@ -17,7 +17,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  const { getAccessTokenSilently, isAuthenticated, loginWithRedirect, user } = useAuth0();
+  const { getAccessTokenSilently, isAuthenticated, user } = useAuth0();
 
   useEffect(() => {
     if (!isOpen || !isAuthenticated) {
@@ -68,7 +68,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
     }
   };
 
-  const handlePlusCheckout = () => handleApiAction('create-checkout-session-plus');
   const handleProCheckout = () => handleApiAction('create-checkout-session');
 
   const handleStarGithub = () => {
