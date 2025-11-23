@@ -979,6 +979,7 @@ function AppContent() {
           phoneNumber={whitelistModalInfo.phoneNumber}
           toolName={whitelistModalInfo.toolName}
           onClose={() => setWhitelistModalInfo(null)}
+          getToken={getToken}
         />
       )}
     </div>

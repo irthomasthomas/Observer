@@ -6,14 +6,18 @@ interface WhitelistModalProps {
   phoneNumber: string;
   toolName: 'WhatsApp' | 'SMS' | 'Call';
   onClose: () => void;
+  getToken: () => Promise<string | undefined>;
 }
 
-const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, onClose }) => {
+const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, onClose, getToken }) => {
   const OBSERVER_SMS_CALL = '+1 (863) 208-5341';
   const OBSERVER_WHATSAPP = '+1 (555) 783-4727';
   const OBSERVER_WHATSAPP_PLAIN = '15557834727';
 
   const [copied, setCopied] = React.useState<'sms' | 'whatsapp' | null>(null);
+  const [phoneInput, setPhoneInput] = React.useState('');
+  const [checkResult, setCheckResult] = React.useState<{ is_whitelisted: boolean } | null>(null);
+  const [isChecking, setIsChecking] = React.useState(false);
 
   const copyToClipboard = (text: string, type: 'sms' | 'whatsapp') => {
     navigator.clipboard.writeText(text);
@@ -27,6 +31,46 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, 
 
   const openSMS = () => {
     window.open(`sms:${OBSERVER_SMS_CALL}`, '_blank');
+  };
+
+  const checkWhitelistStatus = async () => {
+    if (!phoneInput.trim()) return;
+
+    setIsChecking(true);
+    setCheckResult(null);
+
+    try {
+      // Get auth token
+      const token = await getToken();
+      if (!token) {
+        console.error('No auth token available');
+        setCheckResult({ is_whitelisted: false });
+        setIsChecking(false);
+        return;
+      }
+
+      const response = await fetch('https://api.observer-ai.com/tools/is-whitelisted', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ phone_number: phoneInput }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to check whitelist status');
+      }
+
+      const data = await response.json();
+      setCheckResult(data);
+    } catch (error) {
+      console.error('Error checking whitelist:', error);
+      // Set a default false result on error
+      setCheckResult({ is_whitelisted: false });
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   return (
@@ -147,6 +191,46 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, 
                 )}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Whitelist Checker */}
+        <div className="pt-4 border-t border-gray-200">
+          <p className="text-sm font-semibold text-gray-900 mb-2">Check Whitelist Status</p>
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={phoneInput}
+              onChange={(e) => {
+                setPhoneInput(e.target.value);
+                setCheckResult(null); // Clear result when input changes
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') checkWhitelistStatus();
+              }}
+              placeholder="+15551234567"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <button
+              onClick={checkWhitelistStatus}
+              disabled={!phoneInput.trim() || isChecking}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              {isChecking ? 'Checking...' : 'Check'}
+            </button>
+            {checkResult !== null && (
+              <div className="flex items-center">
+                {checkResult.is_whitelisted ? (
+                  <span className="text-green-600 font-medium text-sm flex items-center">
+                    ✓ Whitelisted
+                  </span>
+                ) : (
+                  <span className="text-red-600 font-medium text-sm flex items-center">
+                    ✗ Not whitelisted
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
