@@ -38,6 +38,7 @@ import MemoryStoreTab from '@components/MemoryStoreTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming this path is correct
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
+import { WelcomeModal } from '@components/WelcomeModal';
 import AgentActivityModal from '@components/AgentCard/AgentActivityModal';
 import TerminalModal from '@components/TerminalModal';
 import FeedbackDialog from '@components/FeedbackDialog';
@@ -128,6 +129,9 @@ function AppContent() {
     phoneNumber: string;
     toolName: 'WhatsApp' | 'SMS' | 'Call';
   } | null>(null);
+
+  // --- STATE FOR WELCOME MODAL ---
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
   // --- DERIVED STATE ---
   const isProUser = quotaInfo?.tier === 'pro' || quotaInfo?.tier === 'max';
@@ -539,6 +543,18 @@ function AppContent() {
     }
   }, [isLoading, isAuthenticated]);
 
+  // Check if user should see welcome modal (using localStorage)
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user?.sub) {
+      const hasSeenWelcome = localStorage.getItem(`observer_welcome_dismissed_${user.sub}`);
+
+      if (!hasSeenWelcome) {
+        Logger.info('WELCOME', 'User has not seen welcome modal, showing it');
+        setIsWelcomeModalOpen(true);
+      }
+    }
+  }, [isLoading, isAuthenticated, user]);
+
   useEffect(() => {
     if (serverStatus === 'offline' && !hasCompletedStartupCheck && !isLoading && !isAuthenticated) {
       setShowStartupDialog(true);
@@ -592,6 +608,11 @@ function AppContent() {
           isHalfwayWarning={isHalfwayWarning}
         />
 
+        <WelcomeModal
+          isOpen={isWelcomeModalOpen}
+          onClose={() => setIsWelcomeModalOpen(false)}
+          onViewAllTiers={() => setActiveTab('obServer')}
+        />
 
         <AppHeader
           serverStatus={serverStatus}
