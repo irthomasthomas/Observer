@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Users, Database, Settings, Video, Server, BookOpen } from 'lucide-react';
+import { Home, Users, Database, Settings, Cpu, Video, Sparkles } from 'lucide-react';
 import { Logger } from '@utils/logging';
 
 interface PersistentSidebarProps {
@@ -28,11 +28,11 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
 
   const menuItems = [
     { id: 'myAgents', icon: Home, label: 'My Agents', color: 'blue' },
-    { id: 'memoryStore', icon: BookOpen, label: 'Memories', color: 'blue' },
+    { id: 'models', icon: Cpu, label: 'Models', color: 'blue' },
+    { id: 'memoryStore', icon: Database, label: 'Memories', color: 'blue' },
     { id: 'recordings', icon: Video, label: 'Recordings', color: 'blue' },
     { id: 'community', icon: Users, label: 'Community', color: 'blue' },
-    { id: 'models', icon: Database, label: 'Models', color: 'blue' },
-    { id: 'obServer', icon: Server, label: 'ObServer', color: 'purple' },
+    { id: 'obServer', icon: Sparkles, label: 'Upgrade', color: 'purple' },
     { id: 'settings', icon: Settings, label: 'Settings', color: 'blue' },
   ];
 
