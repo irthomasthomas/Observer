@@ -37,7 +37,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, 
           <Phone className="h-6 w-6" />
           <div>
             <h2 className="text-xl font-semibold">Verify Your Phone Number</h2>
-            <p className="text-sm text-blue-100">Quick one-time setup</p>
+            <p className="text-sm text-blue-100">Quick one-time setup for 24 hours</p>
           </div>
         </div>
         <button
@@ -152,9 +152,8 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, 
 
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
           <p className="text-xs text-gray-600">
-            After verification is complete, your number will be whitelisted and you can use {toolName}{' '}
-            notifications. This is a one-time setup per phone number.
-          </p>
+            After verification is complete, your number will be whitelisted for 24 hours so you can use {toolName}{' '}
+            and all other phone number notifications.          </p>
         </div>
       </div>
 
