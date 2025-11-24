@@ -126,8 +126,8 @@ function AppContent() {
 
   // --- STATE FOR WHITELIST MODAL ---
   const [whitelistModalInfo, setWhitelistModalInfo] = useState<{
-    phoneNumber: string;
-    toolName: 'WhatsApp' | 'SMS' | 'Call';
+    phoneNumbers: Array<{ number: string; isWhitelisted: boolean }>;
+    agentId?: string; // For preflight checks
   } | null>(null);
 
   // --- STATE FOR WELCOME MODAL ---
@@ -286,9 +286,11 @@ function AppContent() {
   // --- USEEFFECT FOR WHITELIST REQUIRED EVENT LISTENER ---
   useEffect(() => {
     const handleWhitelistRequired = (event: CustomEvent<{ phoneNumber: string; toolName: 'WhatsApp' | 'SMS' | 'Call' }>) => {
-      const { phoneNumber, toolName } = event.detail;
-      setWhitelistModalInfo({ phoneNumber, toolName });
-      Logger.info('APP', `Whitelist required for ${toolName}: ${phoneNumber}`);
+      const { phoneNumber } = event.detail;
+      setWhitelistModalInfo({
+        phoneNumbers: [{ number: phoneNumber, isWhitelisted: false }],
+      });
+      Logger.info('APP', `Whitelist required: ${phoneNumber}`);
     };
 
     window.addEventListener('whitelistRequired', handleWhitelistRequired as EventListener);
@@ -424,6 +426,22 @@ function AppContent() {
 
         try {
           await startAgentLoop(id, getToken);
+        } catch (err: any) {
+          // Check if this is a whitelist error
+          if (err.whitelistCheck) {
+            setWhitelistModalInfo({
+              phoneNumbers: err.whitelistCheck.phoneNumbers,
+              agentId: id,
+            });
+            // Clear starting state since we're showing modal
+            setStartingAgents(prev => {
+              const updated = new Set(prev);
+              updated.delete(id);
+              return updated;
+            });
+            return; // Don't propagate error, we're handling it with modal
+          }
+          throw err; // Re-throw non-whitelist errors
         } finally {
           // This ensures that 'startingAgents' is cleared regardless of success or failure
           setStartingAgents(prev => {
@@ -976,9 +994,35 @@ function AppContent() {
 
       {whitelistModalInfo && (
         <WhitelistModal
-          phoneNumber={whitelistModalInfo.phoneNumber}
-          toolName={whitelistModalInfo.toolName}
+          phoneNumbers={whitelistModalInfo.phoneNumbers}
           onClose={() => setWhitelistModalInfo(null)}
+          onStartAnyway={
+            whitelistModalInfo.agentId
+              ? async () => {
+                  const agentId = whitelistModalInfo.agentId!;
+                  setWhitelistModalInfo(null);
+                  setStartingAgents(prev => {
+                    const updated = new Set(prev);
+                    updated.add(agentId);
+                    return updated;
+                  });
+                  try {
+                    // Start agent with whitelist check skipped
+                    await startAgentLoop(agentId, getToken, true);
+                  } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                    setError(errorMessage);
+                    Logger.error('APP', `Failed to start agent: ${errorMessage}`, err);
+                  } finally {
+                    setStartingAgents(prev => {
+                      const updated = new Set(prev);
+                      updated.delete(agentId);
+                      return updated;
+                    });
+                  }
+                }
+              : undefined
+          }
           getToken={getToken}
         />
       )}

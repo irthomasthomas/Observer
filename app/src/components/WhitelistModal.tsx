@@ -3,13 +3,16 @@ import Modal from '@components/EditAgent/Modal';
 import { Phone, MessageCircle, X, Copy, ExternalLink } from 'lucide-react';
 
 interface WhitelistModalProps {
-  phoneNumber: string;
-  toolName: 'WhatsApp' | 'SMS' | 'Call';
+  phoneNumbers: Array<{
+    number: string;
+    isWhitelisted: boolean;
+  }>;
   onClose: () => void;
+  onStartAnyway?: () => void;
   getToken: () => Promise<string | undefined>;
 }
 
-const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, onClose, getToken }) => {
+const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, onStartAnyway, getToken }) => {
   const OBSERVER_SMS_CALL = '+1 (863) 208-5341';
   const OBSERVER_WHATSAPP = '+1 (555) 783-4727';
   const OBSERVER_WHATSAPP_PLAIN = '15557834727';
@@ -80,7 +83,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, 
         <div className="flex items-center space-x-3">
           <Phone className="h-6 w-6" />
           <div>
-            <h2 className="text-xl font-semibold">Verify Your Phone Number</h2>
+            <h2 className="text-xl font-semibold">Phone Verification Required</h2>
             <p className="text-sm text-blue-100">Quick one-time setup for 24 hours</p>
           </div>
         </div>
@@ -94,13 +97,38 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, 
 
       {/* Content */}
       <div className="p-6 space-y-4">
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-gray-700">
-            To use <strong>{toolName}</strong> notifications with{' '}
-            <strong className="font-mono text-blue-700">{phoneNumber}</strong>, please verify your
-            number by contacting Observer AI:
-          </p>
-        </div>
+        {phoneNumbers.length > 0 ? (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-gray-700 mb-3">
+              {phoneNumbers.some(p => !p.isWhitelisted)
+                ? 'We found these phone numbers in your agent code:'
+                : 'Please verify your phone number to use phone notifications:'}
+            </p>
+            <div className="space-y-2">
+              {phoneNumbers.map(({ number, isWhitelisted }) => (
+                <div key={number} className="flex items-center space-x-2 font-mono text-sm">
+                  {isWhitelisted ? (
+                    <span className="text-green-600">✓</span>
+                  ) : (
+                    <span className="text-red-600">✗</span>
+                  )}
+                  <span className={isWhitelisted ? 'text-gray-600' : 'text-blue-700 font-semibold'}>
+                    {number}
+                  </span>
+                  {isWhitelisted && <span className="text-xs text-green-600">(Whitelisted)</span>}
+                  {!isWhitelisted && <span className="text-xs text-red-600">(Not whitelisted)</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-gray-700">
+              <strong>⚠️ Phone tools detected</strong> but we couldn't find a phone number in your code.
+              If you're using dynamic phone numbers, make sure they're whitelisted or the agent will fail at runtime.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-3">
           {/* WhatsApp Option */}
@@ -236,19 +264,36 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumber, toolName, 
 
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
           <p className="text-xs text-gray-600">
-            After verification is complete, your number will be whitelisted for 24 hours so you can use {toolName}{' '}
-            and all other phone number notifications.          </p>
+            After verification is complete, your number will be whitelisted for 24 hours for all phone notifications.
+          </p>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="flex justify-end items-center px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-        <button
-          onClick={onClose}
-          className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
-          Got it
-        </button>
+      <div className="flex justify-end items-center px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg space-x-3">
+        {onStartAnyway ? (
+          <>
+            <button
+              onClick={onClose}
+              className="px-5 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onStartAnyway}
+              className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+            >
+              Start Anyway
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={onClose}
+            className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            Got it
+          </button>
+        )}
       </div>
     </Modal>
   );

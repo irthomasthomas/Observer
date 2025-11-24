@@ -9,6 +9,7 @@ import { StreamManager, PseudoStreamType } from './streamManager'; // Import the
 import { recordingManager } from './recordingManager';
 import { IterationStore } from './IterationStore';
 import { detectSignificantChange, clearAgentChangeData } from './change_detector';
+import { checkPhoneWhitelist } from './pre-flight';
 
 export type TokenProvider = () => Promise<string | undefined>;
 
@@ -26,18 +27,31 @@ const activeLoops: Record<string, {
 
 // Removed legacy server address functions - now using inferenceServer.ts
 
-export async function startAgentLoop(agentId: string, getToken?: TokenProvider): Promise<void> {
+export async function startAgentLoop(agentId: string, getToken?: TokenProvider, skipWhitelistCheck = false): Promise<void> {
   if (activeLoops[agentId]?.isRunning) {
     Logger.warn(agentId, `Agent is already running`);
     return;
   }
-  
+
   const isFirstAgent = getRunningAgentIds().length === 0;
 
 
   try {
     const agent = await getAgent(agentId);
     if (!agent) throw new Error(`Agent ${agentId} not found`);
+
+    // Check phone whitelist before starting (unless explicitly skipped)
+    if (!skipWhitelistCheck) {
+      const agentCode = await getAgentCode(agentId) || '';
+      const { phoneNumbers, hasTools } = await checkPhoneWhitelist(agentCode, getToken);
+
+      // If phone tools are used and there are issues, throw error for UI to handle
+      if (hasTools && (phoneNumbers.length === 0 || phoneNumbers.some(p => !p.isWhitelisted))) {
+        const error: any = new Error('Phone whitelist check failed');
+        error.whitelistCheck = { phoneNumbers, hasTools };
+        throw error;
+      }
+    }
 
     const streamRequirementsMap = {
       '$SCREEN_64': 'screenVideo', '$SCREEN_OCR': 'screenVideo', '$CAMERA': 'camera', '$SCREEN_AUDIO': 'screenAudio',
