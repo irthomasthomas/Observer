@@ -196,6 +196,19 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
     onResponse("User declined sending a picture");
   };
 
+  const handleSkipReference = () => {
+    logger.info('Skip reference image button clicked');
+    // Clean up any active stream
+    if (stream) {
+      logger.info('Stopping stream on skip');
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowPreview(false);
+    setCaptureMode(null);
+    onResponse("Can you create this agent without a reference image?");
+  };
+
   return (
     <div className="w-full bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6 relative shadow-sm">
       {/* Close button in top right */}
@@ -210,29 +223,38 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
         <p className="text-purple-900 font-semibold mb-6 text-lg">{requestText}</p>
         
         {!showPreview ? (
-          <div className="flex gap-3">
-            <button
-              onClick={handleUploadImage}
-              className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-            >
-              <Upload className="h-5 w-5 mr-2" />
-              Upload Image
-            </button>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <button
+                onClick={handleUploadImage}
+                className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <Upload className="h-5 w-5 mr-2" />
+                Upload Image
+              </button>
+
+              <button
+                onClick={handleStartCamera}
+                className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <Camera className="h-5 w-5 mr-2" />
+                Open Camera
+              </button>
+
+              <button
+                onClick={handleStartScreenShare}
+                className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <Monitor className="h-5 w-5 mr-2" />
+                Share Screen
+              </button>
+            </div>
 
             <button
-              onClick={handleStartCamera}
-              className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              onClick={handleSkipReference}
+              className="w-full px-4 py-3 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-400 rounded-lg hover:bg-gray-50 hover:border-gray-500 transition-all duration-200 shadow-sm hover:shadow-md"
             >
-              <Camera className="h-5 w-5 mr-2" />
-              Open Camera
-            </button>
-
-            <button
-              onClick={handleStartScreenShare}
-              className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-            >
-              <Monitor className="h-5 w-5 mr-2" />
-              Share Screen
+              Skip Reference Image
             </button>
           </div>
         ) : (
