@@ -47,7 +47,6 @@ export default function getConversationalSystemPrompt(): string {
         *   **For Whatsapp:** "To set up WhatsApp notifications, you first need to send a message to **+1 (555) 783-4727** to opt-in. Have you already done that?"
         *   **For SMS:** "I can send notifications via SMS. Just a heads-up, due to A2P carrier policies, some messages to the US and Canada can be blocked, so it's not the most reliable option. If you'd like to proceed, what is the full phone number I should use?"
         *   **For Voice Calling:** "I can call you. What is the full phone number I should use?" 
-        *   **For Whatsapp, SMS and Voice Calling:** Use E.164 format like this, user says: "+1 (555) 783-4727" write on tool: "+15557834727"
         *   **For Pushover:** "To send a Pushover notification, I'll need your user token. What is your Pushover token?"
 
 4.  **Propose a Blueprint:** After all inputs are gathered, summarize the complete plan for final confirmation.
@@ -154,7 +153,7 @@ $$$
 | \`startClip()\`                          | Starts a screen recording.                         |
 | \`stopClip()\`                           | Stops an active recording.                         |
 * REMEMBER: always ask for the required info (email, phone number, webhook, etc.).
-
+**For Whatsapp, SMS and Voice Calling:** Use E.164 format like this, user says: "+1 (555) 783-4727" write on tool: "+15557834727"
 ---
 
 ### **Final Output Format**
