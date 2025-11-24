@@ -121,6 +121,10 @@
   background-color: #7f1d1d !important;
 }
 
+.dark .bg-red-100 {
+  background-color: #991b1b !important;
+}
+
 .dark .border-red-200 {
   border-color: #991b1b !important;
 }
@@ -209,6 +213,10 @@
 
 .dark .text-green-700 {
   color: #4ade80 !important;
+}
+
+.dark .text-green-800 {
+  color: #86efac !important;
 }
 
 .dark .bg-green-500 {
