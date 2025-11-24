@@ -72,7 +72,7 @@ const MobileTabNav: React.FC<MobileTabNavProps> = ({ activeTab, setActiveTab }) 
           onClick={() => setActiveTab(tab.id)}
           className={`flex-1 flex justify-center items-center p-3 text-sm font-medium transition-colors ${
             activeTab === tab.id
-              ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white'
+              ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
               : 'text-gray-500 hover:bg-gray-100'
           }`}
         >
@@ -189,7 +189,7 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
   description, setDescription, isProUser = false,
 }) => (
   <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-    <h3 className="text-lg font-semibold text-indigo-700 mb-4 md:hidden">Agent Configuration</h3>
+    <h3 className="text-lg font-semibold text-blue-700 mb-4 md:hidden">Agent Configuration</h3>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
       <div>
         <label className="block text-gray-600 mb-1 flex items-center"><Edit3 size={14} className="mr-1.5 text-gray-500" />Name <span className="text-red-500">*</span></label>
@@ -197,7 +197,7 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
       </div>
       <div>
         <label className="block text-gray-600 mb-1 flex items-center"><Tag size={14} className="mr-1.5 text-gray-500" />ID {createMode && <span className="text-red-500">*</span>}</label>
-        <input value={agentId} onChange={(e) => { if (createMode) { setAgentId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); } }} readOnly={!createMode} className={`w-full p-2 bg-gray-100 border-gray-300 rounded-md ${createMode ? 'focus:ring-indigo-500' : 'opacity-70 cursor-not-allowed bg-gray-200'}`} placeholder="my_agent_id" />
+        <input value={agentId} onChange={(e) => { if (createMode) { setAgentId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); } }} readOnly={!createMode} className={`w-full p-2 bg-gray-100 border-gray-300 rounded-md ${createMode ? 'focus:ring-blue-500' : 'opacity-70 cursor-not-allowed bg-gray-200'}`} placeholder="my_agent_id" />
       </div>
       <div className="col-span-1 sm:col-span-2">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -224,7 +224,7 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
                         disabled={m.pro && !isProUser}
                         className={`w-full text-left px-3 py-2 text-xs flex justify-between items-center ${
                           currentModel === m.name
-                            ? 'bg-indigo-500 text-white'
+                            ? 'bg-blue-500 text-white'
                             : 'hover:bg-gray-100'
                         } ${m.pro && !isProUser ? 'opacity-50 select-none cursor-not-allowed' : ''}`}
                       >
@@ -238,13 +238,13 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
                         </div>
                         <div className="flex items-center space-x-1">
                           {m.multimodal && (
-                            <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-purple-600 bg-purple-100'}`}>
+                            <span title="Supports Vision" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-blue-400 text-white' : 'text-purple-600 bg-purple-100'}`}>
                               <Eye className="h-3.5 w-3.5 mr-1" />
                               Vision
                             </span>
                           )}
                           {(m.server.includes('localhost') || m.server.includes('http://')) && (
-                            <span title="Running Locally" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-indigo-400 text-white' : 'text-gray-600 bg-gray-100'}`}>
+                            <span title="Running Locally" className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${currentModel === m.name ? 'bg-blue-400 text-white' : 'text-gray-600 bg-gray-100'}`}>
                               <Server className="h-3.5 w-3.5 mr-1" />
                               Local
                             </span>
@@ -269,7 +269,7 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
             <label className="block text-gray-600 mb-1 flex items-center"><Zap size={14} className="mr-1.5 text-gray-500" />Only on Change</label>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" checked={onlyOnSignificantChange} onChange={(e) => setOnlyOnSignificantChange(e.target.checked)} className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
               <span className="ml-3 text-sm font-medium text-gray-700">{onlyOnSignificantChange ? 'On' : 'Off'}</span>
             </label>
           </div>
@@ -299,7 +299,7 @@ const PromptContent: React.FC<PromptContentProps> = ({
   <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm flex-grow flex flex-col h-full">
     <div className="flex justify-between items-center mb-3">
       <div>
-        <h3 className="text-lg font-semibold text-indigo-700">System Prompt</h3>
+        <h3 className="text-lg font-semibold text-blue-700">System Prompt</h3>
         <p className="text-xs text-gray-500">Define instructions for the agent</p>
       </div>
     </div>
@@ -397,7 +397,7 @@ const DraggableReferencePopup: React.FC<{ onClose: () => void }> = ({ onClose })
   return (
     <div
       ref={popupRef}
-      className="fixed bg-white rounded-lg shadow-2xl border-2 border-indigo-400 z-50 max-w-md"
+      className="fixed bg-white rounded-lg shadow-2xl border-2 border-blue-400 z-50 max-w-md"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -405,7 +405,7 @@ const DraggableReferencePopup: React.FC<{ onClose: () => void }> = ({ onClose })
       }}
       onMouseDown={handleMouseDown}
     >
-      <div className="popup-header bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center cursor-grab active:cursor-grabbing">
+      <div className="popup-header bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-t-lg flex justify-between items-center cursor-grab active:cursor-grabbing">
         <h4 className="font-semibold text-sm">Tools Reference</h4>
         <button
           onClick={onClose}
@@ -485,10 +485,10 @@ const CodeEditorContent: React.FC<CodeEditorContentProps> = ({
     <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm flex-grow flex flex-col h-full">
       <div className="flex justify-between items-start mb-2">
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-indigo-700 mt-0.5">Agent Code</h3>
+            <h3 className="text-lg font-semibold text-blue-700 mt-0.5">Agent Code</h3>
             <button
               onClick={() => setShowReference(!showReference)}
-              className="p-1 rounded-full hover:bg-gray-100 text-indigo-600 transition-colors"
+              className="p-1 rounded-full hover:bg-gray-100 text-blue-600 transition-colors"
               title="Show tools reference"
             >
               <Info className="h-5 w-5" />
@@ -597,7 +597,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
         className="w-full max-w-7xl h-full md:max-h-[95vh] flex flex-col overflow-hidden"
       >
         {/* --- HEADER --- */}
-        <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+        <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
           <h2 className="text-xl font-semibold truncate pr-4">
             {createMode ? 'Create New Agent' : <>Edit Agent: <span className="font-normal">{logic.name || 'Unnamed'}</span></>}
           </h2>
@@ -719,7 +719,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
         {/* --- FOOTER --- */}
         <div className="flex-shrink-0 flex justify-end space-x-3 p-4 border-t border-gray-200 bg-gray-50">
           <button onClick={onClose} className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={logic.handleSave} disabled={(createMode && !logic.agentId) || !logic.name || !logic.currentModel} className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-60">{createMode ? 'Create Agent' : 'Save Changes'}</button>
+          <button onClick={logic.handleSave} disabled={(createMode && !logic.agentId) || !logic.name || !logic.currentModel} className="px-5 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-60">{createMode ? 'Create Agent' : 'Save Changes'}</button>
         </div>
       </Modal>
 

@@ -1,6 +1,6 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { LogOut, Server, Menu } from 'lucide-react';
+import { LogOut, Server, Menu, Sun, Moon } from 'lucide-react';
 import {
   checkInferenceServer,
   addInferenceAddress,
@@ -56,6 +56,8 @@ interface AppHeaderProps {
   quotaInfo: QuotaInfo;
   setQuotaInfo: React.Dispatch<React.SetStateAction<QuotaInfo>>;
   onToggleMobileMenu?: () => void;
+  isDarkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
 
@@ -72,6 +74,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   quotaInfo,
   setQuotaInfo,
   onToggleMobileMenu,
+  isDarkMode,
+  onToggleDarkMode,
 }) => {
   const [localServerOnline, setLocalServerOnline] = useState(false);
   const [customServers, setCustomServers] = useState<CustomServer[]>([]);
@@ -508,6 +512,22 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
             {/* Right side */}
             <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
+              {/* Dark Mode Toggle */}
+              {onToggleDarkMode && (
+                <button
+                  onClick={onToggleDarkMode}
+                  className="p-2 rounded-md hover:bg-gray-100"
+                  aria-label="Toggle dark mode"
+                  title="Toggle dark mode"
+                >
+                  {isDarkMode ? (
+                    <Sun className="h-5 w-5 text-yellow-500" />
+                  ) : (
+                    <Moon className="h-5 w-5 text-gray-600" />
+                  )}
+                </button>
+              )}
+
               {/* Server Status and Settings Button (All screen sizes) */}
               <div className="flex items-center space-x-2">
                 {/* Status Indicator Dot */}

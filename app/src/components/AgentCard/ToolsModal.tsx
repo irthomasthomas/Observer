@@ -777,13 +777,13 @@ const ExpandableToolCard: React.FC<ExpandableToolCardProps> = ({
       >
         {/* Testability badge */}
         {isTestable && (
-          <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-600 rounded-full group-hover:scale-110 transition-transform" />
+          <div className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full group-hover:scale-110 transition-transform" />
         )}
 
         {/* Icon */}
         <div className="flex items-center justify-center">
           {React.createElement(toolConfig.icon, {
-            className: 'w-8 h-8 text-gray-500 group-hover:text-indigo-600 transition-colors'
+            className: 'w-8 h-8 text-gray-500 group-hover:text-blue-600 transition-colors'
           })}
         </div>
 
@@ -802,7 +802,7 @@ const ExpandableToolCard: React.FC<ExpandableToolCardProps> = ({
 
   // Expanded test interface view
   return (
-    <div className="bg-white rounded-lg border-2 border-indigo-500 shadow-lg p-6 animate-in fade-in zoom-in-95 duration-200">
+    <div className="bg-white rounded-lg border-2 border-blue-500 shadow-lg p-6 animate-in fade-in zoom-in-95 duration-200">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
@@ -876,7 +876,7 @@ const ExpandableToolCard: React.FC<ExpandableToolCardProps> = ({
                       onInputChange(newInputs);
                     }}
                     placeholder={param.description}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   />
                 </div>
               ))}
@@ -894,7 +894,7 @@ const ExpandableToolCard: React.FC<ExpandableToolCardProps> = ({
                   : 'bg-red-100 text-red-700 hover:bg-red-200'
                 : testingTool
                 ? 'bg-gray-200 text-gray-600 cursor-wait'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
             {testingTool ? (
@@ -1260,7 +1260,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
       className="w-full max-w-7xl max-h-[90vh] flex flex-col"
     >
       {/* Header */}
-      <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+      <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
         <div className="flex items-center space-x-3">
           <Monitor className="h-6 w-6" />
           <div>
@@ -1270,7 +1270,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
         </div>
         <button
           onClick={handleClose}
-          className="p-1.5 rounded-full hover:bg-blue-700 hover:bg-opacity-50 text-indigo-100 hover:text-white transition-colors"
+          className="p-1.5 rounded-full hover:bg-blue-700 hover:bg-opacity-50 text-blue-100 hover:text-white transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
@@ -1282,7 +1282,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
           onClick={() => setActiveView('cards')}
           className={`flex-1 flex justify-center items-center p-3 text-sm font-medium transition-colors ${
             activeView === 'cards'
-              ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white'
+              ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
               : 'text-gray-500 hover:bg-gray-100'
           }`}
         >
@@ -1293,7 +1293,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
           onClick={() => setActiveView('code')}
           className={`flex-1 flex justify-center items-center p-3 text-sm font-medium transition-colors ${
             activeView === 'code'
-              ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white'
+              ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
               : 'text-gray-500 hover:bg-gray-100'
           }`}
         >
@@ -1371,7 +1371,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
               {groupedToolCalls.conditional.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <Brain className="h-5 w-5 text-indigo-600" />
+                    <Brain className="h-5 w-5 text-blue-600" />
                     <h3 className="text-sm font-semibold text-gray-700">Depends on AI</h3>
                     <span className="text-xs text-gray-500">({groupedToolCalls.conditional.length})</span>
                   </div>
@@ -1595,7 +1595,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                               }
                             }}
                             placeholder={param.description}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                           />
                         </div>
                       ))}
@@ -1613,7 +1613,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                           : 'bg-red-100 text-red-700 hover:bg-red-200'
                         : testingTool
                         ? 'bg-gray-200 text-gray-600 cursor-wait'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
                   >
                     {testingTool ? (
@@ -1687,7 +1687,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
         </div>
         <button
           onClick={handleClose}
-          className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 transition-colors"
+          className="px-5 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors"
         >
           Close
         </button>

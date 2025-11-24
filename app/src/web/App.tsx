@@ -133,6 +133,12 @@ function AppContent() {
   // --- STATE FOR WELCOME MODAL ---
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
+  // --- STATE FOR DARK MODE ---
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('observer-dark-mode');
+    return saved === 'true';
+  });
+
   // --- DERIVED STATE ---
   const isProUser = quotaInfo?.tier === 'pro' || quotaInfo?.tier === 'max';
 
@@ -586,6 +592,20 @@ function AppContent() {
     }
   }, [activeTab, fetchAgents]);
 
+  // Persist dark mode to localStorage and apply to document root
+  useEffect(() => {
+    localStorage.setItem('observer-dark-mode', isDarkMode.toString());
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+  }, []);
+
   // --- NEW: Memoized sorting logic ---
   // This will sort the agents array to bring active ones to the top.
   // useMemo ensures this only runs when the dependencies (agents, running, starting) change.
@@ -655,6 +675,8 @@ function AppContent() {
           quotaInfo={quotaInfo}
           setQuotaInfo={setQuotaInfo}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={toggleDarkMode}
         />
 
         <PersistentSidebar

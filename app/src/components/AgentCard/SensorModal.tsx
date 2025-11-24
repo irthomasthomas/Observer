@@ -150,7 +150,7 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
       className="w-full max-w-6xl max-h-[90vh] flex flex-col"
     >
       {/* Header */}
-      <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+      <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
         <div className="flex items-center space-x-3">
           <Eye className="h-6 w-6" />
           <div>
@@ -160,7 +160,7 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
         </div>
         <button
           onClick={handleClose}
-          className="p-1.5 rounded-full hover:bg-blue-700 hover:bg-opacity-50 text-indigo-100 hover:text-white"
+          className="p-1.5 rounded-full hover:bg-blue-700 hover:bg-opacity-50 text-blue-100 hover:text-white"
         >
           <X className="h-5 w-5" />
         </button>
@@ -259,7 +259,7 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
       <div className="flex-shrink-0 flex justify-end p-4 border-t border-gray-200 bg-gray-50">
         <button
           onClick={handleClose}
-          className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700"
+          className="px-5 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
         >
           Close
         </button>

@@ -175,7 +175,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <button
               onClick={isAuthenticated ? onCheckoutPlus : onLogin}
               disabled={isButtonLoading}
-              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
             >
               {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
               Upgrade to Plus
@@ -244,7 +244,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <button
               onClick={isAuthenticated ? onCheckout : onLogin}
               disabled={isButtonLoading}
-              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-colors"
+              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 transition-colors"
             >
               {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
               Start Free Trial
@@ -307,7 +307,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <button
               onClick={isAuthenticated ? onCheckoutMax : onLogin}
               disabled={isButtonLoading}
-              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 disabled:bg-gray-400 transition-all shadow-md"
+              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 disabled:bg-gray-300 transition-all shadow-md"
             >
               {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
               Upgrade to Max

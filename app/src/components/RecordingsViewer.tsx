@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, CSSProperties } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getAllRecordings, deleteRecording } from '@utils/recordingsDB'; // Assuming deleteRecording exists
 import ClipPlayer from '@components/ClipPlayer';
 import { Play, ChevronUp, Download, Trash2, Clock } from 'lucide-react';
@@ -15,91 +15,6 @@ interface RecordingData {
   createdAt: Date; // Important: ensure this is a Date object
   metadata: ClipMarker[];
 }
-
-// --- STYLING (matches your app's theme) ---
-const viewerStyles: { [key: string]: CSSProperties } = {
-  container: {
-    padding: '16px',
-    backgroundColor: '#f9fafb',
-    minHeight: '100vh',
-  },
-  header: {
-    fontSize: '24px',
-    fontWeight: 600,
-    color: '#111827',
-    marginBottom: '24px',
-  },
-  groupContainer: {
-    marginBottom: '24px',
-  },
-  groupTitle: {
-    fontSize: '14px',
-    fontWeight: 500,
-    color: '#6b7280',
-    paddingBottom: '8px',
-    borderBottom: '1px solid #e5e7eb',
-    marginBottom: '12px',
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    border: '1px solid #e5e7eb',
-    boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-    marginBottom: '12px',
-    overflow: 'hidden', // to contain the player's border-top
-    transition: 'box-shadow 0.2s ease-in-out',
-  },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 16px',
-    cursor: 'pointer',
-  },
-  cardInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    color: '#374151',
-    fontWeight: 500,
-  },
-  cardActions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  iconButton: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '6px',
-    borderRadius: '6px',
-    border: 'none',
-    backgroundColor: 'transparent',
-    cursor: 'pointer',
-    color: '#6b7280',
-  },
-  deleteButton: {
-    color: '#ef4444',
-  },
-  playerContainer: {
-    maxHeight: '1000px', // for transition effect
-    transition: 'max-height 0.5s ease-in-out, visibility 0.5s ease-in-out',
-    overflow: 'hidden',
-  },
-  playerContainerCollapsed: {
-    maxHeight: '0',
-    visibility: 'hidden',
-  },
-  noRecordingsText: {
-    color: '#6b7280',
-    padding: '20px',
-    textAlign: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    border: '1px solid #e5e7eb',
-  },
-};
 
 // --- HELPER FUNCTION ---
 const groupRecordingsByDate = (recordings: RecordingData[]) => {
@@ -185,45 +100,50 @@ export default function RecordingsViewer() {
     };
 
     if (error) {
-        return <div style={{ color: 'red', padding: '20px' }}>Error: {error}</div>;
+        return <div className="text-red-600 p-5">Error: {error}</div>;
     }
 
     return (
-        <div style={viewerStyles.container}>
-            <h1 style={viewerStyles.header}>Recordings</h1>
-            
+        <div className="p-4 bg-gray-50 min-h-screen">
+            <h1 className="text-3xl font-semibold text-gray-900 mb-6">Recordings</h1>
+
             {recordings.length > 0 ? (
                 Object.entries(groupedRecordings).map(([groupTitle, groupRecordings]) => (
-                    <div key={groupTitle} style={viewerStyles.groupContainer}>
-                        <h2 style={viewerStyles.groupTitle}>{groupTitle}</h2>
+                    <div key={groupTitle} className="mb-6">
+                        <h2 className="text-sm font-medium text-gray-500 pb-2 border-b border-gray-200 mb-3">
+                            {groupTitle}
+                        </h2>
                         {groupRecordings.map(recording => {
                             const isExpanded = expandedRecordingId === recording.id;
                             return (
-                                <div key={recording.id} style={viewerStyles.card}>
-                                    <header 
-                                        style={viewerStyles.cardHeader} 
+                                <div
+                                    key={recording.id}
+                                    className="bg-white rounded-xl border border-gray-200 shadow-sm mb-3 overflow-hidden transition-shadow hover:shadow-md"
+                                >
+                                    <header
+                                        className="flex justify-between items-center px-4 py-3 cursor-pointer"
                                         onClick={() => handleToggleExpand(recording.id)}
                                     >
-                                        <div style={viewerStyles.cardInfo}>
+                                        <div className="flex items-center gap-2 text-gray-700 font-medium">
                                             <Clock size={16} />
                                             <span>Recording at {format(recording.createdAt, 'p')}</span>
                                         </div>
-                                        <div style={viewerStyles.cardActions}>
-                                            <button 
-                                                style={viewerStyles.iconButton}
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 text-gray-500"
                                                 title={isExpanded ? 'Collapse' : 'Play'}
                                             >
                                                 {isExpanded ? <ChevronUp size={20} /> : <Play size={20} />}
                                             </button>
-                                            <button 
-                                                style={viewerStyles.iconButton}
+                                            <button
+                                                className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 text-gray-500"
                                                 title="Download"
                                                 onClick={(e) => handleDownload(e, recording)}
                                             >
                                                 <Download size={18} />
                                             </button>
-                                            <button 
-                                                style={{...viewerStyles.iconButton, ...viewerStyles.deleteButton}}
+                                            <button
+                                                className="flex items-center justify-center p-1.5 rounded-md hover:bg-red-100 text-red-600"
                                                 title="Delete"
                                                 onClick={(e) => handleDelete(e, recording.id)}
                                             >
@@ -231,7 +151,11 @@ export default function RecordingsViewer() {
                                             </button>
                                         </div>
                                     </header>
-                                    <div style={isExpanded ? viewerStyles.playerContainer : viewerStyles.playerContainerCollapsed}>
+                                    <div
+                                        className={`transition-all duration-500 ease-in-out overflow-hidden ${
+                                            isExpanded ? 'max-h-[1000px]' : 'max-h-0 invisible'
+                                        }`}
+                                    >
                                         {/* The player is now always rendered, just hidden by the parent div's style */}
                                         <ClipPlayer recording={recording} />
                                     </div>
@@ -242,7 +166,7 @@ export default function RecordingsViewer() {
                     </div>
                 ))
             ) : (
-                <p style={viewerStyles.noRecordingsText}>
+                <p className="text-gray-500 p-5 text-center bg-white rounded-xl border border-gray-200">
                     No recordings found. Start an agent and use the recording tools to create one!
                 </p>
             )}

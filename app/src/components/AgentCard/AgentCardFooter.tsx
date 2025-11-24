@@ -20,7 +20,7 @@ const AgentCardFooter: React.FC<AgentCardFooterProps> = ({
     onEdit, onDelete, onMemory, onActivity, onShowJupyterModal, onAIEdit
 }) => {
     return (
-        <div className="border-t border-gray-100 bg-gray-50/75 px-4 py-2 flex justify-between items-center">
+        <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 flex justify-between items-center">
             {/* Left Side: Delete/Edit/AI Edit */}
             <div className="flex items-center gap-2">
                 <button onClick={() => onDelete(agentId)} className="flex items-center justify-center p-2 text-red-600 hover:bg-red-100 rounded-md" title="Delete"><Trash2 className="w-4 h-4" /></button>

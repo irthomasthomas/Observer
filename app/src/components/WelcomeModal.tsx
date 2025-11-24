@@ -92,38 +92,38 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
       onClick={handleClose}
     >
       <div
-        className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-3xl max-h-[90vh] overflow-y-auto transition-all duration-300"
+        className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[90vh] overflow-y-auto transition-all duration-300"
         onClick={e => e.stopPropagation()}
       >
-        <button onClick={handleClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 z-10 transition-colors">
+        <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 z-10 transition-colors">
           <CloseIcon className="h-6 w-6" />
         </button>
 
         {status === 'loading' ? (
           <div className="flex justify-center items-center p-20">
-            <Loader2 className="h-12 w-12 animate-spin text-slate-500" />
+            <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
           </div>
         ) : (
           <div className="p-8">
             {/* ============ WELCOME SECTION (Top 60%) ============ */}
-            <div className="text-center mb-6 pb-6 border-b-2 border-slate-200">
+            <div className="text-center mb-6 pb-6 border-b-2 border-gray-200">
               <div className="flex justify-center items-center mb-3">
                 <img src="/eye-logo-black.svg" alt="Observer AI Logo" className="h-16 w-16 mr-3" />
-                <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Welcome to Observer!</h1>
+                <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Welcome to Observer!</h1>
               </div>
 
-              <p className="text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
                 Local micro-agents that watch, log, and react.
               </p>
             </div>
 
             {/* ============ SUPPORT SECTION (Bottom 40%) ============ */}
             <div className="text-center mb-6">
-              <p className="text-base text-slate-700 mb-1 flex items-center justify-center gap-2">
+              <p className="text-base text-gray-700 mb-1 flex items-center justify-center gap-2">
                 <Heart className="h-5 w-5 text-pink-500" />
                 <span className="font-semibold">Built by a solo developer</span>
               </p>
-              <p className="text-sm text-slate-600 mb-6">
+              <p className="text-sm text-gray-600 mb-6">
                 Try Observer Pro free - give feedback and help development
               </p>
 
@@ -186,14 +186,14 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               <div className="flex items-center justify-center gap-3 flex-wrap">
                 <button
                   onClick={handleStarGithub}
-                  className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors font-medium flex items-center gap-2 group shadow-md"
+                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium flex items-center gap-2 group shadow-md"
                 >
                   <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 group-hover:scale-110 transition-transform" />
                   <span>Star on GitHub</span>
                   <span className="text-xs opacity-80">(1.2k)</span>
                 </button>
 
-                <div className="text-slate-300">|</div>
+                <div className="text-gray-300">|</div>
 
                 <button
                   onClick={() => {
@@ -206,11 +206,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                   View all tiers →
                 </button>
 
-                <div className="text-slate-300">|</div>
+                <div className="text-gray-300">|</div>
 
                 <button
                   onClick={handleClose}
-                  className="text-sm text-slate-600 hover:text-slate-800 hover:underline transition-colors font-medium"
+                  className="text-sm text-gray-600 hover:text-gray-800 hover:underline transition-colors font-medium"
                 >
                   Continue with free tier →
                 </button>
@@ -218,13 +218,13 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
             </div>
 
             {/* Don't show again checkbox */}
-            <div className="flex items-center justify-center pt-4 border-t border-slate-200">
-              <label className="flex items-center cursor-pointer text-sm text-slate-600 hover:text-slate-800 transition-colors">
+            <div className="flex items-center justify-center pt-4 border-t border-gray-200">
+              <label className="flex items-center cursor-pointer text-sm text-gray-600 hover:text-gray-800 transition-colors">
                 <input
                   type="checkbox"
                   checked={dontShowAgain}
                   onChange={(e) => setDontShowAgain(e.target.checked)}
-                  className="mr-2 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 Don't show this again
               </label>
