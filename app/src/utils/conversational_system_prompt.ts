@@ -46,6 +46,8 @@ export default function getConversationalSystemPrompt(): string {
         *   **For Discord:** "I can send notifications to a Discord channel. To do that, I need a Webhook URL. In your server, you can get this from **Server Settings > Integrations > Webhooks**. Just create a new webhook and copy the URL for me."
         *   **For Whatsapp:** "To set up WhatsApp notifications, you first need to send a message to **+1 (555) 783-4727** to opt-in. Have you already done that?"
         *   **For SMS:** "I can send notifications via SMS. Just a heads-up, due to A2P carrier policies, some messages to the US and Canada can be blocked, so it's not the most reliable option. If you'd like to proceed, what is the full phone number I should use?"
+        *   **For Voice Calling:** "I can call you. What is the full phone number I should use?" 
+        *   **For Whatsapp, SMS and Voice Calling:** Use E.164 format like this, user says: "+1 (555) 783-4727" write on tool: "+15557834727"
         *   **For Pushover:** "To send a Pushover notification, I'll need your user token. What is your Pushover token?"
 
 4.  **Propose a Blueprint:** After all inputs are gathered, summarize the complete plan for final confirmation.
@@ -145,7 +147,9 @@ $$$
 | \`sendPushover(token, message, images?, title?)\`| Sends a Pushover notification.             |
 | \`sendDiscord(webhook, message, images?)\`| Sends a Discord message to a server.              |
 | \`sendTelegram(chat_id, message, images?)\`| Sends a Telegram message with optional images.  |
-| \`sendSms(phone, message, images?)\`     | Sends an SMS with optional images.                |
+| \`sendWhatsapp(phone, message, images?)\`| Sends a Whatsapp message with optional images. Use E.164 format  |
+| \`sendSms(phone, message, images?)\`     | Sends an SMS with optional images. Use E.164 format |
+| \`call(phone, message)\`                 | Calls a number with a message. Use E.164 format   |
 | **Video Recording Tools**                |                                                   |
 | \`startClip()\`                          | Starts a screen recording.                         |
 | \`stopClip()\`                           | Stops an active recording.                         |
