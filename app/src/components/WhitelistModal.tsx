@@ -18,7 +18,11 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
   const OBSERVER_WHATSAPP_PLAIN = '15557834727';
 
   const [copied, setCopied] = React.useState<'sms' | 'whatsapp' | null>(null);
-  const [phoneInput, setPhoneInput] = React.useState('');
+  const [phoneInput, setPhoneInput] = React.useState(() => {
+    // Auto-fill with first unwhitelisted number
+    const firstUnwhitelisted = phoneNumbers.find(p => !p.isWhitelisted);
+    return firstUnwhitelisted?.number || '';
+  });
   const [checkResult, setCheckResult] = React.useState<{ is_whitelisted: boolean } | null>(null);
   const [isChecking, setIsChecking] = React.useState(false);
 
@@ -84,7 +88,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
           <Phone className="h-6 w-6" />
           <div>
             <h2 className="text-xl font-semibold">Phone Verification Required</h2>
-            <p className="text-sm text-blue-100">Quick one-time setup for 24 hours</p>
+            <p className="text-sm text-blue-100">30-second verification • Valid for 24 hours</p>
           </div>
         </div>
         <button
@@ -96,135 +100,95 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
       </div>
 
       {/* Content */}
-      <div className="p-6 space-y-4">
-        {phoneNumbers.length > 0 ? (
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-gray-700 mb-3">
-              {phoneNumbers.some(p => !p.isWhitelisted)
-                ? 'We found these phone numbers in your agent code:'
-                : 'Please verify your phone number to use phone notifications:'}
-            </p>
-            <div className="space-y-2">
-              {phoneNumbers.map(({ number, isWhitelisted }) => (
-                <div key={number} className="flex items-center space-x-2 font-mono text-sm">
-                  {isWhitelisted ? (
-                    <span className="text-green-600">✓</span>
-                  ) : (
-                    <span className="text-red-600">✗</span>
-                  )}
-                  <span className={isWhitelisted ? 'text-gray-600' : 'text-blue-700 font-semibold'}>
-                    {number}
-                  </span>
-                  {isWhitelisted && <span className="text-xs text-green-600">(Whitelisted)</span>}
-                  {!isWhitelisted && <span className="text-xs text-red-600">(Not whitelisted)</span>}
-                </div>
-              ))}
+      <div className="p-6 space-y-3">
+        {/* WhatsApp Option - Minimal Horizontal */}
+        <div className="flex items-center justify-between p-3 border border-gray-300 rounded-lg hover:border-green-400 transition-colors">
+          <div className="flex items-center space-x-3">
+            <MessageCircle className="h-5 w-5 text-green-600" />
+            <div>
+              <p className="font-semibold text-sm text-gray-900">Send WhatsApp Message</p>
+              <p className="text-xs font-mono text-gray-600">{OBSERVER_WHATSAPP}</p>
             </div>
           </div>
+          <button
+            onClick={openWhatsApp}
+            className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center space-x-1"
+          >
+            <span>Open</span>
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
+
+        {/* SMS Option - Minimal Horizontal */}
+        <div className="flex items-center justify-between p-3 border border-gray-300 rounded-lg hover:border-blue-400 transition-colors">
+          <div className="flex items-center space-x-3">
+            <MessageCircle className="h-5 w-5 text-blue-600" />
+            <div>
+              <p className="font-semibold text-sm text-gray-900">Send Text Message</p>
+              <p className="text-xs font-mono text-gray-600">{OBSERVER_SMS_CALL}</p>
+            </div>
+          </div>
+          <button
+            onClick={openSMS}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center space-x-1"
+          >
+            <span>Open</span>
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
+
+        {/* Call Option - Minimal Horizontal */}
+        <div className="flex items-center justify-between p-3 border border-gray-300 rounded-lg">
+          <div className="flex items-center space-x-3">
+            <Phone className="h-5 w-5 text-gray-600" />
+            <div>
+              <p className="font-semibold text-sm text-gray-900">Or call this number</p>
+              <p className="text-xs font-mono text-gray-600">{OBSERVER_SMS_CALL}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => copyToClipboard(OBSERVER_SMS_CALL, 'sms')}
+            className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300 transition-colors"
+            title="Copy number"
+          >
+            {copied === 'sms' ? (
+              <span className="text-xs text-green-600 font-medium">Copied!</span>
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+
+        {/* Numbers List - Now after contact options */}
+        {phoneNumbers.length > 0 ? (
+          <div className="pt-3 border-t border-gray-200">
+            {phoneNumbers.map(({ number, isWhitelisted }) => (
+              <div key={number} className="flex items-center space-x-2 text-sm py-1">
+                {isWhitelisted ? (
+                  <>
+                    <span className="text-green-600">✓</span>
+                    <span className="text-gray-700">This number is verified: <span className="font-mono">{number}</span></span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-red-600">✗</span>
+                    <span className="text-red-700">This number is not verified: <span className="font-mono font-semibold">{number}</span></span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         ) : (
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-gray-700">
-              <strong>⚠️ Phone tools detected</strong> but we couldn't find a phone number in your code.
-              If you're using dynamic phone numbers, make sure they're whitelisted or the agent will fail at runtime.
+          <div className="pt-3 border-t border-gray-200">
+            <p className="text-sm text-orange-700">
+              ⚠️ Phone tools detected but no phone number found in your code. Make sure dynamic numbers are verified.
             </p>
           </div>
         )}
 
-        <div className="space-y-3">
-          {/* WhatsApp Option */}
-          <div className="p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-green-400 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <MessageCircle className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="font-semibold text-gray-900">Send a WhatsApp</p>
-                  <p className="text-sm font-mono text-gray-600">{OBSERVER_WHATSAPP}</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => copyToClipboard(OBSERVER_WHATSAPP, 'whatsapp')}
-                  className="p-2 rounded-md hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
-                  title="Copy number"
-                >
-                  {copied === 'whatsapp' ? (
-                    <span className="text-xs text-green-600 font-medium">Copied!</span>
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </button>
-                <button
-                  onClick={openWhatsApp}
-                  className="px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center space-x-1"
-                >
-                  <span>Open WhatsApp</span>
-                  <ExternalLink className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* SMS Option */}
-          <div className="p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-400 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <MessageCircle className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="font-semibold text-gray-900">Send an SMS</p>
-                  <p className="text-sm font-mono text-gray-600">{OBSERVER_SMS_CALL}</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => copyToClipboard(OBSERVER_SMS_CALL, 'sms')}
-                  className="p-2 rounded-md hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
-                  title="Copy number"
-                >
-                  {copied === 'sms' ? (
-                    <span className="text-xs text-green-600 font-medium">Copied!</span>
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </button>
-                <button
-                  onClick={openSMS}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center space-x-1"
-                >
-                  <span>Open Messages</span>
-                  <ExternalLink className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Call Option */}
-          <div className="p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-indigo-400 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Phone className="h-5 w-5 text-indigo-600" />
-                <div>
-                  <p className="font-semibold text-gray-900">Or call</p>
-                  <p className="text-sm font-mono text-gray-600">{OBSERVER_SMS_CALL}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => copyToClipboard(OBSERVER_SMS_CALL, 'sms')}
-                className="p-2 rounded-md hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
-                title="Copy number"
-              >
-                {copied === 'sms' ? (
-                  <span className="text-xs text-green-600 font-medium">Copied!</span>
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Whitelist Checker */}
-        <div className="pt-4 border-t border-gray-200">
-          <p className="text-sm font-semibold text-gray-900 mb-2">Check Whitelist Status</p>
+        <div className="pt-3 border-t border-gray-200">
+          <p className="text-sm font-semibold text-gray-900 mb-2">Check if you're verified now:</p>
           <div className="flex items-center space-x-2">
             <input
               type="text"
@@ -250,11 +214,11 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
               <div className="flex items-center">
                 {checkResult.is_whitelisted ? (
                   <span className="text-green-600 font-medium text-sm flex items-center">
-                    ✓ Whitelisted
+                    ✓ Verified 
                   </span>
                 ) : (
                   <span className="text-red-600 font-medium text-sm flex items-center">
-                    ✗ Not whitelisted
+                    ✗ Not verified
                   </span>
                 )}
               </div>
@@ -262,11 +226,9 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
           </div>
         </div>
 
-        <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <p className="text-xs text-gray-600">
-            After verification is complete, your number will be whitelisted for 24 hours for all phone notifications.
-          </p>
-        </div>
+        <p className="text-xs text-gray-500 pt-2">
+          Whitelisted numbers are valid for 24 hours.
+        </p>
       </div>
 
       {/* Footer */}
@@ -281,9 +243,9 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
             </button>
             <button
               onClick={onStartAnyway}
-              className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+              className="px-5 py-2 border-2 border-orange-500 text-orange-700 rounded-md text-sm font-medium hover:bg-orange-50 transition-colors"
             >
-              Start Anyway
+              ⚠️ Start Anyway (Will Fail)
             </button>
           </>
         ) : (
