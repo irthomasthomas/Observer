@@ -1,9 +1,9 @@
 // src/utils/pre-processor.ts
 
-import { Logger } from './logging'; 
-import { getAgentMemory, getAgentImageMemory } from './agent_database'; 
-import { captureFrameAndOCR, captureScreenImage } from './screenCapture'; 
-import { captureCameraImage } from './cameraCapture'; 
+import { Logger } from './logging';
+import { getAgentMemory, getAgentImageMemory } from './agent_database';
+import { captureScreenImage } from './screenCapture';
+import { captureCameraImage } from './cameraCapture';
 import { StreamManager } from './streamManager';
 
 
@@ -31,6 +31,8 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$SCREEN_OCR/g,
     handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
+        // Lazy load OCR functionality - only loads when OCR is actually used!
+        const { captureFrameAndOCR } = await import('./screenOCR');
 
         const { screenVideoStream } = StreamManager.getCurrentState();
         if (!screenVideoStream) throw new Error('Screen stream not available for OCR.');
@@ -76,10 +78,9 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$SCREEN_64/g,
     handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
-
         const { screenVideoStream } = StreamManager.getCurrentState();
         if (!screenVideoStream) throw new Error('Screen stream not available for image capture.');
-        
+
         // Pass the existing stream to the utility
         const base64Image = await captureScreenImage(screenVideoStream, agentId, 'screen');
 

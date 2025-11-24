@@ -44,6 +44,9 @@ export default defineConfig({
             if (id.includes('jupyterlab')) {
               return 'vendor-jupyter';
             }
+            if (id.includes('tesseract')) {
+              return 'vendor-tesseract';
+            }
             return 'vendor'; // Other dependencies
           }
           

@@ -2,7 +2,6 @@
 
 import { Logger } from './logging';
 import { executeJavaScript } from './handlers/javascript';
-import { executePython } from './handlers/python';
 import type { TokenProvider } from './main_loop'; // Import the type for clarity
 import type { PreProcessorResult } from './pre-processor';
 
@@ -22,7 +21,8 @@ export async function postProcess(
 
   if (code.trim().startsWith('#python')) {
     Logger.debug(agentId, 'Detected Python code, using Python handler', { iterationId });
-    // Python handler doesn't support iterationId yet
+    // Lazy load Python handler - only loads when Python code is executed!
+    const { executePython } = await import('./handlers/python');
     return await executePython(response, agentId, code);
   } else {
     Logger.debug(agentId, 'Using JavaScript handler', { iterationId });

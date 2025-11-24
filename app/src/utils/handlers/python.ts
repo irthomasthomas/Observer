@@ -1,4 +1,3 @@
-import { KernelManager, ServerConnection, KernelMessage } from '@jupyterlab/services';
 import { Logger } from '../logging';
 import { getJupyterConfig } from './JupyterConfig'; // Fixed casing to match actual file name
 
@@ -12,8 +11,11 @@ export async function executePython(
 ): Promise<boolean> {
   Logger.debug(agentId, 'Executing Python code');
   const { host, port, token } = getJupyterConfig();
-  
+
   try {
+    // Lazy load Jupyter services - only loads when Python execution is used!
+    const { KernelManager, ServerConnection } = await import('@jupyterlab/services');
+
     // Create server settings with token and CORS handling
     const serverSettings = ServerConnection.makeSettings({
       baseUrl: `http://${host}:${port}`,
@@ -54,15 +56,15 @@ ${code}
     const future = kernel.requestExecute({ code: fullCode });
     
     // Handle messages with proper type casting
-    future.onIOPub = (msg: KernelMessage.IIOPubMessage) => {
+    future.onIOPub = (msg: any) => {
       const msgType = msg.header.msg_type;
-      
+
       if (msgType === 'error') {
         hasError = true;
-        const errorContent = msg.content as KernelMessage.IErrorMsg['content'];
+        const errorContent = msg.content;
         Logger.error(agentId, `Python error: ${errorContent.ename}: ${errorContent.evalue}`);
       } else if (msgType === 'stream') {
-        const streamContent = msg.content as KernelMessage.IStreamMsg['content'];
+        const streamContent = msg.content;
         if (streamContent.name === 'stderr') {
           Logger.warn(agentId, `Python stderr: ${streamContent.text}`);
         } else if (streamContent.name === 'stdout') {
