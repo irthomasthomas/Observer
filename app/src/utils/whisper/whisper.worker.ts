@@ -1,15 +1,13 @@
-import { pipeline, env, PipelineType } from '@huggingface/transformers';
 import { WhisperModelConfig } from './types';
 
-env.allowLocalModels = false;
-
-const TASK: PipelineType = 'automatic-speech-recognition';
+const TASK = 'automatic-speech-recognition';
 
 class WhisperPipelineFactory {
-  static task: PipelineType = TASK;
+  static task = TASK;
   static model: string | null = null;
   static config: WhisperModelConfig | null = null;
   static instance: any = null;
+  static transformersModule: any = null;
 
   static configure(config: WhisperModelConfig) {
     this.model = config.modelId;
@@ -17,9 +15,21 @@ class WhisperPipelineFactory {
     this.instance = null;
   }
 
+  static async loadTransformers() {
+    if (!this.transformersModule) {
+      // Dynamic import - only loads when actually needed!
+      this.transformersModule = await import('@huggingface/transformers');
+      this.transformersModule.env.allowLocalModels = false;
+    }
+    return this.transformersModule;
+  }
+
   static async getInstance(progress_callback?: (data: any) => void) {
     if (this.instance === null && this.model && this.config) {
       try {
+        // Load transformers library dynamically
+        const { pipeline } = await this.loadTransformers();
+
         const pipelineOptions: any = {
           progress_callback,
           device: 'wasm',

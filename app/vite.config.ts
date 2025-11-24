@@ -12,8 +12,11 @@ export default defineConfig({
     //  brotliSize: true
     //})
   ],
+  worker: {
+    format: 'es', // Enable ES module format for workers to support code-splitting
+  },
   server: {
-    host: '0.0.0.0', 
+    host: '0.0.0.0',
     port: 3001, // Different from desktop and website
   },
   resolve: {
