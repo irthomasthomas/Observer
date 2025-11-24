@@ -17,7 +17,7 @@ export async function checkPhoneWhitelist(
   // Check if code contains phone tools
   const hasPhoneTools = agentCode.includes('call(') ||
                        agentCode.includes('sendSms(') ||
-                       agentCode.includes('sendWhatsApp(');
+                       agentCode.includes('sendWhatsapp(');
 
   if (!hasPhoneTools) {
     return { phoneNumbers: [], hasTools: false };
