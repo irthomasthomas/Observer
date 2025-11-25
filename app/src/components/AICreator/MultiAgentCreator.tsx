@@ -1,7 +1,7 @@
 // src/components/AICreator/MultiAgentCreator.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Save, Users, Cpu } from 'lucide-react';
+import { Send, Loader2, Save, Users, Cpu, Plus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { fetchResponse } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory, saveAgent } from '@utils/agent_database';
@@ -545,6 +545,15 @@ What kind of agent team would you like me to create today?`
     await sendConversation(allMessages);
   };
 
+  const handleManualImageUpload = () => {
+    const imageRequestMessage: Message = {
+      id: Date.now() + Math.random() * 1000,
+      text: "Please upload an image to help create this agent",
+      sender: 'image-request',
+    };
+    setMessages(prev => [...prev, imageRequestMessage]);
+  };
+
   const handleSaveAllAgents = async (configsJson: string) => {
     try {
       const agentConfigs = JSON.parse(configsJson) as string[];
@@ -732,6 +741,16 @@ What kind of agent team would you like me to create today?`
               disabled={isInputDisabled}
               className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
+
+            <button
+              type="button"
+              onClick={handleManualImageUpload}
+              disabled={isLoading}
+              className="p-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center"
+              title="Upload Image"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
 
             {!isUsingObServer && (
               <button

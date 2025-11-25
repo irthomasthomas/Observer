@@ -1,7 +1,7 @@
 // src/components/AICreator/ConversationalGenerator.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Save, Cpu } from 'lucide-react';
+import { Send, Loader2, Save, Cpu, Plus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { fetchResponse, UnauthorizedError } from '@utils/sendApi';
 import { CompleteAgent, updateAgentImageMemory } from '@utils/agent_database';
@@ -277,6 +277,15 @@ What would you like to create today?`
     await sendConversation(allMessages);
   };
 
+  const handleManualImageUpload = () => {
+    const imageRequestMessage: Message = {
+      id: Date.now() + Math.random() * 1000,
+      text: "Please upload an image to help create this agent",
+      sender: 'image-request',
+    };
+    setMessages(prev => [...prev, imageRequestMessage]);
+  };
+
   const handleConfigureAndSave = async (configText: string) => {
     const parsed = parseAgentResponse(configText);
     if (parsed) {
@@ -398,7 +407,17 @@ What would you like to create today?`
               disableAutocomplete={true}
               className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
             />
-            
+
+            <button
+              type="button"
+              onClick={handleManualImageUpload}
+              disabled={isLoading}
+              className="p-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center"
+              title="Upload Image"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+
             {!isUsingObServer && (
               <button
                 type="button"
