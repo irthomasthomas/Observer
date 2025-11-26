@@ -9,7 +9,7 @@ mod commands;
 mod controls;
 
 // Import unified shortcut types
-use shortcuts::{UnifiedShortcutState, AppConfig};
+use shortcuts::UnifiedShortcutState;
 
 // ---- Final, Corrected Imports ----
 use axum::{

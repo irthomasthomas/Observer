@@ -101,13 +101,3 @@ pub fn broadcast_command(command_state: &CommandState, agent_id: String, action:
     }
 }
 
-/// Internal function to add a toggle command (legacy - for HTTP polling compatibility)
-pub fn add_toggle_command(command_state: &CommandState, agent_id: String) {
-    log::info!("Adding toggle command for agent '{}'", agent_id);
-    let mut commands = command_state.pending_commands.lock().unwrap();
-    commands.insert(agent_id.clone(), "toggle".to_string());
-    
-    // Also broadcast via SSE for real-time delivery
-    broadcast_command(command_state, agent_id, "toggle".to_string());
-}
-
