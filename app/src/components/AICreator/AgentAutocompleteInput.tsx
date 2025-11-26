@@ -45,7 +45,7 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
   // Collapse textarea to single line when disabled (better UX during model responses)
   useEffect(() => {
     if (disabled && inputRef.current) {
-      inputRef.current.style.height = '40px';
+      inputRef.current.style.height = '48px';
     }
   }, [disabled]);
 
@@ -144,12 +144,13 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
         rows={1}
         className={`w-full resize-none ${className}`}
         style={{
-          minHeight: '2.5rem'
+          minHeight: '48px',
+          overflow: 'hidden'
         }}
         onInput={(e) => {
           const target = e.target as HTMLTextAreaElement;
           target.style.height = 'auto';
-          target.style.height = Math.max(target.scrollHeight, 40) + 'px';
+          target.style.height = Math.max(target.scrollHeight, 48) + 'px';
         }}
       />
 
