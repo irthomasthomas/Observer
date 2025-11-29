@@ -3,6 +3,7 @@ import React from 'react';
 import { Play, Power, Zap } from 'lucide-react';
 
 interface AgentCardHeaderProps {
+    agentId: string;
     agentName: string;
     agentDescription: string;
     isRunning: boolean;
@@ -12,7 +13,7 @@ interface AgentCardHeaderProps {
     onToggle: () => void;
 }
 
-const AgentCardHeader: React.FC<AgentCardHeaderProps> = ({ agentName, agentDescription, isRunning, isStarting, hasQuotaError, onToggle }) => {
+const AgentCardHeader: React.FC<AgentCardHeaderProps> = ({ agentId, agentName, agentDescription, isRunning, isStarting, hasQuotaError, onToggle }) => {
     return (
         <div className="mb-6">
             <div className="flex justify-between items-start">
@@ -23,6 +24,7 @@ const AgentCardHeader: React.FC<AgentCardHeaderProps> = ({ agentName, agentDescr
 
                 <button
                   onClick={onToggle}
+                  data-tutorial-start-button={agentId}
                   className={`px-4 py-2 rounded-lg font-medium flex-shrink-0 flex items-center transition-colors text-sm ${
                     hasQuotaError ? 'bg-red-100 text-red-700 cursor-not-allowed'
                       : isStarting ? 'bg-yellow-100 text-yellow-700 cursor-wait'

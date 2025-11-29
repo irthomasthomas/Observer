@@ -3,14 +3,13 @@ import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { X, Sparkles, Bell, FlaskConical } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';
 import MultiAgentCreator from './MultiAgentCreator';
-import { CompleteAgent } from '@utils/agent_database';
+// CompleteAgent import removed - no longer needed
 import type { TokenProvider } from '@utils/main_loop';
 
 
 interface ConversationalGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAgentGenerated: (agent: CompleteAgent, code: string) => void;
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
@@ -27,7 +26,6 @@ interface ConversationalGeneratorModalProps {
 const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> = ({
   isOpen,
   onClose,
-  onAgentGenerated,
   getToken,
   isAuthenticated,
   isUsingObServer,
@@ -52,23 +50,25 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     setMode(newMode);
   };
 
-  // Handle single agent generation
-  const handleAgentReady = useCallback((agent: CompleteAgent, code: string) => {
-    onAgentGenerated(agent, code);
+  // Handle save completion for both Alert Builder and AI-Studio
+  const handleSaveComplete = useCallback(() => {
+    // Agent is already saved and refreshed, just close the modal
+    // App.tsx will detect first agent and start tutorial automatically
     onClose();
-  }, [onAgentGenerated, onClose]);
+  }, [onClose]);
 
 
   // Memoize the props to ensure they're stable across renders
   const conversationalProps = useMemo(() => ({
-    onAgentGenerated: handleAgentReady,
+    onSaveComplete: handleSaveComplete,
     getToken,
     isAuthenticated,
     isUsingObServer,
     onSignIn,
     onSwitchToObServer,
-    onUpgradeClick
-  }), [handleAgentReady, getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer, onUpgradeClick]);
+    onUpgradeClick,
+    onRefresh
+  }), [handleSaveComplete, getToken, isAuthenticated, isUsingObServer, onSignIn, onSwitchToObServer, onUpgradeClick, onRefresh]);
 
   const handleUpgrade = useCallback(() => {
     onUpgrade?.();
@@ -76,6 +76,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
   }, [onUpgrade, onClose]);
 
   const multiAgentProps = useMemo(() => ({
+    onSaveComplete: handleSaveComplete,
     getToken,
     isAuthenticated,
     isUsingObServer,
@@ -85,7 +86,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     onUpgrade: handleUpgrade,
     onRefresh,
     initialMessage
-  }), [getToken, isAuthenticated, isUsingObServer, isPro, onSignIn, onSwitchToObServer, handleUpgrade, onRefresh, initialMessage]);
+  }), [handleSaveComplete, getToken, isAuthenticated, isUsingObServer, isPro, onSignIn, onSwitchToObServer, handleUpgrade, onRefresh, initialMessage]);
 
   if (!isOpen) return null;
 

@@ -3,14 +3,13 @@ import React, { useState } from 'react';
 import { Users, FlaskConical, MessageCircle, Code, Bell } from 'lucide-react';
 import ConversationalGenerator from './AICreator/ConversationalGenerator';
 import MultiAgentCreator from './AICreator/MultiAgentCreator';
-import { CompleteAgent } from '@utils/agent_database';
+// CompleteAgent import removed - no longer needed
 import type { TokenProvider } from '@utils/main_loop';
 
 
 interface GetStartedProps {
   onExploreCommunity: () => void;
   onCreateNewAgent: () => void;
-  onAgentGenerated: (agent: CompleteAgent, code: string) => void;
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
@@ -25,7 +24,6 @@ interface GetStartedProps {
 const GetStarted: React.FC<GetStartedProps> = ({
   onExploreCommunity,
   onCreateNewAgent,
-  onAgentGenerated,
   getToken,
   isAuthenticated,
   isUsingObServer,
@@ -96,16 +94,18 @@ const GetStarted: React.FC<GetStartedProps> = ({
             <div className="flex-1 p-0 md:p-6">
               {mode === 'single' ? (
                 <ConversationalGenerator
-                  onAgentGenerated={onAgentGenerated}
+                  onSaveComplete={() => {/* Agent saved, tutorial will start automatically */}}
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
                   onSignIn={onSignIn}
                   onSwitchToObServer={onSwitchToObServer}
                   onUpgradeClick={onUpgradeClick}
+                  onRefresh={onRefresh}
                 />
               ) : (
                 <MultiAgentCreator
+                  onSaveComplete={() => {/* Agent saved, tutorial will start automatically */}}
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}

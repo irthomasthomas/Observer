@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Terminal, MessageSquare } from 'lucide-react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -45,6 +45,7 @@ import FeedbackDialog from '@components/FeedbackDialog';
 import { startCommandSSE, updateCommandSSEToken } from '@utils/commandSSE';
 import { fetchModels } from '@utils/inferenceServer';
 import WhitelistModal from '@components/WhitelistModal';
+import InteractiveTutorial from '@components/InteractiveTutorial';
 
 
 function AppContent() {
@@ -128,10 +129,21 @@ function AppContent() {
   const [whitelistModalInfo, setWhitelistModalInfo] = useState<{
     phoneNumbers: Array<{ number: string; isWhitelisted: boolean }>;
     agentId?: string; // For preflight checks
+    onStartAgent?: () => void; // Callback to start agent after verification
   } | null>(null);
 
   // --- STATE FOR WELCOME MODAL ---
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
+
+  // --- STATE FOR TUTORIAL MODAL ---
+  const [tutorialModalInfo, setTutorialModalInfo] = useState<{
+    agentName: string;
+    agentId: string;
+    hasPhoneTools: boolean;
+  } | null>(null);
+
+  // Track if we've already auto-started tutorial this session (prevents restart loop)
+  const hasAutoStartedTutorialRef = useRef(false);
 
   // --- STATE FOR DARK MODE ---
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -330,12 +342,8 @@ function AppContent() {
     setIsEditModalOpen(true);
   };
 
-  const handleAgentGenerated = (agent: CompleteAgent, code: string) => {
-      Logger.info('APP', `Staging agent generated from conversation: "${agent.name}"`);
-      setStagedAgentConfig({ agent, code });
-      setIsCreateMode(true); // Signal that this is a new agent
-      setIsEditModalOpen(true);
-    };
+  // handleAgentGenerated removed - agents are saved directly in ConversationalGenerator/MultiAgentCreator
+  // Tutorial starts automatically on first agent creation via handleSaveAgent
 
   const handleMemoryClick = (agentId: string) => {
     if (flashingMemories.has(agentId)) {
@@ -359,6 +367,16 @@ function AppContent() {
     setAiEditMessage(`Help me edit this agent @${agentId}`);
     setIsConversationalModalOpen(true);
     Logger.info('APP', `Opening AI Edit modal for agent ${agentId}`);
+  };
+
+  const handleTutorialComplete = () => {
+    Logger.info('TUTORIAL', 'Tutorial completed');
+    setTutorialModalInfo(null);
+  };
+
+  const handleTutorialDismiss = () => {
+    Logger.info('TUTORIAL', 'Tutorial dismissed');
+    setTutorialModalInfo(null);
   };
 
   const handleDeleteClick = async (agentId: string) => {
@@ -438,6 +456,11 @@ function AppContent() {
             setWhitelistModalInfo({
               phoneNumbers: err.whitelistCheck.phoneNumbers,
               agentId: id,
+              onStartAgent: () => {
+                // Close modal and start agent
+                setWhitelistModalInfo(null);
+                toggleAgent(id, false); // Start the agent (passing false since it's not currently running)
+              }
             });
             // Clear starting state since we're showing modal
             setStartingAgents(prev => {
@@ -483,12 +506,52 @@ function AppContent() {
       await saveAgent(agent, code);
       Logger.info('APP', `Agent "${agent.name}" saved successfully`);
       await fetchAgents();
+
+      // Show tutorial for new agents (unless dismissed)
+      if (isNew && user && 'sub' in user && user.sub) {
+        const dismissed = localStorage.getItem(`observer_tutorial_dismissed_${user.sub}`);
+        if (!dismissed) {
+          const hasPhoneTools = code.includes('call(') ||
+                               code.includes('sendSms(') ||
+                               code.includes('sendWhatsapp(');
+          setTutorialModalInfo({
+            agentName: agent.name,
+            agentId: agent.id,
+            hasPhoneTools
+          });
+        }
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       Logger.error('APP', `Failed to save agent: ${errorMessage}`, err);
     }
   };
+
+  // Auto-start tutorial when first agent is created (from any source)
+  useEffect(() => {
+    // Only trigger tutorial if this is exactly the first agent (agents.length === 1)
+    // AND we haven't already auto-started it this session
+    if (agents.length === 1 && user && 'sub' in user && user.sub && !hasAutoStartedTutorialRef.current) {
+      const dismissed = localStorage.getItem(`observer_tutorial_dismissed_${user.sub}`);
+
+      // If tutorial not dismissed and not currently showing, start it for the first agent
+      if (!dismissed && !tutorialModalInfo) {
+        const firstAgent = agents[0];
+
+        setTutorialModalInfo({
+          agentName: firstAgent.name,
+          agentId: firstAgent.id,
+          hasPhoneTools: false // Default to false, Alert Builder doesn't typically use phone tools
+        });
+
+        // Mark that we've auto-started the tutorial to prevent restart loop
+        hasAutoStartedTutorialRef.current = true;
+
+        Logger.info('TUTORIAL', `Auto-starting tutorial for first agent: ${firstAgent.name}`);
+      }
+    }
+  }, [agents, user, tutorialModalInfo]); // Re-run when agents array changes
 
   useEffect(() => {
     const handleMemoryUpdate = (event: CustomEvent) => {
@@ -753,7 +816,6 @@ function AppContent() {
                 <GetStarted
                   onExploreCommunity={() => setActiveTab('community')}
                   onCreateNewAgent={handleAddAgentClick}
-                  onAgentGenerated={handleAgentGenerated}
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}
                   isUsingObServer={isUsingObServer}
@@ -826,7 +888,6 @@ function AppContent() {
             setIsConversationalModalOpen(false);
             setAiEditMessage(undefined); // Clear the AI edit message when closing
           }}
-          onAgentGenerated={handleAgentGenerated}
           getToken={getToken}
           isAuthenticated={isAuthenticated}
           isUsingObServer={isUsingObServer}
@@ -1018,6 +1079,7 @@ function AppContent() {
         <WhitelistModal
           phoneNumbers={whitelistModalInfo.phoneNumbers}
           onClose={() => setWhitelistModalInfo(null)}
+          onStartAgent={whitelistModalInfo.onStartAgent}
           onStartAnyway={
             whitelistModalInfo.agentId
               ? async () => {
@@ -1046,6 +1108,16 @@ function AppContent() {
               : undefined
           }
           getToken={getToken}
+        />
+      )}
+
+      {tutorialModalInfo && (
+        <InteractiveTutorial
+          isActive={true}
+          onComplete={handleTutorialComplete}
+          onDismiss={handleTutorialDismiss}
+          agentId={tutorialModalInfo.agentId}
+          hasPhoneTools={tutorialModalInfo.hasPhoneTools}
         />
       )}
     </div>

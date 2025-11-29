@@ -253,6 +253,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
       <div className="p-5 flex-grow overflow-visible">
         <AgentCardHeader
+          agentId={agent.id}
           agentName={agent.name}
           agentDescription={agent.description}
           isRunning={isRunning}

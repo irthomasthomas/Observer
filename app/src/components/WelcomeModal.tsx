@@ -88,7 +88,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] backdrop-blur-sm p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] backdrop-blur-sm p-4"
       onClick={handleClose}
     >
       <div

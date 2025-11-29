@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Save, Cpu, Plus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { fetchResponse, UnauthorizedError } from '@utils/sendApi';
-import { CompleteAgent, updateAgentImageMemory } from '@utils/agent_database';
+import { updateAgentImageMemory, saveAgent } from '@utils/agent_database';
 import { extractAgentConfig, parseAgentResponse, extractImageRequest } from '@utils/agentParser';
 import MediaUploadMessage from '../MediaUploadMessage';
 import getConversationalSystemPrompt from '@utils/conversational_system_prompt';
@@ -27,23 +27,25 @@ interface Message {
 }
 
 interface ConversationalGeneratorProps {
-  onAgentGenerated: (agent: CompleteAgent, code: string) => void;
+  onSaveComplete?: () => void; // Called after agent is saved and refreshed
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
   onUpgradeClick?: () => void;
+  onRefresh?: () => void;
 }
 
 const ConversationalGenerator: React.FC<ConversationalGeneratorProps> = ({
-  onAgentGenerated,
+  onSaveComplete,
   getToken,
   isAuthenticated,
   isUsingObServer,
   onSignIn,
   onSwitchToObServer,
-  onUpgradeClick
+  onUpgradeClick,
+  onRefresh
 }) => {
   
   const [messages, setMessages] = useState<Message[]>([
@@ -189,7 +191,7 @@ What would you like to create today?`
       // Check for agent config first (priority)
       const agentConfig = extractAgentConfig(responseText);
       if (agentConfig) {
-        // Extract text outside $$$ blocks
+        // Extract text outside $$ blocks
         const textOutsideBlocks = responseText.replace(/\$\$\$\s*\n?[\s\S]*?\n?\$\$\$/g, '').trim();
 
         // Update the streamed message with just the text outside blocks (if any)
@@ -294,11 +296,22 @@ What would you like to create today?`
         .filter(msg => msg.imageData)
         .map(msg => msg.imageData!);
 
+      // Save the agent directly
+      const savedAgent = await saveAgent(parsed.agent, parsed.code);
+
       if (images.length > 0) {
-        await updateAgentImageMemory(parsed.agent.id, images);
+        await updateAgentImageMemory(savedAgent.id, images);
       }
 
-      onAgentGenerated(parsed.agent, parsed.code);
+      // Refresh the agent list to show the new agent
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      // Notify parent that save is complete (modal will close, App.tsx handles tutorial)
+      if (onSaveComplete) {
+        onSaveComplete();
+      }
     } else {
       setMessages(prev => [...prev, { id: Date.now() + Math.random() * 1000, sender: 'ai', text: "I'm sorry, there was an error parsing that. Could you try describing your agent again?" }]);
     }
@@ -318,6 +331,7 @@ What would you like to create today?`
     const allMessages = [...currentMessages, newUserMessage];
     await sendConversation(allMessages);
   };
+
   
   const getPlaceholderText = () => {
     if (isUsingObServer) {

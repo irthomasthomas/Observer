@@ -327,6 +327,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 <div className="flex flex-col flex-1 w-full md:w-auto">
                     <button
                         onClick={handleOpenToolsModal}
+                        data-tutorial-tools-button={agent.id}
                         className="flex md:flex-col items-start md:items-center w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
                         title="View agent code"
                     >

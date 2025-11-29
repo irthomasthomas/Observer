@@ -772,6 +772,7 @@ const ExpandableToolCard: React.FC<ExpandableToolCardProps> = ({
     return (
       <button
         onClick={() => onClick(call)}
+        data-tutorial-tool-card="true"
         className="relative w-full p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group text-center flex flex-col items-center justify-center gap-2 aspect-[4/3]"
         title={toolConfig.description}
       >
@@ -987,6 +988,8 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
     if (onCodeChange && modifiedCode !== code) {
       onCodeChange(modifiedCode);
     }
+    // Dispatch event for tutorial tracking
+    window.dispatchEvent(new CustomEvent('toolsModalClosed'));
     onClose();
   };
 
@@ -1258,6 +1261,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
       open={isOpen}
       onClose={handleClose}
       className="w-full max-w-7xl max-h-[90vh] flex flex-col"
+      data-tutorial-tools-modal="true"
     >
       {/* Header */}
       <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
@@ -1270,6 +1274,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
         </div>
         <button
           onClick={handleClose}
+          data-tutorial-close-modal="true"
           className="p-1.5 rounded-full hover:bg-blue-700 hover:bg-opacity-50 text-blue-100 hover:text-white transition-colors"
         >
           <X className="h-5 w-5" />

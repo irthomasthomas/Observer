@@ -247,6 +247,7 @@ interface MultiAgentCreatorProps {
   onSwitchToObServer?: () => void;
   onUpgrade?: () => void;
   onRefresh?: () => void;
+  onSaveComplete?: () => void; // Called after agents are saved and refreshed
   initialMessage?: string;
 }
 
@@ -259,6 +260,7 @@ const MultiAgentCreator: React.FC<MultiAgentCreatorProps> = ({
   onSwitchToObServer,
   onUpgrade,
   onRefresh,
+  onSaveComplete,
   initialMessage
 }) => {
   const [messages, setMessages] = useState<Message[]>([
@@ -594,7 +596,12 @@ What kind of agent team would you like me to create today?`
 
         // Refresh the agent list
         if (onRefresh) {
-          onRefresh();
+          await onRefresh();
+        }
+
+        // Notify parent that save is complete (modal will close, App.tsx handles tutorial)
+        if (onSaveComplete) {
+          onSaveComplete();
         }
       } else {
         setMessages(prev => [...prev, { id: Date.now() + Math.random() * 1000, sender: 'ai', text: "I'm sorry, there was an error parsing the agents. Could you try again?" }]);
