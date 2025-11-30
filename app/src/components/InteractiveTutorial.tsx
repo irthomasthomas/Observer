@@ -151,6 +151,23 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     };
   }, [isActive, currentStepData]);
 
+  // Listen for ESC key to dismiss tutorial
+  useEffect(() => {
+    if (!isActive) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleDismiss();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isActive]);
+
   // Handle clicks on highlighted elements
   useEffect(() => {
     if (!isActive || currentStepData?.action !== 'click' || !currentStepData.targetSelector) return;
@@ -226,6 +243,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   const getBubbleStyle = (): React.CSSProperties => {
     const padding = 20;
     const bubbleWidth = 320;
+    const isMobile = window.innerWidth < 768;
     const position = currentStepData.position || 'right';
 
     // Handle top-left positioning
@@ -233,6 +251,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       return {
         top: padding,
         left: padding,
+        right: padding,
       };
     }
 
@@ -254,14 +273,42 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       };
     }
 
+    // On mobile, always position below the target element for better visibility
+    if (isMobile) {
+      return {
+        left: padding,
+        right: padding,
+        top: targetRect.bottom + padding,
+      };
+    }
+
+    // Desktop positioning
     switch (position) {
       case 'right':
+        // Check if bubble would go off-screen on the right
+        if (targetRect.right + bubbleWidth + padding * 2 > window.innerWidth) {
+          // Position on left instead
+          return {
+            left: targetRect.left - bubbleWidth - padding,
+            top: targetRect.top + targetRect.height / 2,
+            transform: 'translateY(-50%)',
+          };
+        }
         return {
           left: targetRect.right + padding,
           top: targetRect.top + targetRect.height / 2,
           transform: 'translateY(-50%)',
         };
       case 'left':
+        // Check if bubble would go off-screen on the left
+        if (targetRect.left - bubbleWidth - padding < 0) {
+          // Position on right instead
+          return {
+            left: targetRect.right + padding,
+            top: targetRect.top + targetRect.height / 2,
+            transform: 'translateY(-50%)',
+          };
+        }
         return {
           left: targetRect.left - bubbleWidth - padding,
           top: targetRect.top + targetRect.height / 2,
@@ -289,17 +336,35 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   };
 
   const getArrowClass = () => {
-    // No arrow for center/non-spotlight/top-left steps
-    if (currentStepData.noSpotlight || currentStepData.position === 'center' || currentStepData.position === 'top-left') {
+    const isMobile = window.innerWidth < 768;
+
+    // No arrow for mobile, center, non-spotlight, or top-left steps
+    if (isMobile || currentStepData.noSpotlight || currentStepData.position === 'center' || currentStepData.position === 'top-left') {
       return '';
     }
 
     const position = currentStepData.position || 'right';
+
+    // Check if we flipped the position due to screen bounds
+    if (position === 'right' && targetRect) {
+      const bubbleWidth = 320;
+      const padding = 20;
+      if (targetRect.right + bubbleWidth + padding * 2 > window.innerWidth) {
+        return 'arrow-right'; // We flipped to left, so arrow points right
+      }
+      return 'arrow-left';
+    }
+
+    if (position === 'left' && targetRect) {
+      const bubbleWidth = 320;
+      const padding = 20;
+      if (targetRect.left - bubbleWidth - padding < 0) {
+        return 'arrow-left'; // We flipped to right, so arrow points left
+      }
+      return 'arrow-right';
+    }
+
     switch (position) {
-      case 'right':
-        return 'arrow-left';
-      case 'left':
-        return 'arrow-right';
       case 'top':
         return 'arrow-bottom';
       case 'bottom':
@@ -321,6 +386,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
               top: 0,
               height: targetRect.top - 4,
             }}
+            onClick={handleDismiss}
           />
 
           {/* Bottom bar */}
@@ -330,6 +396,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
               top: targetRect.bottom + 4,
               bottom: 0,
             }}
+            onClick={handleDismiss}
           />
 
           {/* Left bar */}
@@ -340,6 +407,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
               bottom: window.innerHeight - (targetRect.bottom + 4),
               width: targetRect.left - 4,
             }}
+            onClick={handleDismiss}
           />
 
           {/* Right bar */}
@@ -350,6 +418,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
               bottom: window.innerHeight - (targetRect.bottom + 4),
               left: targetRect.right + 4,
             }}
+            onClick={handleDismiss}
           />
 
           {/* Pulsing border around spotlight */}
@@ -370,7 +439,10 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
       {/* Gentle overlay for no-spotlight steps (unless noOverlay is true) */}
       {currentStepData.noSpotlight && !currentStepData.noOverlay && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 z-[1100] pointer-events-none" />
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 z-[1100] pointer-events-auto"
+          onClick={handleDismiss}
+        />
       )}
 
       {/* Speech bubble */}
@@ -378,7 +450,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
         className={`fixed z-[1101] pointer-events-auto bg-white rounded-xl shadow-2xl p-6 ${getArrowClass()}`}
         style={{
           ...getBubbleStyle(),
-          width: '320px',
+          ...(window.innerWidth >= 768 && { width: '320px' }),
           maxWidth: 'calc(100vw - 40px)',
         }}
       >
