@@ -633,7 +633,11 @@ What kind of agent team would you like me to create today?`
     setSelectedAgentModal({ isOpen: true, agentData });
   };
 
-  const handleMediaResponse = async (messageId: number, result: string | { type: 'image', data: string }) => {
+  const handleMediaResponse = async (messageId: number, result: string | { type: 'image', data: string } | null) => {
+    if (result === null) {
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      return;
+    }
     const newUserMessage: Message = typeof result === 'string'
       ? { id: Date.now() + Math.random() * 1000, sender: 'user', text: result }
       : { id: Date.now() + Math.random() * 1000, sender: 'user', text: '[Image uploaded]', imageData: result.data };
