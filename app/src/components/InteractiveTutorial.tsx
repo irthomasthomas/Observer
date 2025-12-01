@@ -43,10 +43,19 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   const steps: TutorialStep[] = [
     {
       id: 'welcome',
-      targetSelector: `[data-tutorial-tools-button="${agentId}"]`,
+      targetSelector: `[data-tutorial-agent-card="${agentId}"]`,
       title: 'This is your first agent!',
-      message: 'Click the Tools button to see what your agent can do',
+      message: 'See the timer? It runs in a loop - every few seconds it observes, thinks, acts, then waits to loop again!',
       icon: <Sparkles className="h-6 w-6 text-blue-500" />,
+      position: 'bottom',
+      action: 'auto',
+    },
+    {
+      id: 'show-tools',
+      targetSelector: `[data-tutorial-tools-button="${agentId}"]`,
+      title: 'This is what your agent will do',
+      message: 'Click the Tools button to see what your agent can do',
+      icon: <Wrench className="h-6 w-6 text-purple-500" />,
       position: 'right',
       action: 'click',
     },
@@ -273,12 +282,12 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       };
     }
 
-    // On mobile, always position below the target element for better visibility
+    // On mobile, position at the top with padding
     if (isMobile) {
       return {
+        top: padding,
         left: padding,
         right: padding,
-        top: targetRect.bottom + padding,
       };
     }
 
@@ -376,6 +385,28 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
   return (
     <>
+      {/* Secondary highlight for loop timer on welcome step */}
+      {currentStepData.id === 'welcome' && (
+        <style>{`
+          [data-tutorial-loop-timer] {
+            position: relative;
+            animation: timer-pulse 2s ease-in-out infinite;
+          }
+          @keyframes timer-pulse {
+            0%, 100% {
+              box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.6);
+              background-color: rgba(59, 130, 246, 0.1);
+              border-radius: 6px;
+            }
+            50% {
+              box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3);
+              background-color: rgba(59, 130, 246, 0.2);
+              border-radius: 6px;
+            }
+          }
+        `}</style>
+      )}
+
       {/* Overlay with spotlight effect - only render if not a no-spotlight step */}
       {targetRect && !currentStepData.noSpotlight && (
         <>
@@ -496,12 +527,14 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           </span>
         </div>
 
-        {/* Action hint */}
-        {currentStepData.action === 'click' && !currentStepData.noSpotlight && (
-          <div className="text-xs text-blue-600 font-medium mb-3 flex items-center">
-            <span className="animate-pulse mr-2">→</span>
-            Click the highlighted element to continue
-          </div>
+        {/* Next button for auto-advance steps */}
+        {currentStepData.action === 'auto' && !currentStepData.waitForEvent && (
+          <button
+            onClick={advanceStep}
+            className="w-full mb-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+          >
+            Next
+          </button>
         )}
 
         {/* Don't show again checkbox (on last step or second to last) */}

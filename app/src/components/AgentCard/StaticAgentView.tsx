@@ -221,7 +221,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                         <div className="flex flex-col items-center space-y-3">
                             <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
                             <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1" data-tutorial-loop-timer={agent.id}>
                                     <Clock className="w-4 h-4 text-gray-500" />
                                     <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
                                 </div>
@@ -276,7 +276,7 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                         {/* Column 3: Timer, Flash button, and Settings button stacked */}
                         <div className="flex flex-col gap-1.5 items-center">
                             {/* Timer */}
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1" data-tutorial-loop-timer={agent.id}>
                                 <Clock className="w-4 h-4 text-gray-500" />
                                 <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
                             </div>

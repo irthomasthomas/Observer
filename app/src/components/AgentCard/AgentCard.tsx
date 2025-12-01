@@ -244,7 +244,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
   };
 
   return (
-    <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 flex flex-col">
+    <div
+      className="relative bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 flex flex-col"
+      data-tutorial-agent-card={agent.id}
+    >
       {isRunning && (Date.now() - lastProgressUpdate < 5000) && ( // Show progress when running with fresh data
         <div className="absolute top-0 left-0 right-0 h-1 z-10">
           <div className="h-full bg-green-500" style={{ width: `${loopProgress}%`, transition: 'width 0.1s linear' }} />
