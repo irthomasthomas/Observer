@@ -90,8 +90,8 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Unlimited Notifications:</strong> Discord, Browser, System & Overlay!
-                <span className="block text-gray-600 text-xs mt-1">Premium channels (SMS, Email, WhatsApp, Telegram, Pushover): 3/day</span>
+                <strong>Unlimited Local Notifications:</strong> Discord, Browser, System & Overlay!
+                <span className="block text-gray-600 text-xs mt-1">(SMS, Phone, Email, WhatsApp, Telegram, Pushover): 5/day</span>
               </span>
             </li>
             <li className="flex items-start">
@@ -133,7 +133,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <div className="text-center mb-4">
             <Zap className="mx-auto h-12 w-12 text-blue-500 mb-3" />
             <h2 className="text-2xl font-bold text-blue-800">Observer Plus</h2>
-            <p className="text-blue-700 text-sm">Unlimited alerts & monitoring</p>
+            <p className="text-blue-700 text-sm">Unlimited alerts for local monitoring</p>
             <p className="text-3xl font-bold text-blue-900 mt-2">$5<span className="text-base font-normal">/month</span></p>
           </div>
           <ul className="space-y-2.5 mb-6 text-sm">
