@@ -167,7 +167,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
         <div className="flex items-center space-x-3">
           <Phone className="h-6 w-6" />
           <div>
-            <h2 className="text-xl font-semibold">Phone Verification Required</h2>
+            <h2 className="text-xl font-semibold">Whitelist your Phone</h2>
             <p className="text-sm text-blue-100">30-second verification • Valid for 24 hours</p>
           </div>
         </div>
@@ -247,12 +247,12 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
                 {isWhitelisted ? (
                   <>
                     <span className="text-green-600">✓</span>
-                    <span className="text-gray-700">This number is verified: <span className="font-mono">{number}</span></span>
+                    <span className="text-gray-700">This number is whitelisted: <span className="font-mono">{number}</span></span>
                   </>
                 ) : (
                   <>
                     <span className="text-red-600">✗</span>
-                    <span className="text-red-700">This number is not verified: <span className="font-mono font-semibold">{number}</span></span>
+                    <span className="text-red-700">This number is not whitelisted: <span className="font-mono font-semibold">{number}</span></span>
                   </>
                 )}
               </div>
@@ -261,14 +261,14 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
         ) : (
           <div className="pt-3 border-t border-gray-200">
             <p className="text-sm text-orange-700">
-              ⚠️ Phone tools detected but no phone number found in your code. Make sure dynamic numbers are verified.
+              ⚠️ Phone tools detected but no phone number found in your code. Make sure dynamic numbers are whitelisted.
             </p>
           </div>
         )}
 
         {/* Whitelist Checker */}
         <div className="pt-3 border-t border-gray-200">
-          <p className="text-sm font-semibold text-gray-900 mb-2">Check if you're verified now:</p>
+          <p className="text-sm font-semibold text-gray-900 mb-2">Check if you're whitelisted now:</p>
           <div className="flex items-center space-x-2">
             <input
               type="text"
@@ -294,11 +294,11 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
               <div className="flex items-center">
                 {checkResult.is_whitelisted ? (
                   <span className="text-green-600 font-medium text-sm flex items-center">
-                    ✓ Verified 
+                    ✓ Whitelisted
                   </span>
                 ) : (
                   <span className="text-red-600 font-medium text-sm flex items-center">
-                    ✗ Not verified
+                    ✗ Not whitelisted 
                   </span>
                 )}
               </div>
@@ -316,7 +316,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
           <div className="bg-white border-2 border-green-400 rounded-lg p-4">
             <div className="flex items-center space-x-2 text-green-700 mb-3">
               <CheckCircle className="h-6 w-6" />
-              <span className="font-semibold text-base">All numbers verified!</span>
+              <span className="font-semibold text-base">All numbers Whitelisted!</span>
             </div>
             <button
               onClick={() => {
