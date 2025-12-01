@@ -318,7 +318,13 @@ What would you like to create today?`
   };
 
 
-  const handleMediaResponse = async (messageId: number, result: string | { type: 'image', data: string }) => {
+  const handleMediaResponse = async (messageId: number, result: string | { type: 'image', data: string } | null) => {
+    // Handle declined/dismissed case
+    if (result === null) {
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      return;
+    }
+
     // Remove the image-request message and add user response
     const newUserMessage: Message = typeof result === 'string'
       ? { id: Date.now() + Math.random() * 1000, sender: 'user', text: result }

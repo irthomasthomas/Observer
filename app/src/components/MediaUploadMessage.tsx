@@ -6,7 +6,7 @@ import { createLoggerDecorator } from '../utils/logging';
 
 interface MediaUploadMessageProps {
   requestText: string; // The text from inside %%% %%%
-  onResponse: (result: string | { type: 'image', data: string }) => void;
+  onResponse: (result: string | { type: 'image', data: string } | null) => void;
 }
 
 const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, onResponse }) => {
@@ -193,7 +193,7 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
     }
     setShowPreview(false);
     setCaptureMode(null);
-    onResponse("User declined sending a picture");
+    onResponse(null);
   };
 
   const handleSkipReference = () => {
