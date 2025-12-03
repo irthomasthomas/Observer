@@ -412,7 +412,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
         <>
           {/* Top bar */}
           <div
-            className="fixed left-0 right-0 bg-black bg-opacity-5 z-[1100] pointer-events-auto"
+            className="fixed left-0 right-0 bg-black bg-opacity-5 z-[100] pointer-events-auto"
             style={{
               top: 0,
               height: targetRect.top - 4,
@@ -422,7 +422,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
           {/* Bottom bar */}
           <div
-            className="fixed left-0 right-0 bg-black bg-opacity-5 z-[1100] pointer-events-auto"
+            className="fixed left-0 right-0 bg-black bg-opacity-5 z-[100] pointer-events-auto"
             style={{
               top: targetRect.bottom + 4,
               bottom: 0,
@@ -432,7 +432,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
           {/* Left bar */}
           <div
-            className="fixed left-0 bg-black bg-opacity-5 z-[1100] pointer-events-auto"
+            className="fixed left-0 bg-black bg-opacity-5 z-[100] pointer-events-auto"
             style={{
               top: targetRect.top - 4,
               bottom: window.innerHeight - (targetRect.bottom + 4),
@@ -443,7 +443,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
           {/* Right bar */}
           <div
-            className="fixed right-0 bg-black bg-opacity-5 z-[1100] pointer-events-auto"
+            className="fixed right-0 bg-black bg-opacity-5 z-[100] pointer-events-auto"
             style={{
               top: targetRect.top - 4,
               bottom: window.innerHeight - (targetRect.bottom + 4),
@@ -454,7 +454,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
 
           {/* Pulsing border around spotlight */}
           <div
-            className="fixed pointer-events-none z-[1101]"
+            className="fixed pointer-events-none z-[101]"
             style={{
               left: targetRect.left - 4,
               top: targetRect.top - 4,
@@ -471,14 +471,14 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       {/* Gentle overlay for no-spotlight steps (unless noOverlay is true) */}
       {currentStepData.noSpotlight && !currentStepData.noOverlay && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-5 z-[1100] pointer-events-auto"
+          className="fixed inset-0 bg-black bg-opacity-5 z-[100] pointer-events-auto"
           onClick={handleDismiss}
         />
       )}
 
       {/* Speech bubble */}
       <div
-        className={`fixed z-[1101] pointer-events-auto bg-white rounded-xl shadow-2xl p-6 ${getArrowClass()}`}
+        className={`fixed z-[101] pointer-events-auto bg-white rounded-xl shadow-2xl p-6 ${getArrowClass()}`}
         style={{
           ...getBubbleStyle(),
           ...(window.innerWidth >= 768 && { width: '320px' }),
