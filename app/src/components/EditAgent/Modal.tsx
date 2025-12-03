@@ -36,7 +36,7 @@ const Modal: React.FC<ModalProps> = ({
 
   return ReactDOM.createPortal(
     <div
-      className={`fixed inset-0 z-[1000] flex items-center justify-center ${backdropClassName}`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center ${backdropClassName}`}
       onMouseDown={handleBackdropMouseDown}
     >
       <div

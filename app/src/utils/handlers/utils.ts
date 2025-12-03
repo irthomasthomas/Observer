@@ -2,11 +2,58 @@
 
 import { Logger } from '../logging';
 import { getAgentMemory as fetchAgentMemory, updateAgentMemory as saveAgentMemory, getAgentImageMemory as fetchAgentImageMemory, updateAgentImageMemory as saveAgentImageMemory, appendAgentImageMemory as addAgentImageMemory } from '../agent_database';
-import { recordingManager } from '../recordingManager'; 
+import { recordingManager } from '../recordingManager';
 
 /**
  * Utility functions for handlers
  */
+
+/**
+ * Helper function to handle 429 quota exceeded responses.
+ * Extracts quota type from error response and logs appropriately.
+ * @param response The fetch response object to check
+ * @param defaultQuotaType The default quota type to use if not specified in response
+ * @throws Error if quota is exceeded (status 429)
+ */
+async function handleQuotaExceeded(response: Response, defaultQuotaType: string): Promise<void> {
+  if (response.status !== 429) {
+    return;
+  }
+
+  try {
+    const errorBody = await response.json();
+    const quotaType = errorBody?.detail?.quota_type || defaultQuotaType;
+    const message = errorBody?.detail?.message || `${quotaType} quota exceeded`;
+
+    Logger.error('quota', message, {
+      logType: 'quota-exceeded',
+      quotaType: quotaType,
+      content: {
+        quotaType,
+        message,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    throw new Error(message);
+  } catch (parseError) {
+    if (parseError instanceof Error && parseError.message.includes('quota')) {
+      throw parseError;
+    }
+
+    const defaultMessage = `${defaultQuotaType} quota exceeded`;
+    Logger.error('quota', defaultMessage, {
+      logType: 'quota-exceeded',
+      quotaType: defaultQuotaType,
+      content: {
+        quotaType: defaultQuotaType,
+        message: defaultMessage,
+        timestamp: new Date().toISOString()
+      }
+    });
+    throw new Error(defaultMessage);
+  }
+}
 
 /**
  * Get the current time in a readable format
@@ -112,10 +159,12 @@ export async function sendSms(message: string, number: string, authToken: string
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`, 
+        'Authorization': `Bearer ${authToken}`,
       },
       body: JSON.stringify(requestBody),
     });
+
+    await handleQuotaExceeded(response, 'sms');
 
     if (!response.ok) {
       // Check if this is a whitelist error (403 + user is authenticated)
@@ -175,10 +224,12 @@ export async function sendWhatsapp(message: string, number: string, authToken: s
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`, 
+        'Authorization': `Bearer ${authToken}`,
       },
       body: JSON.stringify(requestBody),
     });
+
+    await handleQuotaExceeded(response, 'whatsapp');
 
     if (!response.ok) {
       // Check if this is a whitelist error (403 + user is authenticated)
@@ -234,16 +285,18 @@ export async function sendEmail(message: string, emailAddress: string, authToken
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`, 
+        'Authorization': `Bearer ${authToken}`,
       },
       body: JSON.stringify(requestBody),
     });
 
+    await handleQuotaExceeded(response, 'email');
+
     if (!response.ok) {
       try {
         const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string' 
-          ? errorData.detail 
+        const errorMessage = typeof errorData.detail === 'string'
+          ? errorData.detail
           : `Failed to send email: ${response.status} ${response.statusText}`;
         throw new Error(errorMessage);
       } catch (parseError) {
@@ -318,16 +371,18 @@ export async function sendPushover(message: string, userKey: string, authToken: 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`, 
+        'Authorization': `Bearer ${authToken}`,
       },
       body: JSON.stringify(requestBody),
     });
 
+    await handleQuotaExceeded(response, 'pushover');
+
     if (!response.ok) {
       try {
         const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string' 
-          ? errorData.detail 
+        const errorMessage = typeof errorData.detail === 'string'
+          ? errorData.detail
           : `Failed to send Pushover notification: ${response.status} ${response.statusText}`;
         throw new Error(errorMessage);
       } catch (parseError) {
@@ -468,16 +523,18 @@ export async function sendTelegram(message: string, chatId: string, authToken: s
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`, 
+        'Authorization': `Bearer ${authToken}`,
       },
       body: JSON.stringify(requestBody),
     });
 
+    await handleQuotaExceeded(response, 'telegram');
+
     if (!response.ok) {
       try {
         const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string' 
-          ? errorData.detail 
+        const errorMessage = typeof errorData.detail === 'string'
+          ? errorData.detail
           : `Failed to send Telegram message: ${response.status} ${response.statusText}`;
         throw new Error(errorMessage);
       } catch (parseError) {
@@ -668,6 +725,8 @@ export async function call(message: string, number: string, authToken: string): 
       },
       body: JSON.stringify(requestBody),
     });
+
+    await handleQuotaExceeded(response, 'voice_call');
 
     if (!response.ok) {
       // Check if this is a whitelist error (403 + user is authenticated)

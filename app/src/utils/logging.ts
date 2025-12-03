@@ -272,7 +272,8 @@ class LoggingService {
           window.dispatchEvent(
             new CustomEvent('quotaExceeded', {
               detail: {
-                agentId: entry.source
+                agentId: entry.source,
+                quotaType: entry.details?.quotaType || 'monitor'
               }
             })
           );

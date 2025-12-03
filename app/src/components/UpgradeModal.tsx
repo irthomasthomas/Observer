@@ -10,9 +10,73 @@ interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   isHalfwayWarning?: boolean;
+  quotaType?: string;
 }
 
-export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isHalfwayWarning = false }) => {
+// Configuration for quota-specific messaging
+const QUOTA_MESSAGES: Record<string, {
+  headline: string;
+  subheadline: string;
+  recommendedTier: 'plus' | 'pro' | 'max';
+  isUrgent: boolean;
+}> = {
+  monitor: {
+    headline: "You've Reached Your Daily Monitoring Limit!",
+    subheadline: "Upgrade to Observer Pro for 8 hours/day of cloud monitoring!",
+    recommendedTier: 'pro',
+    isUrgent: true
+  },
+  agent_creator: {
+    headline: "AI Agent Creator Limit Reached",
+    subheadline: "Unlock unlimited agent builds with Observer Pro!",
+    recommendedTier: 'pro',
+    isUrgent: true
+  },
+  email: {
+    headline: "Email Notification Quota Reached",
+    subheadline: "Get unlimited email alerts with Observer Plus for just $5/month!",
+    recommendedTier: 'plus',
+    isUrgent: false
+  },
+  sms: {
+    headline: "SMS Notification Quota Reached",
+    subheadline: "Upgrade to Plus for unlimited SMS alerts - just 1¢ per hour of monitoring!",
+    recommendedTier: 'plus',
+    isUrgent: false
+  },
+  whatsapp: {
+    headline: "WhatsApp Notification Quota Reached",
+    subheadline: "Never miss an alert! Get unlimited WhatsApp notifications with Plus.",
+    recommendedTier: 'plus',
+    isUrgent: false
+  },
+  telegram: {
+    headline: "Telegram Notification Quota Reached",
+    subheadline: "Unlock unlimited Telegram alerts with Observer Plus!",
+    recommendedTier: 'plus',
+    isUrgent: false
+  },
+  pushover: {
+    headline: "Pushover Notification Quota Reached",
+    subheadline: "Get unlimited push notifications with Observer Plus!",
+    recommendedTier: 'plus',
+    isUrgent: false
+  },
+  discord: {
+    headline: "Discord Notification Quota Reached",
+    subheadline: "Upgrade to Plus for unlimited Discord webhooks!",
+    recommendedTier: 'plus',
+    isUrgent: false
+  },
+  voice_call: {
+    headline: "Voice Call Quota Reached",
+    subheadline: "Get unlimited voice call alerts with Observer Plus!",
+    recommendedTier: 'plus',
+    isUrgent: false
+  }
+};
+
+export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isHalfwayWarning = false, quotaType }) => {
   const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
@@ -74,13 +138,27 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
   const handlePlusCheckout = () => handleApiAction('create-checkout-session-plus');
   const handleMaxCheckout = () => handleApiAction('create-checkout-session-max');
 
+  // Select quota-specific messaging
+  const quotaConfig = quotaType
+    ? QUOTA_MESSAGES[quotaType] || QUOTA_MESSAGES.monitor
+    : null;
+
+  // Only use halfway warning for monitor quota type
+  const headline = (quotaType === 'monitor' && isHalfwayWarning)
+    ? "You've Used Half of Your Daily Limit!"
+    : (quotaConfig?.headline || "You've Reached Your Daily Limit!");
+
+  const subheadline = (quotaType === 'monitor' && isHalfwayWarning)
+    ? "Upgrade to Observer Pro for 8 hours/day of cloud monitoring!"
+    : (quotaConfig?.subheadline || "Upgrade to Observer Pro!");
+
   if (!isOpen) {
     return null;
   }
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] backdrop-blur-sm p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] backdrop-blur-sm p-4"
       onClick={onClose} // Close modal on overlay click
     >
       <div 
@@ -97,8 +175,8 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
           </div>
         ) : (
           <PricingTable
-            headline={isHalfwayWarning ? "You've Used Half of Your Daily Limit!" : "You've Reached Your Daily Limit!"}
-            subheadline="Upgrade to Observer Pro!"
+            headline={headline}
+            subheadline={subheadline}
             status={status}
             isButtonLoading={isButtonLoading}
             isAuthenticated={isAuthenticated}

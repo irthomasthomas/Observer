@@ -102,6 +102,7 @@ function AppContent() {
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isHalfwayWarning, setIsHalfwayWarning] = useState(false);
+  const [currentQuotaType, setCurrentQuotaType] = useState<string>('monitor');
 
   // --- STATE FOR ACTIVITY MODAL ---
   const [activityModalOpen, setActivityModalOpen] = useState(false);
@@ -271,13 +272,18 @@ function AppContent() {
 
   // --- USEEFFECT FOR QUOTA EVENT LISTENER ---
   useEffect(() => {
-    const handleQuotaExceeded = (event: CustomEvent<{ agentId: string }>) => {
-      const { agentId } = event.detail;
+    const handleQuotaExceeded = (event: CustomEvent<{ agentId: string; quotaType: string }>) => {
+      const { agentId, quotaType } = event.detail;
+      setCurrentQuotaType(quotaType);
       setAgentsWithQuotaError(prevSet => {
         const newSet = new Set(prevSet);
         newSet.add(agentId);
         return newSet;
       });
+
+      // Quota events are for full errors, not halfway warnings
+      setIsHalfwayWarning(false);
+      setIsUpgradeModalOpen(true);
     };
 
     window.addEventListener('quotaExceeded', handleQuotaExceeded as EventListener);
@@ -707,6 +713,7 @@ function AppContent() {
           isOpen={isUpgradeModalOpen}
           onClose={() => setIsUpgradeModalOpen(false)}
           isHalfwayWarning={isHalfwayWarning}
+          quotaType={currentQuotaType}
         />
 
         <WelcomeModal
