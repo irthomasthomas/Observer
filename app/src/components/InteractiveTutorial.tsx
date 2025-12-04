@@ -37,7 +37,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const [isHiddenUntilModalClose, setIsHiddenUntilModalClose] = useState(false);
+  const [isTemporarilyHidden, setIsTemporarilyHidden] = useState(false);
 
   // Define tutorial steps
   const steps: TutorialStep[] = [
@@ -93,6 +93,43 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   ];
 
   const currentStepData = steps[currentStep];
+
+  const handleComplete = () => {
+    if (dontShowAgain && user && 'sub' in user && user.sub) {
+      localStorage.setItem(`observer_tutorial_dismissed_${user.sub}`, 'true');
+      Logger.info('TUTORIAL', 'User completed tutorial with "Don\'t show again"');
+    }
+    onComplete();
+  };
+
+  const advanceStep = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      handleComplete();
+    }
+  };
+
+  const handleDismiss = () => {
+    // Special case: if user closes on step 3 (index 2), hide tutorial, wait for modal to close, then show step 4
+    if (currentStep === 2) {
+      Logger.info('TUTORIAL', 'User closed step 3, hiding tutorial until modal closes');
+      setIsTemporarilyHidden(true);
+      advanceStep();
+      // Listen for modal close event to show tutorial again
+      const handleModalClosed = () => {
+        setIsTemporarilyHidden(false);
+      };
+      window.addEventListener('toolsModalClosed', handleModalClosed, { once: true });
+      return;
+    }
+
+    if (dontShowAgain && user && 'sub' in user && user.sub) {
+      localStorage.setItem(`observer_tutorial_dismissed_${user.sub}`, 'true');
+      Logger.info('TUTORIAL', 'User dismissed tutorial with "Don\'t show again"');
+    }
+    onDismiss();
+  };
 
   // Update target element position
   useEffect(() => {
@@ -177,6 +214,45 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     };
   }, [isActive]);
 
+  // Allow users to temporarily dismiss the welcome step by clicking inside the agent card
+  useEffect(() => {
+    if (
+      !isActive ||
+      currentStepData?.id !== 'welcome' ||
+      !currentStepData.targetSelector ||
+      isTemporarilyHidden
+    ) {
+      return;
+    }
+
+    const handleAgentCardClick = (event: Event) => {
+      const target = event.target as HTMLElement;
+      const highlightedElement = document.querySelector(currentStepData.targetSelector!);
+
+      if (highlightedElement && (highlightedElement === target || highlightedElement.contains(target))) {
+        Logger.info('TUTORIAL', 'User clicked inside agent card on welcome step, hiding until tools modal opens');
+        setIsTemporarilyHidden(true);
+
+        const handleToolsModalOpened = () => {
+          const resumeIndex = steps.findIndex(step => step.id === 'test-tools');
+          if (resumeIndex !== -1) {
+            Logger.info('TUTORIAL', 'Tools modal opened, resuming tutorial at "Test Your Tools" step');
+            setCurrentStep(resumeIndex);
+          }
+          setIsTemporarilyHidden(false);
+        };
+
+        window.addEventListener('toolsModalOpened', handleToolsModalOpened, { once: true });
+      }
+    };
+
+    document.addEventListener('click', handleAgentCardClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleAgentCardClick, true);
+    };
+  }, [isActive, currentStepData, isTemporarilyHidden, steps]);
+
   // Handle clicks on highlighted elements
   useEffect(() => {
     if (!isActive || currentStepData?.action !== 'click' || !currentStepData.targetSelector) return;
@@ -184,67 +260,22 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     const handleClick = (e: Event) => {
       const target = e.target as HTMLElement;
       const highlightedElement = document.querySelector(currentStepData.targetSelector!);
+      const clickedInside = highlightedElement && (highlightedElement === target || highlightedElement.contains(target));
 
-      if (highlightedElement && (highlightedElement === target || highlightedElement.contains(target))) {
-        // User clicked the highlighted element
-        if (currentStep === steps.length - 1) {
-          // Last step - complete tutorial
-          handleComplete();
-        } else {
-          // Advance to next step
-          advanceStep();
-        }
+      if (clickedInside) {
+        // User clicked the highlighted element - advance tutorial
+        currentStep === steps.length - 1 ? handleComplete() : advanceStep();
+      } else if (currentStepData.id === 'test-tools') {
+        // Step 3 special case: clicking outside the tool card dismisses
+        handleDismiss();
       }
     };
 
     document.addEventListener('click', handleClick, true);
-
-    return () => {
-      document.removeEventListener('click', handleClick, true);
-    };
+    return () => document.removeEventListener('click', handleClick, true);
   }, [isActive, currentStep, currentStepData]);
 
-  const advanceStep = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleComplete();
-    }
-  };
-
-  const handleComplete = () => {
-    if (dontShowAgain && user && 'sub' in user && user.sub) {
-      localStorage.setItem(`observer_tutorial_dismissed_${user.sub}`, 'true');
-      Logger.info('TUTORIAL', 'User completed tutorial with "Don\'t show again"');
-    }
-    onComplete();
-  };
-
-  const handleDismiss = () => {
-    // Special case: if user closes on step 3 (index 2), hide tutorial, wait for modal to close, then show step 4
-    if (currentStep === 2) {
-      Logger.info('TUTORIAL', 'User closed step 3, hiding tutorial until modal closes');
-      // Hide the tutorial temporarily
-      setIsHiddenUntilModalClose(true);
-      // Advance to step 4
-      advanceStep();
-      // Listen for the modal close event, then show tutorial again
-      const handleModalClosed = () => {
-        setIsHiddenUntilModalClose(false);
-        window.removeEventListener('toolsModalClosed', handleModalClosed);
-      };
-      window.addEventListener('toolsModalClosed', handleModalClosed, { once: true });
-      return;
-    }
-
-    if (dontShowAgain && user && 'sub' in user && user.sub) {
-      localStorage.setItem(`observer_tutorial_dismissed_${user.sub}`, 'true');
-      Logger.info('TUTORIAL', 'User dismissed tutorial with "Don\'t show again"');
-    }
-    onDismiss();
-  };
-
-  if (!isActive || !currentStepData || isHiddenUntilModalClose) {
+  if (!isActive || !currentStepData || isTemporarilyHidden) {
     return null;
   }
 

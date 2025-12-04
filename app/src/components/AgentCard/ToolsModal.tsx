@@ -969,6 +969,12 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
   const [activeView, setActiveView] = useState<'cards' | 'code'>('cards');
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      window.dispatchEvent(new CustomEvent('toolsModalOpened'));
+    }
+  }, [isOpen]);
+
   // Sync modifiedCode when code prop changes (prevents empty code bug)
   useEffect(() => {
     if (code && code !== modifiedCode) {
