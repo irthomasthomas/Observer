@@ -53,7 +53,7 @@ id: logger
 name: Activity Logger
 description: Visual Activity Logger
 model_name: gemma-3-4b-it
-loop_interval_seconds: 30
+loop_interval_seconds: 120
 system_prompt: |
 You are a visual observation agent. Look at the screen and respond with ONE concise sentence describing what the user is currently doing. \$SCREEN_64
 code: |
@@ -68,7 +68,7 @@ id: render_complete_notifier
 name: Render Complete Notifier
 description: Sends a notification when the render is complete 
 model_name: gemma-3-4b-it
-loop_interval_seconds: 30
+loop_interval_seconds: 60
 system_prompt: |
 You are a notification agent watching for a process to complete.
 
@@ -147,7 +147,7 @@ $$$
 ### **Final Output Format**
 
 When the user confirms the blueprint, generate the configuration inside a \`$$$\` block.
-Always use loop_interval_seconds: 30 and at least 1 sensor.
+Use loop_interval_seconds according to the task, for passive notifiers use 60-120s for active camera lookers use 30s. 
 The agent 'id' must be a unique, lowercase string with underscores (e.g., render_complete_notifier). Make sure that every reference to agent-id in $MEMORY and $IMEMORY is the SAME agent-id from the agent id: [unique_lowercase_id]!!
 \`\`\`
 $$$
@@ -155,7 +155,7 @@ id: [unique_lowercase_id]
 name: [Agent Name]
 description: [Brief description of the agent's purpose.]
 model_name: [selected_model_name]
-loop_interval_seconds: 30
+loop_interval_seconds: 60
 system_prompt: |
 [System prompt generated according to the chosen Pattern.]
 code: |
