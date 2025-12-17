@@ -559,7 +559,7 @@ export async function executeJavaScript(
 
       sleep: async (ms: number = 2000): Promise<void> => {
         try {
-          await utils.sleep(ms);
+          await utils.sleep(ms, agentId);
           Logger.info(agentId, `Slept for ${ms}ms`, {
             logType: 'tool-success',
             iterationId,

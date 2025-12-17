@@ -677,8 +677,13 @@ export async function overlay(appUrl: string, message: string): Promise<void> {
 
 /**
  * Sleep for a specified number of milliseconds
+ * Optionally pauses the agent loop if agentId is provided
  */
-export async function sleep(ms: number = 2000): Promise<void> {
+export async function sleep(ms: number = 2000, agentId?: string): Promise<void> {
+  if (agentId) {
+    const { pauseAgentLoop } = await import('../main_loop');
+    pauseAgentLoop(agentId, ms);
+  }
   await new Promise(r => setTimeout(r, ms));
 }
 

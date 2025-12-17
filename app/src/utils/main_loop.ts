@@ -20,12 +20,22 @@ const activeLoops: Record<string, {
   intervalMs: number,
   getToken?: TokenProvider;
   lastResponse?: string;
+  sleepUntil?: number | null;
 }> = {};
 
 // Event constants removed - Logger now dispatches all events based on logType
 // This creates a unified system where Logger is the single source of truth
 
 // Removed legacy server address functions - now using inferenceServer.ts
+
+/**
+ * Pause agent execution for a specified duration
+ */
+export function pauseAgentLoop(agentId: string, durationMs: number): void {
+  if (activeLoops[agentId]?.isRunning) {
+    activeLoops[agentId].sleepUntil = Date.now() + durationMs;
+  }
+}
 
 export async function startAgentLoop(agentId: string, getToken?: TokenProvider, skipWhitelistCheck = false): Promise<void> {
   if (activeLoops[agentId]?.isRunning) {
@@ -97,7 +107,20 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider, 
     const executeIteration = async () => {
       const loop = activeLoops[agentId];
       if (!loop?.isRunning || loop.isExecuting) return;
-      
+
+      // Check if agent is sleeping
+      if (loop.sleepUntil && Date.now() < loop.sleepUntil) {
+        const remainingMs = loop.sleepUntil - Date.now();
+        Logger.debug(agentId, `Skipping iteration - agent sleeping for ${Math.round(remainingMs/1000)}s more`);
+        return;
+      }
+
+      // Clear sleep state when resuming
+      if (loop.sleepUntil) {
+        Logger.debug(agentId, `Agent sleep period ended, resuming execution`);
+        loop.sleepUntil = null;
+      }
+
       loop.isExecuting = true;
       
       try {
@@ -173,7 +196,7 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
 
     // -------------------------
 
-    activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null };
+    activeLoops[agentId] = { ...loop, isRunning: false, intervalId: null, sleepUntil: null };
 
     if (getRunningAgentIds().length === 0) {
       // This was the last running agent, so shut down the recorder.
