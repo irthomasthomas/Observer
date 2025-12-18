@@ -68,7 +68,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [responseKey, setResponseKey] = useState(0);
   const [loopProgress, setLoopProgress] = useState(0);
   const [lastProgressUpdate, setLastProgressUpdate] = useState(0);
+  const [loopDurationMs, setLoopDurationMs] = useState(0);
   const [sleepProgress, setSleepProgress] = useState(0);
+  const [sleepDurationMs, setSleepDurationMs] = useState(0);
   const [isSleeping, setIsSleeping] = useState(false);
   const [currentModel, setCurrentModel] = useState(agent.model_name);
   const initialModelRef = useRef(agent.model_name);
@@ -176,6 +178,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       startTime = event.detail.iterationStartTime;
       duration = event.detail.intervalMs;
       setLoopProgress(0);
+      setLoopDurationMs(duration);
 
       // Simple progress timer using fixed references
       progressTimer = setInterval(() => {
@@ -215,11 +218,19 @@ const AgentCard: React.FC<AgentCardProps> = ({
     const handleSleepStart = (event: CustomEvent) => {
       if (event.detail.agentId !== agent.id) return;
 
+      // OPTION 1: Last Sleep Wins - Clear any existing timer before starting a new one
+      // This matches backend behavior where pauseAgentLoop() overwrites sleepUntil
+      if (sleepProgressTimer) {
+        clearInterval(sleepProgressTimer);
+        sleepProgressTimer = null;
+      }
+
       const durationMs = event.detail.durationMs;
       const sleepEnd = Date.now() + durationMs;
 
       setIsSleeping(true);
       setSleepProgress(100); // Start at 100%
+      setSleepDurationMs(durationMs);
 
       // Update sleep progress countdown
       sleepProgressTimer = setInterval(() => {
@@ -227,9 +238,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
         const remaining = sleepEnd - now;
 
         if (remaining <= 0) {
-          // Sleep finished - clear state automatically
+          // Sleep finished - clear state and transition back to WAITING
           setSleepProgress(0);
           setIsSleeping(false);
+          setLiveStatus('WAITING'); // Explicitly set status to avoid showing "Sleeping... 0"
           clearInterval(sleepProgressTimer!);
         } else {
           // Calculate remaining percentage (drains from 100% to 0%)
@@ -341,6 +353,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
               agentId={agent.id}
               agent={agent}
               code={code}
+              loopProgress={loopProgress}
+              sleepProgress={sleepProgress}
+              loopDurationMs={loopDurationMs}
+              sleepDurationMs={sleepDurationMs}
             />
           ) : (
             // FIX: Pass the 'code' prop down to StaticAgentView

@@ -44,11 +44,95 @@ interface ChangeDetectionData {
 
 // --- Helper Components ---
 
+const PieTimer: React.FC<{
+  progress: number;      // 0-100
+  color: 'green' | 'blue';
+  totalDurationMs?: number;
+  isFilling?: boolean;   // true = filling (WAITING), false = draining (SLEEPING)
+  size?: number;         // default: 20
+}> = ({ progress, color, totalDurationMs, isFilling = true, size = 20 }) => {
+  const strokeWidth = 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (progress / 100) * circumference;
+
+  const strokeColor = color === 'green' ? 'stroke-green-500' : 'stroke-blue-500';
+  const textColor = color === 'green' ? 'fill-green-600' : 'fill-blue-600';
+
+  // Calculate remaining seconds and format as MM:SS
+  let timeDisplay = '';
+  if (totalDurationMs) {
+    let remainingSeconds = 0;
+    if (isFilling) {
+      // For WAITING (fills 0→100%): calculate remaining time
+      remainingSeconds = Math.ceil((totalDurationMs * (100 - progress)) / 100 / 1000);
+    } else {
+      // For SLEEPING (drains 100→0%): calculate remaining time
+      remainingSeconds = Math.ceil((totalDurationMs * progress) / 100 / 1000);
+    }
+
+    // Format as M:SS or MM:SS
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+
+    if (minutes > 0) {
+      timeDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      timeDisplay = `${seconds}`;
+    }
+  }
+
+  return (
+    <svg width={size} height={size} className="flex-shrink-0 -rotate-90">
+      {/* Background circle */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        className="stroke-gray-200"
+      />
+      {/* Progress circle */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        strokeWidth={strokeWidth}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        className={strokeColor}
+        style={{ transition: 'stroke-dashoffset 0.1s linear' }}
+      />
+      {/* Text in center - rotate back to normal */}
+      {totalDurationMs && timeDisplay && (
+        <text
+          x={size / 2}
+          y={size / 2}
+          textAnchor="middle"
+          dominantBaseline="central"
+          className={`text-[7px] font-semibold ${textColor} rotate-90`}
+          style={{ transform: 'rotate(90deg)', transformOrigin: 'center' }}
+        >
+          {timeDisplay}
+        </text>
+      )}
+    </svg>
+  );
+};
+
 const StateTicker: React.FC<{
   status: AgentLiveStatus;
   changeDetectionData?: ChangeDetectionData | null;
   onSettingsClick?: (threshold: 'text' | 'dhash' | 'pixel' | 'suspicious') => void;
-}> = ({ status, changeDetectionData, onSettingsClick }) => {
+  loopProgress?: number;
+  sleepProgress?: number;
+  loopDurationMs?: number;
+  sleepDurationMs?: number;
+}> = ({ status, changeDetectionData, onSettingsClick, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs }) => {
   const statusInfo = useMemo(() => {
     switch (status) {
       case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
@@ -65,6 +149,16 @@ const StateTicker: React.FC<{
     <div className={`flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 ${statusInfo.color}`}>
       <div className="flex-shrink-0">{statusInfo.icon}</div>
       <span className="font-medium text-sm">{statusInfo.text}</span>
+      {/* Pie timer for WAITING and SLEEPING states */}
+      {(status === 'WAITING' || status === 'SLEEPING') && (loopProgress || sleepProgress) && (
+        <PieTimer
+          progress={status === 'SLEEPING' ? (sleepProgress || 0) : (loopProgress || 0)}
+          color={status === 'SLEEPING' ? 'blue' : 'green'}
+          totalDurationMs={status === 'SLEEPING' ? sleepDurationMs : loopDurationMs}
+          isFilling={status === 'WAITING'}
+          size={20}
+        />
+      )}
       {changeDetectionData && (
         <ChangeDetectionIndicator
           data={changeDetectionData}
@@ -214,6 +308,10 @@ interface ActiveAgentViewProps {
     agentId: string;
     agent: CompleteAgent;
     code?: string;
+    loopProgress?: number;
+    sleepProgress?: number;
+    loopDurationMs?: number;
+    sleepDurationMs?: number;
 }
 
 const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
@@ -222,7 +320,11 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     lastResponse,
     responseKey,
     agentId,
-    agent
+    agent,
+    loopProgress,
+    sleepProgress,
+    loopDurationMs,
+    sleepDurationMs
 }) => {
     const [streamingResponse, setStreamingResponse] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
@@ -324,6 +426,10 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                         setFocusedThreshold(threshold);
                         setIsSettingsModalOpen(true);
                     }}
+                    loopProgress={loopProgress}
+                    sleepProgress={sleepProgress}
+                    loopDurationMs={loopDurationMs}
+                    sleepDurationMs={sleepDurationMs}
                 />
                 <LastResponse
                     response={isStreaming ? streamingResponse : lastResponse}
