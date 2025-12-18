@@ -1,6 +1,7 @@
 import React from 'react';
 import Modal from '@components/EditAgent/Modal';
 import { Phone, MessageCircle, X, Copy, ExternalLink, CheckCircle } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface WhitelistModalProps {
   phoneNumbers: Array<{
@@ -17,6 +18,12 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
   const OBSERVER_SMS_CALL = '+1 (863) 208-5341';
   const OBSERVER_WHATSAPP = '+1 (555) 783-4727';
   const OBSERVER_WHATSAPP_PLAIN = '15557834727';
+  const OBSERVER_SMS_PLAIN = '18632085341';
+
+  // QR code values
+  const whatsappQRValue = `https://wa.me/${OBSERVER_WHATSAPP_PLAIN}?text=${encodeURIComponent("Hi! I'd like to whitelist my phone number for Observer")}`;
+  // Use +1 prefix for SMS to ensure proper international number formatting
+  const smsQRValue = `sms:+${OBSERVER_SMS_PLAIN}?&body=${encodeURIComponent("Hi! I'd like to whitelist my phone number for Observer")}`;
 
   const [copied, setCopied] = React.useState<'sms' | 'whatsapp' | null>(null);
   const [phoneInput, setPhoneInput] = React.useState(() => {
@@ -161,7 +168,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
   };
 
   return (
-    <Modal open={true} onClose={onClose} className="w-full max-w-lg">
+    <Modal open={true} onClose={onClose} className="w-full max-w-lg md:max-w-2xl">
       {/* Header */}
       <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
         <div className="flex items-center space-x-3">
@@ -180,63 +187,96 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
       </div>
 
       {/* Content */}
-      <div className="p-6 space-y-3">
-        {/* WhatsApp Option - Minimal Horizontal */}
-        <div className="flex items-center justify-between p-3 border border-gray-300 rounded-lg hover:border-green-400 transition-colors">
-          <div className="flex items-center space-x-3">
-            <MessageCircle className="h-5 w-5 text-green-600" />
-            <div>
-              <p className="font-semibold text-sm text-gray-900">Send WhatsApp Message</p>
-              <p className="text-xs font-mono text-gray-600">{OBSERVER_WHATSAPP}</p>
-            </div>
-          </div>
-          <button
-            onClick={openWhatsApp}
-            className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center space-x-1"
-          >
-            <span>Open</span>
-            <ExternalLink className="h-3 w-3" />
-          </button>
+      <div className="p-6 space-y-4">
+        {/* Title */}
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-1">You need to whitelist your phone!</h2>
+          <p className="text-sm text-gray-600">Use any of these two options:</p>
         </div>
 
-        {/* SMS Option - Minimal Horizontal */}
-        <div className="flex items-center justify-between p-3 border border-gray-300 rounded-lg hover:border-blue-400 transition-colors">
-          <div className="flex items-center space-x-3">
-            <MessageCircle className="h-5 w-5 text-blue-600" />
-            <div>
-              <p className="font-semibold text-sm text-gray-900">Send Text Message</p>
-              <p className="text-xs font-mono text-gray-600">{OBSERVER_SMS_CALL}</p>
-            </div>
-          </div>
-          <button
-            onClick={openSMS}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center space-x-1"
-          >
-            <span>Open</span>
-            <ExternalLink className="h-3 w-3" />
-          </button>
-        </div>
+        {/* Two Main Options - Clean Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        {/* Call Option - Minimal Horizontal */}
-        <div className="flex items-center justify-between p-3 border border-gray-300 rounded-lg">
-          <div className="flex items-center space-x-3">
-            <Phone className="h-5 w-5 text-gray-600" />
-            <div>
-              <p className="font-semibold text-sm text-gray-900">Or call this number</p>
-              <p className="text-xs font-mono text-gray-600">{OBSERVER_SMS_CALL}</p>
+          {/* WhatsApp Option */}
+          <div className="border border-gray-200 rounded-lg p-4 hover:border-green-400 transition-colors">
+            <div className="flex items-center space-x-2 mb-3">
+              <MessageCircle className="h-5 w-5 text-green-600" />
+              <h3 className="font-semibold text-gray-900">Send a WhatsApp</h3>
             </div>
+
+            {/* QR Code - Hidden on mobile */}
+            <div className="hidden md:flex justify-center mb-3">
+              <div className="bg-white p-2 rounded border border-gray-200">
+                <QRCodeSVG
+                  value={whatsappQRValue}
+                  size={140}
+                  level="M"
+                  includeMargin={false}
+                />
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <button
+              onClick={openWhatsApp}
+              className="w-full px-4 py-2.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+            >
+              <span>Open WhatsApp</span>
+              <ExternalLink className="h-4 w-4" />
+            </button>
+
+            <p className="text-xs text-gray-500 text-center mt-2">{OBSERVER_WHATSAPP}</p>
           </div>
-          <button
-            onClick={() => copyToClipboard(OBSERVER_SMS_CALL, 'sms')}
-            className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300 transition-colors"
-            title="Copy number"
-          >
-            {copied === 'sms' ? (
-              <span className="text-xs text-green-600 font-medium">Copied!</span>
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
-          </button>
+
+          {/* SMS/Call Option */}
+          <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-colors">
+            <div className="flex items-center space-x-2 mb-3">
+              <Phone className="h-5 w-5 text-blue-600" />
+              <h3 className="font-semibold text-gray-900">SMS or Call this number</h3>
+            </div>
+
+            {/* QR Code - Hidden on mobile */}
+            <div className="hidden md:flex justify-center mb-3">
+              <div className="bg-white p-2 rounded border border-gray-200">
+                <QRCodeSVG
+                  value={smsQRValue}
+                  size={140}
+                  level="M"
+                  includeMargin={false}
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <button
+                onClick={openSMS}
+                className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Send SMS</span>
+                <ExternalLink className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={() => copyToClipboard(OBSERVER_SMS_CALL, 'sms')}
+                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"
+              >
+                {copied === 'sms' ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-green-600">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    <span>Copy Number</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 text-center mt-2">{OBSERVER_SMS_CALL}</p>
+          </div>
         </div>
 
         {/* Numbers List - Now after contact options */}
