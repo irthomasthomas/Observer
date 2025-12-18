@@ -1,6 +1,6 @@
 // components/AgentCard/ActiveAgentView.tsx
 import React, { useMemo, useEffect, useState } from 'react';
-import { Clock, Power, Activity, Eye } from 'lucide-react';
+import { Clock, Power, Activity, Eye, Moon } from 'lucide-react';
 import { StreamState } from '@utils/streamManager';
 import { CompleteAgent } from '@utils/agent_database';
 import { IterationStore, ToolCall } from '@utils/IterationStore';
@@ -18,7 +18,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import 'katex/dist/katex.min.css';
 
-type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'RESPONDING' | 'WAITING' | 'SKIPPED' | 'IDLE';
+type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'RESPONDING' | 'WAITING' | 'SKIPPED' | 'SLEEPING' | 'IDLE';
 
 // Define the type for change detection data
 interface ChangeDetectionData {
@@ -55,6 +55,7 @@ const StateTicker: React.FC<{
       case 'CAPTURING': return { icon: <Eye className="w-5 h-5 animate-subtle-pulse" />, text: 'Capturing Inputs...', color: 'text-cyan-600' };
       case 'THINKING': return { icon: <Activity className="w-5 h-5" />, text: 'Model is thinking...', color: 'text-purple-600' };
       case 'RESPONDING': return { icon: <Activity className="w-5 h-5 animate-pulse" />, text: 'Model is responding...', color: 'text-blue-600' };
+      case 'SLEEPING': return { icon: <Moon className="w-5 h-5" />, text: 'Sleeping...', color: 'text-blue-600' };
       case 'SKIPPED': return { icon: <Clock className="w-5 h-5" />, text: 'Skipped Model Call, Waiting...', color: 'text-orange-500' };
       case 'WAITING': return { icon: <Clock className="w-5 h-5" />, text: 'Waiting for next cycle...', color: 'text-gray-500' };
       default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };

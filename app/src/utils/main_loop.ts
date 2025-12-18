@@ -34,6 +34,15 @@ const activeLoops: Record<string, {
 export function pauseAgentLoop(agentId: string, durationMs: number): void {
   if (activeLoops[agentId]?.isRunning) {
     activeLoops[agentId].sleepUntil = Date.now() + durationMs;
+
+    // Dispatch sleep start event
+    Logger.info(agentId, `Agent sleeping for ${Math.round(durationMs/1000)}s`, {
+      logType: 'agent-sleep-start',
+      content: {
+        agentId,
+        durationMs
+      }
+    });
   }
 }
 

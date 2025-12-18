@@ -31,7 +31,7 @@ const QuotaErrorView: React.FC<{ onUpgradeClick: () => void }> = ({ onUpgradeCli
   </div>
 );
 
-type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'RESPONDING' | 'WAITING' | 'SKIPPED' | 'IDLE';
+type AgentLiveStatus = 'STARTING' | 'CAPTURING' | 'THINKING' | 'RESPONDING' | 'WAITING' | 'SKIPPED' | 'SLEEPING' | 'IDLE';
 
 interface AgentCardProps {
   agent: CompleteAgent;
@@ -68,6 +68,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [responseKey, setResponseKey] = useState(0);
   const [loopProgress, setLoopProgress] = useState(0);
   const [lastProgressUpdate, setLastProgressUpdate] = useState(0);
+  const [sleepProgress, setSleepProgress] = useState(0);
+  const [isSleeping, setIsSleeping] = useState(false);
   const [currentModel, setCurrentModel] = useState(agent.model_name);
   const initialModelRef = useRef(agent.model_name);
 
@@ -119,6 +121,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
       setLastResponse('Agent paused due to daily credit limit.');
       return;
     }
+    if (isSleeping) {
+      setLiveStatus('SLEEPING');
+      return;
+    }
     if (showStartingState && !isRunning) {
         setLiveStatus('STARTING');
         setLastResponse('Agent is preparing to start...');
@@ -150,7 +156,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
     } else {
       setLiveStatus('IDLE');
     }
-  }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError]);
+  }, [isRunning, showStartingState, agent.id, liveStatus, hasQuotaError, isSleeping]);
 
   // Set up event listener immediately on mount - separate from state changes
   useEffect(() => {
@@ -202,6 +208,45 @@ const AgentCard: React.FC<AgentCardProps> = ({
     };
   }, [agent.id]);
 
+  // Listen for sleep state changes
+  useEffect(() => {
+    let sleepProgressTimer: NodeJS.Timeout | null = null;
+
+    const handleSleepStart = (event: CustomEvent) => {
+      if (event.detail.agentId !== agent.id) return;
+
+      const durationMs = event.detail.durationMs;
+      const sleepEnd = Date.now() + durationMs;
+
+      setIsSleeping(true);
+      setSleepProgress(100); // Start at 100%
+
+      // Update sleep progress countdown
+      sleepProgressTimer = setInterval(() => {
+        const now = Date.now();
+        const remaining = sleepEnd - now;
+
+        if (remaining <= 0) {
+          // Sleep finished - clear state automatically
+          setSleepProgress(0);
+          setIsSleeping(false);
+          clearInterval(sleepProgressTimer!);
+        } else {
+          // Calculate remaining percentage (drains from 100% to 0%)
+          const progress = Math.max(0, (remaining / durationMs) * 100);
+          setSleepProgress(progress);
+        }
+      }, 50); // Update every 50ms for smooth animation
+    };
+
+    window.addEventListener('agentSleepStart' as any, handleSleepStart);
+
+    return () => {
+      if (sleepProgressTimer) clearInterval(sleepProgressTimer);
+      window.removeEventListener('agentSleepStart' as any, handleSleepStart);
+    };
+  }, [agent.id]);
+
   const handleToggle = async () => {
     if (isRunning) {
       setStartWarning(null);
@@ -248,9 +293,27 @@ const AgentCard: React.FC<AgentCardProps> = ({
       className="relative bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 flex flex-col"
       data-tutorial-agent-card={agent.id}
     >
-      {isRunning && (Date.now() - lastProgressUpdate < 5000) && ( // Show progress when running with fresh data
+      {isRunning && (
         <div className="absolute top-0 left-0 right-0 h-1 z-10">
-          <div className="h-full bg-green-500" style={{ width: `${loopProgress}%`, transition: 'width 0.1s linear' }} />
+          {isSleeping ? (
+            // Blue sleep progress bar (drains from 100% to 0%)
+            <div
+              className="h-full bg-blue-500"
+              style={{
+                width: `${sleepProgress}%`,
+                transition: 'width 0.1s linear'
+              }}
+            />
+          ) : (Date.now() - lastProgressUpdate < 5000) ? (
+            // Green loop progress bar (fills from 0% to 100%)
+            <div
+              className="h-full bg-green-500"
+              style={{
+                width: `${loopProgress}%`,
+                transition: 'width 0.1s linear'
+              }}
+            />
+          ) : null}
         </div>
       )}
 
