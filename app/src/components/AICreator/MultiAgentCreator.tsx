@@ -303,6 +303,7 @@ What kind of agent team would you like me to create today?`
   // --- STATE FOR MODAL AND LOCAL MODEL SELECTION ---
   const [isLocalModalOpen, setIsLocalModalOpen] = useState(false);
   const [selectedLocalModel, setSelectedLocalModel] = useState('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const sendConversation = async (allMessages: Message[]) => {
     setIsLoading(true);
@@ -531,7 +532,8 @@ What kind of agent team would you like me to create today?`
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userInput.trim() || isLoading) return;
+    if (!userInput.trim() && !previewImage) return; // Allow send with just image
+    if (isLoading) return;
 
     // Guard against submission if local model isn't selected in local mode
     if (!isUsingObServer && !selectedLocalModel) {
@@ -539,9 +541,17 @@ What kind of agent team would you like me to create today?`
         return;
     }
 
-    const newUserMessage: Message = { id: Date.now() + Math.random() * 1000, sender: 'user', text: userInput };
+    // Create message with optional image data
+    const newUserMessage: Message = {
+      id: Date.now() + Math.random() * 1000,
+      sender: 'user',
+      text: userInput.trim() || '[Image]', // Fallback text if only image
+      ...(previewImage && { imageData: previewImage })
+    };
+
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
+    setPreviewImage(null); // Clear preview after sending
 
     const allMessages = [...messages, newUserMessage];
     await sendConversation(allMessages);
@@ -660,7 +670,7 @@ What kind of agent team would you like me to create today?`
   };
 
   const isInputDisabled = (isUsingObServer && !isPro) || isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
-  const isSendDisabled = isInputDisabled || !userInput.trim();
+  const isSendDisabled = isInputDisabled || (!userInput.trim() && !previewImage);
 
   return (
     <>
@@ -750,6 +760,9 @@ What kind of agent team would you like me to create today?`
               onChange={setUserInput}
               placeholder={getPlaceholderText()}
               disabled={isInputDisabled}
+              onImagePaste={setPreviewImage}
+              previewImage={previewImage}
+              onRemovePreview={() => setPreviewImage(null)}
               className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
 

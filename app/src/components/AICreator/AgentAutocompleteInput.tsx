@@ -1,7 +1,7 @@
 // src/components/AICreator/AgentAutocompleteInput.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Users } from 'lucide-react';
+import { Users, X } from 'lucide-react';
 import { getAllAgentIds } from '@utils/agent_database';
 import { detectPartialAgentTyping } from '@utils/agentParser';
 
@@ -12,10 +12,15 @@ interface AgentAutocompleteInputProps {
   disabled: boolean;
   className?: string;
   disableAutocomplete?: boolean;
+  // Image preview handling
+  onImagePaste?: (base64Data: string) => void;
+  previewImage?: string | null;
+  onRemovePreview?: () => void;
 }
 
 export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
-  value, onChange, placeholder, disabled, className, disableAutocomplete = false
+  value, onChange, placeholder, disabled, className, disableAutocomplete = false,
+  onImagePaste, previewImage, onRemovePreview
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [agentIds, setAgentIds] = useState<string[]>([]);
@@ -118,6 +123,37 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     setTimeout(() => setShowSuggestions(false), 150);
   };
 
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!onImagePaste) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+
+      // Check if item is an image (matches existing upload logic: accept="image/*")
+      if (item.type.startsWith('image/')) {
+        e.preventDefault(); // Prevent default paste behavior for images
+
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        // Convert to base64 (same as MediaUploadMessage.tsx:62-66)
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          // Extract base64 data (remove data:image/...;base64, prefix)
+          const base64Data = result.split(',')[1];
+          onImagePaste(base64Data);
+        };
+        reader.readAsDataURL(file);
+
+        break; // Only handle first image
+      }
+    }
+  };
+
   function renderSuggestions() {
     if (disableAutocomplete || !showSuggestions || filteredSuggestions.length === 0) return null;
 
@@ -146,6 +182,7 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         onBlur={handleBlur}
+        onPaste={handlePaste}
         placeholder={placeholder}
         disabled={disabled}
         rows={1}
@@ -160,6 +197,28 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
           target.style.height = Math.max(target.scrollHeight, 48) + 'px';
         }}
       />
+
+      {/* Image Preview */}
+      {previewImage && (
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-purple-300 rounded-lg p-2 shadow-lg z-50">
+          <div className="relative inline-block">
+            <img
+              src={`data:image/png;base64,${previewImage}`}
+              alt="Pasted preview"
+              className="max-h-32 max-w-full rounded border border-gray-200"
+            />
+            {onRemovePreview && (
+              <button
+                onClick={onRemovePreview}
+                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                title="Remove image"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {!disableAutocomplete && renderSuggestions()}
     </div>
