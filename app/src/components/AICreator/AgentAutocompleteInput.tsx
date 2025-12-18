@@ -49,6 +49,13 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
     }
   }, [disabled]);
 
+  // Auto-focus when input becomes enabled again
+  useEffect(() => {
+    if (!disabled && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [disabled]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const newCursorPos = e.target.selectionStart || 0;
