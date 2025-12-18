@@ -234,7 +234,7 @@ interface Message {
   id: number;
   text: string;
   sender: 'user' | 'ai' | 'system' | 'image-request' | 'multi-agent-system';
-  imageData?: string;
+  imageDatas?: string[];
   isStreaming?: boolean;
 }
 
@@ -303,7 +303,7 @@ What kind of agent team would you like me to create today?`
   // --- STATE FOR MODAL AND LOCAL MODEL SELECTION ---
   const [isLocalModalOpen, setIsLocalModalOpen] = useState(false);
   const [selectedLocalModel, setSelectedLocalModel] = useState('');
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
 
   const sendConversation = async (allMessages: Message[]) => {
     setIsLoading(true);
@@ -369,18 +369,20 @@ What kind of agent team would you like me to create today?`
       }
 
       // Build content with images if present
-      if (msg.imageData || messageImages.length > 0) {
+      if ((msg.imageDatas && msg.imageDatas.length > 0) || messageImages.length > 0) {
         const contentParts: any[] = [
           { type: "text", text: messageContent }
         ];
 
-        // Add user-uploaded image
-        if (msg.imageData) {
-          contentParts.push({
-            type: "image_url",
-            image_url: {
-              url: `data:image/png;base64,${msg.imageData}`
-            }
+        // Add user-uploaded images
+        if (msg.imageDatas) {
+          msg.imageDatas.forEach(imageData => {
+            contentParts.push({
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${imageData}`
+              }
+            });
           });
         }
 
@@ -532,7 +534,7 @@ What kind of agent team would you like me to create today?`
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userInput.trim() && !previewImage) return; // Allow send with just image
+    if (!userInput.trim() && previewImages.length === 0) return; // Allow send with just images
     if (isLoading) return;
 
     // Guard against submission if local model isn't selected in local mode
@@ -545,13 +547,13 @@ What kind of agent team would you like me to create today?`
     const newUserMessage: Message = {
       id: Date.now() + Math.random() * 1000,
       sender: 'user',
-      text: userInput.trim() || '[Image]', // Fallback text if only image
-      ...(previewImage && { imageData: previewImage })
+      text: userInput.trim() || (previewImages.length > 0 ? `[${previewImages.length} image${previewImages.length > 1 ? 's' : ''}]` : ''),
+      ...(previewImages.length > 0 && { imageDatas: previewImages })
     };
 
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
-    setPreviewImage(null); // Clear preview after sending
+    setPreviewImages([]); // Clear previews after sending
 
     const allMessages = [...messages, newUserMessage];
     await sendConversation(allMessages);
@@ -579,8 +581,8 @@ What kind of agent team would you like me to create today?`
             savedAgents.push(savedAgent);
 
             const images = messages
-              .filter(msg => msg.imageData)
-              .map(msg => msg.imageData!);
+              .filter(msg => msg.imageDatas && msg.imageDatas.length > 0)
+              .flatMap(msg => msg.imageDatas!);
 
             if (images.length > 0) {
               await updateAgentImageMemory(parsed.agent.id, images);
@@ -650,7 +652,7 @@ What kind of agent team would you like me to create today?`
     }
     const newUserMessage: Message = typeof result === 'string'
       ? { id: Date.now() + Math.random() * 1000, sender: 'user', text: result }
-      : { id: Date.now() + Math.random() * 1000, sender: 'user', text: '[Image uploaded]', imageData: result.data };
+      : { id: Date.now() + Math.random() * 1000, sender: 'user', text: '[Image uploaded]', imageDatas: [result.data] };
 
     setMessages(prev => [...prev.filter(msg => msg.id !== messageId), newUserMessage]);
 
@@ -670,7 +672,7 @@ What kind of agent team would you like me to create today?`
   };
 
   const isInputDisabled = (isUsingObServer && !isPro) || isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
-  const isSendDisabled = isInputDisabled || (!userInput.trim() && !previewImage);
+  const isSendDisabled = isInputDisabled || (!userInput.trim() && previewImages.length === 0);
 
   return (
     <>
@@ -726,14 +728,19 @@ What kind of agent team would you like me to create today?`
                     ? 'bg-purple-600 text-white'
                     : 'bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm'
                 } ${msg.isStreaming ? 'animate-pulse' : ''}`}>
-                  {msg.imageData ? (
+                  {msg.imageDatas && msg.imageDatas.length > 0 ? (
                     <div className="space-y-2">
                       <MessageContent text={msg.text} onAgentClick={handleAgentBadgeClick} />
-                      <img
-                        src={`data:image/png;base64,${msg.imageData}`}
-                        alt="Uploaded image"
-                        className="max-w-full h-auto rounded-lg"
-                      />
+                      <div className="flex flex-wrap gap-2">
+                        {msg.imageDatas.map((imageData, idx) => (
+                          <img
+                            key={idx}
+                            src={`data:image/png;base64,${imageData}`}
+                            alt={`Uploaded image ${idx + 1}`}
+                            className="max-w-full h-auto rounded-lg"
+                          />
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <MessageContent text={msg.text} onAgentClick={handleAgentBadgeClick} />
@@ -760,9 +767,9 @@ What kind of agent team would you like me to create today?`
               onChange={setUserInput}
               placeholder={getPlaceholderText()}
               disabled={isInputDisabled}
-              onImagePaste={setPreviewImage}
-              previewImage={previewImage}
-              onRemovePreview={() => setPreviewImage(null)}
+              onImagePaste={(image) => setPreviewImages(prev => [...prev, image])}
+              previewImages={previewImages}
+              onRemovePreview={(index) => setPreviewImages(prev => prev.filter((_, i) => i !== index))}
               className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
 

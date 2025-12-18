@@ -22,7 +22,7 @@ interface Message {
   id: number;
   text: string;
   sender: 'user' | 'ai' | 'system' | 'image-request';
-  imageData?: string; // For displaying uploaded images
+  imageDatas?: string[]; // For multiple images
   isStreaming?: boolean; // For streaming messages
 }
 
@@ -73,7 +73,7 @@ What would you like to create today?`
   // --- STATE FOR MODAL AND LOCAL MODEL SELECTION ---
   const [isLocalModalOpen, setIsLocalModalOpen] = useState(false);
   const [selectedLocalModel, setSelectedLocalModel] = useState('');
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
 
   const sendConversation = async (allMessages: Message[]) => {
     setIsLoading(true);
@@ -95,19 +95,17 @@ What would you like to create today?`
       const role = msg.sender === 'user' ? 'user' : 'assistant';
 
       // Handle images in multimodal content format
-      if (msg.imageData) {
-        openaiMessages.push({
-          role: role,
-          content: [
-            { type: "text", text: msg.text },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/png;base64,${msg.imageData}`
-              }
+      if (msg.imageDatas && msg.imageDatas.length > 0) {
+        const content: any[] = [{ type: "text", text: msg.text }];
+        msg.imageDatas.forEach(imageData => {
+          content.push({
+            type: "image_url",
+            image_url: {
+              url: `data:image/png;base64,${imageData}`
             }
-          ]
+          });
         });
+        openaiMessages.push({ role, content });
       } else {
         openaiMessages.push({
           role: role,
@@ -263,7 +261,7 @@ What would you like to create today?`
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userInput.trim() && !previewImage) return; // Allow send with just image
+    if (!userInput.trim() && previewImages.length === 0) return; // Allow send with just images
     if (isLoading) return;
 
     // Guard against submission if local model isn't selected in local mode
@@ -276,13 +274,13 @@ What would you like to create today?`
     const newUserMessage: Message = {
       id: Date.now() + Math.random() * 1000,
       sender: 'user',
-      text: userInput.trim() || '[Image]', // Fallback text if only image
-      ...(previewImage && { imageData: previewImage })
+      text: userInput.trim() || (previewImages.length > 0 ? `[${previewImages.length} image${previewImages.length > 1 ? 's' : ''}]` : ''),
+      ...(previewImages.length > 0 && { imageDatas: previewImages })
     };
 
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
-    setPreviewImage(null); // Clear preview after sending
+    setPreviewImages([]); // Clear previews after sending
 
     const allMessages = [...messages, newUserMessage];
     await sendConversation(allMessages);
@@ -302,8 +300,8 @@ What would you like to create today?`
     if (parsed) {
       // Collect all images from the conversation and store them for the agent
       const images = messages
-        .filter(msg => msg.imageData)
-        .map(msg => msg.imageData!);
+        .filter(msg => msg.imageDatas && msg.imageDatas.length > 0)
+        .flatMap(msg => msg.imageDatas!);
 
       // Save the agent directly
       const savedAgent = await saveAgent(parsed.agent, parsed.code);
@@ -337,7 +335,7 @@ What would you like to create today?`
     // Remove the image-request message and add user response
     const newUserMessage: Message = typeof result === 'string'
       ? { id: Date.now() + Math.random() * 1000, sender: 'user', text: result }
-      : { id: Date.now() + Math.random() * 1000, sender: 'user', text: '[Image uploaded]', imageData: result.data };
+      : { id: Date.now() + Math.random() * 1000, sender: 'user', text: '[Image uploaded]', imageDatas: [result.data] };
     
     setMessages(prev => [...prev.filter(msg => msg.id !== messageId), newUserMessage]);
     
@@ -356,7 +354,7 @@ What would you like to create today?`
   };
   
   const isInputDisabled = isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);
-  const isSendDisabled = isInputDisabled || (!userInput.trim() && !previewImage);
+  const isSendDisabled = isInputDisabled || (!userInput.trim() && previewImages.length === 0);
 
   return (
     <>
@@ -379,7 +377,7 @@ What would you like to create today?`
                 </div>
               ) : (
                 <div className={`max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'} ${msg.isStreaming ? 'animate-pulse' : ''}`}>
-                  {msg.imageData ? (
+                  {msg.imageDatas && msg.imageDatas.length > 0 ? (
                     <div className="space-y-2">
                       <div className="prose prose-sm max-w-none">
                         <ReactMarkdown
@@ -395,11 +393,16 @@ What would you like to create today?`
                           {msg.text}
                         </ReactMarkdown>
                       </div>
-                      <img
-                        src={`data:image/png;base64,${msg.imageData}`}
-                        alt="Uploaded image"
-                        className="max-w-full h-auto rounded-lg"
-                      />
+                      <div className="flex flex-wrap gap-2">
+                        {msg.imageDatas.map((imageData, idx) => (
+                          <img
+                            key={idx}
+                            src={`data:image/png;base64,${imageData}`}
+                            alt={`Uploaded image ${idx + 1}`}
+                            className="max-w-full h-auto rounded-lg"
+                          />
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div className="prose prose-sm max-w-none">
@@ -434,9 +437,9 @@ What would you like to create today?`
               placeholder={getPlaceholderText()}
               disabled={isInputDisabled}
               disableAutocomplete={true}
-              onImagePaste={setPreviewImage}
-              previewImage={previewImage}
-              onRemovePreview={() => setPreviewImage(null)}
+              onImagePaste={(image) => setPreviewImages(prev => [...prev, image])}
+              previewImages={previewImages}
+              onRemovePreview={(index) => setPreviewImages(prev => prev.filter((_, i) => i !== index))}
               className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
             />
 

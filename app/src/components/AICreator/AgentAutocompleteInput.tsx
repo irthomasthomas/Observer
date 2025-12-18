@@ -12,15 +12,15 @@ interface AgentAutocompleteInputProps {
   disabled: boolean;
   className?: string;
   disableAutocomplete?: boolean;
-  // Image preview handling
+  // Image preview handling - supports multiple images
   onImagePaste?: (base64Data: string) => void;
-  previewImage?: string | null;
-  onRemovePreview?: () => void;
+  previewImages?: string[];
+  onRemovePreview?: (index: number) => void;
 }
 
 export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
   value, onChange, placeholder, disabled, className, disableAutocomplete = false,
-  onImagePaste, previewImage, onRemovePreview
+  onImagePaste, previewImages, onRemovePreview
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [agentIds, setAgentIds] = useState<string[]>([]);
@@ -175,49 +175,81 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
 
   return (
     <div className="relative w-full">
-      <textarea
-        ref={inputRef}
-        value={value}
-        onChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        onBlur={handleBlur}
-        onPaste={handlePaste}
-        placeholder={placeholder}
-        disabled={disabled}
-        rows={1}
-        className={`w-full resize-none ${className}`}
-        style={{
-          minHeight: '48px',
-          overflow: 'hidden'
-        }}
-        onInput={(e) => {
-          const target = e.target as HTMLTextAreaElement;
-          target.style.height = 'auto';
-          target.style.height = Math.max(target.scrollHeight, 48) + 'px';
-        }}
-      />
-
-      {/* Image Preview */}
-      {previewImage && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-purple-300 rounded-lg p-2 shadow-lg z-50">
-          <div className="relative inline-block">
-            <img
-              src={`data:image/png;base64,${previewImage}`}
-              alt="Pasted preview"
-              className="max-h-32 max-w-full rounded border border-gray-200"
-            />
-            {onRemovePreview && (
-              <button
-                onClick={onRemovePreview}
-                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
-                title="Remove image"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+      {previewImages && previewImages.length > 0 ? (
+        // With images: wrapper gets the styling
+        <div className={`flex flex-col ${className}`}>
+          {/* Image Previews - Inside the input box */}
+          <div className="p-2 pb-0">
+            <div className="flex space-x-2 overflow-x-auto pb-2">
+              {previewImages.map((image, index) => (
+                <div key={index} className="relative flex-shrink-0">
+                  <img
+                    src={`data:image/png;base64,${image}`}
+                    alt={`Pasted preview ${index + 1}`}
+                    className="h-20 w-20 object-cover rounded border border-gray-200"
+                  />
+                  {onRemovePreview && (
+                    <button
+                      type="button"
+                      onClick={() => onRemovePreview(index)}
+                      className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                      title="Remove image"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
+
+          <textarea
+            ref={inputRef}
+            value={value}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
+            onBlur={handleBlur}
+            onPaste={handlePaste}
+            placeholder={placeholder}
+            disabled={disabled}
+            rows={1}
+            className="w-full resize-none border-none focus:ring-0 focus:outline-none p-2 md:p-3"
+            style={{
+              minHeight: '48px',
+              overflow: 'hidden'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = Math.max(target.scrollHeight, 48) + 'px';
+            }}
+          />
         </div>
+      ) : (
+        // Without images: textarea gets the styling directly (original behavior)
+        <textarea
+          ref={inputRef}
+          value={value}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          onBlur={handleBlur}
+          onPaste={handlePaste}
+          placeholder={placeholder}
+          disabled={disabled}
+          rows={1}
+          className={`w-full resize-none ${className}`}
+          style={{
+            minHeight: '48px',
+            overflow: 'hidden'
+          }}
+          onInput={(e) => {
+            const target = e.target as HTMLTextAreaElement;
+            target.style.height = 'auto';
+            target.style.height = Math.max(target.scrollHeight, 48) + 'px';
+          }}
+        />
       )}
 
       {!disableAutocomplete && renderSuggestions()}
