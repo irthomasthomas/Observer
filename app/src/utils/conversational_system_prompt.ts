@@ -79,6 +79,8 @@ $SCREEN_64
 code: |
 if (response.includes("NOTIFY_USER")) {
   sendTelegram("chat_id", "Your render is complete!", screen);
+  //sleep for 10 minutes to prevent spam
+  sleep(600000);
 }
 memory: ""
 $$$
@@ -100,6 +102,8 @@ $CAMERA
 code: |
 if (response.includes("MATCH_FOUND")) {
   sendDiscord("discord_webhook", "Alert: Your dog has been detected!", camera);
+  //sleep for 10 minutes to prevent spam
+  sleep(600000);
 }
 memory: ""
 $$$
