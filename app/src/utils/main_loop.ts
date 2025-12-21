@@ -62,12 +62,12 @@ export async function startAgentLoop(agentId: string, getToken?: TokenProvider, 
     // Check phone whitelist before starting (unless explicitly skipped)
     if (!skipWhitelistCheck) {
       const agentCode = await getAgentCode(agentId) || '';
-      const { phoneNumbers, hasTools } = await checkPhoneWhitelist(agentCode, getToken);
+      const { phoneNumbers, hasTools, isWhatsapp } = await checkPhoneWhitelist(agentCode, getToken);
 
       // If phone tools are used and there are issues, throw error for UI to handle
       if (hasTools && (phoneNumbers.length === 0 || phoneNumbers.some(p => !p.isWhitelisted))) {
         const error: any = new Error('Phone whitelist check failed');
-        error.whitelistCheck = { phoneNumbers, hasTools };
+        error.whitelistCheck = { phoneNumbers, hasTools, isWhatsapp };
         throw error;
       }
     }

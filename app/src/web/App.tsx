@@ -131,6 +131,7 @@ function AppContent() {
     phoneNumbers: Array<{ number: string; isWhitelisted: boolean }>;
     agentId?: string; // For preflight checks
     onStartAgent?: () => void; // Callback to start agent after verification
+    isWhatsapp?: boolean; // true if WhatsApp-only, false if SMS/Call-only, undefined if both
   } | null>(null);
 
   // --- STATE FOR WELCOME MODAL ---
@@ -459,9 +460,12 @@ function AppContent() {
         } catch (err: any) {
           // Check if this is a whitelist error
           if (err.whitelistCheck) {
+            const { phoneNumbers, isWhatsapp } = err.whitelistCheck;
+
             setWhitelistModalInfo({
-              phoneNumbers: err.whitelistCheck.phoneNumbers,
+              phoneNumbers,
               agentId: id,
+              isWhatsapp,
               onStartAgent: () => {
                 // Close modal and start agent
                 setWhitelistModalInfo(null);
@@ -1087,6 +1091,7 @@ function AppContent() {
           phoneNumbers={whitelistModalInfo.phoneNumbers}
           onClose={() => setWhitelistModalInfo(null)}
           onStartAgent={whitelistModalInfo.onStartAgent}
+          isWhatsapp={whitelistModalInfo.isWhatsapp}
           onStartAnyway={
             whitelistModalInfo.agentId
               ? async () => {
