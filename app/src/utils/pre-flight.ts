@@ -1,11 +1,12 @@
 // src/utils/pre-flight.ts
 
 import type { TokenProvider } from './main_loop';
+import type { WhitelistChannel } from './logging';
 
 export interface PhoneWhitelistResult {
   phoneNumbers: Array<{ number: string; isWhitelisted: boolean }>;
   hasTools: boolean;
-  isWhatsapp?: boolean; // true=WhatsApp-only, false=SMS/Call-only, undefined=both
+  channel?: WhitelistChannel; // 'whatsapp' | 'sms' | 'voice'
 }
 
 /**
@@ -17,20 +18,25 @@ export async function checkPhoneWhitelist(
 ): Promise<PhoneWhitelistResult> {
   // Check if code contains phone tools
   const hasWhatsapp = agentCode.includes('sendWhatsapp(');
-  const hasSmsOrCall = agentCode.includes('call(') || agentCode.includes('sendSms(');
-  const hasPhoneTools = hasWhatsapp || hasSmsOrCall;
+  const hasSms = agentCode.includes('sendSms(');
+  const hasCall = agentCode.includes('call(');
+  const hasPhoneTools = hasWhatsapp || hasSms || hasCall;
 
   // Compute channel preference
-  let isWhatsapp: boolean | undefined;
-  if (hasWhatsapp && !hasSmsOrCall) {
-    isWhatsapp = true; // WhatsApp-only
-  } else if (hasSmsOrCall && !hasWhatsapp) {
-    isWhatsapp = false; // SMS/Call-only
+  let channel: WhitelistChannel | undefined;
+  if (hasWhatsapp && !hasSms && !hasCall) {
+    channel = 'whatsapp'; // WhatsApp-only
+  } else if (hasSms && !hasWhatsapp && !hasCall) {
+    channel = 'sms'; // SMS-only
+  } else if (hasCall && !hasWhatsapp && !hasSms) {
+    channel = 'voice'; // Voice-only
+  } else if ((hasSms || hasCall) && !hasWhatsapp) {
+    channel = 'sms'; // SMS/Call (default to sms for mixed)
   }
-  // else undefined = both tools present
+  // else undefined = mixed or none
 
   if (!hasPhoneTools) {
-    return { phoneNumbers: [], hasTools: false, isWhatsapp };
+    return { phoneNumbers: [], hasTools: false, channel };
   }
 
   // Extract phone numbers using E.164 format regex
@@ -40,7 +46,7 @@ export async function checkPhoneWhitelist(
 
   if (uniqueNumbers.length === 0) {
     // Tools present but no numbers found
-    return { phoneNumbers: [], hasTools: true, isWhatsapp };
+    return { phoneNumbers: [], hasTools: true, channel };
   }
 
   // Get auth token
@@ -65,7 +71,7 @@ export async function checkPhoneWhitelist(
           },
           body: JSON.stringify({
             phone_number: number,
-            ...(isWhatsapp === true ? { channel: 'whatsapp' } : {})
+            ...(channel === 'whatsapp' ? { channel: 'whatsapp' } : {})
           }),
         });
 
@@ -82,5 +88,5 @@ export async function checkPhoneWhitelist(
     })
   );
 
-  return { phoneNumbers, hasTools: true, isWhatsapp };
+  return { phoneNumbers, hasTools: true, channel };
 }

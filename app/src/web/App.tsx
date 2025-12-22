@@ -10,7 +10,7 @@ import {
   CompleteAgent,
 } from '@utils/agent_database';
 import { startAgentLoop, stopAgentLoop } from '@utils/main_loop';
-import { Logger } from '@utils/logging';
+import { Logger, type WhitelistChannel } from '@utils/logging';
 import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
 import { IterationStore } from '@utils/IterationStore';
 
@@ -131,7 +131,7 @@ function AppContent() {
     phoneNumbers: Array<{ number: string; isWhitelisted: boolean }>;
     agentId?: string; // For preflight checks
     onStartAgent?: () => void; // Callback to start agent after verification
-    isWhatsapp?: boolean; // true if WhatsApp-only, false if SMS/Call-only, undefined if both
+    channel?: WhitelistChannel; // 'whatsapp' | 'sms' | 'voice'
   } | null>(null);
 
   // --- STATE FOR WELCOME MODAL ---
@@ -310,12 +310,17 @@ function AppContent() {
 
   // --- USEEFFECT FOR WHITELIST REQUIRED EVENT LISTENER ---
   useEffect(() => {
-    const handleWhitelistRequired = (event: CustomEvent<{ phoneNumber: string; toolName: 'WhatsApp' | 'SMS' | 'Call' }>) => {
-      const { phoneNumber } = event.detail;
+    const handleWhitelistRequired = (event: CustomEvent<{ 
+      phoneNumber: string; 
+      toolName: string;
+      channel: WhitelistChannel;
+    }>) => {
+      const { phoneNumber, channel } = event.detail;
       setWhitelistModalInfo({
         phoneNumbers: [{ number: phoneNumber, isWhitelisted: false }],
+        channel,
       });
-      Logger.info('APP', `Whitelist required: ${phoneNumber}`);
+      Logger.info('APP', `Whitelist required: ${phoneNumber} (${channel})`);
     };
 
     window.addEventListener('whitelistRequired', handleWhitelistRequired as EventListener);
@@ -460,12 +465,12 @@ function AppContent() {
         } catch (err: any) {
           // Check if this is a whitelist error
           if (err.whitelistCheck) {
-            const { phoneNumbers, isWhatsapp } = err.whitelistCheck;
+            const { phoneNumbers, channel } = err.whitelistCheck;
 
             setWhitelistModalInfo({
               phoneNumbers,
               agentId: id,
-              isWhatsapp,
+              channel,
               onStartAgent: () => {
                 // Close modal and start agent
                 setWhitelistModalInfo(null);
@@ -1091,7 +1096,7 @@ function AppContent() {
           phoneNumbers={whitelistModalInfo.phoneNumbers}
           onClose={() => setWhitelistModalInfo(null)}
           onStartAgent={whitelistModalInfo.onStartAgent}
-          isWhatsapp={whitelistModalInfo.isWhatsapp}
+          channel={whitelistModalInfo.channel}
           onStartAnyway={
             whitelistModalInfo.agentId
               ? async () => {

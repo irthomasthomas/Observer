@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { WhatsAppIcon, DiscordIcon } from './icons';
 import type { TokenProvider } from '@utils/main_loop';
+import type { WhitelistChannel } from '@utils/logging';
 import * as utils from '@utils/handlers/utils';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
@@ -58,7 +59,7 @@ interface TestResult {
 }
 
 // All tools configuration - wrapped in function to avoid module initialization issues
-function getAllTools(): ToolConfig[] {
+function getAllTools(channel?: WhitelistChannel): ToolConfig[] {
   return [
     // Testable notification tools
     {
@@ -86,7 +87,7 @@ function getAllTools(): ToolConfig[] {
         { name: 'message', description: 'Message content' }
       ],
       testMessage: 'This is a test from Observer!',
-      warning: '⚠️ IMPORTANT: Send a message first to +1 (555) 783-4727 to use WhatsApp.'
+      warning: channel !== 'sms' && channel !== 'voice' ? '⚠️ IMPORTANT: Send a message first to +1 (555) 783-4727 to use WhatsApp.' : undefined
     },
     {
       id: 'sendPushover',
@@ -141,7 +142,7 @@ function getAllTools(): ToolConfig[] {
         { name: 'message', description: 'SMS content' }
       ],
       testMessage: 'This is a test from Observer!',
-      warning: '⚠️ IMPORTANT: Due to A2P policy, some SMS messages are being blocked. Not recommended for US/Canada.'
+      warning: channel !== 'whatsapp' ? '⚠️ IMPORTANT: Due to A2P policy, some SMS messages are being blocked. Not recommended for US/Canada. SMS or call +1 (863) 208-5341 to whitelist.' : undefined
     },
     {
       id: 'call',
@@ -154,7 +155,8 @@ function getAllTools(): ToolConfig[] {
         { name: 'phone_number', description: 'Phone number with country code' },
         { name: 'message', description: 'Message to speak during call' }
       ],
-      testMessage: 'This is a test call from Observer!'
+      testMessage: 'This is a test call from Observer!',
+      warning: channel !== 'whatsapp' ? '⚠️ IMPORTANT: SMS or call +1 (863) 208-5341 to whitelist your number first.' : undefined
     },
     {
       id: 'notify',
@@ -539,9 +541,9 @@ function groupToolCallsByCategory(calls: ToolCall[]): GroupedToolCalls {
 }
 
 // Parse code to find all tool calls
-function parseToolCalls(code: string): ToolCall[] {
+function parseToolCalls(code: string, channel?: WhitelistChannel): ToolCall[] {
   const calls: ToolCall[] = [];
-  const ALL_TOOLS = getAllTools();
+  const ALL_TOOLS = getAllTools(channel);
 
   // Find the first conditional statement position
   const conditionalRegex = /\b(if|while|for|try)\s*\(/g;
@@ -999,15 +1001,33 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
     onClose();
   };
 
+  // Detect channel preference from code (similar to pre-flight.ts)
+  const channel = useMemo((): WhitelistChannel | undefined => {
+    const hasWhatsapp = modifiedCode.includes('sendWhatsapp(');
+    const hasSms = modifiedCode.includes('sendSms(');
+    const hasCall = modifiedCode.includes('call(');
+
+    if (hasWhatsapp && !hasSms && !hasCall) {
+      return 'whatsapp'; // WhatsApp-only
+    } else if (hasSms && !hasWhatsapp && !hasCall) {
+      return 'sms'; // SMS-only
+    } else if (hasCall && !hasWhatsapp && !hasSms) {
+      return 'voice'; // Voice-only
+    } else if ((hasSms || hasCall) && !hasWhatsapp) {
+      return 'sms'; // SMS/Call (default to sms for mixed)
+    }
+    return undefined; // Mixed or none
+  }, [modifiedCode]);
+
   // Parse tool calls from modified code (re-parse when code changes)
-  const toolCalls = useMemo(() => parseToolCalls(modifiedCode), [modifiedCode]);
+  const toolCalls = useMemo(() => parseToolCalls(modifiedCode, channel), [modifiedCode, channel]);
 
   // Group tool calls by category
   const groupedToolCalls = useMemo(() => groupToolCallsByCategory(toolCalls), [toolCalls]);
 
   // Get selected tool config
   const selectedToolConfig = selectedCall
-    ? getAllTools().find(t => t.id === selectedCall.toolId)
+    ? getAllTools(channel).find(t => t.id === selectedCall.toolId)
     : null;
 
   // Mock context for evaluating arguments
@@ -1043,7 +1063,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
   // When a tool is clicked, evaluate its arguments and populate inputs
   const handleToolClick = (call: ToolCall, event?: MouseEvent) => {
     // Re-parse modified code to get fresh tool calls with updated indices
-    const freshCalls = parseToolCalls(modifiedCode);
+    const freshCalls = parseToolCalls(modifiedCode, channel);
 
     // Find the corresponding call by line number (stable identifier)
     const freshCall = freshCalls.find(
@@ -1342,7 +1362,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {groupedToolCalls.always.map(call => {
-                      const toolConfig = getAllTools().find(t => t.id === call.toolId);
+                      const toolConfig = getAllTools(channel).find(t => t.id === call.toolId);
                       if (!toolConfig) return null;
                       return (
                         <ExpandableToolCard
@@ -1388,7 +1408,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {groupedToolCalls.conditional.map(call => {
-                      const toolConfig = getAllTools().find(t => t.id === call.toolId);
+                      const toolConfig = getAllTools(channel).find(t => t.id === call.toolId);
                       if (!toolConfig) return null;
                       return (
                         <ExpandableToolCard

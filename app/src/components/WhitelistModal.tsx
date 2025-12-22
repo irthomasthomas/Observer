@@ -2,6 +2,7 @@ import React from 'react';
 import Modal from '@components/EditAgent/Modal';
 import { Phone, MessageCircle, X, Copy, ExternalLink, CheckCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import type { WhitelistChannel } from '@utils/logging';
 
 interface WhitelistModalProps {
   phoneNumbers: Array<{
@@ -12,10 +13,10 @@ interface WhitelistModalProps {
   onStartAnyway?: () => void;
   onStartAgent?: () => void;
   getToken: () => Promise<string | undefined>;
-  isWhatsapp?: boolean; // true=WhatsApp only, false=SMS/Call only, undefined=both
+  channel?: WhitelistChannel; // 'whatsapp' | 'sms' | 'voice'
 }
 
-const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPhoneNumbers, onClose, onStartAnyway, onStartAgent, getToken, isWhatsapp }) => {
+const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPhoneNumbers, onClose, onStartAnyway, onStartAgent, getToken, channel }) => {
   const OBSERVER_SMS_CALL = '+1 (863) 208-5341';
   const OBSERVER_WHATSAPP = '+1 (555) 783-4727';
   const OBSERVER_WHATSAPP_PLAIN = '15557834727';
@@ -80,7 +81,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
                 },
                 body: JSON.stringify({
                   phone_number: number,
-                  ...(isWhatsapp === true ? { channel: 'whatsapp' } : {})
+                  ...(channel === 'whatsapp' ? { channel: 'whatsapp' } : {})
                 }),
               });
 
@@ -155,7 +156,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
         },
         body: JSON.stringify({
           phone_number: phoneInput,
-          ...(isWhatsapp === true ? { channel: 'whatsapp' } : {})
+          ...(channel === 'whatsapp' ? { channel: 'whatsapp' } : {})
         }),
       });
 
@@ -225,7 +226,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
             <div className="text-center">
               <h2 className="text-xl font-semibold text-gray-900 mb-1">You need to whitelist your phone!</h2>
               <p className="text-sm text-gray-600">
-                {isWhatsapp === true
+                {channel === 'whatsapp'
                   ? 'Send a WhatsApp message to get started:'
                   : 'Use any of these two options:'}
               </p>
@@ -233,7 +234,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
 
             {/* Two Main Options - Conditional Grid */}
             <div className={`grid gap-4 ${
-              isWhatsapp === true
+              channel === 'whatsapp'
                 ? 'grid-cols-1'
                 : 'grid-cols-1 md:grid-cols-2'
             }`}>
@@ -270,7 +271,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
               </div>
 
               {/* SMS/Call Option - hide only when WhatsApp-only */}
-              {isWhatsapp !== true && (
+              {channel !== 'whatsapp' && (
               <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-colors">
                 <div className="flex items-center space-x-2 mb-3">
                   <Phone className="h-5 w-5 text-blue-600" />

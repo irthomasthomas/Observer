@@ -174,6 +174,7 @@ export async function sendSms(message: string, number: string, authToken: string
           content: {
             phoneNumber: number,
             toolName: 'SMS',
+            channel: 'sms',
             timestamp: new Date().toISOString()
           }
         });
@@ -239,6 +240,7 @@ export async function sendWhatsapp(message: string, number: string, authToken: s
           content: {
             phoneNumber: number,
             toolName: 'WhatsApp',
+            channel: 'whatsapp',
             timestamp: new Date().toISOString()
           }
         });
@@ -741,6 +743,7 @@ export async function call(message: string, number: string, authToken: string): 
           content: {
             phoneNumber: number,
             toolName: 'Call',
+            channel: 'voice',
             timestamp: new Date().toISOString()
           }
         });

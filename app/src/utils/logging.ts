@@ -8,6 +8,10 @@ export enum LogLevel {
   ERROR = 3
 }
 
+// Channel types for whitelist and notifications
+export type NotificationChannel = 'whatsapp' | 'sms' | 'voice' | 'email' | 'pushover' | 'discord' | 'telegram';
+export type WhitelistChannel = 'whatsapp' | 'sms' | 'voice';
+
 // Define log entry structure
 export interface LogEntry {
   id: string;           // Unique ID for the log entry
@@ -292,7 +296,8 @@ class LoggingService {
             new CustomEvent('whitelistRequired', {
               detail: {
                 phoneNumber: entry.details.content?.phoneNumber,
-                toolName: entry.details.content?.toolName
+                toolName: entry.details.content?.toolName,
+                channel: entry.details.content?.channel as WhitelistChannel
               }
             })
           );
