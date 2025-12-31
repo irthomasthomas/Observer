@@ -1,0 +1,23 @@
+# Screen Capture Plugin Permissions
+
+"$schema" = "../gen/schemas/schema.json"
+
+[[permission]]
+identifier = "allow-start-capture"
+description = "Allows starting screen capture"
+commands.allow = ["start_capture_cmd"]
+
+[[permission]]
+identifier = "allow-stop-capture"
+description = "Allows stopping screen capture"
+commands.allow = ["stop_capture_cmd"]
+
+[[permission]]
+identifier = "allow-get-frame"
+description = "Allows getting the current captured frame"
+commands.allow = ["get_frame_cmd"]
+
+[[permission]]
+identifier = "default"
+description = "Default permissions for screen capture plugin"
+commands.allow = ["start_capture_cmd", "stop_capture_cmd", "get_frame_cmd"]
