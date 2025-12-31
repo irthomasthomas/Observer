@@ -24,30 +24,27 @@ log = "0.4"
 tauri = { version = "2.3.0", features = [ "macos-private-api", "tray-icon"] }
 tauri-plugin-log = "2.0.0-rc"
 
-# These seem to be for other functionality, keeping them
-screenshots = "0.8.5"
-base64 = "0.21.0"
-image = "0.24.6"
-tauri-plugin-screenshots = "2.2.0"
-
 # Keep the shell plugin for default actions
 tauri-plugin-shell = "2"
 
-# Web server Dependencies
-# We can be more specific with tokio features now
+# Web server Dependencies (desktop-only but listed here for compatibility)
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
-axum = { version = "0.7", features = ["json"] } # "macros" feature is not used by your current code
+axum = { version = "0.7", features = ["json"] }
 tower-http = { version = "0.5.0", features = ["fs", "cors"] }
 futures = "0.3"
-# async-stream is no longer needed as it was used in exec_handler
 reqwest = { version = "0.12", features = ["json", "stream"] }
 http-body-util = "0.1"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
-tauri-plugin-global-shortcut = "2"
 uuid = { version = "1.8", features = ["v4"] }
-enigo = "0.6"
 
+# Desktop-only dependencies
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+tauri-plugin-global-shortcut = "2"
+enigo = "0.6"
+screenshots = "0.8.5"
+base64 = "0.21.0"
+image = "0.24.6"
+tauri-plugin-screenshots = "2.2.0"

@@ -11,7 +11,15 @@
     "format": "prettier --write .",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:android:init": "tauri android init",
+    "tauri:android:dev": "tauri android dev",
+    "tauri:android:build": "tauri android build",
+    "tauri:ios:init": "tauri ios init",
+    "tauri:ios:dev": "tauri ios dev",
+    "tauri:ios:build": "tauri ios build",
+    "mobile:dev": "npm run tauri:android:dev",
+    "mobile:build": "npm run tauri:android:build"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.3.0",

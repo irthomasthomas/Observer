@@ -4,11 +4,14 @@
 
 mod notifications;
 mod overlay;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod shortcuts;
 mod commands;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod controls;
 
-// Import unified shortcut types
+// Import unified shortcut types (desktop only)
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use shortcuts::UnifiedShortcutState;
 
 // ---- Final, Corrected Imports ----
@@ -257,7 +260,7 @@ fn get_server_url(server_url: State<Mutex<ServerUrl>>) -> String {
     server_url.lock().unwrap().0.clone()
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
 fn start_static_server(app_handle: tauri::AppHandle) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
@@ -333,18 +336,32 @@ fn start_static_server(app_handle: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init());
+
+    // Updater is desktop-only
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
+    builder
         .manage(Mutex::new(ServerUrl("".to_string())))
         .setup(|app| {
             // Load app config early so we can initialize everything with persisted values
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             let loaded_config = shortcuts::load_config_from_disk(app.handle());
 
             // Initialize AppSettings with loaded ollama_url
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             app.manage(AppSettings {
                 ollama_url: Mutex::new(loaded_config.ollama_url.clone()),
+            });
+
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            app.manage(AppSettings {
+                ollama_url: Mutex::new(Some("http://localhost:11434".to_string())),
             });
 
             app.manage(OverlayState {
@@ -359,18 +376,21 @@ pub fn run() {
                 }
             });
 
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             app.manage(UnifiedShortcutState {
                 config: Mutex::new(loaded_config),
                 registered_shortcuts: Mutex::new(Vec::new()),
             });
 
-            // We use the handle to call updater and restart
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                // Notice we use the handle to get the updater
-                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    handle.updater()
-                })) {
+            // We use the handle to call updater and restart (desktop only)
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    // Notice we use the handle to get the updater
+                    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        handle.updater()
+                    })) {
                     Ok(updater_result) => {
                         match updater_result {
                             Ok(updater) => {
@@ -426,7 +446,8 @@ pub fn run() {
                         log::error!("Updater panicked - continuing without update check");
                     }
                 }
-            });
+                });
+            }
 
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
@@ -434,7 +455,8 @@ pub fn run() {
                     .build(),
             )?;
 
-            #[cfg(not(debug_assertions))]
+            // HTTP server is desktop-only
+            #[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
             {
                 let app_handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -442,39 +464,49 @@ pub fn run() {
                 });
             }
 
-            #[cfg(debug_assertions)]
+            #[cfg(all(debug_assertions, not(any(target_os = "android", target_os = "ios"))))]
             {
                 let server_url_state = app.state::<Mutex<ServerUrl>>();
                 let dev_url = app.config().build.dev_url.clone().unwrap();
                 *server_url_state.lock().unwrap() = ServerUrl(dev_url.to_string());
             }
 
-            let menu_handle = app.handle();
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            {
+                log::info!("Mobile platform detected - skipping HTTP server");
+            }
 
-            let show = MenuItem::with_id(menu_handle, "show", "Show Launcher", true, None::<&str>)?;
-            let quit = MenuItem::with_id(menu_handle, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(menu_handle, &[&show, &quit])?;
+            // System tray is desktop-only
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let menu_handle = app.handle();
 
-            let _tray = TrayIconBuilder::new()
-                .tooltip("Observer AI is running")
-                .icon(app.default_window_icon().cloned().unwrap())
-                .menu(&menu)
-                .on_menu_event(move |app, event| match event.id.as_ref() {
-                    "quit" => {
-                        log::info!("Exit called");
-                        app.exit(0);
-                    }
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            window.show().unwrap();
-                            window.set_focus().unwrap();
+                let show = MenuItem::with_id(menu_handle, "show", "Show Launcher", true, None::<&str>)?;
+                let quit = MenuItem::with_id(menu_handle, "quit", "Quit", true, None::<&str>)?;
+                let menu = Menu::with_items(menu_handle, &[&show, &quit])?;
+
+                let _tray = TrayIconBuilder::new()
+                    .tooltip("Observer AI is running")
+                    .icon(app.default_window_icon().cloned().unwrap())
+                    .menu(&menu)
+                    .on_menu_event(move |app, event| match event.id.as_ref() {
+                        "quit" => {
+                            log::info!("Exit called");
+                            app.exit(0);
                         }
-                    }
-                    _ => {}
-                })
-                .build(app)?;
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                window.show().unwrap();
+                                window.set_focus().unwrap();
+                            }
+                        }
+                        _ => {}
+                    })
+                    .build(app)?;
+            }
 
-            // Create the overlay window synchronously to avoid race conditions
+            // Create the overlay window synchronously to avoid race conditions (desktop-only)
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             match WebviewWindowBuilder::new(
                 app,
                 "overlay",
@@ -493,14 +525,14 @@ pub fn run() {
             .build() {
                 Ok(window) => {
                     log::info!("Overlay window created successfully with content protection");
-                    
+
                     // Explicitly set content protection after window creation
                     if let Err(e) = window.set_content_protected(true) {
                         log::warn!("Could not set content protection on overlay window: {}", e);
                     } else {
                         log::info!("Content protection explicitly enabled on overlay window");
                     }
-                    
+
                     // Make the window draggable by setting it as focusable
                     if let Err(e) = window.set_focus() {
                         log::warn!("Could not focus overlay window: {}", e);
@@ -533,17 +565,35 @@ pub fn run() {
             _ => {}
         })
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![
-            get_server_url,
-            set_ollama_url,
-            get_ollama_url,
-            check_ollama_servers,
-            get_overlay_messages,
-            clear_overlay_messages,
-            shortcuts::get_shortcut_config,
-            shortcuts::get_registered_shortcuts,
-            shortcuts::set_shortcut_config
-        ])
+        .invoke_handler({
+            // Conditional command registration based on platform
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                tauri::generate_handler![
+                    get_server_url,
+                    set_ollama_url,
+                    get_ollama_url,
+                    check_ollama_servers,
+                    get_overlay_messages,
+                    clear_overlay_messages,
+                    shortcuts::get_shortcut_config,
+                    shortcuts::get_registered_shortcuts,
+                    shortcuts::set_shortcut_config
+                ]
+            }
+
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            {
+                tauri::generate_handler![
+                    get_server_url,
+                    set_ollama_url,
+                    get_ollama_url,
+                    check_ollama_servers,
+                    get_overlay_messages,
+                    clear_overlay_messages
+                ]
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
