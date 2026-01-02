@@ -633,7 +633,7 @@ function createToolHighlightExtension(toolCalls: ToolCall[], onToolClick: (call:
       }
     },
     {
-      decorations: (v: EditorView) => v.decorations
+      decorations: v => v.decorations
     }
   );
 
