@@ -1,0 +1,35 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Observer",
+  "version": "1.3.7",
+  "identifier": "com.observer.ai",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:3001"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Observer",
+        "width": 800,
+        "height": 1000,
+        "fullscreen": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["mobile"]
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "iOS": {
+      "minimumSystemVersion": "13.0",
+      "developmentTeam": "55RWNTY4PH"
+    },
+    "android": {
+      "minSdkVersion": 24
+    }
+  }
+}
+
