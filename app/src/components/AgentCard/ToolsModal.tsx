@@ -633,13 +633,13 @@ function createToolHighlightExtension(toolCalls: ToolCall[], onToolClick: (call:
       }
     },
     {
-      decorations: v => v.decorations
+      decorations: (v: EditorView) => v.decorations
     }
   );
 
   // Handle clicks on tool decorations
   const clickHandler = EditorView.domEventHandlers({
-    click: (event, _view) => {
+    click: (event: MouseEvent, _view: EditorView) => {
       const target = event.target as HTMLElement;
       const toolElement = target.closest('[data-tool-id]') as HTMLElement;
 
