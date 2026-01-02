@@ -1,5 +1,7 @@
 import { Logger } from './logging';
 import { WhisperTranscriptionService } from './whisper/WhisperTranscriptionService';
+import { isMobile } from './platform';
+import { mobileScreenCapture } from './mobileScreenCapture';
 
 // --- Core Type Definitions ---
 export type AudioStreamType = 'screenAudio' | 'microphone' | 'allAudio';
@@ -191,15 +193,109 @@ class Manager {
       switch (type) {
         case 'display':
           if (this.masterDisplayStream) return;
-          const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-          this.masterDisplayStream = displayStream;
-          this.screenVideoStream = new MediaStream(displayStream.getVideoTracks());
-          if (displayStream.getAudioTracks().length > 0) {
+          
+          // Check if we're on mobile and use the native plugin
+          if (isMobile()) {
+            Logger.info("StreamManager", "Mobile detected - using native screen capture plugin");
+            
+            // Start the native iOS screen capture (no config needed!)
+            const started = await mobileScreenCapture.startCapture();
+            
+            if (!started) {
+              throw new Error("Failed to start mobile screen capture");
+            }
+            
+            // Create a canvas to render frames to
+            const canvas = document.createElement('canvas');
+            canvas.width = 1920;
+            canvas.height = 1080;
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              throw new Error("Failed to create canvas context");
+            }
+            
+            // Create a MediaStream from the canvas
+            const canvasStream = canvas.captureStream(30);
+            this.masterDisplayStream = canvasStream;
+            this.screenVideoStream = canvasStream;
+            
+            // Poll for frames from the native plugin and draw to canvas
+            let frameLoopActive = true;
+            let frameCount = 0;
+            let lastFrameTime = Date.now();
+            
+            const updateFrame = async () => {
+              if (!frameLoopActive) return;
+              
+              try {
+                const base64Frame = await mobileScreenCapture.getFrame();
+                
+                if (base64Frame && base64Frame.length > 0) {
+                  frameCount++;
+                  const now = Date.now();
+                  const elapsed = now - lastFrameTime;
+                  
+                  if (frameCount % 30 === 0) {
+                    Logger.info("StreamManager", `Mobile capture: ${frameCount} frames, ~${Math.round(1000/elapsed)}fps, frame size: ${base64Frame.length} bytes`);
+                  }
+                  lastFrameTime = now;
+                  
+                  const img = new Image();
+                  img.onload = () => {
+                    if (ctx && frameLoopActive) {
+                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    }
+                  };
+                  img.onerror = (e) => {
+                    Logger.error("StreamManager", "Failed to load frame image", e);
+                  };
+                  img.src = 'data:image/jpeg;base64,' + base64Frame;
+                } else {
+                  // Empty frame
+                  if (frameCount === 0) {
+                    Logger.warn("StreamManager", "Received empty frame from native plugin");
+                  }
+                }
+              } catch (err: any) {
+                // Frame not available yet - this is normal at startup
+                if (frameCount === 0) {
+                  Logger.debug("StreamManager", "Waiting for first frame...", err?.message);
+                }
+              }
+              
+              // Continue polling (~30fps)
+              setTimeout(updateFrame, 33);
+            };
+            
+            // Start the frame loop
+            updateFrame();
+            
+            // Store cleanup function
+            const stopCapture = () => {
+              frameLoopActive = false;
+              mobileScreenCapture.stopCapture().catch(err => 
+                Logger.error("StreamManager", "Error stopping mobile capture", err)
+              );
+            };
+            
+            // Attach cleanup to the stream
+            (this.masterDisplayStream as any)._mobileCleanup = stopCapture;
+            
+            Logger.info("StreamManager", "Mobile screen capture initialized");
+            
+          } else {
+            // Desktop: use getDisplayMedia
+            Logger.info("StreamManager", "Desktop detected - using getDisplayMedia");
+            const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            this.masterDisplayStream = displayStream;
+            this.screenVideoStream = new MediaStream(displayStream.getVideoTracks());
+            if (displayStream.getAudioTracks().length > 0) {
               const audioStream = new MediaStream(displayStream.getAudioTracks());
               this.screenAudioStream = audioStream;
-              // --- MODIFIED: Removed transcription start from here ---
+            }
+            displayStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('display'));
           }
-          displayStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('display'));
           break;
         case 'camera':
           if (this.masterCameraStream) return;
@@ -299,8 +395,14 @@ class Manager {
   private teardownDisplayStream(): void {
     if (!this.masterDisplayStream) return;
     Logger.info("StreamManager", "Tearing down master display stream.");
+    
+    // Call mobile cleanup if it exists
+    if ((this.masterDisplayStream as any)._mobileCleanup) {
+      (this.masterDisplayStream as any)._mobileCleanup();
+    }
+    
     this.masterDisplayStream.getTracks().forEach(track => track.stop());
-    this.stopTranscriptionForStream('screenAudio'); // This correctly stops the screen audio transcription
+    this.stopTranscriptionForStream('screenAudio');
     this.masterDisplayStream = null;
     this.screenVideoStream = null;
     this.screenAudioStream = null;

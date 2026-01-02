@@ -1,6 +1,6 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
-    Manager, Runtime,
+    Runtime,
 };
 
 mod commands;
@@ -11,7 +11,6 @@ mod desktop;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 mod mobile;
 
-pub use commands::*;
 pub use error::{Error, Result};
 
 /// Initializes the screen capture plugin
@@ -34,20 +33,17 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .build()
 }
 
-// Command handlers that dispatch to platform-specific implementations
+// Simple command handlers - no config needed!
 
 #[tauri::command]
 async fn start_capture_cmd<R: Runtime>(
     app: tauri::AppHandle<R>,
-    config: Option<CaptureConfig>,
 ) -> Result<bool> {
-    let config = config.unwrap_or_default();
-
     #[cfg(any(target_os = "android", target_os = "ios"))]
-    return mobile::start_capture(&app, config).await;
+    return mobile::start_capture(&app).await;
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    return desktop::start_capture(config).await;
+    return desktop::start_capture().await;
 }
 
 #[tauri::command]

@@ -2,13 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "screen-capture",
+    name: "tauri-plugin-screen-capture",
     platforms: [
         .iOS(.v13)
     ],
     products: [
         .library(
-            name: "screen-capture",
+            name: "tauri-plugin-screen-capture",
             type: .static,
             targets: ["ScreenCapturePlugin"]
         )

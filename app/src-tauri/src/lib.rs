@@ -2,10 +2,13 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod notifications;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod overlay;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod shortcuts;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod commands;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod controls;
@@ -14,7 +17,8 @@ mod controls;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use shortcuts::UnifiedShortcutState;
 
-// ---- Final, Corrected Imports ----
+// ---- Final, Corrected Imports (Desktop only) ----
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use axum::{
     body::Body,
     extract::State as AxumState,
@@ -24,16 +28,30 @@ use axum::{
     Router,
 };
 use futures::future::join_all;
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use http_body_util::BodyExt;
+
 use reqwest::Client;
 use std::sync::Mutex;
 use tauri::{
+    AppHandle, Emitter, Manager, State,
+};
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder,
+    WebviewUrl, WebviewWindowBuilder,
 };
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri_plugin_dialog::DialogExt;
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri_plugin_updater::UpdaterExt;
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeDir,
@@ -50,12 +68,15 @@ pub struct OverlayMessage {
     timestamp: u64,
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 struct OverlayState {
     messages: Mutex<Vec<OverlayMessage>>,
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tokio::sync::broadcast;
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct CommandMessage {
     #[serde(rename = "type")]
@@ -65,6 +86,7 @@ pub struct CommandMessage {
     pub action: String,
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 struct CommandState {
     pending_commands: Mutex<std::collections::HashMap<String, String>>,
     // SSE broadcast channel for real-time commands
@@ -72,9 +94,10 @@ struct CommandState {
 }
 
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 async fn set_ollama_url(
-    new_url: Option<String>, // Can be a string or null from frontend
+    new_url: Option<String>,
     settings: State<'_, AppSettings>,
     shortcut_state: State<'_, UnifiedShortcutState>,
     app_handle: AppHandle,
@@ -87,7 +110,22 @@ async fn set_ollama_url(
     // Persist to disk (also updates UnifiedShortcutState)
     shortcuts::save_ollama_url(&app_handle, &shortcut_state, new_url)?;
 
-    Ok(()) // Return Ok to signal success to the frontend
+    Ok(())
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+async fn set_ollama_url(
+    new_url: Option<String>,
+    settings: State<'_, AppSettings>,
+) -> Result<(), String> {
+    log::info!("Mobile: Setting Ollama URL to: {:?}", new_url);
+
+    // Update in-memory AppSettings
+    *settings.ollama_url.lock().unwrap() = new_url.clone();
+
+    // Mobile doesn't persist to disk (no shortcuts module)
+    Ok(())
 }
 
 #[tauri::command]
@@ -150,6 +188,7 @@ async fn check_ollama_servers(urls: Vec<String>) -> Result<Vec<String>, String> 
     Ok(successful_urls)
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 async fn get_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<Vec<OverlayMessage>, String> {
     log::info!("Getting overlay messages");
@@ -157,6 +196,14 @@ async fn get_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<
     Ok(messages)
 }
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+async fn get_overlay_messages() -> Result<Vec<OverlayMessage>, String> {
+    log::info!("Mobile: Getting overlay messages (not implemented)");
+    Ok(vec![])
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 async fn clear_overlay_messages(
     overlay_state: State<'_, OverlayState>,
@@ -164,7 +211,7 @@ async fn clear_overlay_messages(
 ) -> Result<(), String> {
     log::info!("Clearing overlay messages");
     overlay_state.messages.lock().unwrap().clear();
-    
+
     // Emit event to notify frontend of cleared messages
     let empty_messages: Vec<OverlayMessage> = vec![];
     if let Err(e) = app_handle.emit("overlay-messages-updated", &empty_messages) {
@@ -172,7 +219,14 @@ async fn clear_overlay_messages(
     } else {
         log::debug!("Emitted overlay-messages-updated event with 0 messages after clear");
     }
-    
+
+    Ok(())
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+async fn clear_overlay_messages() -> Result<(), String> {
+    log::info!("Mobile: Clearing overlay messages (not implemented)");
     Ok(())
 }
 
@@ -182,13 +236,15 @@ async fn clear_overlay_messages(
 
 // Shortcut helper functions moved to shortcuts module
 
-// Shared state for our application
+// Shared state for our application (desktop only)
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[derive(Clone)]
 struct AppState {
     app_handle: AppHandle,
     http_client: Client,
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 async fn proxy_handler(
     AxumState(state): AxumState<AppState>,
     method: Method,
@@ -252,12 +308,20 @@ async fn proxy_handler(
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[derive(Clone)]
 struct ServerUrl(String);
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 fn get_server_url(server_url: State<Mutex<ServerUrl>>) -> String {
     server_url.lock().unwrap().0.clone()
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+fn get_server_url() -> String {
+    "http://localhost:3001".to_string()
 }
 
 #[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
@@ -336,18 +400,26 @@ fn start_static_server(app_handle: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let mut builder = tauri::Builder::default()
+        // .plugin(tauri_plugin_screen_capture::init()) // Disabled for iOS temporarily
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init());
+
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_screen_capture::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init());
 
     // Updater is desktop-only
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
+    let builder = {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
-    }
+        builder.manage(Mutex::new(ServerUrl("".to_string())))
+    };
 
     builder
-        .manage(Mutex::new(ServerUrl("".to_string())))
         .setup(|app| {
             // Load app config early so we can initialize everything with persisted values
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -364,17 +436,20 @@ pub fn run() {
                 ollama_url: Mutex::new(Some("http://localhost:11434".to_string())),
             });
 
-            app.manage(OverlayState {
-                messages: Mutex::new(Vec::new()),
-            });
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                app.manage(OverlayState {
+                    messages: Mutex::new(Vec::new()),
+                });
 
-            app.manage({
-                let (tx, _rx) = broadcast::channel(100); // Buffer up to 100 commands
-                CommandState {
-                    pending_commands: Mutex::new(std::collections::HashMap::new()),
-                    command_broadcaster: tx,
-                }
-            });
+                app.manage({
+                    let (tx, _rx) = broadcast::channel(100); // Buffer up to 100 commands
+                    CommandState {
+                        pending_commands: Mutex::new(std::collections::HashMap::new()),
+                        command_broadcaster: tx,
+                    }
+                });
+            }
 
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             app.manage(UnifiedShortcutState {
@@ -557,14 +632,21 @@ pub fn run() {
 
             Ok(())
         })
-        .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                window.hide().unwrap();
-                api.prevent_close();
+        .on_window_event(|window, event| {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    window.hide().unwrap();
+                    api.prevent_close();
+                }
+                _ => {}
             }
-            _ => {}
+
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            let _ = (window, event); // Suppress unused warnings on mobile
         })
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_os::init())
         .invoke_handler({
             // Conditional command registration based on platform
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

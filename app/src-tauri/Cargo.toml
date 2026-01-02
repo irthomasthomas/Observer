@@ -25,7 +25,8 @@ tauri = { version = "2.3.0", features = [ "macos-private-api", "tray-icon"] }
 tauri-plugin-log = "2.0.0-rc"
 
 # Keep the shell plugin for default actions
-tauri-plugin-shell = "2"
+tauri-plugin-shell = "2.3"
+tauri-plugin-os = "2.3"
 
 # Web server Dependencies (desktop-only but listed here for compatibility)
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
@@ -35,13 +36,16 @@ tower-http = { version = "0.5.0", features = ["fs", "cors"] }
 futures = "0.3"
 reqwest = { version = "0.12", features = ["json", "stream"] }
 http-body-util = "0.1"
-tauri-plugin-dialog = "2"
-tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2.4"
+tauri-plugin-notification = "2.3"
 uuid = { version = "1.8", features = ["v4"] }
+
+# Custom plugins
+tauri-plugin-screen-capture = { path = "plugins/screen-capture" }
 
 # Desktop-only dependencies
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-updater = "2"
+tauri-plugin-updater = "2.9"
 tauri-plugin-global-shortcut = "2"
 enigo = "0.6"
 screenshots = "0.8.5"

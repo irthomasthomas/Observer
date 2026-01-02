@@ -12,6 +12,8 @@
     "core:webview:default",
     "shell:default",
     "dialog:default",
-    "notification:default"
+    "notification:default",
+    "os:default",
+    "screen-capture:default"
   ]
 }

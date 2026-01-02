@@ -1,4 +1,6 @@
 // Platform detection utilities for Observer
+import { Logger } from './logging';
+import { platform as getPlatform } from '@tauri-apps/plugin-os';
 
 /**
  * Check if the app is running in Tauri
@@ -16,8 +18,9 @@ export const isTauri = (): boolean => {
 export const isMobile = (): boolean => {
   if (!isTauri()) return false;
 
-  // Check platform from Tauri internals
-  const platform = (window as any).__TAURI_INTERNALS__?.metadata?.currentTarget?.platform;
+  // Use the official Tauri OS plugin
+  const platform = getPlatform();
+  Logger.info('PLATFORM', `Platform detected: ${platform}`);
   return platform === 'android' || platform === 'ios';
 };
 
@@ -32,16 +35,16 @@ export const isDesktop = (): boolean => {
  * Check if the app is running on iOS
  */
 export const isIOS = (): boolean => {
-  const platform = (window as any).__TAURI_INTERNALS__?.metadata?.currentTarget?.platform;
-  return platform === 'ios';
+  if (!isTauri()) return false;
+  return getPlatform() === 'ios';
 };
 
 /**
  * Check if the app is running on Android
  */
 export const isAndroid = (): boolean => {
-  const platform = (window as any).__TAURI_INTERNALS__?.metadata?.currentTarget?.platform;
-  return platform === 'android';
+  if (!isTauri()) return false;
+  return getPlatform() === 'android';
 };
 
 /**
@@ -102,13 +105,23 @@ export const hasCameraAccess = (): boolean => {
  * Get the current platform name
  */
 export const getPlatformName = (): string => {
-  if (isIOS()) return 'iOS';
-  if (isAndroid()) return 'Android';
-  if (isDesktop()) {
-    const platform = (window as any).__TAURI_INTERNALS__?.metadata?.currentTarget?.platform;
-    return platform || 'Desktop';
+  if (!isTauri()) return 'Web';
+
+  const platform = getPlatform();
+  switch (platform) {
+    case 'ios':
+      return 'iOS';
+    case 'android':
+      return 'Android';
+    case 'macos':
+      return 'macOS';
+    case 'windows':
+      return 'Windows';
+    case 'linux':
+      return 'Linux';
+    default:
+      return platform || 'Unknown';
   }
-  return 'Web';
 };
 
 /**

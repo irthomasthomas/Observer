@@ -1,15 +1,14 @@
 use tauri::{plugin::PluginApi, AppHandle, Runtime};
-use crate::{commands::CaptureConfig, error::Result};
+use crate::error::Result;
 
 pub fn init<R: Runtime, C: serde::de::DeserializeOwned>(
     _app: &AppHandle<R>,
     _api: PluginApi<R, C>,
 ) -> Result<()> {
-    // Desktop doesn't support this plugin
     Ok(())
 }
 
-pub async fn start_capture(_config: CaptureConfig) -> Result<bool> {
+pub async fn start_capture() -> Result<bool> {
     Err(crate::Error::NotAvailable)
 }
 

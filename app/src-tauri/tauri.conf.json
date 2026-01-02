@@ -41,7 +41,8 @@
       "../dist"
     ],
     "iOS": {
-      "minimumSystemVersion": "13.0"
+      "minimumSystemVersion": "13.0",
+      "developmentTeam": "55RWNTY4PH"
     },
     "android": {
       "minSdkVersion": 24
