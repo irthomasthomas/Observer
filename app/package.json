@@ -44,6 +44,7 @@
     "fs": "^0.0.1-security",
     "idb": "^8.0.3",
     "js-yaml": "^4.1.0",
+    "katex": "^0.16.19",
     "lexical": "^0.25.0",
     "lucide-react": "^0.476.0",
     "onnxruntime-web": "^1.22.0",
