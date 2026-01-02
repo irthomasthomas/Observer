@@ -19,6 +19,10 @@ pub enum Error {
 
     #[error(transparent)]
     Tauri(#[from] tauri::Error),
+
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[error(transparent)]
+    PluginInvoke(#[from] tauri::plugin::mobile::PluginInvokeError),
 }
 
 impl Serialize for Error {

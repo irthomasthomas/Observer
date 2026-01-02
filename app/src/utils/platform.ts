@@ -20,7 +20,7 @@ export const isMobile = (): boolean => {
 
   // Use the official Tauri OS plugin
   const platform = getPlatform();
-  Logger.info('PLATFORM', `Platform detected: ${platform}`);
+  Logger.debug('PLATFORM', `Platform detected: ${platform}`);
   return platform === 'android' || platform === 'ios';
 };
 

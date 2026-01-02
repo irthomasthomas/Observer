@@ -1,6 +1,6 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
-    Runtime,
+    Manager, Runtime,
 };
 
 mod commands;
@@ -23,7 +23,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         ])
         .setup(|app, api| {
             #[cfg(any(target_os = "android", target_os = "ios"))]
-            mobile::init(app, api)?;
+            {
+                let screen_capture = mobile::init(app, api)?;
+                app.manage(screen_capture);
+            }
 
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             desktop::init(app, api)?;
@@ -40,7 +43,10 @@ async fn start_capture_cmd<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<bool> {
     #[cfg(any(target_os = "android", target_os = "ios"))]
-    return mobile::start_capture(&app).await;
+    {
+        let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+        return screen_capture.start_capture();
+    }
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     return desktop::start_capture().await;
@@ -51,7 +57,10 @@ async fn stop_capture_cmd<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<()> {
     #[cfg(any(target_os = "android", target_os = "ios"))]
-    return mobile::stop_capture(&app).await;
+    {
+        let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+        return screen_capture.stop_capture();
+    }
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     return desktop::stop_capture().await;
@@ -62,7 +71,10 @@ async fn get_frame_cmd<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<String> {
     #[cfg(any(target_os = "android", target_os = "ios"))]
-    return mobile::get_frame(&app).await;
+    {
+        let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+        return screen_capture.get_frame();
+    }
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     return desktop::get_frame().await;

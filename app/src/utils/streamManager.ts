@@ -236,6 +236,9 @@ class Manager {
                   const now = Date.now();
                   const elapsed = now - lastFrameTime;
                   
+                  if (frameCount === 1) {
+                    Logger.info("StreamManager", `🎉 GOT FIRST FRAME! Size: ${base64Frame.length} bytes`);
+                  }
                   if (frameCount % 30 === 0) {
                     Logger.info("StreamManager", `Mobile capture: ${frameCount} frames, ~${Math.round(1000/elapsed)}fps, frame size: ${base64Frame.length} bytes`);
                   }
@@ -254,13 +257,16 @@ class Manager {
                 } else {
                   // Empty frame
                   if (frameCount === 0) {
-                    Logger.warn("StreamManager", "Received empty frame from native plugin");
+                    Logger.warn("StreamManager", "⚠️ Received empty frame from native plugin (no data)");
                   }
                 }
               } catch (err: any) {
                 // Frame not available yet - this is normal at startup
                 if (frameCount === 0) {
-                  Logger.debug("StreamManager", "Waiting for first frame...", err?.message);
+                  Logger.warn("StreamManager", `⏳ Waiting for first frame... Error: ${err?.message || err}`);
+                } else {
+                  // After first frame, log all errors
+                  Logger.error("StreamManager", `❌ Error getting frame (count=${frameCount}):`, err);
                 }
               }
               
@@ -269,6 +275,8 @@ class Manager {
             };
             
             // Start the frame loop
+            Logger.info("StreamManager", "🚀 Starting mobile frame polling loop...");
+            console.log("🚀 [StreamManager] Starting mobile frame polling loop...");
             updateFrame();
             
             // Store cleanup function
