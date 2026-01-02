@@ -69,6 +69,7 @@
     "@tauri-apps/cli": "^2.6.2",
     "@types/dom-speech-recognition": "^0.0.6",
     "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.17.10",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
