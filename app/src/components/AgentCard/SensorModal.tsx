@@ -222,9 +222,9 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
               />
 
               {/* Sensor Insertion Buttons */}
-              <div className="mt-4">
+              <div className="mt-4 overflow-visible">
                 <label className="block text-xs text-gray-500 mb-2 font-medium">INSERT SENSOR:</label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 overflow-visible">
                   <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSystemPromptText('$SCREEN_OCR')} colorClass="text-blue-600" />
                   <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSystemPromptText('$SCREEN_64')} colorClass="text-purple-600" />
                   <SensorButton icon={Camera} label="Camera" onClick={() => insertSystemPromptText('$CAMERA')} colorClass="text-purple-600" />
