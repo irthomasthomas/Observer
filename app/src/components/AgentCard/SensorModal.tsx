@@ -67,7 +67,7 @@ const SensorDropdownButton = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-30 mt-1 w-full min-w-[200px] max-h-60 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="absolute z-30 bottom-full mb-1 w-full min-w-[200px] max-h-60 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {agents.map((agent) => (
             <button
               key={agent.id}
@@ -222,9 +222,9 @@ const SensorModal: React.FC<SensorModalProps> = ({ isOpen, onClose, systemPrompt
               />
 
               {/* Sensor Insertion Buttons */}
-              <div className="mt-4 overflow-visible">
+              <div className="mt-4">
                 <label className="block text-xs text-gray-500 mb-2 font-medium">INSERT SENSOR:</label>
-                <div className="flex flex-wrap gap-2 overflow-visible">
+                <div className="flex flex-wrap gap-2">
                   <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSystemPromptText('$SCREEN_OCR')} colorClass="text-blue-600" />
                   <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSystemPromptText('$SCREEN_64')} colorClass="text-purple-600" />
                   <SensorButton icon={Camera} label="Camera" onClick={() => insertSystemPromptText('$CAMERA')} colorClass="text-purple-600" />
