@@ -4,8 +4,8 @@
   "version": "1.3.7",
   "identifier": "com.observer.ai",
   "build": {
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:3001"
+    "frontendDist": "/Users/jay/repos/Observer/app/dist",
+    "devUrl": "http://192.168.100.7:3001"
   },
   "app": {
     "windows": [

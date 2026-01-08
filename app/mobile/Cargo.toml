@@ -24,4 +24,10 @@ tauri-plugin-notification = "2.3"
 tauri-plugin-dialog = "2.4"
 tauri-plugin-shell = "2.3"
 tauri-plugin-os = "2.3"
-tauri-plugin-log = "2.0.0-rc"
+
+# HTTP server for broadcast extension
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
+base64 = "0.21"
