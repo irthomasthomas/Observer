@@ -16,7 +16,6 @@ app/dist
 app/.env
 app/mobile/plugins/screen-capture/ios/.build/
 app/mobile/plugins/pip/ios/.build/
-app/mobile/gen/
 
 desktop/node_modules
 desktop/public/assets/
