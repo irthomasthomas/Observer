@@ -523,8 +523,8 @@ class Manager {
 
     const { state, progress, timerSeconds } = this.pipOverlayStatus;
 
-    // Size: ~25% of video width, positioned bottom-right
-    const boxWidth = Math.round(width * 0.22);
+    // Size: ~40% of video width, positioned bottom-right
+    const boxWidth = Math.round(width * 0.38);
     const boxHeight = Math.round(boxWidth * 0.6);
     const padding = Math.round(width * 0.03);
     const x = width - boxWidth - padding;
@@ -639,16 +639,54 @@ class Manager {
         ctx.fill();
         break;
 
-      case 'THINKING': // Activity/brain wave icon
+      case 'THINKING': { // CPU icon
+        const r = s * 0.15; // corner radius
+        // Outer rectangle with rounded corners
         ctx.beginPath();
-        ctx.moveTo(-s, 0);
-        ctx.lineTo(-s * 0.5, -s * 0.5);
-        ctx.lineTo(-s * 0.2, s * 0.3);
-        ctx.lineTo(s * 0.2, -s * 0.6);
-        ctx.lineTo(s * 0.5, s * 0.2);
-        ctx.lineTo(s, -s * 0.3);
+        ctx.moveTo(-s * 0.65 + r, -s * 0.65);
+        ctx.lineTo(s * 0.65 - r, -s * 0.65);
+        ctx.quadraticCurveTo(s * 0.65, -s * 0.65, s * 0.65, -s * 0.65 + r);
+        ctx.lineTo(s * 0.65, s * 0.65 - r);
+        ctx.quadraticCurveTo(s * 0.65, s * 0.65, s * 0.65 - r, s * 0.65);
+        ctx.lineTo(-s * 0.65 + r, s * 0.65);
+        ctx.quadraticCurveTo(-s * 0.65, s * 0.65, -s * 0.65, s * 0.65 - r);
+        ctx.lineTo(-s * 0.65, -s * 0.65 + r);
+        ctx.quadraticCurveTo(-s * 0.65, -s * 0.65, -s * 0.65 + r, -s * 0.65);
+        ctx.stroke();
+        // Inner rectangle (the "chip")
+        ctx.beginPath();
+        ctx.rect(-s * 0.3, -s * 0.3, s * 0.6, s * 0.6);
+        ctx.stroke();
+        // Top pins
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.25, -s * 0.65);
+        ctx.lineTo(-s * 0.25, -s);
+        ctx.moveTo(s * 0.25, -s * 0.65);
+        ctx.lineTo(s * 0.25, -s);
+        ctx.stroke();
+        // Bottom pins
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.25, s * 0.65);
+        ctx.lineTo(-s * 0.25, s);
+        ctx.moveTo(s * 0.25, s * 0.65);
+        ctx.lineTo(s * 0.25, s);
+        ctx.stroke();
+        // Left pins
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.65, -s * 0.25);
+        ctx.lineTo(-s, -s * 0.25);
+        ctx.moveTo(-s * 0.65, s * 0.25);
+        ctx.lineTo(-s, s * 0.25);
+        ctx.stroke();
+        // Right pins
+        ctx.beginPath();
+        ctx.moveTo(s * 0.65, -s * 0.25);
+        ctx.lineTo(s, -s * 0.25);
+        ctx.moveTo(s * 0.65, s * 0.25);
+        ctx.lineTo(s, s * 0.25);
         ctx.stroke();
         break;
+      }
 
       case 'RESPONDING': // Message/chat icon
         ctx.beginPath();
