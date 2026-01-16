@@ -5,10 +5,13 @@ import { StreamState } from '@utils/streamManager';
 import { CompleteAgent } from '@utils/agent_database';
 import { IterationStore, ToolCall } from '@utils/IterationStore';
 import { DetectionMode } from '@utils/change_detector';
+import { isMobile } from '@utils/platform';
+import { stopAgentLoop } from '@utils/main_loop';
 import ToolStatus from '@components/AgentCard/ToolStatus';
 import SensorPreviewPanel from './SensorPreviewPanel';
 import ChangeDetectionIndicator from './ChangeDetectionIndicator';
 import ChangeDetectionSettings from '@components/ChangeDetectionSettings';
+import PictureInPicture from './PictureInPicture';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -409,40 +412,59 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     }, [agentId]);
 
     return (
-        <div className="grid md:grid-cols-2 md:gap-6 animate-fade-in overflow-visible">
-            {/* Left Column: Sensor Previews */}
-            <SensorPreviewPanel
-                agentId={agentId}
-                streams={streams}
-                systemPrompt={agent.system_prompt}
-            />
-
-            {/* Right Column: Status and Response */}
-            <div className="space-y-4 flex flex-col justify-start overflow-visible">
-                <StateTicker
+        <>
+            {/* Mobile PiP Component */}
+            {isMobile() && (
+                <PictureInPicture
+                    agentName={agent.name}
                     status={liveStatus}
-                    changeDetectionData={changeDetectionData}
-                    onSettingsClick={(threshold) => {
-                        setFocusedThreshold(threshold);
-                        setIsSettingsModalOpen(true);
-                    }}
                     loopProgress={loopProgress}
                     sleepProgress={sleepProgress}
                     loopDurationMs={loopDurationMs}
                     sleepDurationMs={sleepDurationMs}
+                    lastResponse={lastResponse}
+                    onPipClosed={() => stopAgentLoop(agentId)}
+                    screenVideoStream={streams.screenVideoStream}
+                    cameraStream={streams.cameraStream}
                 />
-                <LastResponse
-                    response={isStreaming ? streamingResponse : lastResponse}
-                    responseKey={isStreaming ? -1 : responseKey}
+            )}
+
+            <div className={`grid ${isMobile() ? 'grid-cols-1' : 'md:grid-cols-2'} md:gap-6 animate-fade-in overflow-visible`}>
+                {/* Left Column: Sensor Previews */}
+                <SensorPreviewPanel
+                    agentId={agentId}
+                    streams={streams}
+                    systemPrompt={agent.system_prompt}
                 />
-                {/* Tool Status - Show below last response only if there are tools */}
-                {lastTools.length > 0 && (
-                    <ToolStatus
-                        tools={lastTools}
-                        variant="compact"
+
+            {/* Right Column: Status and Response (hidden on mobile, shown in PiP instead) */}
+            {!isMobile() && (
+                <div className="space-y-4 flex flex-col justify-start overflow-visible">
+                    <StateTicker
+                        status={liveStatus}
+                        changeDetectionData={changeDetectionData}
+                        onSettingsClick={(threshold) => {
+                            setFocusedThreshold(threshold);
+                            setIsSettingsModalOpen(true);
+                        }}
+                        loopProgress={loopProgress}
+                        sleepProgress={sleepProgress}
+                        loopDurationMs={loopDurationMs}
+                        sleepDurationMs={sleepDurationMs}
                     />
-                )}
-            </div>
+                    <LastResponse
+                        response={isStreaming ? streamingResponse : lastResponse}
+                        responseKey={isStreaming ? -1 : responseKey}
+                    />
+                    {/* Tool Status - Show below last response only if there are tools */}
+                    {lastTools.length > 0 && (
+                        <ToolStatus
+                            tools={lastTools}
+                            variant="compact"
+                        />
+                    )}
+                </div>
+            )}
 
             {/* Change Detection Settings Modal */}
             {isSettingsModalOpen && (
@@ -480,7 +502,8 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                     </div>
                 </div>
             )}
-        </div>
+            </div>
+        </>
     );
 };
 

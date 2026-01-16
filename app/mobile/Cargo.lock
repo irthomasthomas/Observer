@@ -2488,6 +2488,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-notification",
  "tauri-plugin-os",
+ "tauri-plugin-pip",
  "tauri-plugin-screen-capture",
  "tauri-plugin-shell",
  "tokio",
@@ -4043,6 +4044,16 @@ dependencies = [
  "tauri",
  "tauri-plugin",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "tauri-plugin-pip"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

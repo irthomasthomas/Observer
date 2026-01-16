@@ -10,15 +10,10 @@ class MobileScreenCapture {
     }
 
     try {
-      console.log('[ScreenCapture] 🎬 Calling start_capture_cmd (showing picker)...');
       const result = await invoke<boolean>('plugin:screen-capture|start_capture_cmd');
       this.capturing = result;
-      console.log('[ScreenCapture] ✅ Picker shown, capturing =', result);
-      console.log('[ScreenCapture] 💡 User must now select Observer and approve broadcast');
-      console.log('[ScreenCapture] 💡 Frames will arrive after user approves...');
       return result;
     } catch (error) {
-      console.error('[ScreenCapture] ❌ Failed to start:', error);
       throw error;
     }
   }
@@ -29,12 +24,9 @@ class MobileScreenCapture {
     }
 
     try {
-      console.log('[ScreenCapture] Calling stop_capture_cmd');
       await invoke('plugin:screen-capture|stop_capture_cmd');
       this.capturing = false;
-      console.log('[ScreenCapture] Stopped');
     } catch (error) {
-      console.error('[ScreenCapture] Failed to stop:', error);
       throw error;
     }
   }
@@ -49,14 +41,9 @@ class MobileScreenCapture {
     }
 
     try {
-      console.log('[ScreenCapture] 🔍 Calling get_broadcast_frame...');
-
-      // NEW: Use broadcast frame server instead of plugin command
       const result = await invoke<{ frame: string; timestamp: number; age: number } | null>(
         'get_broadcast_frame'
       );
-
-      console.log('[ScreenCapture] 📦 Result:', result ? `frame=${result.frame.length} bytes, age=${result.age.toFixed(2)}s` : 'null');
 
       if (!result) {
         throw new Error('No frame available from server');

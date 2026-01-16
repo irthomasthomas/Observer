@@ -487,7 +487,7 @@ const VideoStream: React.FC<{
   return (
     <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0 relative group">
       {/* Video element */}
-      <video ref={videoRef} muted autoPlay playsInline className="w-full h-full object-contain"></video>
+      <video ref={videoRef} muted autoPlay playsInline controls className="w-full h-full object-contain"></video>
 
       {/* Crop controls - show on hover */}
       <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 z-20">

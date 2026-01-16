@@ -36,6 +36,11 @@ import Tauri
                         break
                     }
                 }
+
+                // Auto-hide window after user makes selection (2 seconds delay)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                    self?.pickerWindow?.isHidden = true
+                }
             }
 
             invoke.resolve(true)

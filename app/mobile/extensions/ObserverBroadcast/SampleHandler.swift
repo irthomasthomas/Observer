@@ -41,20 +41,31 @@ class SampleHandler: RPBroadcastSampleHandler {
     }
 
     private func pixelBufferToData(_ pixelBuffer: CVPixelBuffer) -> Data? {
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        let context = CIContext()
+        let context = CIContext(options: nil)
 
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
             return nil
         }
 
-        // Simplest JPEG encoding - Rust will handle everything else
+        // JPEG encoding with explicit options to preserve aspect ratio
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, "public.jpeg" as CFString, 1, nil) else {
             return nil
         }
 
-        CGImageDestinationAddImage(destination, cgImage, nil) // No options, just raw JPEG
+        // Preserve original dimensions and aspect ratio
+        let options: [CFString: Any] = [
+            kCGImageDestinationLossyCompressionQuality: 0.8,
+            kCGImagePropertyPixelWidth: cgImage.width,
+            kCGImagePropertyPixelHeight: cgImage.height,
+            kCGImagePropertyOrientation: 1  // No rotation/transformation
+        ]
+
+        CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
         guard CGImageDestinationFinalize(destination) else {
             return nil
         }
