@@ -79,7 +79,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const isLive = useMemo(() => (isRunning || showStartingState) && !hasQuotaError, [isRunning, showStartingState, hasQuotaError]);
 
   const [streams, setStreams] = useState<StreamState>({
-    cameraStream: null, screenVideoStream: null, screenAudioStream: null, microphoneStream: null, allAudioStream: null
+    cameraStream: null, screenVideoStream: null, screenVideoStreamWithPip: null, screenAudioStream: null, microphoneStream: null, allAudioStream: null
   });
 
   // REMOVED: communicationWarnings memo is no longer needed.

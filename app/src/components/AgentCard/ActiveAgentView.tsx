@@ -1,17 +1,15 @@
 // components/AgentCard/ActiveAgentView.tsx
 import React, { useMemo, useEffect, useState } from 'react';
 import { Clock, Power, Activity, Eye, Moon } from 'lucide-react';
-import { StreamState } from '@utils/streamManager';
+import { StreamState, StreamManager } from '@utils/streamManager';
 import { CompleteAgent } from '@utils/agent_database';
 import { IterationStore, ToolCall } from '@utils/IterationStore';
 import { DetectionMode } from '@utils/change_detector';
 import { isMobile } from '@utils/platform';
-import { stopAgentLoop } from '@utils/main_loop';
 import ToolStatus from '@components/AgentCard/ToolStatus';
 import SensorPreviewPanel from './SensorPreviewPanel';
 import ChangeDetectionIndicator from './ChangeDetectionIndicator';
 import ChangeDetectionSettings from '@components/ChangeDetectionSettings';
-import PictureInPicture from './PictureInPicture';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -411,22 +409,40 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
         };
     }, [agentId]);
 
+    // Sync PiP overlay status to StreamManager (mobile only)
+    useEffect(() => {
+        if (!isMobile()) return;
+
+        // Calculate remaining seconds and progress for pie chart
+        let timerSeconds: number | undefined;
+        let progress: number | undefined;
+
+        if (liveStatus === 'WAITING' && loopProgress !== undefined && loopDurationMs) {
+            timerSeconds = Math.ceil((loopDurationMs * (100 - loopProgress)) / 100 / 1000);
+            progress = loopProgress;
+        } else if (liveStatus === 'SLEEPING' && sleepProgress !== undefined && sleepDurationMs) {
+            timerSeconds = Math.ceil((sleepDurationMs * sleepProgress) / 100 / 1000);
+            progress = sleepProgress;
+        }
+
+        StreamManager.setPipOverlayStatus({
+            state: liveStatus,
+            progress,
+            timerSeconds
+        });
+
+        return () => StreamManager.setPipOverlayStatus(null);
+    }, [liveStatus, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs]);
+
     return (
         <>
-            {/* Mobile PiP Component */}
+            {/* Mobile PiP Instructions */}
             {isMobile() && (
-                <PictureInPicture
-                    agentName={agent.name}
-                    status={liveStatus}
-                    loopProgress={loopProgress}
-                    sleepProgress={sleepProgress}
-                    loopDurationMs={loopDurationMs}
-                    sleepDurationMs={sleepDurationMs}
-                    lastResponse={lastResponse}
-                    onPipClosed={() => stopAgentLoop(agentId)}
-                    screenVideoStream={streams.screenVideoStream}
-                    cameraStream={streams.cameraStream}
-                />
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4">
+                    <p className="text-sm text-blue-800">
+                        Tap the <span className="font-semibold">PiP button</span> on the video player below to keep Observer running in the background.
+                    </p>
+                </div>
             )}
 
             <div className={`grid ${isMobile() ? 'grid-cols-1' : 'md:grid-cols-2'} md:gap-6 animate-fade-in overflow-visible`}>
@@ -437,34 +453,32 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                     systemPrompt={agent.system_prompt}
                 />
 
-            {/* Right Column: Status and Response (hidden on mobile, shown in PiP instead) */}
-            {!isMobile() && (
-                <div className="space-y-4 flex flex-col justify-start overflow-visible">
-                    <StateTicker
-                        status={liveStatus}
-                        changeDetectionData={changeDetectionData}
-                        onSettingsClick={(threshold) => {
-                            setFocusedThreshold(threshold);
-                            setIsSettingsModalOpen(true);
-                        }}
-                        loopProgress={loopProgress}
-                        sleepProgress={sleepProgress}
-                        loopDurationMs={loopDurationMs}
-                        sleepDurationMs={sleepDurationMs}
+            {/* Right Column: Status and Response */}
+            <div className="space-y-4 flex flex-col justify-start overflow-visible">
+                <StateTicker
+                    status={liveStatus}
+                    changeDetectionData={changeDetectionData}
+                    onSettingsClick={(threshold) => {
+                        setFocusedThreshold(threshold);
+                        setIsSettingsModalOpen(true);
+                    }}
+                    loopProgress={loopProgress}
+                    sleepProgress={sleepProgress}
+                    loopDurationMs={loopDurationMs}
+                    sleepDurationMs={sleepDurationMs}
+                />
+                <LastResponse
+                    response={isStreaming ? streamingResponse : lastResponse}
+                    responseKey={isStreaming ? -1 : responseKey}
+                />
+                {/* Tool Status - Show below last response only if there are tools */}
+                {lastTools.length > 0 && (
+                    <ToolStatus
+                        tools={lastTools}
+                        variant="compact"
                     />
-                    <LastResponse
-                        response={isStreaming ? streamingResponse : lastResponse}
-                        responseKey={isStreaming ? -1 : responseKey}
-                    />
-                    {/* Tool Status - Show below last response only if there are tools */}
-                    {lastTools.length > 0 && (
-                        <ToolStatus
-                            tools={lastTools}
-                            variant="compact"
-                        />
-                    )}
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Change Detection Settings Modal */}
             {isSettingsModalOpen && (

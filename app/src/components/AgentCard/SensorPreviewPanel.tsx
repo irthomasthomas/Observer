@@ -842,7 +842,12 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
       {/* Video Streams */}
       {hasScreenSensor && (
         streams.screenVideoStream ? (
-          <VideoStream stream={streams.screenVideoStream} streamType="screen" agentId={agentId} />
+          // Use PiP stream (with overlay) if available, otherwise use clean stream
+          <VideoStream
+            stream={streams.screenVideoStreamWithPip || streams.screenVideoStream}
+            streamType="screen"
+            agentId={agentId}
+          />
         ) : (
           <SensorPlaceholder
             sensorName="Screen Share"

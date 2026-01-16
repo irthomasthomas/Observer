@@ -15,6 +15,7 @@ type MasterStreamType = 'display' | 'camera' | 'microphone';
 export interface StreamState {
   cameraStream: MediaStream | null;
   screenVideoStream: MediaStream | null;
+  screenVideoStreamWithPip: MediaStream | null; // Screen stream with PiP overlay (mobile only)
   screenAudioStream: MediaStream | null;
   microphoneStream: MediaStream | null;
   allAudioStream: MediaStream | null;
@@ -25,6 +26,7 @@ class Manager {
   // --- Clean Pseudo-Stream State ---
   private cameraStream: MediaStream | null = null;
   private screenVideoStream: MediaStream | null = null;
+  private screenVideoStreamWithPip: MediaStream | null = null; // Stream with PiP overlay
   private screenAudioStream: MediaStream | null = null;
   private microphoneStream: MediaStream | null = null;
   private allAudioStream: MediaStream | null = null;
@@ -41,7 +43,14 @@ class Manager {
   
   private audioContext: AudioContext | null = null;
   private sourceNodes = new Map<string, MediaStreamAudioSourceNode>();
-  
+
+  // PiP overlay status for mobile
+  private pipOverlayStatus: {
+    state: 'STARTING' | 'CAPTURING' | 'THINKING' | 'RESPONDING' | 'WAITING' | 'SLEEPING' | 'SKIPPED' | 'IDLE';
+    progress?: number; // 0-100 for pie chart (WAITING/SLEEPING states)
+    timerSeconds?: number;
+  } | null = null;
+
   constructor() {
     const allStreamTypes: PseudoStreamType[] = ['camera', 'screenVideo', 'screenAudio', 'microphone', 'allAudio'];
     allStreamTypes.forEach(type => this.userSets.set(type, new Set()));
@@ -115,10 +124,20 @@ class Manager {
     return {
       cameraStream: this.cameraStream,
       screenVideoStream: this.screenVideoStream,
+      screenVideoStreamWithPip: this.screenVideoStreamWithPip,
       screenAudioStream: this.screenAudioStream,
       microphoneStream: this.microphoneStream,
       allAudioStream: this.allAudioStream,
     };
+  }
+
+  /** Set the PiP overlay status (for mobile) */
+  public setPipOverlayStatus(status: {
+    state: 'STARTING' | 'CAPTURING' | 'THINKING' | 'RESPONDING' | 'WAITING' | 'SLEEPING' | 'SKIPPED' | 'IDLE';
+    progress?: number;
+    timerSeconds?: number;
+  } | null): void {
+    this.pipOverlayStatus = status;
   }
 
   // --- Camera Device Management ---
@@ -197,57 +216,80 @@ class Manager {
           // Check if we're on mobile and use the native plugin
           if (isMobile()) {
             Logger.info("StreamManager", "Mobile detected - using native screen capture plugin");
-            
+
             // Start the native iOS screen capture (no config needed!)
             const started = await mobileScreenCapture.startCapture();
-            
+
             if (!started) {
               throw new Error("Failed to start mobile screen capture");
             }
-            
-            // Create a canvas to render frames to
-            const canvas = document.createElement('canvas');
-            canvas.width = 1920;
-            canvas.height = 1080;
-            const ctx = canvas.getContext('2d');
-            
-            if (!ctx) {
-              throw new Error("Failed to create canvas context");
+
+            // Create TWO canvases:
+            // 1. Clean canvas for main_loop (no overlay)
+            // 2. PiP canvas with status overlay for SensorPreviewPanel
+            const canvasClean = document.createElement('canvas');
+            canvasClean.width = 1920;
+            canvasClean.height = 1080;
+            const ctxClean = canvasClean.getContext('2d');
+
+            const canvasPip = document.createElement('canvas');
+            canvasPip.width = 1920;
+            canvasPip.height = 1080;
+            const ctxPip = canvasPip.getContext('2d');
+
+            if (!ctxClean || !ctxPip) {
+              throw new Error("Failed to create canvas contexts");
             }
-            
-            // Create a MediaStream from the canvas
-            const canvasStream = canvas.captureStream(30);
-            this.masterDisplayStream = canvasStream;
-            this.screenVideoStream = canvasStream;
-            
-            // Poll for frames from the native plugin and draw to canvas
+
+            // Create MediaStreams from both canvases
+            const cleanStream = canvasClean.captureStream(30);
+            const pipStream = canvasPip.captureStream(30);
+
+            this.masterDisplayStream = cleanStream;
+            this.screenVideoStream = cleanStream;        // Clean stream for main_loop
+            this.screenVideoStreamWithPip = pipStream;   // Overlay stream for PiP display
+
+            // Poll for frames from the native plugin and draw to both canvases
             let frameLoopActive = true;
             let frameCount = 0;
             let lastFrameTime = Date.now();
-            
+
             const updateFrame = async () => {
               if (!frameLoopActive) return;
-              
+
               try {
                 const base64Frame = await mobileScreenCapture.getFrame();
-                
+
                 if (base64Frame && base64Frame.length > 0) {
                   frameCount++;
                   const now = Date.now();
                   const elapsed = now - lastFrameTime;
-                  
+
                   if (frameCount === 1) {
-                    Logger.info("StreamManager", `🎉 GOT FIRST FRAME! Size: ${base64Frame.length} bytes`);
+                    Logger.info("StreamManager", `GOT FIRST FRAME! Size: ${base64Frame.length} bytes`);
                   }
                   if (frameCount % 30 === 0) {
                     Logger.info("StreamManager", `Mobile capture: ${frameCount} frames, ~${Math.round(1000/elapsed)}fps, frame size: ${base64Frame.length} bytes`);
                   }
                   lastFrameTime = now;
-                  
+
                   const img = new Image();
                   img.onload = () => {
-                    if (ctx && frameLoopActive) {
-                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    if (frameLoopActive) {
+                      // Draw to clean canvas (for main_loop - no overlay)
+                      if (ctxClean) {
+                        ctxClean.drawImage(img, 0, 0, canvasClean.width, canvasClean.height);
+                      }
+
+                      // Draw to PiP canvas (with overlay for user display)
+                      if (ctxPip) {
+                        ctxPip.drawImage(img, 0, 0, canvasPip.width, canvasPip.height);
+
+                        // Draw PiP status overlay if set
+                        if (this.pipOverlayStatus) {
+                          this.drawPipOverlay(ctxPip, canvasPip.width, canvasPip.height);
+                        }
+                      }
                     }
                   };
                   img.onerror = (e) => {
@@ -257,41 +299,40 @@ class Manager {
                 } else {
                   // Empty frame
                   if (frameCount === 0) {
-                    Logger.warn("StreamManager", "⚠️ Received empty frame from native plugin (no data)");
+                    Logger.warn("StreamManager", "Received empty frame from native plugin (no data)");
                   }
                 }
               } catch (err: any) {
                 // Frame not available yet - this is normal at startup
                 if (frameCount === 0) {
-                  Logger.warn("StreamManager", `⏳ Waiting for first frame... Error: ${err?.message || err}`);
+                  Logger.warn("StreamManager", `Waiting for first frame... Error: ${err?.message || err}`);
                 } else {
                   // After first frame, log all errors
-                  Logger.error("StreamManager", `❌ Error getting frame (count=${frameCount}):`, err);
+                  Logger.error("StreamManager", `Error getting frame (count=${frameCount}):`, err);
                 }
               }
-              
+
               // Continue polling (~30fps)
               setTimeout(updateFrame, 33);
             };
-            
+
             // Start the frame loop
-            Logger.info("StreamManager", "🚀 Starting mobile frame polling loop...");
-            console.log("🚀 [StreamManager] Starting mobile frame polling loop...");
+            Logger.info("StreamManager", "Starting mobile frame polling loop...");
             updateFrame();
-            
+
             // Store cleanup function
             const stopCapture = () => {
               frameLoopActive = false;
-              mobileScreenCapture.stopCapture().catch(err => 
+              mobileScreenCapture.stopCapture().catch(err =>
                 Logger.error("StreamManager", "Error stopping mobile capture", err)
               );
             };
-            
+
             // Attach cleanup to the stream
             (this.masterDisplayStream as any)._mobileCleanup = stopCapture;
-            
-            Logger.info("StreamManager", "Mobile screen capture initialized");
-            
+
+            Logger.info("StreamManager", "Mobile screen capture initialized with dual canvas");
+
           } else {
             // Desktop: use getDisplayMedia
             Logger.info("StreamManager", "Desktop detected - using getDisplayMedia");
@@ -403,16 +444,23 @@ class Manager {
   private teardownDisplayStream(): void {
     if (!this.masterDisplayStream) return;
     Logger.info("StreamManager", "Tearing down master display stream.");
-    
+
     // Call mobile cleanup if it exists
     if ((this.masterDisplayStream as any)._mobileCleanup) {
       (this.masterDisplayStream as any)._mobileCleanup();
     }
-    
+
     this.masterDisplayStream.getTracks().forEach(track => track.stop());
+
+    // Also stop PiP stream tracks if they exist
+    if (this.screenVideoStreamWithPip) {
+      this.screenVideoStreamWithPip.getTracks().forEach(track => track.stop());
+    }
+
     this.stopTranscriptionForStream('screenAudio');
     this.masterDisplayStream = null;
     this.screenVideoStream = null;
+    this.screenVideoStreamWithPip = null;
     this.screenAudioStream = null;
     this.notifyListeners();
   }
@@ -468,6 +516,224 @@ class Manager {
   private notifyListeners(): void {
     const state = this.getCurrentState();
     this.listeners.forEach(listener => listener(state));
+  }
+
+  private drawPipOverlay(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    if (!this.pipOverlayStatus) return;
+
+    const { state, progress, timerSeconds } = this.pipOverlayStatus;
+
+    // Size: ~25% of video width, positioned bottom-right
+    const boxWidth = Math.round(width * 0.22);
+    const boxHeight = Math.round(boxWidth * 0.6);
+    const padding = Math.round(width * 0.03);
+    const x = width - boxWidth - padding;
+    const y = height - boxHeight - padding;
+    const cornerRadius = Math.round(boxWidth * 0.08);
+
+    // Semi-transparent background with rounded corners
+    ctx.fillStyle = 'rgba(17, 24, 39, 0.85)'; // gray-900 with transparency
+    ctx.beginPath();
+    ctx.moveTo(x + cornerRadius, y);
+    ctx.lineTo(x + boxWidth - cornerRadius, y);
+    ctx.quadraticCurveTo(x + boxWidth, y, x + boxWidth, y + cornerRadius);
+    ctx.lineTo(x + boxWidth, y + boxHeight - cornerRadius);
+    ctx.quadraticCurveTo(x + boxWidth, y + boxHeight, x + boxWidth - cornerRadius, y + boxHeight);
+    ctx.lineTo(x + cornerRadius, y + boxHeight);
+    ctx.quadraticCurveTo(x, y + boxHeight, x, y + boxHeight - cornerRadius);
+    ctx.lineTo(x, y + cornerRadius);
+    ctx.quadraticCurveTo(x, y, x + cornerRadius, y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Subtle border
+    ctx.strokeStyle = 'rgba(75, 85, 99, 0.6)'; // gray-600
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const centerX = x + boxWidth / 2;
+    const centerY = y + boxHeight * 0.42;
+    const iconSize = Math.round(boxWidth * 0.22);
+
+    // Get color based on state
+    const getStateColor = (): string => {
+      switch (state) {
+        case 'STARTING': return '#facc15'; // yellow-400
+        case 'CAPTURING': return '#22d3ee'; // cyan-400
+        case 'THINKING': return '#a855f7'; // purple-500
+        case 'RESPONDING': return '#3b82f6'; // blue-500
+        case 'WAITING': return '#6b7280'; // gray-500
+        case 'SLEEPING': return '#3b82f6'; // blue-500
+        case 'SKIPPED': return '#f97316'; // orange-500
+        default: return '#6b7280'; // gray-500
+      }
+    };
+
+    const color = getStateColor();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(2, iconSize * 0.12);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Draw icon based on state (Lucide-style)
+    this.drawStateIcon(ctx, centerX, centerY, iconSize, state);
+
+    // Draw pie chart for WAITING/SLEEPING states
+    if ((state === 'WAITING' || state === 'SLEEPING') && progress !== undefined) {
+      this.drawPieChart(ctx, centerX, centerY, iconSize * 0.9, progress, color);
+    }
+
+    // Timer text below icon
+    if (timerSeconds !== undefined) {
+      const fontSize = Math.round(boxWidth * 0.14);
+      ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+
+      // Format time
+      const minutes = Math.floor(timerSeconds / 60);
+      const seconds = timerSeconds % 60;
+      const timeText = minutes > 0
+        ? `${minutes}:${seconds.toString().padStart(2, '0')}`
+        : `${seconds}s`;
+
+      ctx.fillText(timeText, centerX, y + boxHeight * 0.78);
+    }
+  }
+
+  private drawStateIcon(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    size: number,
+    state: string
+  ): void {
+    const s = size / 2; // half size for easier math
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    switch (state) {
+      case 'STARTING': // Power icon
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.8);
+        ctx.lineTo(0, -s * 0.2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.7, -Math.PI * 0.7, Math.PI * 1.7, false);
+        ctx.stroke();
+        break;
+
+      case 'CAPTURING': // Eye icon
+        ctx.beginPath();
+        // Eye outline
+        ctx.moveTo(-s, 0);
+        ctx.bezierCurveTo(-s * 0.5, -s * 0.7, s * 0.5, -s * 0.7, s, 0);
+        ctx.bezierCurveTo(s * 0.5, s * 0.7, -s * 0.5, s * 0.7, -s, 0);
+        ctx.stroke();
+        // Pupil
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+
+      case 'THINKING': // Activity/brain wave icon
+        ctx.beginPath();
+        ctx.moveTo(-s, 0);
+        ctx.lineTo(-s * 0.5, -s * 0.5);
+        ctx.lineTo(-s * 0.2, s * 0.3);
+        ctx.lineTo(s * 0.2, -s * 0.6);
+        ctx.lineTo(s * 0.5, s * 0.2);
+        ctx.lineTo(s, -s * 0.3);
+        ctx.stroke();
+        break;
+
+      case 'RESPONDING': // Message/chat icon
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.8, -s * 0.5);
+        ctx.lineTo(s * 0.8, -s * 0.5);
+        ctx.quadraticCurveTo(s, -s * 0.5, s, -s * 0.3);
+        ctx.lineTo(s, s * 0.3);
+        ctx.quadraticCurveTo(s, s * 0.5, s * 0.8, s * 0.5);
+        ctx.lineTo(-s * 0.3, s * 0.5);
+        ctx.lineTo(-s * 0.5, s * 0.8);
+        ctx.lineTo(-s * 0.5, s * 0.5);
+        ctx.lineTo(-s * 0.8, s * 0.5);
+        ctx.quadraticCurveTo(-s, s * 0.5, -s, s * 0.3);
+        ctx.lineTo(-s, -s * 0.3);
+        ctx.quadraticCurveTo(-s, -s * 0.5, -s * 0.8, -s * 0.5);
+        ctx.stroke();
+        break;
+
+      case 'SLEEPING': // Moon icon
+        ctx.beginPath();
+        ctx.arc(s * 0.2, 0, s * 0.7, Math.PI * 0.75, Math.PI * 2.25, false);
+        ctx.arc(-s * 0.3, -s * 0.1, s * 0.5, Math.PI * 0.25, Math.PI * 1.25, true);
+        ctx.stroke();
+        break;
+
+      case 'SKIPPED': // Skip forward icon
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.6, -s * 0.6);
+        ctx.lineTo(s * 0.2, 0);
+        ctx.lineTo(-s * 0.6, s * 0.6);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(s * 0.3, -s * 0.6);
+        ctx.lineTo(s * 0.3, s * 0.6);
+        ctx.stroke();
+        break;
+
+      case 'WAITING': // Clock icon (will be overlaid with pie chart)
+      default:
+        // Just draw circle outline - pie chart will be drawn on top
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.8, 0, Math.PI * 2);
+        ctx.stroke();
+        // Clock hands
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -s * 0.5);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(s * 0.35, s * 0.1);
+        ctx.stroke();
+        break;
+    }
+
+    ctx.restore();
+  }
+
+  private drawPieChart(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    radius: number,
+    progress: number,
+    color: string
+  ): void {
+    // Progress is 0-100
+    const normalizedProgress = Math.min(100, Math.max(0, progress)) / 100;
+
+    // Draw background track
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(75, 85, 99, 0.4)';
+    ctx.lineWidth = radius * 0.2;
+    ctx.stroke();
+
+    // Draw progress arc
+    const startAngle = -Math.PI / 2; // Start from top
+    const endAngle = startAngle + (normalizedProgress * Math.PI * 2);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, endAngle);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = radius * 0.2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
   }
 }
 
