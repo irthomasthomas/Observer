@@ -104,12 +104,20 @@ export async function detectSignificantChange(
 
   // Compare images using the configured strategy
   Logger.debug('CHANGE_DETECTOR', `Starting image comparison with mode: "${currentDetectionMode}"`);
-  const imageComparisonResult = await compareImages(
-    previous.images || [],
-    currentData.images || []
-  );
-
-  const isSameImages = imageComparisonResult.isSame;
+  let imageComparisonResult;
+  let isSameImages = false;
+  try {
+    imageComparisonResult = await compareImages(
+      previous.images || [],
+      currentData.images || []
+    );
+    isSameImages = imageComparisonResult.isSame;
+  } catch(error) {
+    Logger.error('CHANGE_DETECTOR', `Image comparison failed: ${error}. Assuming significant change to continue agent execution`)
+    isSameImages = false;
+    imageComparisonResult = { isSame: false, metadata: []};
+  }
+  
   Logger.debug('CHANGE_DETECTOR', `Change detection: text=${isSameText ? 'same' : 'changed'}, images=${isSameImages ? 'same' : 'changed'}`);
 
   // Only skip if BOTH text AND images are the same
