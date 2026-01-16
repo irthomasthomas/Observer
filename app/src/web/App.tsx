@@ -787,7 +787,7 @@ function AppContent() {
                   onGenerateAgent={() => setIsConversationalModalOpen(true)}
                 />
 
-                <div className="flex flex-wrap gap-6 items-start">
+                <div className="flex flex-wrap gap-6 items-start overflow-x-hidden">
                   {sortedAgents.map(agent => {
                 const isAgentLive = runningAgents.has(agent.id) || startingAgents.has(agent.id);
                 return (

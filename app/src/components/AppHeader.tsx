@@ -465,7 +465,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   return (
     <>
       <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-[60]">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4">
           <div className="flex justify-between items-center">
             {/* Left side */}
             <div className="flex items-center space-x-2 sm:space-x-4">
