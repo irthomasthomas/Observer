@@ -227,15 +227,18 @@ class Manager {
             // Create TWO canvases:
             // 1. Clean canvas for main_loop (no overlay)
             // 2. PiP canvas with status overlay for SensorPreviewPanel
+            // Note: Initial size is placeholder - will be resized to match actual frame dimensions
             const canvasClean = document.createElement('canvas');
-            canvasClean.width = 1920;
+            canvasClean.width = 1920;  // Placeholder, will adapt to actual frame
             canvasClean.height = 1080;
             const ctxClean = canvasClean.getContext('2d');
 
             const canvasPip = document.createElement('canvas');
-            canvasPip.width = 1920;
+            canvasPip.width = 1920;   // Placeholder, will adapt to actual frame
             canvasPip.height = 1080;
             const ctxPip = canvasPip.getContext('2d');
+
+            let canvasSizeInitialized = false;
 
             if (!ctxClean || !ctxPip) {
               throw new Error("Failed to create canvas contexts");
@@ -276,14 +279,24 @@ class Manager {
                   const img = new Image();
                   img.onload = () => {
                     if (frameLoopActive) {
+                      // Adapt canvas size to actual frame dimensions on first frame
+                      if (!canvasSizeInitialized && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                        canvasClean.width = img.naturalWidth;
+                        canvasClean.height = img.naturalHeight;
+                        canvasPip.width = img.naturalWidth;
+                        canvasPip.height = img.naturalHeight;
+                        canvasSizeInitialized = true;
+                        Logger.info("StreamManager", `Canvas adapted to frame dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
+                      }
+
                       // Draw to clean canvas (for main_loop - no overlay)
                       if (ctxClean) {
-                        ctxClean.drawImage(img, 0, 0, canvasClean.width, canvasClean.height);
+                        ctxClean.drawImage(img, 0, 0);
                       }
 
                       // Draw to PiP canvas (with overlay for user display)
                       if (ctxPip) {
-                        ctxPip.drawImage(img, 0, 0, canvasPip.width, canvasPip.height);
+                        ctxPip.drawImage(img, 0, 0);
 
                         // Draw PiP status overlay if set
                         if (this.pipOverlayStatus) {
@@ -523,8 +536,8 @@ class Manager {
 
     const { state, progress, timerSeconds } = this.pipOverlayStatus;
 
-    // Size: ~40% of video width, positioned bottom-right
-    const boxWidth = Math.round(width * 0.38);
+    // Size: ~50% of video width, positioned bottom-right
+    const boxWidth = Math.round(width * 0.5);
     const boxHeight = Math.round(boxWidth * 0.6);
     const padding = Math.round(width * 0.03);
     const x = width - boxWidth - padding;
