@@ -1,6 +1,7 @@
 // src/utils/agentCapabilities.ts
 
 import React from 'react';
+import * as customIcons from './icons';
 
 // --- Type Definitions ---
 export interface DetectedSensor {
@@ -31,8 +32,7 @@ const loadLucideIcon = async (iconName: string) => {
 };
 
 const loadCustomIcon = async (iconName: string) => {
-    const icons = await import('./icons');
-    return (icons as any)[iconName];
+    return (customIcons as any)[iconName];
 };
 
 export const SENSOR_CONFIG = {

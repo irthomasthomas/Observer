@@ -3,6 +3,7 @@
 import { Logger } from '../logging';
 import { getAgentMemory as fetchAgentMemory, updateAgentMemory as saveAgentMemory, getAgentImageMemory as fetchAgentImageMemory, updateAgentImageMemory as saveAgentImageMemory, appendAgentImageMemory as addAgentImageMemory } from '../agent_database';
 import { recordingManager } from '../recordingManager';
+import { pauseAgentLoop } from '../main_loop';
 
 /**
  * Utility functions for handlers
@@ -683,7 +684,6 @@ export async function overlay(appUrl: string, message: string): Promise<void> {
  */
 export async function sleep(ms: number = 2000, agentId?: string): Promise<void> {
   if (agentId) {
-    const { pauseAgentLoop } = await import('../main_loop');
     pauseAgentLoop(agentId, ms);
   }
   await new Promise(r => setTimeout(r, ms));

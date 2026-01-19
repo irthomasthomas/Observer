@@ -20,7 +20,6 @@ import AgentCard from '@components/AgentCard/AgentCard';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
 import StartupDialogs from '@components/StartupDialogs';
 import GlobalLogsViewer from '@components/GlobalLogsViewer';
-import ScheduleAgentModal from '@components/ScheduleAgentModal';
 import MemoryManager from '@components/MemoryManager';
 import ErrorDisplay from '@components/ErrorDisplay';
 import AgentImportHandler from '@components/AgentImportHandler';
@@ -84,8 +83,6 @@ function AppContent() {
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [showStartupDialog, setShowStartupDialog] = useState(false);
   const [showGlobalLogs, setShowGlobalLogs] = useState(false);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [schedulingAgentId, setSchedulingAgentId] = useState<string | null>(null);
   const [isMemoryManagerOpen, setIsMemoryManagerOpen] = useState(false);
   const [memoryAgentId, setMemoryAgentId] = useState<string | null>(null);
   const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
@@ -937,18 +934,6 @@ function AppContent() {
           setError={setError}
           getToken={getToken}
           isProUser={isProUser}
-        />
-      )}
-
-      {isScheduleModalOpen && schedulingAgentId && (
-        <ScheduleAgentModal
-          agentId={schedulingAgentId}
-          isOpen={isScheduleModalOpen}
-          onClose={() => {
-            setIsScheduleModalOpen(false);
-            setSchedulingAgentId(null);
-          }}
-          onUpdate={fetchAgents}
         />
       )}
 
