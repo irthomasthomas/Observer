@@ -642,17 +642,43 @@ function AppContent() {
     }
   }, [isLoading, isAuthenticated]);
 
-  // Check if user should see welcome modal (using localStorage)
+  // Check if user should see welcome modal (using localStorage and tier)
   useEffect(() => {
     if (!isLoading && isAuthenticated && user && 'sub' in user) {
       const hasSeenWelcome = localStorage.getItem(`observer_welcome_dismissed_${user.sub}`);
 
       if (!hasSeenWelcome) {
-        Logger.info('WELCOME', 'User has not seen welcome modal, showing it');
-        setIsWelcomeModalOpen(true);
+        // Check user's tier before showing welcome modal - don't show to paying users
+        const checkTierAndShowModal = async () => {
+          try {
+            const token = await getAccessTokenSilently();
+            const response = await fetch('https://api.observer-ai.com/quota', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+              const data = await response.json();
+              // Only show welcome modal for free tier users
+              if (data.tier === 'free' || !data.tier) {
+                Logger.info('WELCOME', 'User is on free tier, showing welcome modal');
+                setIsWelcomeModalOpen(true);
+              } else {
+                Logger.info('WELCOME', `User is on ${data.tier} tier, skipping welcome modal`);
+              }
+            } else {
+              // If we can't determine tier, show the modal to be safe
+              Logger.info('WELCOME', 'Could not determine tier, showing welcome modal');
+              setIsWelcomeModalOpen(true);
+            }
+          } catch (err) {
+            // On error, show the modal to be safe
+            Logger.error('WELCOME', 'Error checking tier:', err);
+            setIsWelcomeModalOpen(true);
+          }
+        };
+        checkTierAndShowModal();
       }
     }
-  }, [isLoading, isAuthenticated, user]);
+  }, [isLoading, isAuthenticated, user, getAccessTokenSilently]);
 
   useEffect(() => {
     if (serverStatus === 'offline' && !hasCompletedStartupCheck && !isLoading && !isAuthenticated) {
