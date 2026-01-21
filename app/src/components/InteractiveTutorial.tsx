@@ -568,8 +568,8 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           </button>
         )}
 
-        {/* Don't show again checkbox (on last step or second to last) */}
-        {currentStep >= steps.length - 2 && (
+        {/* Don't show again checkbox (on first step, or last two steps) */}
+        {(currentStep === 0 || currentStep >= steps.length - 2) && (
           <div className="pt-3 border-t border-gray-200">
             <label className="flex items-center cursor-pointer text-xs text-gray-600 hover:text-gray-800 transition-colors">
               <input
