@@ -77,7 +77,9 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
@@ -100,18 +102,43 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
     return () => navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
   }, [streamType]);
 
+  // Calculate dropdown position for fixed positioning
+  const updateDropdownPosition = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4,
+        left: rect.right - 256, // 256px = w-64 (16rem)
+      });
+    }
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     if (!isDropdownOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
+
+  // Update dropdown position on scroll/resize
+  useEffect(() => {
+    if (isDropdownOpen) {
+      updateDropdownPosition();
+      window.addEventListener('scroll', updateDropdownPosition, true);
+      window.addEventListener('resize', updateDropdownPosition);
+      return () => {
+        window.removeEventListener('scroll', updateDropdownPosition, true);
+        window.removeEventListener('resize', updateDropdownPosition);
+      };
+    }
   }, [isDropdownOpen]);
 
   const handleSwitchCamera = async (deviceId: string) => {
@@ -145,7 +172,7 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
   };
 
   return (
-    <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0 relative group">
+    <div className="bg-black rounded-lg aspect-video flex-1 min-w-0 relative group">
       <video ref={videoRef} muted autoPlay playsInline className="w-full h-full object-contain"></video>
 
       {/* Camera switcher - show on hover (only for camera streams with multiple devices) */}
@@ -163,9 +190,13 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
             </button>
           ) : (
             // Desktop mode: Dropdown for 3+ cameras
-            <div ref={dropdownRef} className="relative">
+            <div className="relative">
               <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                ref={buttonRef}
+                onClick={() => {
+                  if (!isDropdownOpen) updateDropdownPosition();
+                  setIsDropdownOpen(!isDropdownOpen);
+                }}
                 disabled={isSwitchingCamera}
                 className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white px-2 py-1.5 rounded text-xs flex items-center gap-1 transition-colors disabled:opacity-50 min-w-[120px] justify-between"
                 title="Switch camera"
@@ -174,8 +205,12 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
                 <ChevronDown className={`w-3 h-3 flex-shrink-0 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {isDropdownOpen && (
-                <div className="absolute right-0 mt-1 w-64 bg-gray-900 bg-opacity-95 rounded shadow-lg overflow-hidden">
+              {isDropdownOpen && dropdownPosition && (
+                <div
+                  ref={dropdownRef}
+                  className="fixed w-64 bg-gray-900 bg-opacity-95 rounded shadow-lg overflow-hidden z-50"
+                  style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+                >
                   {availableCameras.map((camera) => {
                     const isCurrent = stream.getVideoTracks()[0]?.getSettings().deviceId === camera.deviceId;
                     return (
@@ -424,7 +459,7 @@ const SharingPermissionsModal: React.FC<SharingPermissionsModalProps> = ({ isOpe
                 <StreamPlaceholder Icon={Eye} text="Screen Preview" />
               )}
               {streams.cameraStream ? (
-                <div className="animate-fade-in"><VideoStream stream={streams.cameraStream} streamType="camera" /></div>
+                <VideoStream stream={streams.cameraStream} streamType="camera" />
               ) : (
                 <StreamPlaceholder Icon={CameraIcon} text="Camera Preview" />
               )}
