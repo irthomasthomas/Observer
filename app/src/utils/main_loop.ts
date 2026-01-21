@@ -342,7 +342,7 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
         Logger.info(agentId, `Iteration completed - no significant change detected`, {
           logType: 'iteration-skipped',
           iterationId,
-          content: { success: true, cached: fromCache }
+          content: { success: true, cached: fromCache, reason: 'same_inputs' }
         });
       }
       // Dispach we completed with model call

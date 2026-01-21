@@ -133,7 +133,8 @@ const StateTicker: React.FC<{
   sleepProgress?: number;
   loopDurationMs?: number;
   sleepDurationMs?: number;
-}> = ({ status, changeDetectionData, onSettingsClick, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs }) => {
+  skipReason?: 'same_inputs' | 'network_error' | null;
+}> = ({ status, changeDetectionData, onSettingsClick, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, skipReason }) => {
   const statusInfo = useMemo(() => {
     switch (status) {
       case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
@@ -141,11 +142,13 @@ const StateTicker: React.FC<{
       case 'THINKING': return { icon: <Activity className="w-5 h-5" />, text: 'Model is thinking...', color: 'text-purple-600' };
       case 'RESPONDING': return { icon: <Activity className="w-5 h-5 animate-pulse" />, text: 'Model is responding...', color: 'text-blue-600' };
       case 'SLEEPING': return { icon: <Moon className="w-5 h-5" />, text: 'Sleeping...', color: 'text-blue-600' };
-      case 'SKIPPED': return { icon: <Clock className="w-5 h-5" />, text: 'Skipped Model Call, Waiting...', color: 'text-orange-500' };
+      case 'SKIPPED': return skipReason === 'network_error'
+        ? { icon: <Clock className="w-5 h-5" />, text: 'Skipped due to Network Error, Waiting...', color: 'text-red-500' }
+        : { icon: <Clock className="w-5 h-5" />, text: 'Skipped Model Call, Waiting...', color: 'text-orange-500' };
       case 'WAITING': return { icon: <Clock className="w-5 h-5" />, text: 'Waiting for next cycle...', color: 'text-gray-500' };
       default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };
     }
-  }, [status]);
+  }, [status, skipReason]);
   return (
     <div className={`flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 ${statusInfo.color}`}>
       <div className="flex-shrink-0">{statusInfo.icon}</div>
@@ -313,6 +316,7 @@ interface ActiveAgentViewProps {
     sleepProgress?: number;
     loopDurationMs?: number;
     sleepDurationMs?: number;
+    skipReason?: 'same_inputs' | 'network_error' | null;
 }
 
 const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
@@ -325,7 +329,8 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     loopProgress,
     sleepProgress,
     loopDurationMs,
-    sleepDurationMs
+    sleepDurationMs,
+    skipReason
 }) => {
     const [streamingResponse, setStreamingResponse] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
@@ -466,6 +471,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                     sleepProgress={sleepProgress}
                     loopDurationMs={loopDurationMs}
                     sleepDurationMs={sleepDurationMs}
+                    skipReason={skipReason}
                 />
                 <LastResponse
                     response={isStreaming ? streamingResponse : lastResponse}

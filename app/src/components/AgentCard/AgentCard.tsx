@@ -73,6 +73,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [sleepDurationMs, setSleepDurationMs] = useState(0);
   const [isSleeping, setIsSleeping] = useState(false);
   const [currentModel, setCurrentModel] = useState(agent.model_name);
+  const [skipReason, setSkipReason] = useState<'same_inputs' | 'network_error' | null>(null);
   const initialModelRef = useRef(agent.model_name);
 
   const showStartingState = useMemo(() => isStarting || isCheckingModel, [isStarting, isCheckingModel]);
@@ -144,7 +145,13 @@ const AgentCard: React.FC<AgentCardProps> = ({
         if (log.details?.logType === 'model-prompt') setLiveStatus('THINKING');
         else if (log.details?.logType === 'iteration-skipped') {
           setLiveStatus('SKIPPED');
-          setLastResponse('No significant change detected - iteration skipped to save resources.');
+          const reason = log.details?.content?.reason as 'same_inputs' | 'network_error' | undefined;
+          setSkipReason(reason || 'same_inputs');
+          if (reason === 'network_error') {
+            setLastResponse(`Network error - iteration skipped: ${log.details?.content?.error || 'Connection failed'}`);
+          } else {
+            setLastResponse('No significant change detected - iteration skipped to save resources.');
+          }
           setResponseKey(key => key + 1);
         }
         else if (log.details?.logType === 'model-response') {
@@ -357,6 +364,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               sleepProgress={sleepProgress}
               loopDurationMs={loopDurationMs}
               sleepDurationMs={sleepDurationMs}
+              skipReason={skipReason}
             />
           ) : (
             // FIX: Pass the 'code' prop down to StaticAgentView
