@@ -368,12 +368,28 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
     }
 
   } catch (error) {
-    Logger.error(agentId, `Iteration failed`, { 
-      logType: 'iteration-end', 
+    // Check for transient network errors - skip iteration but don't stop agent
+    const isNetworkError = error instanceof TypeError &&
+      (error.message.toLowerCase().includes('failed to fetch') ||
+       error.message.toLowerCase().includes('networkerror') ||
+       error.message.toLowerCase().includes('network request failed') ||
+       error.message.toLowerCase().includes('load failed'));
+
+    if (isNetworkError) {
+      Logger.warn(agentId, `Network error - skipping iteration: ${error.message}`, {
+        logType: 'iteration-skipped',
+        iterationId,
+        content: { reason: 'network_error', error: error.message }
+      });
+      return; // Skip iteration, don't stop agent
+    }
+
+    Logger.error(agentId, `Iteration failed`, {
+      logType: 'iteration-end',
       iterationId,
       content: { success: false, error: error instanceof Error ? error.message : String(error) }
     });
-    
+
     if (error instanceof UnauthorizedError) {
       // Logger dispatches the window event automatically
       Logger.warn(agentId, 'Agent stopped due to quota limit (401 Unauthorized)', {
@@ -384,7 +400,7 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       Logger.error(agentId, `Error in agent iteration: ${errorMessage}`, error);
     }
-    
+
     // Re-throw error so executeIteration() can handle stopping the agent
     throw error;
   }
