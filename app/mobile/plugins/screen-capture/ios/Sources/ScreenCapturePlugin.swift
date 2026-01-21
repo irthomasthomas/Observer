@@ -5,7 +5,6 @@ import Tauri
 @objc public class ScreenCapturePlugin: Plugin {
     private var broadcastPicker: RPSystemBroadcastPickerView?
     private var pickerWindow: UIWindow?
-    private let sharedDefaults = UserDefaults(suiteName: "group.com.observer.ai")
 
     override init() {
         super.init()
@@ -62,15 +61,8 @@ import Tauri
     }
 
     @objc public func getBroadcastStatus(_ invoke: Invoke) throws {
-        let isActive = sharedDefaults?.bool(forKey: "broadcast_active") ?? false
-        let lastUpdate = sharedDefaults?.double(forKey: "last_frame_timestamp") ?? 0
-
-        let status: [String: Any] = [
-            "isActive": isActive,
-            "lastFrameTimestamp": lastUpdate
-        ]
-
-        invoke.resolve(status)
+        // Deprecated - status now comes from Rust server via get_broadcast_status command
+        invoke.reject("Use get_broadcast_status Tauri command instead")
     }
 }
 

@@ -1,6 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isMobile } from './platform';
 
+export interface BroadcastStatus {
+  isActive: boolean;
+  isStale: boolean;
+  frame: string | null;
+  timestamp: number | null;
+  frameCount: number;
+}
+
 class MobileScreenCapture {
   private capturing = false;
 
@@ -31,49 +39,28 @@ class MobileScreenCapture {
     }
   }
 
-  async getFrame(): Promise<string> {
-    if (!isMobile()) {
-      throw new Error('Mobile screen capture only available on iOS/Android');
-    }
-
-    if (!this.capturing) {
-      throw new Error('Screen capture not started');
-    }
-
-    try {
-      const result = await invoke<{ frame: string; timestamp: number; age: number } | null>(
-        'get_broadcast_frame'
-      );
-
-      if (!result) {
-        throw new Error('No frame available from server');
-      }
-
-      // Warn if frame is stale (>2 seconds old)
-      if (result.age > 2.0) {
-        console.warn(`[ScreenCapture] ⚠️ Frame is ${result.age.toFixed(1)}s old - broadcast may have stopped`);
-      }
-
-      return result.frame;
-    } catch (error) {
-      console.error('[ScreenCapture] ❌ Error:', error);
-      throw error;
-    }
-  }
-
-  async getBroadcastStatus(): Promise<{ isActive: boolean; lastFrameTimestamp: number }> {
+  /**
+   * Unified status + frame query - the single source of truth for broadcast state.
+   * Returns broadcast state and the latest frame in one call.
+   */
+  async getStatus(): Promise<BroadcastStatus> {
     if (!isMobile()) {
       throw new Error('Mobile screen capture only available on iOS/Android');
     }
 
     try {
-      const status = await invoke<{ isActive: boolean; lastFrameTimestamp: number }>(
-        'plugin:screen-capture|get_broadcast_status_cmd'
-      );
-      return status;
+      const result = await invoke<BroadcastStatus>('get_broadcast_status');
+      return result;
     } catch (error) {
-      console.error('[ScreenCapture] Failed to get status:', error);
-      return { isActive: false, lastFrameTimestamp: 0 };
+      console.error('[ScreenCapture] ❌ Error getting status:', error);
+      // Return safe defaults on error
+      return {
+        isActive: false,
+        isStale: false,
+        frame: null,
+        timestamp: null,
+        frameCount: 0,
+      };
     }
   }
 

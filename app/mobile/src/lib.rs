@@ -26,32 +26,40 @@ async fn get_ollama_url(
     Ok(settings.ollama_url.lock().unwrap().clone())
 }
 
+/// Unified command: returns broadcast state + latest frame in one call
 #[tauri::command]
-async fn get_broadcast_frame(
+async fn get_broadcast_status(
     state: State<'_, ServerState>
-) -> Result<Option<serde_json::Value>, String> {
+) -> Result<serde_json::Value, String> {
+    let broadcast = state.broadcast.read().await;
     let frame = state.latest_frame.read().await;
-    //eprintln!("Tauri command broadcast frame called!");
 
-    match frame.as_ref() {
+    let current_time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64();
+
+    // Consider stale if active but no frames for >3 seconds
+    let is_stale = broadcast.is_active && broadcast.last_frame_at
+        .map(|t| current_time - t > 3.0)
+        .unwrap_or(true);
+
+    // Build frame data if available
+    let (frame_base64, frame_timestamp) = match frame.as_ref() {
         Some((data, timestamp)) => {
-            // Convert to base64
             let base64 = base64::prelude::BASE64_STANDARD.encode(data);
-
-            // Calculate age of frame
-            let age = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs_f64() - timestamp;
-
-            Ok(Some(serde_json::json!({
-                "frame": base64,
-                "timestamp": timestamp,
-                "age": age
-            })))
+            (Some(base64), Some(*timestamp))
         }
-        None => Ok(None)
-    }
+        None => (None, None)
+    };
+
+    Ok(serde_json::json!({
+        "isActive": broadcast.is_active,
+        "isStale": is_stale,
+        "frame": frame_base64,
+        "timestamp": frame_timestamp,
+        "frameCount": broadcast.frame_count
+    }))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -93,7 +101,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_ollama_url,
             get_ollama_url,
-            get_broadcast_frame
+            get_broadcast_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

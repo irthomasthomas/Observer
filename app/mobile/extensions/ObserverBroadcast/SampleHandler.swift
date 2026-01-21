@@ -7,35 +7,42 @@ import ImageIO
 class SampleHandler: RPBroadcastSampleHandler {
 
     private let serverURL = URL(string: "http://127.0.0.1:8080/frames")!
+    private let baseURL = "http://127.0.0.1:8080"
     private let session: URLSession
+
+    // Reuse CIContext - creating it per-frame causes memory spikes that crash the extension
+    private lazy var ciContext: CIContext = {
+        CIContext(options: [
+            .useSoftwareRenderer: false,  // Use GPU
+            .cacheIntermediates: false    // Don't cache to save memory
+        ])
+    }()
 
     override init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 2.0
+        config.urlCache = nil  // Don't cache responses
         self.session = URLSession(configuration: config)
         super.init()
     }
 
     override func broadcastStarted(withSetupInfo setupInfo: [String : NSObject]?) {
-        NSLog("🎥 Broadcast started")
+        NSLog("Broadcast started")
+        // Notify server of broadcast start
+        Task { await notifyServer(event: "start") }
     }
 
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, with sampleBufferType: RPSampleBufferType) {
         guard sampleBufferType == .video else { return }
-
-        // Get pixel buffer
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-
-        // Convert to raw bytes - let Rust handle the rest
         guard let imageData = pixelBufferToData(pixelBuffer) else { return }
 
-        // POST to Rust (fire and forget)
+        // Fire and forget - don't track failures to avoid complexity
         Task {
             var request = URLRequest(url: serverURL)
             request.httpMethod = "POST"
             request.httpBody = imageData
             request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-
             _ = try? await session.data(for: request)
         }
     }
@@ -45,24 +52,19 @@ class SampleHandler: RPBroadcastSampleHandler {
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
 
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        let context = CIContext(options: nil)
 
-        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+        // Use reused context instead of creating new one each frame
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
             return nil
         }
 
-        // JPEG encoding with explicit options to preserve aspect ratio
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, "public.jpeg" as CFString, 1, nil) else {
             return nil
         }
 
-        // Preserve original dimensions and aspect ratio
         let options: [CFString: Any] = [
-            kCGImageDestinationLossyCompressionQuality: 0.8,
-            kCGImagePropertyPixelWidth: cgImage.width,
-            kCGImagePropertyPixelHeight: cgImage.height,
-            kCGImagePropertyOrientation: 1  // No rotation/transformation
+            kCGImageDestinationLossyCompressionQuality: 0.6,  // Lower quality = less memory
         ]
 
         CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
@@ -74,6 +76,15 @@ class SampleHandler: RPBroadcastSampleHandler {
     }
 
     override func broadcastFinished() {
-        NSLog("🎥 Broadcast finished")
+        NSLog("Broadcast finished")
+        // Notify server of broadcast stop
+        Task { await notifyServer(event: "stop") }
+    }
+
+    private func notifyServer(event: String) async {
+        guard let url = URL(string: "\(baseURL)/broadcast/\(event)") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        _ = try? await session.data(for: request)
     }
 }

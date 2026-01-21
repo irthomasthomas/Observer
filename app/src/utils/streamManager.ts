@@ -261,18 +261,26 @@ class Manager {
               if (!frameLoopActive) return;
 
               try {
-                const base64Frame = await mobileScreenCapture.getFrame();
+                // Use unified status API - single source of truth for broadcast state
+                const status = await mobileScreenCapture.getStatus();
 
-                if (base64Frame && base64Frame.length > 0) {
+                // Handle broadcast ending
+                if (!status.isActive && frameCount > 0) {
+                  Logger.warn("StreamManager", `Broadcast ended after ${frameCount} frames`);
+                  // Don't stop the loop - let the user restart if needed
+                }
+
+                // Process frame if available
+                if (status.frame && status.frame.length > 0) {
                   frameCount++;
                   const now = Date.now();
                   const elapsed = now - lastFrameTime;
 
                   if (frameCount === 1) {
-                    Logger.info("StreamManager", `GOT FIRST FRAME! Size: ${base64Frame.length} bytes`);
+                    Logger.info("StreamManager", `GOT FIRST FRAME! Size: ${status.frame.length} bytes`);
                   }
                   if (frameCount % 30 === 0) {
-                    Logger.info("StreamManager", `Mobile capture: ${frameCount} frames, ~${Math.round(1000/elapsed)}fps, frame size: ${base64Frame.length} bytes`);
+                    Logger.info("StreamManager", `Mobile capture: ${frameCount} frames, ~${Math.round(1000/elapsed)}fps, frame size: ${status.frame.length} bytes`);
                   }
                   lastFrameTime = now;
 
@@ -308,21 +316,13 @@ class Manager {
                   img.onerror = (e) => {
                     Logger.error("StreamManager", "Failed to load frame image", e);
                   };
-                  img.src = 'data:image/jpeg;base64,' + base64Frame;
-                } else {
-                  // Empty frame
-                  if (frameCount === 0) {
-                    Logger.warn("StreamManager", "Received empty frame from native plugin (no data)");
-                  }
+                  img.src = 'data:image/jpeg;base64,' + status.frame;
+                } else if (frameCount === 0 && status.isActive) {
+                  // Waiting for first frame while broadcast is active
+                  Logger.debug("StreamManager", "Waiting for first frame from broadcast...");
                 }
               } catch (err: any) {
-                // Frame not available yet - this is normal at startup
-                if (frameCount === 0) {
-                  Logger.warn("StreamManager", `Waiting for first frame... Error: ${err?.message || err}`);
-                } else {
-                  // After first frame, log all errors
-                  Logger.error("StreamManager", `Error getting frame (count=${frameCount}):`, err);
-                }
+                Logger.error("StreamManager", `Error getting broadcast status:`, err);
               }
 
               // Continue polling (~30fps)
