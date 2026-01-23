@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Monitor, Mic, Waves, Blend, Eye, Camera as CameraIcon, Play, Square, AlertTriangle, CheckCircle, Volume2, FileText, RotateCw, ChevronDown } from 'lucide-react';
+import FixedDropdown from '@components/ui/FixedDropdown';
 import { StreamManager, StreamState } from '@utils/streamManager';
 import { Logger } from '@utils/logging';
 import { SensorPlaceholder, SENSOR_DESCRIPTIONS, getRequiredStreamsFromSensors } from '@utils/sensorMapping';
@@ -77,9 +78,6 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
@@ -101,45 +99,6 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     return () => navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
   }, [streamType]);
-
-  // Calculate dropdown position for fixed positioning
-  const updateDropdownPosition = () => {
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + 4,
-        left: rect.right - 256, // 256px = w-64 (16rem)
-      });
-    }
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!isDropdownOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
-          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isDropdownOpen]);
-
-  // Update dropdown position on scroll/resize
-  useEffect(() => {
-    if (isDropdownOpen) {
-      updateDropdownPosition();
-      window.addEventListener('scroll', updateDropdownPosition, true);
-      window.addEventListener('resize', updateDropdownPosition);
-      return () => {
-        window.removeEventListener('scroll', updateDropdownPosition, true);
-        window.removeEventListener('resize', updateDropdownPosition);
-      };
-    }
-  }, [isDropdownOpen]);
 
   const handleSwitchCamera = async (deviceId: string) => {
     setIsSwitchingCamera(true);
@@ -190,47 +149,40 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
             </button>
           ) : (
             // Desktop mode: Dropdown for 3+ cameras
-            <div className="relative">
-              <button
-                ref={buttonRef}
-                onClick={() => {
-                  if (!isDropdownOpen) updateDropdownPosition();
-                  setIsDropdownOpen(!isDropdownOpen);
-                }}
-                disabled={isSwitchingCamera}
-                className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white px-2 py-1.5 rounded text-xs flex items-center gap-1 transition-colors disabled:opacity-50 min-w-[120px] justify-between"
-                title="Switch camera"
-              >
-                <span className="truncate">{getCurrentCameraLabel()}</span>
-                <ChevronDown className={`w-3 h-3 flex-shrink-0 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isDropdownOpen && dropdownPosition && (
-                <div
-                  ref={dropdownRef}
-                  className="fixed w-64 bg-gray-900 bg-opacity-95 rounded shadow-lg overflow-hidden z-50"
-                  style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+            <FixedDropdown
+              isOpen={isDropdownOpen}
+              onOpenChange={setIsDropdownOpen}
+              trigger={({ ref, onClick, isOpen }) => (
+                <button
+                  ref={ref}
+                  onClick={onClick}
+                  disabled={isSwitchingCamera}
+                  className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white px-2 py-1.5 rounded text-xs flex items-center gap-1 transition-colors disabled:opacity-50 min-w-[120px] justify-between"
+                  title="Switch camera"
                 >
-                  {availableCameras.map((camera) => {
-                    const isCurrent = stream.getVideoTracks()[0]?.getSettings().deviceId === camera.deviceId;
-                    return (
-                      <button
-                        key={camera.deviceId}
-                        onClick={() => handleSwitchCamera(camera.deviceId)}
-                        disabled={isCurrent}
-                        className={`w-full text-left px-3 py-2 text-xs transition-colors ${
-                          isCurrent
-                            ? 'bg-blue-600 bg-opacity-50 text-white cursor-default'
-                            : 'text-gray-300 hover:bg-gray-700'
-                        }`}
-                      >
-                        <div className="truncate">{camera.label || `Camera ${camera.deviceId.slice(0, 8)}`}</div>
-                      </button>
-                    );
-                  })}
-                </div>
+                  <span className="truncate">{getCurrentCameraLabel()}</span>
+                  <ChevronDown className={`w-3 h-3 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
               )}
-            </div>
+            >
+              {availableCameras.map((camera) => {
+                const isCurrent = stream.getVideoTracks()[0]?.getSettings().deviceId === camera.deviceId;
+                return (
+                  <button
+                    key={camera.deviceId}
+                    onClick={() => handleSwitchCamera(camera.deviceId)}
+                    disabled={isCurrent}
+                    className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+                      isCurrent
+                        ? 'bg-blue-600 bg-opacity-50 text-white cursor-default'
+                        : 'text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="truncate">{camera.label || `Camera ${camera.deviceId.slice(0, 8)}`}</div>
+                  </button>
+                );
+              })}
+            </FixedDropdown>
           )}
         </div>
       )}
