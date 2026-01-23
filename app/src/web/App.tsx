@@ -728,7 +728,7 @@ function AppContent() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="app-container bg-gray-50">
       <style>
         {`
           @keyframes memory-flash {
@@ -793,7 +793,7 @@ function AppContent() {
           onClose={() => setIsJupyterModalOpen(false)}
         />
 
-        <main className="pt-24 pb-16 px-0 md:px-4 pl-2 md:pl-20 wide:px-4 max-w-7xl mx-auto">
+        <main className="w-full pt-4 px-0 md:px-4 pl-2 md:pl-20 wide:px-4 max-w-7xl mx-auto">
 
           {error && <ErrorDisplay message={error} />}
 
@@ -975,7 +975,7 @@ function AppContent() {
         />
       )}
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-[60]">
+      <footer className="bg-white border-t">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <div className="flex space-x-3">
