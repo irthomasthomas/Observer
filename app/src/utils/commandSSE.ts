@@ -90,12 +90,12 @@ class CommandSSE {
       };
 
       this.eventSource.onerror = () => {
-        Logger.warn('Commands', 'SSE connection error, will reconnect in 5s');
+        Logger.debug('Commands', 'SSE connection error, will reconnect in 5s');
         this.eventSource?.close();
 
         if (this.isActive) {
           this.reconnectTimeout = window.setTimeout(() => {
-            Logger.info('Commands', 'Attempting SSE reconnection...');
+            Logger.debug('Commands', 'Attempting SSE reconnection...');
             this.connectSSE();
           }, 5000);
         }
