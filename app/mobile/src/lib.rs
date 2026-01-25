@@ -80,6 +80,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_edge_to_edge::init())
         .setup(move |app| {
             app.manage(AppSettings {
                 ollama_url: Mutex::new(Some("http://localhost:11434".to_string())),

@@ -54,7 +54,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <p className={isTriggeredByQuotaError ? "text-base sm:text-lg text-gray-600 mb-3" : "text-sm sm:text-base text-gray-600 mb-2"}>{subheadline}</p>
           {isTriggeredByQuotaError && (
             <div className="flex items-center space-x-3 text-xs text-gray-500">
-              <span>🚀 900+ users</span>
+              <span>🚀 1k+ users</span>
               <span>•</span>
               <span>⭐ 1k+ GitHub stars</span>
               <span>•</span>

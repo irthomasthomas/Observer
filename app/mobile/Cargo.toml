@@ -25,6 +25,7 @@ tauri-plugin-notification = "2.3"
 tauri-plugin-dialog = "2.4"
 tauri-plugin-shell = "2.3"
 tauri-plugin-os = "2.3"
+tauri-plugin-edge-to-edge = "0.3"
 
 # HTTP server for broadcast extension
 tokio = { version = "1", features = ["full"] }

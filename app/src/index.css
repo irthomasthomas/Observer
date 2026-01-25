@@ -4,13 +4,14 @@
 
 /* iOS WebView scroll fix: Prevent body scroll, use inner scroll container */
 html, body {
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   position: fixed;
   width: 100%;
   top: 0;
   left: 0;
+  bottom: 0;
+  background-color: #f9fafb; /* bg-gray-50 - matches app background */
 }
 
 #root {
@@ -29,9 +30,8 @@ html, body {
   min-height: 0; /* Important for flex children to scroll */
   overflow: hidden;
   position: relative;
-  /* Safe area padding on the container */
+  /* Safe area padding on the container - bottom handled by FAB/footer individually */
   padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Header stays at top */
@@ -41,12 +41,8 @@ header {
   z-index: 60;
 }
 
-/* Footer stays at bottom */
-footer {
-  flex-shrink: 0;
-  position: relative !important;
-  z-index: 60;
-}
+/* Footer is now fixed overlay on desktop, hidden on mobile */
+/* No longer part of flex layout */
 
 /* Main content scrolls */
 main {
@@ -55,6 +51,20 @@ main {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Add padding for fixed footer on desktop */
+@media (min-width: 768px) {
+  main {
+    padding-bottom: 60px; /* Approximate footer height */
+  }
+}
+
+/* Global safe area adjustments for fixed fullscreen overlays/modals */
+.fixed.inset-0,
+.fixed.top-0.left-0.right-0.bottom-0 {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Global safe area adjustments for fixed elements positioned below header */
