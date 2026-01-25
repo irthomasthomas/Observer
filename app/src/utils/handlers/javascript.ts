@@ -6,6 +6,7 @@ import { startAgentLoop, stopAgentLoop } from '../main_loop';
 import type { TokenProvider } from '../main_loop';
 import type { PreProcessorResult } from '../pre-processor';
 import { getAgentImageMemory } from '../agent_database';
+import { recordingManager } from '../recordingManager';
 
 // Helper function to extract error messages properly
 function extractErrorMessage(error: any): string {
@@ -260,76 +261,76 @@ export async function executeJavaScript(
 
       // --- UPDATED FUNCTIONS ---
 
-      sendSms: async (number: string, message: string, images?: string[]) => {
+      sendSms: async (number: string, message: string, images?: string[], videos?: string[]) => {
         try {
           if (!getToken) throw new Error("Authentication context not available for sendSms.");
-          
+
           const token = await getToken();
           if (!token) throw new Error("Failed to retrieve authentication token for SMS.");
 
-          await utils.sendSms(message, number, token, images);
-          Logger.info(agentId, `SMS sent to ${number}${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
-            logType: 'tool-success', 
+          await utils.sendSms(message, number, token, images, videos);
+          Logger.info(agentId, `SMS sent to ${number}${images && images.length > 0 ? ` with ${images.length} images` : ''}${videos && videos.length > 0 ? ` and ${videos.length} videos` : ''}`, {
+            logType: 'tool-success',
             iterationId,
-            content: { tool: 'sendSms', params: { message: message.slice(0,100), number, imageCount: images?.length || 0 }, success: true }
+            content: { tool: 'sendSms', params: { message: message.slice(0,100), number, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send SMS to ${number}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendSms', params: { message: message.slice(0,100), number, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
+            content: { tool: 'sendSms', params: { message: message.slice(0,100), number, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendWhatsapp: async (number: string, message: string, images?: string[]) => {
+      sendWhatsapp: async (number: string, message: string, images?: string[], videos?: string[]) => {
         try {
           if (!getToken) throw new Error("Authentication context not available for sendWhatsapp.");
 
           const token = await getToken();
           if (!token) throw new Error("Failed to retrieve authentication token for WhatsApp.");
 
-          await utils.sendWhatsapp(message, number, token, images);
-          Logger.info(agentId, `WhatsApp sent to ${number}${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
-            logType: 'tool-success', 
+          await utils.sendWhatsapp(message, number, token, images, videos);
+          Logger.info(agentId, `WhatsApp sent to ${number}${images && images.length > 0 ? ` with ${images.length} images` : ''}${videos && videos.length > 0 ? ` and ${videos.length} videos` : ''}`, {
+            logType: 'tool-success',
             iterationId,
-            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number, imageCount: images?.length || 0 }, success: true }
+            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send WhatsApp to ${number}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
+            content: { tool: 'sendWhatsapp', params: { message: message.slice(0,100), number, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendEmail: async (emailAddress: string, message: string, images?: string[]) => {
+      sendEmail: async (emailAddress: string, message: string, images?: string[], videos?: string[]) => {
         try {
           if (!getToken) throw new Error("Authentication context not available for sendEmail.");
-          
+
           const token = await getToken();
           if (!token) throw new Error("Failed to retrieve authentication token for Email.");
 
-          await utils.sendEmail(message, emailAddress, token, images);
-          Logger.info(agentId, `Email sent to ${emailAddress}${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
-            logType: 'tool-success', 
+          await utils.sendEmail(message, emailAddress, token, images, videos);
+          Logger.info(agentId, `Email sent to ${emailAddress}${images && images.length > 0 ? ` with ${images.length} images` : ''}${videos && videos.length > 0 ? ` and ${videos.length} videos` : ''}`, {
+            logType: 'tool-success',
             iterationId,
-            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress, imageCount: images?.length || 0 }, success: true }
+            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send email to ${emailAddress}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
+            content: { tool: 'sendEmail', params: { message: message.slice(0,100), emailAddress, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendPushover: async (userKey: string, message: string, images?: string[], title?: string) => {
+      sendPushover: async (userKey: string, message: string, images?: string[], title?: string, videos?: string[]) => {
         try {
           if (!getToken) {
               throw new Error("Authentication context not available for sendPushover.");
@@ -340,58 +341,58 @@ export async function executeJavaScript(
               throw new Error("Failed to retrieve authentication token for Pushover.");
           }
 
-          await utils.sendPushover(message, userKey, token, images, title);
-          Logger.info(agentId, `Pushover notification sent${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
-            logType: 'tool-success', 
+          await utils.sendPushover(message, userKey, token, images, title, videos);
+          Logger.info(agentId, `Pushover notification sent${images && images.length > 0 ? ` with ${images.length} images` : ''}${videos && videos.length > 0 ? ` and ${videos.length} videos` : ''}`, {
+            logType: 'tool-success',
             iterationId,
-            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title, imageCount: images?.length || 0 }, success: true }
+            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send Pushover notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
+            content: { tool: 'sendPushover', params: { message: message.slice(0,100), title, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendDiscord: async (webhookUrl: string, message: string, images?: string[]) => {
+      sendDiscord: async (webhookUrl: string, message: string, images?: string[], videos?: string[]) => {
         try {
-          await utils.sendDiscord(message, webhookUrl, images);
-          Logger.info(agentId, `Discord notification sent${images && images.length > 0 ? ` with ${images.length} images` : ''}`, {
+          await utils.sendDiscord(message, webhookUrl, images, videos);
+          Logger.info(agentId, `Discord notification sent${images && images.length > 0 ? ` with ${images.length} images` : ''}${videos && videos.length > 0 ? ` and ${videos.length} videos` : ''}`, {
             logType: 'tool-success',
             iterationId,
-            content: { tool: 'sendDiscord', params: { message: message.slice(0,100), imageCount: images?.length || 0 }, success: true }
+            content: { tool: 'sendDiscord', params: { message: message.slice(0,100), imageCount: images?.length || 0, videoCount: videos?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send Discord notification`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendDiscord', params: { message: message.slice(0,100), imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
+            content: { tool: 'sendDiscord', params: { message: message.slice(0,100), imageCount: images?.length || 0, videoCount: videos?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
       },
 
-      sendTelegram: async (chatId: string, message: string, images?: string[]) => {
+      sendTelegram: async (chatId: string, message: string, images?: string[], videos?: string[]) => {
         try {
           if (!getToken) throw new Error("Authentication context not available for sendTelegram.");
-          
+
           const token = await getToken();
           if (!token) throw new Error("Failed to retrieve authentication token for Telegram.");
 
-          await utils.sendTelegram(message, chatId, token, images);
-          Logger.info(agentId, `Telegram message sent to ${chatId}${images && images.length > 0 ? ` with ${images.length} images` : ''}`, { 
-            logType: 'tool-success', 
+          await utils.sendTelegram(message, chatId, token, images, videos);
+          Logger.info(agentId, `Telegram message sent to ${chatId}${images && images.length > 0 ? ` with ${images.length} images` : ''}${videos && videos.length > 0 ? ` and ${videos.length} videos` : ''}`, {
+            logType: 'tool-success',
             iterationId,
-            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId, imageCount: images?.length || 0 }, success: true }
+            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, success: true }
           });
         } catch (error) {
           Logger.error(agentId, `Failed to send Telegram message to ${chatId}`, {
             logType: 'tool-error',
             iterationId,
-            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId, imageCount: images?.length || 0 }, error: extractErrorMessage(error) }
+            content: { tool: 'sendTelegram', params: { message: message.slice(0,100), chatId, imageCount: images?.length || 0, videoCount: videos?.length || 0 }, error: extractErrorMessage(error) }
           });
           throw error;
         }
@@ -462,6 +463,25 @@ export async function executeJavaScript(
             logType: 'tool-error',
             iterationId,
             content: { tool: 'markClip', params: { label }, error: extractErrorMessage(error) }
+          });
+          throw error;
+        }
+      },
+
+      getVideo: async (type?: 'screen' | 'camera'): Promise<string[]> => {
+        try {
+          const result = await recordingManager.getVideo(type);
+          Logger.info(agentId, `Video retrieved${type ? ` for ${type}` : ' for all active streams'}`, {
+            logType: 'tool-success',
+            iterationId,
+            content: { tool: 'getVideo', params: { type }, videoCount: result.length, totalSize: result.reduce((acc, v) => acc + v.length, 0) }
+          });
+          return result;
+        } catch (error) {
+          Logger.error(agentId, `Failed to get video${type ? ` for ${type}` : ''}`, {
+            logType: 'tool-error',
+            iterationId,
+            content: { tool: 'getVideo', params: { type }, error: extractErrorMessage(error) }
           });
           throw error;
         }

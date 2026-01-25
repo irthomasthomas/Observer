@@ -165,13 +165,13 @@ Agent Tools:
 `*` `agentId` is optional, deaults to agent running code
 
 Notification Tools:
-  * `sendDiscord(discord_webhook, message, images?)` - Directly sends a discord message to a server. 
-  * `sendTelegram(chat_id, message, images?)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
-  * `sendEmail(email, message, images?)` - Sends an email
+  * `sendDiscord(discord_webhook, message, images?, videos?)` - Directly sends a discord message to a server. 
+  * `sendTelegram(chat_id, message, images?, videos?)` Sends a telegram message with the Observer bot. Get the chat_id messaging the bot @observer_notification_bot.
+  * `sendEmail(email, message, images?, videos?)` - Sends an email
   * `sendPushover(user_token, message, images?, title?)` - Sends a pushover notification.
   * `call(phone_number, message)*` - Makes an automated phone call with text-to-speech message.
-  * `sendWhatsapp(phone_number, message)*` - Sends a whatsapp message with the Observer bot.  
-  * `sendSms(phone_number, message, images?)*` - Sends an SMS to a phone number. Due to A2P policy, blocked for US/Canada.
+  * `sendWhatsapp(phone_number, message, videos?)*` - Sends a whatsapp message with the Observer bot.  
+  * `sendSms(phone_number, message, images?, videos?)*` - Sends an SMS to a phone number. Due to A2P policy, blocked for US/Canada.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
 
 `*` To activate, SMS or call +1 (863)208-5341 or whatsapp +1 (555)783-4727
@@ -180,6 +180,7 @@ Video Recording Tools:
   * `startClip()` - Starts a recording of any video media and saves it to the recording Tab.
   * `stopClip()` - Stops an active recording
   * `markClip(label)` - Adds a label to any active recording that will be displayed in the recording Tab.
+  * `getVideo()` - Returns array of videos on buffer.
 
 App Tools:
   * `ask(question, title="Confirmation")` - Pops up a system confirmation dialog
