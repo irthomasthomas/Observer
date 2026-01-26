@@ -1,6 +1,6 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { LogOut, Server, Menu, Sun, Moon } from 'lucide-react';
+import { Server, Menu, Sun, Moon, User } from 'lucide-react';
 import {
   checkInferenceServer,
   addInferenceAddress,
@@ -17,6 +17,7 @@ import {
 import { Logger } from '@utils/logging';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import ConnectionSettingsModal from './ConnectionSettingsModal';
+import AccountModal from './AccountModal';
 import StartupDialogs from './StartupDialogs';
 import type { TokenProvider } from '@utils/main_loop';
 
@@ -91,6 +92,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   // --- NEW --- State to control the visibility of the new settings modal
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isStartupDialogOpen, setIsStartupDialogOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
   const isUsingObServer = externalIsUsingObServer !== undefined
     ? externalIsUsingObServer
@@ -121,6 +123,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleLogout = () => {
     authState?.logout({ logoutParams: { returnTo: window.location.origin } });
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      const token = await getToken();
+      await fetch('https://api.observer-ai.com/delete-account', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+    }
+    // Logout after deletion (or failed deletion attempt)
+    handleLogout();
   };
 
   const fetchQuotaInfo = async (forceObServer = false) => {
@@ -556,11 +572,19 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                         {user?.name || user?.email || 'User'}
                       </span>
                       <button
-                        onClick={handleLogout}
-                        className="bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center justify-center p-2"
-                        aria-label="Logout"
+                        onClick={() => setIsAccountModalOpen(true)}
+                        className="w-8 h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-300 flex items-center justify-center overflow-hidden bg-gray-200"
+                        aria-label="Account settings"
                       >
-                      <LogOut className="h-5 w-5" />
+                        {user?.picture ? (
+                          <img
+                            src={user.picture}
+                            alt={user?.name || 'User avatar'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-5 w-5 text-gray-600" />
+                        )}
                       </button>
                     </div>
                   ) : (
@@ -620,6 +644,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           hostingContext={hostingContext}
         />
       )}
+
+      <AccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        user={user}
+        onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
+      />
     </>
   );
 };
