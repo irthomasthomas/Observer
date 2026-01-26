@@ -1,7 +1,7 @@
 // components/AccountModal.tsx
 
 import React, { useState } from 'react';
-import { X, User } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface AccountModalProps {
   isOpen: boolean;
