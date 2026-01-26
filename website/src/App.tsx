@@ -195,8 +195,8 @@ const LandingPage = () => {
               <span className="text-lg font-bold">Observer AI</span>
             </div>
             <div className="flex space-x-8">
-              <a href="#privacy" className="text-gray-400 hover:text-white">Privacy</a>
-              <a href="#terms" className="text-gray-400 hover:text-white">Terms</a>
+              <a href="/privacy" className="text-gray-400 hover:text-white">Privacy</a>
+              <a href="/terms" className="text-gray-400 hover:text-white">Terms</a>
               <a href="https://discord.gg/wnBb7ZQDUC" className="text-gray-400 hover:text-white">Contact</a>
             </div>
           </div>
