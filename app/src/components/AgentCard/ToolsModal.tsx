@@ -970,6 +970,15 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<'cards' | 'code'>('cards');
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -1286,16 +1295,16 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
     <Modal
       open={isOpen}
       onClose={handleClose}
-      className="w-full max-w-7xl max-h-[90vh] flex flex-col"
+      className="w-full max-w-7xl max-h-[90vh] md:max-h-[90vh] max-h-[100vh] flex flex-col md:mx-4 mx-0 md:rounded-lg rounded-none"
       data-tutorial-tools-modal="true"
     >
       {/* Header */}
-      <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-        <div className="flex items-center space-x-3">
-          <Monitor className="h-6 w-6" />
-          <div>
-            <h2 className="text-xl font-semibold">Test Tools</h2>
-            <p className="text-sm text-blue-100">{agentName}</p>
+      <div className="flex-shrink-0 flex justify-between items-center p-3 md:p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+        <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
+          <Monitor className="h-5 w-5 md:h-6 md:w-6 flex-shrink-0" />
+          <div className="min-w-0">
+            <h2 className="text-lg md:text-xl font-semibold">Test Tools</h2>
+            <p className="text-xs md:text-sm text-blue-100 truncate">{agentName}</p>
           </div>
         </div>
         <button
@@ -1360,7 +1369,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                     <h3 className="text-sm font-semibold text-gray-700">Always Runs</h3>
                     <span className="text-xs text-gray-500">({groupedToolCalls.always.length})</span>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {groupedToolCalls.always.map(call => {
                       const toolConfig = getAllTools(channel).find(t => t.id === call.toolId);
                       if (!toolConfig) return null;
@@ -1406,7 +1415,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
                     <h3 className="text-sm font-semibold text-gray-700">Depends on AI</h3>
                     <span className="text-xs text-gray-500">({groupedToolCalls.conditional.length})</span>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {groupedToolCalls.conditional.map(call => {
                       const toolConfig = getAllTools(channel).find(t => t.id === call.toolId);
                       if (!toolConfig) return null;
@@ -1535,13 +1544,25 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
 
         {/* Test Panel - Appears when tool is clicked in code view */}
         {activeView === 'code' && selectedCall && selectedToolConfig && bubblePosition && (
-          <div
-            className="fixed bg-white rounded-lg shadow-xl border border-gray-200 w-80 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
-            style={{
-              top: `${bubblePosition.top}px`,
-              left: `${bubblePosition.left}px`,
-            }}
-          >
+          <>
+            {/* Mobile backdrop */}
+            {isMobile && (
+              <div
+                className="fixed inset-0 bg-black/30 z-40 animate-in fade-in duration-200"
+                onClick={handleClosePanel}
+              />
+            )}
+            <div
+              className={`fixed bg-white shadow-xl border border-gray-200 z-50 animate-in fade-in duration-200 ${
+                isMobile
+                  ? 'left-0 right-0 bottom-0 w-full rounded-t-xl max-h-[70vh] overflow-y-auto slide-in-from-bottom-4'
+                  : 'rounded-lg w-80 slide-in-from-bottom-2'
+              }`}
+              style={isMobile ? {} : {
+                top: `${bubblePosition.top}px`,
+                left: `${bubblePosition.left}px`,
+              }}
+            >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center gap-2.5">
@@ -1697,6 +1718,7 @@ const ToolsModal: React.FC<ToolsModalProps> = ({ isOpen, onClose, code, agentNam
               )}
             </div>
           </div>
+          </>
         )}
       </div>
 
