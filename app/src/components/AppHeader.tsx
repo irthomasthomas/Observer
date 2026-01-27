@@ -15,6 +15,7 @@ import {
   type CustomServer
 } from '@utils/inferenceServer';
 import { Logger } from '@utils/logging';
+import { isTauri } from '@utils/platform';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import ConnectionSettingsModal from './ConnectionSettingsModal';
 import AccountModal from './AccountModal';
@@ -80,6 +81,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const [localServerOnline, setLocalServerOnline] = useState(false);
   const [customServers, setCustomServers] = useState<CustomServer[]>([]);
+  const [appInferenceUrl, setAppInferenceUrl] = useState<string | null>(null);
 
   const [internalIsUsingObServer, setInternalIsUsingObServer] = useState(false);
   const [isLoadingQuota, setIsLoadingQuota] = useState(false);
@@ -333,6 +335,18 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
     // Check local server
     checkLocalServer();
+
+    // Load inference URL from Tauri backend
+    if (isTauri()) {
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke<string | null>('get_ollama_url').then(url => {
+          Logger.info('SETTINGS', `Loaded inference URL: ${url}`);
+          setAppInferenceUrl(url);
+        }).catch(err => {
+          Logger.error('SETTINGS', `Failed to load inference URL: ${err}`);
+        });
+      });
+    }
   }, []);
 
 
@@ -396,6 +410,22 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     const updated = getCustomServers();
     setCustomServers(updated);
     fetchModels();
+  };
+
+  // Handler for saving inference URL (Tauri only)
+  const handleSetAppInferenceUrl = async (url: string) => {
+    if (isTauri()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('set_ollama_url', { newUrl: url });
+        setAppInferenceUrl(url);
+        Logger.info('SETTINGS', `Saved inference URL: ${url}`);
+        // Re-check local server after URL change
+        checkLocalServer();
+      } catch (err) {
+        Logger.error('SETTINGS', `Failed to save inference URL: ${err}`);
+      }
+    }
   };
 
   const renderQuotaStatus = () => {
@@ -631,7 +661,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           onAddCustomServer: handleAddCustomServer,
           onRemoveCustomServer: handleRemoveCustomServer,
           onToggleCustomServer: handleToggleCustomServer,
-          onCheckCustomServer: handleCheckCustomServer
+          onCheckCustomServer: handleCheckCustomServer,
+          appInferenceUrl,
+          onSetAppInferenceUrl: handleSetAppInferenceUrl
         }}
       />
 

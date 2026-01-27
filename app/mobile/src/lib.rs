@@ -1,10 +1,10 @@
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{Manager, State};
+use tauri::{AppHandle, Manager, State};
 use base64::Engine;
 
-mod frame_server;
-use frame_server::{ServerState, start_server};
+mod server;
+use server::{ServerState, start_server};
 
 pub struct AppSettings {
     pub ollama_url: Mutex<Option<String>>,
@@ -14,8 +14,40 @@ pub struct AppSettings {
 async fn set_ollama_url(
     new_url: Option<String>,
     settings: State<'_, AppSettings>,
+    app_handle: AppHandle,
 ) -> Result<(), String> {
-    *settings.ollama_url.lock().unwrap() = new_url;
+    eprintln!("set_ollama_url called with: {:?}", new_url);
+
+    // Update in-memory
+    *settings.ollama_url.lock().unwrap() = new_url.clone();
+    eprintln!("Updated in-memory ollama_url");
+
+    // Persist to file
+    let config_path = app_handle.path().app_data_dir()
+        .map_err(|e| {
+            eprintln!("ERROR getting app_data_dir: {}", e);
+            e.to_string()
+        })?
+        .join("settings.json");
+
+    eprintln!("Config path: {:?}", config_path);
+
+    // Ensure directory exists
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            eprintln!("ERROR creating directory: {}", e);
+            e.to_string()
+        })?;
+    }
+
+    let config = serde_json::json!({ "ollama_url": new_url });
+    std::fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
+        .map_err(|e| {
+            eprintln!("ERROR writing settings: {}", e);
+            e.to_string()
+        })?;
+
+    eprintln!("Saved ollama_url to {:?}", config_path);
     Ok(())
 }
 
@@ -82,19 +114,42 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_edge_to_edge::init())
         .setup(move |app| {
+            // Load persisted ollama_url from settings.json
+            let config_path = app.path().app_data_dir()
+                .ok()
+                .map(|p| p.join("settings.json"));
+
+            eprintln!("Looking for settings at: {:?}", config_path);
+
+            let ollama_url = config_path
+                .and_then(|path| {
+                    let result = std::fs::read_to_string(&path);
+                    eprintln!("Read settings file result: {:?}", result.as_ref().map(|_| "OK").map_err(|e| e.to_string()));
+                    result.ok()
+                })
+                .and_then(|s| {
+                    eprintln!("Settings content: {}", s);
+                    serde_json::from_str::<serde_json::Value>(&s).ok()
+                })
+                .and_then(|v| v["ollama_url"].as_str().map(String::from))
+                .or_else(|| Some("http://localhost:11434".to_string()));
+
+            eprintln!("Loaded ollama_url: {:?}", ollama_url);
+
             app.manage(AppSettings {
-                ollama_url: Mutex::new(Some("http://localhost:11434".to_string())),
+                ollama_url: Mutex::new(ollama_url),
             });
 
             // Start HTTP server in background using Tauri's async runtime
-            eprintln!("🌐 About to spawn frame server task...");
+            eprintln!("🌐 About to spawn server task...");
             let server_state_clone = server_state_for_setup.clone();
+            let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                eprintln!("🔥 Frame server task starting...");
-                start_server(server_state_clone).await;
-                eprintln!("⚠️ Frame server task ended (this shouldn't happen)");
+                eprintln!("🔥 Server task starting...");
+                start_server(server_state_clone, app_handle).await;
+                eprintln!("⚠️ Server task ended (this shouldn't happen)");
             });
-            eprintln!("✅ Frame server task spawned");
+            eprintln!("✅ Server task spawned");
 
             Ok(())
         })

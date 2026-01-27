@@ -6,7 +6,7 @@ import ImageIO
 @objc(SampleHandler)
 class SampleHandler: RPBroadcastSampleHandler {
 
-    private let serverURL = URL(string: "http://127.0.0.1:8080/frames")!
+    private let serverURL = URL(string: "http://127.0.0.1:3838/frames")!
     private let session: URLSession
 
     override init() {

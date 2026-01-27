@@ -6,8 +6,8 @@ import ImageIO
 @objc(SampleHandler)
 class SampleHandler: RPBroadcastSampleHandler {
 
-    private let serverURL = URL(string: "http://127.0.0.1:8080/frames")!
-    private let baseURL = "http://127.0.0.1:8080"
+    private let serverURL = URL(string: "http://127.0.0.1:3838/frames")!
+    private let baseURL = "http://127.0.0.1:3838"
     private let session: URLSession
 
     // Reuse CIContext - creating it per-frame causes memory spikes that crash the extension
