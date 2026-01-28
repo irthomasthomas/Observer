@@ -51,7 +51,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           Keep monitoring with local models! They run directly on your device with no usage limits.
         </p>
         <p className="text-sm text-gray-500">
-          For cloud features and subscriptions, please visit observer.ing on desktop or web.
+          For cloud features and subscriptions, please visit app.observer-ai.com on desktop or web.
         </p>
       </div>
     );
