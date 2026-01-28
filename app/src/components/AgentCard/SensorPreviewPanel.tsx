@@ -625,7 +625,14 @@ const VideoStream: React.FC<{
     <div className="flex flex-col gap-2">
       <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0 relative group">
         {/* Video element */}
-        <video ref={videoRef} muted autoPlay playsInline controls className="w-full h-full object-contain"></video>
+        <video
+          ref={videoRef}
+          muted
+          autoPlay
+          playsInline
+          disablePictureInPicture
+          className="w-full h-full object-contain [&::-webkit-media-controls-panel]:!hidden [&::-webkit-media-controls-panel-container]:!hidden [&::-webkit-media-controls-start-playback-button]:!hidden [&::-webkit-media-controls]:!hidden [&::-webkit-media-controls]:opacity-0"
+        ></video>
 
         {/* Crop controls - show on hover, hide when crop mode is active */}
       {!isCropMode && (
