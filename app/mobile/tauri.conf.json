@@ -5,7 +5,7 @@
   "identifier": "com.observer.ai",
   "build": {
     "frontendDist": "/Users/jay/repos/Observer/app/dist",
-    "devUrl": "http://192.168.1.66:3001"
+    "devUrl": "http://10.0.0.226:3001"
   },
   "app": {
     "windows": [
