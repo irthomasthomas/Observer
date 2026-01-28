@@ -21,14 +21,23 @@ interface CropOverlayProps {
 }
 
 const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, existingCrop, videoElement }) => {
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  // Two-tap state: null = waiting for first tap, {x,y} = waiting for second tap
+  const [firstCorner, setFirstCorner] = useState<{ x: number; y: number } | null>(null);
+  const [previewPos, setPreviewPos] = useState<{ x: number; y: number } | null>(null);
   const [currentCrop, setCurrentCrop] = useState<CropConfig | null>(existingCrop || null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCurrentCrop(existingCrop || null);
   }, [existingCrop]);
+
+  // Reset state when crop mode is deactivated
+  useEffect(() => {
+    if (!isActive) {
+      setFirstCorner(null);
+      setPreviewPos(null);
+    }
+  }, [isActive]);
 
   const getVideoScale = () => {
     if (!videoElement || !overlayRef.current) return { scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 };
@@ -55,56 +64,144 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, exist
     return { scaleX, scaleY, offsetX, offsetY };
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isActive || !overlayRef.current) return;
+  const getPositionFromEvent = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!overlayRef.current) return null;
 
     const rect = overlayRef.current.getBoundingClientRect();
     const { offsetX, offsetY } = getVideoScale();
 
-    const x = e.clientX - rect.left - offsetX;
-    const y = e.clientY - rect.top - offsetY;
+    let clientX: number, clientY: number;
+    if ('touches' in e) {
+      clientX = e.touches[0]?.clientX ?? e.changedTouches[0]?.clientX;
+      clientY = e.touches[0]?.clientY ?? e.changedTouches[0]?.clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
 
-    setStartPos({ x, y });
-    setIsSelecting(true);
-    setCurrentCrop(null);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isSelecting || !overlayRef.current) return;
-
-    const rect = overlayRef.current.getBoundingClientRect();
-    const { scaleX, scaleY, offsetX, offsetY } = getVideoScale();
-
-    const currentX = e.clientX - rect.left - offsetX;
-    const currentY = e.clientY - rect.top - offsetY;
-
-    const x = Math.min(startPos.x, currentX);
-    const y = Math.min(startPos.y, currentY);
-    const width = Math.abs(currentX - startPos.x);
-    const height = Math.abs(currentY - startPos.y);
-
-    // Convert to video coordinates
-    const videoCrop = {
-      x: Math.max(0, Math.round(x * scaleX)),
-      y: Math.max(0, Math.round(y * scaleY)),
-      width: Math.round(width * scaleX),
-      height: Math.round(height * scaleY)
+    return {
+      x: clientX - rect.left - offsetX,
+      y: clientY - rect.top - offsetY
     };
-
-    setCurrentCrop(videoCrop);
   };
 
-  const handleMouseUp = () => {
-    if (!isSelecting || !currentCrop) return;
+  const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isActive || !overlayRef.current) return;
+    e.preventDefault();
 
-    setIsSelecting(false);
-    if (currentCrop.width > 10 && currentCrop.height > 10) {
-      onCropSelect(currentCrop);
+    const pos = getPositionFromEvent(e);
+    if (!pos) return;
+
+    if (!firstCorner) {
+      // First tap - set the first corner
+      setFirstCorner(pos);
+      setPreviewPos(pos);
+      setCurrentCrop(null);
+    } else {
+      // Second tap - create the crop rectangle
+      const { scaleX, scaleY } = getVideoScale();
+
+      const x = Math.min(firstCorner.x, pos.x);
+      const y = Math.min(firstCorner.y, pos.y);
+      const width = Math.abs(pos.x - firstCorner.x);
+      const height = Math.abs(pos.y - firstCorner.y);
+
+      // Convert to video coordinates
+      const videoCrop = {
+        x: Math.max(0, Math.round(x * scaleX)),
+        y: Math.max(0, Math.round(y * scaleY)),
+        width: Math.round(width * scaleX),
+        height: Math.round(height * scaleY)
+      };
+
+      // Only accept if the crop area is large enough
+      if (videoCrop.width > 10 && videoCrop.height > 10) {
+        setCurrentCrop(videoCrop);
+        onCropSelect(videoCrop);
+      }
+
+      // Reset for next crop
+      setFirstCorner(null);
+      setPreviewPos(null);
     }
   };
 
+  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isActive || !firstCorner || !overlayRef.current) return;
+
+    const pos = getPositionFromEvent(e);
+    if (pos) {
+      setPreviewPos(pos);
+    }
+  };
+
+  const handleCancel = () => {
+    setFirstCorner(null);
+    setPreviewPos(null);
+  };
+
+  const renderFirstCornerMarker = () => {
+    if (!firstCorner || !overlayRef.current) return null;
+
+    const { offsetX, offsetY } = getVideoScale();
+
+    return (
+      <div
+        className="absolute w-4 h-4 -ml-2 -mt-2 pointer-events-none"
+        style={{
+          left: `${firstCorner.x + offsetX}px`,
+          top: `${firstCorner.y + offsetY}px`,
+        }}
+      >
+        {/* Pulsing dot */}
+        <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-75" />
+        <div className="absolute inset-1 bg-blue-500 rounded-full" />
+        {/* Crosshair lines */}
+        <div className="absolute left-1/2 -top-2 w-px h-2 bg-blue-500" />
+        <div className="absolute left-1/2 -bottom-2 w-px h-2 bg-blue-500" />
+        <div className="absolute top-1/2 -left-2 w-2 h-px bg-blue-500" />
+        <div className="absolute top-1/2 -right-2 w-2 h-px bg-blue-500" />
+      </div>
+    );
+  };
+
+  const renderPreviewRect = () => {
+    if (!firstCorner || !previewPos || !overlayRef.current) return null;
+
+    const { scaleX, scaleY, offsetX, offsetY } = getVideoScale();
+
+    const x = Math.min(firstCorner.x, previewPos.x);
+    const y = Math.min(firstCorner.y, previewPos.y);
+    const width = Math.abs(previewPos.x - firstCorner.x);
+    const height = Math.abs(previewPos.y - firstCorner.y);
+
+    // Calculate video dimensions for display
+    const videoWidth = Math.round(width * scaleX);
+    const videoHeight = Math.round(height * scaleY);
+
+    const style = {
+      left: `${x + offsetX}px`,
+      top: `${y + offsetY}px`,
+      width: `${width}px`,
+      height: `${height}px`,
+    };
+
+    return (
+      <div
+        className="absolute border-2 border-blue-500 border-dashed bg-blue-500 bg-opacity-10 pointer-events-none"
+        style={style}
+      >
+        {videoWidth > 20 && videoHeight > 20 && (
+          <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 rounded whitespace-nowrap">
+            {videoWidth}×{videoHeight}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderCropRect = () => {
-    if (!currentCrop || !overlayRef.current) return null;
+    if (!currentCrop || !overlayRef.current || firstCorner) return null;
 
     const { scaleX, scaleY, offsetX, offsetY } = getVideoScale();
 
@@ -117,7 +214,7 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, exist
 
     return (
       <div
-        className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-20"
+        className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-20 pointer-events-none"
         style={style}
       >
         <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 rounded">
@@ -134,15 +231,32 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, exist
     <div
       ref={overlayRef}
       className={`absolute inset-0 z-10 ${isActive ? 'cursor-crosshair' : 'pointer-events-none'}`}
-      onMouseDown={isActive ? handleMouseDown : undefined}
-      onMouseMove={isActive ? handleMouseMove : undefined}
-      onMouseUp={isActive ? handleMouseUp : undefined}
-      onMouseLeave={isActive ? () => setIsSelecting(false) : undefined}
+      onClick={isActive ? handleTap : undefined}
+      onTouchEnd={isActive ? handleTap : undefined}
+      onMouseMove={isActive ? handleMove : undefined}
+      onTouchMove={isActive ? handleMove : undefined}
     >
       {renderCropRect()}
+      {renderPreviewRect()}
+      {renderFirstCornerMarker()}
+
+      {/* Instructions */}
       {isActive && (
-        <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-          Drag to select crop area
+        <div className="absolute top-2 left-2 flex items-center gap-2">
+          <div className="bg-black bg-opacity-70 text-white text-xs px-2 py-1.5 rounded">
+            {firstCorner ? '📍 Tap to set opposite corner' : '👆 Tap to set first corner'}
+          </div>
+          {firstCorner && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancel();
+              }}
+              className="bg-red-500 bg-opacity-80 hover:bg-opacity-100 text-white text-xs px-2 py-1.5 rounded transition-colors"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -513,32 +627,33 @@ const VideoStream: React.FC<{
         {/* Video element */}
         <video ref={videoRef} muted autoPlay playsInline controls className="w-full h-full object-contain"></video>
 
-        {/* Crop controls - show on hover */}
-      <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 z-20">
-        <button
-          onClick={() => setIsCropMode(true)}
-          disabled={isCropMode}
-          className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white p-1.5 rounded text-xs flex items-center gap-1 transition-colors disabled:opacity-50"
-          title={`Crop ${streamType}`}
-        >
-          <Crop className="w-3 h-3" />
-        </button>
+        {/* Crop controls - show on hover, hide when crop mode is active */}
+      {!isCropMode && (
+        <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 z-20">
+          <button
+            onClick={() => setIsCropMode(true)}
+            className="bg-black bg-opacity-70 hover:bg-opacity-90 text-white p-1.5 rounded text-xs flex items-center gap-1 transition-colors"
+            title={`Crop ${streamType}`}
+          >
+            <Crop className="w-3 h-3" />
+          </button>
 
-        {currentCrop && (
-          <>
-            <div className="bg-black bg-opacity-70 text-white text-xs px-1.5 py-1 rounded">
-              {currentCrop.width}×{currentCrop.height}
-            </div>
-            <button
-              onClick={handleClearCrop}
-              className="bg-red-600 bg-opacity-80 hover:bg-opacity-100 text-white p-1 rounded transition-colors"
-              title="Clear crop"
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
-          </>
-        )}
-      </div>
+          {currentCrop && (
+            <>
+              <div className="bg-black bg-opacity-70 text-white text-xs px-1.5 py-1 rounded">
+                {currentCrop.width}×{currentCrop.height}
+              </div>
+              <button
+                onClick={handleClearCrop}
+                className="bg-red-600 bg-opacity-80 hover:bg-opacity-100 text-white p-1 rounded transition-colors"
+                title="Clear crop"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Camera switcher - show on hover (only for camera streams with multiple devices) */}
       {streamType === 'camera' && availableCameras.length >= 2 && (
