@@ -1,6 +1,8 @@
 // components/AgentCard/SensorPreviewPanel.tsx
 import React, { useMemo, useRef, useEffect, ReactNode, useState } from 'react';
-import { Mic, Volume2, Crop, RotateCcw, RotateCw, ChevronDown, Save, Images, AlertTriangle, Monitor, Camera, Play } from 'lucide-react';
+import { Mic, Volume2, Crop, RotateCcw, RotateCw, ChevronDown, Save, Images, AlertTriangle, Monitor, Camera, Play, Smartphone } from 'lucide-react';
+import { isMobile } from '@utils/platform';
+import { isPipSupported } from '@utils/pictureInPicture';
 import FixedDropdown from '@components/ui/FixedDropdown';
 import { StreamState, AudioStreamType, StreamManager } from '@utils/streamManager';
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
@@ -402,6 +404,10 @@ const VideoStream: React.FC<{
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  // PiP state (mobile only)
+  const [isPipActive, setIsPipActive] = useState(false);
+  const showPipButton = isMobile() && isPipSupported();
+
   // Load existing crop config
   useEffect(() => {
     const existingCrop = getAgentCrop(agentId, streamType);
@@ -428,6 +434,37 @@ const VideoStream: React.FC<{
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
   }, [stream]);
+
+  // PiP event listeners
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !showPipButton) return;
+
+    const handleEnterPip = () => setIsPipActive(true);
+    const handleLeavePip = () => setIsPipActive(false);
+
+    video.addEventListener('enterpictureinpicture', handleEnterPip);
+    video.addEventListener('leavepictureinpicture', handleLeavePip);
+
+    return () => {
+      video.removeEventListener('enterpictureinpicture', handleEnterPip);
+      video.removeEventListener('leavepictureinpicture', handleLeavePip);
+    };
+  }, [showPipButton]);
+
+  // Handle "Run in Background" button click
+  const handleRunInBackground = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      if (video.readyState >= 2) {
+        await video.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.error('Failed to enter PiP:', err);
+    }
+  };
 
   const handleCropSelect = (crop: CropConfig) => {
     setAgentCrop(agentId, streamType, crop);
@@ -471,11 +508,12 @@ const VideoStream: React.FC<{
   };
 
   return (
-    <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0 relative group">
-      {/* Video element */}
-      <video ref={videoRef} muted autoPlay playsInline controls className="w-full h-full object-contain"></video>
+    <div className="flex flex-col gap-2">
+      <div className="bg-black rounded-lg overflow-hidden aspect-video flex-1 min-w-0 relative group">
+        {/* Video element */}
+        <video ref={videoRef} muted autoPlay playsInline controls className="w-full h-full object-contain"></video>
 
-      {/* Crop controls - show on hover */}
+        {/* Crop controls - show on hover */}
       <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 z-20">
         <button
           onClick={() => setIsCropMode(true)}
@@ -555,13 +593,36 @@ const VideoStream: React.FC<{
         </div>
       )}
 
-      {/* Crop overlay */}
-      <CropOverlay
-        isActive={isCropMode}
-        onCropSelect={handleCropSelect}
-        existingCrop={currentCrop}
-        videoElement={videoRef.current}
-      />
+        {/* Crop overlay */}
+        <CropOverlay
+          isActive={isCropMode}
+          onCropSelect={handleCropSelect}
+          existingCrop={currentCrop}
+          videoElement={videoRef.current}
+        />
+      </div>
+
+      {/* Run in Background button (mobile only) */}
+      {showPipButton && (
+        !isPipActive ? (
+          <button
+            onClick={handleRunInBackground}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm"
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Run in Background</span>
+          </button>
+        ) : (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm text-green-800 font-medium">
+                Running in background
+              </span>
+            </div>
+          </div>
+        )
+      )}
     </div>
   );
 };

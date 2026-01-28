@@ -441,15 +441,6 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
 
     return (
         <>
-            {/* Mobile PiP Instructions */}
-            {isMobile() && (
-                <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4">
-                    <p className="text-sm text-blue-800">
-                        Tap the <span className="font-semibold">PiP button</span> on the video player below to keep Observer running in the background.
-                    </p>
-                </div>
-            )}
-
             <div className={`grid ${isMobile() ? 'grid-cols-1' : 'md:grid-cols-2'} md:gap-6 animate-fade-in overflow-visible`}>
                 {/* Left Column: Sensor Previews */}
                 <SensorPreviewPanel
