@@ -1,4 +1,5 @@
 import React from 'react';
+import { isIOS } from '../utils/platform';
 
 interface StartupDialogProps {
   onDismiss: () => void;
@@ -65,8 +66,8 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
             </button>
           </div>
 
-          {/* Small Skip button positioned bottom-right for Tauri and Self-hosted */}
-          {(hostingContext === 'tauri' || hostingContext === 'self-hosted') && (
+          {/* Small Skip button positioned bottom-right for Tauri and Self-hosted (hidden on iOS for App Store compliance) */}
+          {(hostingContext !== 'official-web') && !isIOS() && (
             <button
               onClick={handleSkip}
               className="absolute bottom-4 right-4 text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1"
@@ -76,7 +77,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
           )}
 
           {/* Footer - only show for self-hosted and tauri */}
-          {hostingContext !== 'official-web' && (
+          {hostingContext !== 'official-web' && !isIOS() && (
             <p className="text-xs text-gray-500 mt-6">
               You can always sign in later from the app header to unlock cloud features.
             </p>
