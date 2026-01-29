@@ -889,27 +889,27 @@ ${reportComment}
       {/* Agent Details Modal */}
       {selectedAgent && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4"
           onClick={closeDetails}
         >
           <div
-            className="bg-white rounded-lg shadow-lg w-3/4 max-w-4xl max-h-3/4 flex flex-col"
+            className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-xl font-semibold">{selectedAgent.name}</h2>
-              <button onClick={closeDetails} className="p-1 rounded-full hover:bg-gray-100">
-                &times;
+            <div className="flex justify-between items-center p-4 border-b flex-shrink-0">
+              <h2 className="text-xl font-semibold truncate pr-4">{selectedAgent.name}</h2>
+              <button onClick={closeDetails} className="p-2 rounded-full hover:bg-gray-100 flex-shrink-0">
+                <X className="h-5 w-5" />
               </button>
             </div>
             
-            <div className="flex-1 p-4 overflow-auto">
+            <div className="flex-1 p-4 overflow-y-auto overflow-x-hidden min-h-0">
               <div className="mb-4">
                 <h3 className="font-medium mb-2">Details</h3>
-                <p><strong>ID:</strong> {selectedAgent.id}</p>
+                <p className="break-words"><strong>ID:</strong> {selectedAgent.id}</p>
                 <p><strong>Model:</strong> {selectedAgent.model_name}</p>
                 <p><strong>Interval:</strong> {selectedAgent.loop_interval_seconds}s</p>
-                <p><strong>Description:</strong> {selectedAgent.description}</p>
+                <p className="break-words"><strong>Description:</strong> {selectedAgent.description}</p>
                 
                 {selectedAgent.author && !isIOS() && (
                   <div className="mt-2 p-2 bg-blue-50 rounded-md text-sm">
@@ -938,24 +938,24 @@ ${reportComment}
               </div>
             </div>
             
-            <div className="p-4 border-t flex justify-between">
+            <div className="p-4 border-t flex flex-col sm:flex-row justify-between gap-3 flex-shrink-0">
               <button
                 onClick={() => {
                   handleReportClick(selectedAgent);
                 }}
-                className="px-4 py-2 rounded-md border border-red-300 text-red-600 hover:bg-red-50 flex items-center gap-2"
+                className="px-4 py-3 sm:py-2 rounded-md border border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 order-last sm:order-first"
               >
                 <Flag className="h-4 w-4" />
                 Report
               </button>
-              <div className="flex space-x-3">
+              <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3">
                 {isAuthorOfAgent(selectedAgent) && (
                   <button
                     onClick={() => {
                       handleEditClick(selectedAgent);
                       closeDetails();
                     }}
-                    className="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600"
+                    className="px-4 py-3 sm:py-2 rounded-md bg-green-500 text-white hover:bg-green-600"
                   >
                     Edit Agent
                   </button>
@@ -965,7 +965,7 @@ ${reportComment}
                     handleImport(selectedAgent);
                     closeDetails();
                   }}
-                  className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"
+                  className="px-4 py-3 sm:py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"
                 >
                   Import Agent
                 </button>
