@@ -1,5 +1,4 @@
 // Platform detection utilities for Observer
-import { Logger } from './logging';
 import { platform as getPlatform } from '@tauri-apps/plugin-os';
 
 /**
@@ -16,12 +15,20 @@ export const isTauri = (): boolean => {
  * Check if the app is running on a mobile platform (iOS or Android)
  */
 export const isMobile = (): boolean => {
-  if (!isTauri()) return false;
+  if (!isTauri()) {
+    console.log('[PLATFORM] Not Tauri, isMobile = false');
+    return false;
+  }
 
-  // Use the official Tauri OS plugin
-  const platform = getPlatform();
-  Logger.debug('PLATFORM', `Platform detected: ${platform}`);
-  return platform === 'android' || platform === 'ios';
+  try {
+    // Use the official Tauri OS plugin
+    const platform = getPlatform();
+    console.log('[PLATFORM] Platform detected:', platform);
+    return platform === 'android' || platform === 'ios';
+  } catch (err) {
+    console.warn('[PLATFORM] getPlatform() failed:', err);
+    return false;
+  }
 };
 
 /**

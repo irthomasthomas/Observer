@@ -113,6 +113,8 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_edge_to_edge::init())
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_auth::init())
         .setup(move |app| {
             // Load persisted ollama_url from settings.json
             let config_path = app.path().app_data_dir()

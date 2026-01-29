@@ -40,7 +40,7 @@ interface AgentCardProps {
   isStarting: boolean;
   isMemoryFlashing: boolean;
   onEdit: (agentId: string) => void;
-  onDelete: (agentId: string) => Promise<void>;
+  onDelete: (agentId: string) => void;
   onToggle: (agentId: string, isRunning: boolean) => Promise<void>;
   onMemory: (agentId: string) => void;
   onActivity: (agentId: string) => void;

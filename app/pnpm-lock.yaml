@@ -23,6 +23,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.5.2
         version: 3.8.1
+      '@inkibra/tauri-plugin-auth':
+        specifier: ^0.2.5
+        version: 0.2.5
       '@jupyterlab/services':
         specifier: ^7.3.6
         version: 7.5.1(react@18.3.1)
@@ -44,12 +47,18 @@ importers:
       '@tauri-apps/api':
         specifier: ^2.6.0
         version: 2.9.1
+      '@tauri-apps/plugin-deep-link':
+        specifier: ^2.4.6
+        version: 2.4.6
       '@tauri-apps/plugin-dialog':
         specifier: ^2.3.1
         version: 2.4.2
       '@tauri-apps/plugin-notification':
         specifier: ^2.3.0
         version: 2.3.3
+      '@tauri-apps/plugin-opener':
+        specifier: ^2.5.3
+        version: 2.5.3
       '@tauri-apps/plugin-os':
         specifier: ^2.3.2
         version: 2.3.2
@@ -673,6 +682,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@inkibra/tauri-plugin-auth@0.2.5':
+    resolution: {integrity: sha512-7V00u+ONQKL0A/n39wvJkQsIviM8Q2cHRqp0cetmE3VxlOjTIWXy/lvdXpqgTXFjpnh9Ig2ZEhg/jA+CxbHZ3w==}
+
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
@@ -1077,11 +1089,17 @@ packages:
     engines: {node: '>= 10'}
     hasBin: true
 
+  '@tauri-apps/plugin-deep-link@2.4.6':
+    resolution: {integrity: sha512-UUOSt0U5juK20uhO2MoHZX/IPblkrhUh+VPtIeu3RwtzI0R9Em3Auzfg/PwcZ9Pv8mLne3cQ4p9CFXD6WxqCZA==}
+
   '@tauri-apps/plugin-dialog@2.4.2':
     resolution: {integrity: sha512-lNIn5CZuw8WZOn8zHzmFmDSzg5zfohWoa3mdULP0YFh/VogVdMVWZPcWSHlydsiJhRQYaTNSYKN7RmZKE2lCYQ==}
 
   '@tauri-apps/plugin-notification@2.3.3':
     resolution: {integrity: sha512-Zw+ZH18RJb41G4NrfHgIuofJiymusqN+q8fGUIIV7vyCH+5sSn5coqRv/MWB9qETsUs97vmU045q7OyseCV3Qg==}
+
+  '@tauri-apps/plugin-opener@2.5.3':
+    resolution: {integrity: sha512-CCcUltXMOfUEArbf3db3kCE7Ggy1ExBEBl51Ko2ODJ6GDYHRp1nSNlQm5uNCFY5k7/ufaK5Ib3Du/Zir19IYQQ==}
 
   '@tauri-apps/plugin-os@2.3.2':
     resolution: {integrity: sha512-n+nXWeuSeF9wcEsSPmRnBEGrRgOy6jjkSU+UVCOV8YUGKb2erhDOxis7IqRXiRVHhY8XMKks00BJ0OAdkpf6+A==}
@@ -3671,6 +3689,10 @@ snapshots:
   '@img/sharp-win32-x64@0.34.5':
     optional: true
 
+  '@inkibra/tauri-plugin-auth@0.2.5':
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
       minipass: 7.1.2
@@ -4137,11 +4159,19 @@ snapshots:
       '@tauri-apps/cli-win32-ia32-msvc': 2.9.6
       '@tauri-apps/cli-win32-x64-msvc': 2.9.6
 
+  '@tauri-apps/plugin-deep-link@2.4.6':
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+
   '@tauri-apps/plugin-dialog@2.4.2':
     dependencies:
       '@tauri-apps/api': 2.9.1
 
   '@tauri-apps/plugin-notification@2.3.3':
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+
+  '@tauri-apps/plugin-opener@2.5.3':
     dependencies:
       '@tauri-apps/api': 2.9.1
 

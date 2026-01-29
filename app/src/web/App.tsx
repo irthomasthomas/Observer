@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Terminal, MessageSquare, ChevronUp, X } from 'lucide-react';
-import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
+import { Auth0Provider } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useAuth, useMockAuth, type UseAuthReturn } from '@hooks/useAuth';
+import { isMobile } from '@utils/platform';
 import {
   listAgents,
   getAgentCode,
@@ -34,7 +36,7 @@ import ConversationalGeneratorModal from '@components/AICreator/ConversationalGe
 import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
 import MemoryStoreTab from '@components/MemoryStoreTab';
-import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage'; // Assuming this path is correct
+import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import { WelcomeModal } from '@components/WelcomeModal';
@@ -46,30 +48,9 @@ import { fetchModels } from '@utils/inferenceServer';
 import WhitelistModal from '@components/WhitelistModal';
 import InteractiveTutorial from '@components/InteractiveTutorial';
 
-
-function AppContent() {
-  // Check our environment variable to see if Auth0 should be disabled
-  const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
-
-  // If Auth0 is disabled, create a mock auth object for local development.
-  const mockAuth = useMemo(() => ({
-    isAuthenticated: false,
-    user: { name: 'Local Dev User', email: 'dev@local.host' },
-    loginWithRedirect: () => Promise.resolve(),
-    logout: () => {},
-    isLoading: false,
-    getAccessTokenSilently: async () => 'mock_token'
-  }), []);
-
-  // Otherwise, use the real useAuth0 hook.
-  const {
-    isAuthenticated,
-    user,
-    loginWithRedirect,
-    logout,
-    isLoading,
-    getAccessTokenSilently
-  } = isAuthDisabled ? mockAuth : useAuth0();
+// Main app content - uses the unified auth hook
+function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
+  const { isAuthenticated, isLoading, user, login, logout, getAccessToken } = useAuthHook();
 
   const [agents, setAgents] = useState<CompleteAgent[]>([]);
   const [agentCodes, setAgentCodes] = useState<Record<string, string>>({});
@@ -95,21 +76,21 @@ function AppContent() {
   const [aiEditMessage, setAiEditMessage] = useState<string | undefined>();
   const [hasCompletedStartupCheck, setHasCompletedStartupCheck] = useState(false);
 
-  // --- NEW STATE FOR QUOTA ERRORS AND MODAL ---
+  // Quota error state
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isHalfwayWarning, setIsHalfwayWarning] = useState(false);
   const [currentQuotaType, setCurrentQuotaType] = useState<string>('monitor');
 
-  // --- STATE FOR ACTIVITY MODAL ---
+  // Activity modal state
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalAgentId, setActivityModalAgentId] = useState<string | null>(null);
 
-  // --- STATE FOR TERMINAL MODAL ---
+  // Terminal modal state
   const [noModels, setNoModels] = useState(false);
   const [isTerminalModalOpen, setIsTerminalModalOpen] = useState(false);
 
-  // --- STATE FOR QUOTA INFO ---
+  // Quota info state
   const [quotaInfo, setQuotaInfo] = useState<{
     used: number;
     remaining: number;
@@ -117,43 +98,39 @@ function AppContent() {
     tier: string;
   } | null>(null);
 
-  // --- STATE FOR MOBILE SIDEBAR ---
+  // Mobile UI state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // --- STATE FOR MOBILE FOOTER ---
   const [isMobileFooterOpen, setIsMobileFooterOpen] = useState(false);
 
-  // --- STATE FOR FEEDBACK DIALOG ---
+  // Feedback dialog state
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
-  // --- STATE FOR WHITELIST MODAL ---
+  // Whitelist modal state
   const [whitelistModalInfo, setWhitelistModalInfo] = useState<{
     phoneNumbers: Array<{ number: string; isWhitelisted: boolean }>;
-    agentId?: string; // For preflight checks
-    onStartAgent?: () => void; // Callback to start agent after verification
-    channel?: WhitelistChannel; // 'whatsapp' | 'sms' | 'voice'
+    agentId?: string;
+    onStartAgent?: () => void;
+    channel?: WhitelistChannel;
   } | null>(null);
 
-  // --- STATE FOR WELCOME MODAL ---
+  // Welcome modal state
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
-  // --- STATE FOR TUTORIAL MODAL ---
+  // Tutorial modal state
   const [tutorialModalInfo, setTutorialModalInfo] = useState<{
     agentName: string;
     agentId: string;
     hasPhoneTools: boolean;
   } | null>(null);
 
-  // Track if we've already auto-started tutorial this session (prevents restart loop)
   const hasAutoStartedTutorialRef = useRef(false);
 
-  // --- STATE FOR DARK MODE ---
+  // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('observer-dark-mode');
     return saved === 'true';
   });
 
-  // --- DERIVED STATE ---
   const isProUser = quotaInfo?.tier === 'pro' || quotaInfo?.tier === 'max';
 
   const fetchAgents = useCallback(async () => {
@@ -164,7 +141,6 @@ function AppContent() {
       setAgents(agentsData);
       Logger.debug('APP', `Found ${agentsData.length} agents`);
 
-      // Fetch codes
       const codeResults = await Promise.all(
         agentsData.map(async (a) => ({ id: a.id, code: await getAgentCode(a.id) }))
       );
@@ -184,64 +160,54 @@ function AppContent() {
   }, []);
 
   const getToken = useCallback(async () => {
-    // If Auth0 is still loading its state, we can't get a token yet.
     if (isLoading) {
       Logger.warn('AUTH', 'getToken called while auth state is loading. Aborting.');
       return undefined;
     }
 
-    // If loading is finished AND the user is not authenticated, abort.
     if (!isAuthenticated) {
       Logger.warn('AUTH', 'getToken called, but user is not authenticated.');
-      try{
-        // This might be called before the initial auth check, so we try to get it anyway.
-        const token = await getAccessTokenSilently({
-          authorizationParams: {
-            audience: 'https://api.observer-ai.com',
-          },
-        });
-        // If we get a token even when isAuthenticated is false, log it.
+      try {
+        const token = await getAccessToken();
         if (token) Logger.info('AUTH', `getToken succeeded even though isAuthenticated is false.`);
         return token;
-      }
-      catch (error){
+      } catch {
         Logger.warn('AUTH', `errored out trying getToken when not authenticated.`);
       }
       return undefined;
     }
 
-    // If authenticated, proceed to get the token.
     try {
-      const token = await getAccessTokenSilently({
-        authorizationParams: {
-          audience: 'https://api.observer-ai.com',
-        },
-      });
+      const token = await getAccessToken();
       return token;
     } catch (error) {
       Logger.error('AUTH', 'Failed to retrieve access token silently.', error);
       throw error;
     }
-  }, [isAuthenticated, isLoading, getAccessTokenSilently]);
+  }, [isAuthenticated, isLoading, getAccessToken]);
 
   const hostingContext = useMemo(() => {
-  const { protocol, hostname } = window.location;
+    const { protocol, hostname } = window.location;
 
-  // The primary condition for showing the warning is if the user is on a secure (HTTPS) page.
-  // We also add a check to ensure we treat `https://localhost` as a self-hosted environment,
-  // as a user in that scenario has full control.
-  if (protocol === 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    // This will be true for https://app.observer-ai.com, https://dev.observer-ai.com, etc.
-    return 'official-web';
-  }
+    if (protocol === 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return 'official-web';
+    }
 
-  // Any other scenario is treated as self-hosted. This includes:
-  // - http://localhost:xxxx
-  // - http://127.0.0.1:xxxx
-  // - https://localhost:xxxx (local dev with a self-signed cert)
-  // - Any other http:// address
-  return 'self-hosted';
-}, []);
+    return 'self-hosted';
+  }, []);
+
+  // Check if we're on mobile (for SSE and other platform-specific behavior)
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        setIsMobileDevice(isMobile());
+      } catch {
+        setIsMobileDevice(false);
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const handleAgentStatusChange = (event: CustomEvent) => {
@@ -258,20 +224,12 @@ function AppContent() {
       });
     };
 
-    // Event dispatched by Logger based on logType 'agent-status-changed'
-    window.addEventListener(
-      'agentStatusChanged',
-      handleAgentStatusChange as EventListener
-    );
+    window.addEventListener('agentStatusChanged', handleAgentStatusChange as EventListener);
     return () => {
-      window.removeEventListener(
-        'agentStatusChanged',
-        handleAgentStatusChange as EventListener
-      );
+      window.removeEventListener('agentStatusChanged', handleAgentStatusChange as EventListener);
     };
   }, []);
 
-  // --- USEEFFECT FOR QUOTA EVENT LISTENER ---
   useEffect(() => {
     const handleQuotaExceeded = (event: CustomEvent<{ agentId: string; quotaType: string }>) => {
       const { agentId, quotaType } = event.detail;
@@ -282,19 +240,16 @@ function AppContent() {
         return newSet;
       });
 
-      // Quota events are for full errors, not halfway warnings
       setIsHalfwayWarning(false);
       setIsUpgradeModalOpen(true);
     };
 
     window.addEventListener('quotaExceeded', handleQuotaExceeded as EventListener);
-
     return () => {
       window.removeEventListener('quotaExceeded', handleQuotaExceeded as EventListener);
     };
   }, []);
 
-  // --- USEEFFECT FOR RUNTIME ERROR EVENT LISTENER ---
   useEffect(() => {
     const handleAgentRuntimeError = (event: CustomEvent<{ agentId: string; error: string }>) => {
       const { error } = event.detail;
@@ -302,16 +257,14 @@ function AppContent() {
     };
 
     window.addEventListener('agentRuntimeError', handleAgentRuntimeError as EventListener);
-
     return () => {
       window.removeEventListener('agentRuntimeError', handleAgentRuntimeError as EventListener);
     };
   }, []);
 
-  // --- USEEFFECT FOR WHITELIST REQUIRED EVENT LISTENER ---
   useEffect(() => {
-    const handleWhitelistRequired = (event: CustomEvent<{ 
-      phoneNumber: string; 
+    const handleWhitelistRequired = (event: CustomEvent<{
+      phoneNumber: string;
       toolName: string;
       channel: WhitelistChannel;
     }>) => {
@@ -324,7 +277,6 @@ function AppContent() {
     };
 
     window.addEventListener('whitelistRequired', handleWhitelistRequired as EventListener);
-
     return () => {
       window.removeEventListener('whitelistRequired', handleWhitelistRequired as EventListener);
     };
@@ -339,8 +291,8 @@ function AppContent() {
 
   const handleAddAgentClick = () => {
     setSelectedAgent(null);
-    setIsCreateMode(true); // Keep this true to signal intent
-    setStagedAgentConfig(null); // Clear any old staged config
+    setIsCreateMode(true);
+    setStagedAgentConfig(null);
     setIsSimpleCreatorOpen(true);
     Logger.info('APP', 'Opening Simple Creator to create new agent');
   };
@@ -353,9 +305,6 @@ function AppContent() {
     setIsSimpleCreatorOpen(false);
     setIsEditModalOpen(true);
   };
-
-  // handleAgentGenerated removed - agents are saved directly in ConversationalGenerator/MultiAgentCreator
-  // Tutorial starts automatically on first agent creation via handleSaveAgent
 
   const handleMemoryClick = (agentId: string) => {
     if (flashingMemories.has(agentId)) {
@@ -391,11 +340,17 @@ function AppContent() {
     setTutorialModalInfo(null);
   };
 
-  const handleDeleteClick = async (agentId: string) => {
+  const handleDeleteClick = (agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     if (!agent) return;
 
-    if (window.confirm(`Are you sure you want to delete agent "${agent.name}"?`)) {
+    // Keep confirm synchronous (outside async) to fix iOS Safari issue
+    if (!window.confirm(`Are you sure you want to delete agent "${agent.name}"?`)) {
+      return;
+    }
+
+    // Run async deletion after confirm returns
+    (async () => {
       try {
         setError(null);
         Logger.info('APP', `Deleting agent "${agent.name}" (${agentId})`);
@@ -405,7 +360,6 @@ function AppContent() {
           stopAgentLoop(agentId);
         }
 
-        // Clear all iteration store data for this agent
         await IterationStore.clearAllHistory(agentId);
         Logger.info('APP', `Cleared iteration history for agent "${agent.name}"`);
 
@@ -417,7 +371,7 @@ function AppContent() {
         setError(errorMessage);
         Logger.error('APP', `Failed to delete agent: ${errorMessage}`, err);
       }
-    }
+    })();
   };
 
   const handleDismissStartupDialog = () => {
@@ -426,11 +380,10 @@ function AppContent() {
   };
 
   const toggleAgent = async (id: string, isCurrentlyRunning: boolean): Promise<void> => {
-    // If using Ob-Server and not logged in, trigger login instead of starting agent.
     if (isUsingObServer && !isAuthenticated) {
       Logger.info('AUTH', 'User attempted to use a protected feature while logged out. Redirecting to login.');
-      loginWithRedirect();
-      return; // Stop the function here.
+      login();
+      return;
     }
 
     try {
@@ -463,7 +416,6 @@ function AppContent() {
         try {
           await startAgentLoop(id, getToken);
         } catch (err: any) {
-          // Check if this is a whitelist error
           if (err.whitelistCheck) {
             const { phoneNumbers, channel } = err.whitelistCheck;
 
@@ -472,22 +424,19 @@ function AppContent() {
               agentId: id,
               channel,
               onStartAgent: () => {
-                // Close modal and start agent
                 setWhitelistModalInfo(null);
-                toggleAgent(id, false); // Start the agent (passing false since it's not currently running)
+                toggleAgent(id, false);
               }
             });
-            // Clear starting state since we're showing modal
             setStartingAgents(prev => {
               const updated = new Set(prev);
               updated.delete(id);
               return updated;
             });
-            return; // Don't propagate error, we're handling it with modal
+            return;
           }
-          throw err; // Re-throw non-whitelist errors
+          throw err;
         } finally {
-          // This ensures that 'startingAgents' is cleared regardless of success or failure
           setStartingAgents(prev => {
             const updated = new Set(prev);
             updated.delete(id);
@@ -498,7 +447,6 @@ function AppContent() {
 
       await fetchAgents();
     } catch (err) {
-      // Ensure startingAgents is cleared on error as well
       setStartingAgents(prev => {
         const updated = new Set(prev);
         updated.delete(id);
@@ -522,7 +470,6 @@ function AppContent() {
       Logger.info('APP', `Agent "${agent.name}" saved successfully`);
       await fetchAgents();
 
-      // Show tutorial for new agents (unless dismissed)
       if (isNew && user && 'sub' in user && user.sub) {
         const dismissed = localStorage.getItem(`observer_tutorial_dismissed_${user.sub}`);
         if (!dismissed) {
@@ -543,30 +490,26 @@ function AppContent() {
     }
   };
 
-  // Auto-start tutorial when first agent is created (from any source)
+  // Auto-start tutorial when first agent is created
   useEffect(() => {
-    // Only trigger tutorial if this is exactly the first agent (agents.length === 1)
-    // AND we haven't already auto-started it this session
     if (agents.length === 1 && user && 'sub' in user && user.sub && !hasAutoStartedTutorialRef.current) {
       const dismissed = localStorage.getItem(`observer_tutorial_dismissed_${user.sub}`);
 
-      // If tutorial not dismissed and not currently showing, start it for the first agent
       if (!dismissed && !tutorialModalInfo) {
         const firstAgent = agents[0];
 
         setTutorialModalInfo({
           agentName: firstAgent.name,
           agentId: firstAgent.id,
-          hasPhoneTools: false // Default to false, Alert Builder doesn't typically use phone tools
+          hasPhoneTools: false
         });
 
-        // Mark that we've auto-started the tutorial to prevent restart loop
         hasAutoStartedTutorialRef.current = true;
 
         Logger.info('TUTORIAL', `Auto-starting tutorial for first agent: ${firstAgent.name}`);
       }
     }
-  }, [agents, user, tutorialModalInfo]); // Re-run when agents array changes
+  }, [agents, user, tutorialModalInfo]);
 
   useEffect(() => {
     const handleMemoryUpdate = (event: CustomEvent) => {
@@ -584,7 +527,6 @@ function AppContent() {
     };
 
     window.addEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
-
     return () => {
       window.removeEventListener(MEMORY_UPDATE_EVENT, handleMemoryUpdate as EventListener);
     };
@@ -610,57 +552,53 @@ function AppContent() {
     };
 
     window.addEventListener('error', handleWindowError);
-
     return () => {
       window.removeEventListener('error', handleWindowError);
     };
   }, [isAuthenticated, isLoading, user]);
 
-  // Start command SSE once for hotkey support in self-hosted environments
+  // Start command SSE for hotkey support (desktop only)
   useEffect(() => {
-    if (hostingContext === 'self-hosted') {
+    if (hostingContext === 'self-hosted' && !isMobileDevice) {
       startCommandSSE(getToken);
     }
-  }, [hostingContext]); // Only restart if hosting context changes
-  
-  // Update token when it changes (without restarting SSE)
+  }, [hostingContext, isMobileDevice]);
+
+  // Update token when it changes
   useEffect(() => {
-    if (hostingContext === 'self-hosted') {
+    if (hostingContext === 'self-hosted' && !isMobileDevice) {
       updateCommandSSEToken(getToken);
     }
-  }, [getToken, hostingContext]);
+  }, [getToken, hostingContext, isMobileDevice]);
 
   useEffect(() => {
     if (!isLoading) {
       Logger.info('AUTH', `Auth loading complete, authenticated: ${isAuthenticated}`);
-      // Auto-enable ObServer if user is authenticated
       if (isAuthenticated && !isUsingObServer) {
         Logger.info('AUTH', 'Auto-enabling ObServer for authenticated user');
         setIsUsingObServer(true);
       }
-      // Show startup dialog only if user is NOT authenticated
       if (!isAuthenticated) {
         setShowStartupDialog(true);
       }
     }
   }, [isLoading, isAuthenticated]);
 
-  // Check if user should see welcome modal (using localStorage and tier)
+  // Welcome modal for free tier users
   useEffect(() => {
     if (!isLoading && isAuthenticated && user && 'sub' in user) {
       const hasSeenWelcome = localStorage.getItem(`observer_welcome_dismissed_${user.sub}`);
 
       if (!hasSeenWelcome) {
-        // Check user's tier before showing welcome modal - don't show to paying users
         const checkTierAndShowModal = async () => {
           try {
-            const token = await getAccessTokenSilently();
+            const token = await getAccessToken();
+            if (!token) return;
             const response = await fetch('https://api.observer-ai.com/quota', {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
               const data = await response.json();
-              // Only show welcome modal for free tier users
               if (data.tier === 'free' || !data.tier) {
                 Logger.info('WELCOME', 'User is on free tier, showing welcome modal');
                 setIsWelcomeModalOpen(true);
@@ -668,12 +606,10 @@ function AppContent() {
                 Logger.info('WELCOME', `User is on ${data.tier} tier, skipping welcome modal`);
               }
             } else {
-              // If we can't determine tier, show the modal to be safe
               Logger.info('WELCOME', 'Could not determine tier, showing welcome modal');
               setIsWelcomeModalOpen(true);
             }
           } catch (err) {
-            // On error, show the modal to be safe
             Logger.error('WELCOME', 'Error checking tier:', err);
             setIsWelcomeModalOpen(true);
           }
@@ -681,7 +617,7 @@ function AppContent() {
         checkTierAndShowModal();
       }
     }
-  }, [isLoading, isAuthenticated, user, getAccessTokenSilently]);
+  }, [isLoading, isAuthenticated, user, getAccessToken]);
 
   useEffect(() => {
     if (serverStatus === 'offline' && !hasCompletedStartupCheck && !isLoading && !isAuthenticated) {
@@ -696,7 +632,7 @@ function AppContent() {
     }
   }, [activeTab, fetchAgents]);
 
-  // Persist dark mode to localStorage and apply to document root
+  // Dark mode persistence
   useEffect(() => {
     localStorage.setItem('observer-dark-mode', isDarkMode.toString());
     if (isDarkMode) {
@@ -710,25 +646,17 @@ function AppContent() {
     setIsDarkMode(prev => !prev);
   }, []);
 
-  // --- NEW: Memoized sorting logic ---
-  // This will sort the agents array to bring active ones to the top.
-  // useMemo ensures this only runs when the dependencies (agents, running, starting) change.
+  // Sort agents - active ones first
   const sortedAgents = useMemo(() => {
-    // Create a shallow copy to sort, preventing mutation of the original state array.
     return [...agents].sort((a, b) => {
       const isALive = runningAgents.has(a.id) || startingAgents.has(a.id);
       const isBLive = runningAgents.has(b.id) || startingAgents.has(b.id);
 
-      if (isALive && !isBLive) {
-        return -1; // a should come before b
-      }
-      if (!isALive && isBLive) {
-        return 1; // b should come before a
-      }
-      return 0; // The order remains the same for agents with the same status
+      if (isALive && !isBLive) return -1;
+      if (!isALive && isBLive) return 1;
+      return 0;
     });
   }, [agents, runningAgents, startingAgents]);
-
 
   return (
     <div className="app-container bg-gray-50">
@@ -744,209 +672,207 @@ function AppContent() {
         `}
       </style>
 
-        <UpgradeModal
-          isOpen={isUpgradeModalOpen}
-          onClose={() => setIsUpgradeModalOpen(false)}
-          isHalfwayWarning={isHalfwayWarning}
-          quotaType={currentQuotaType}
-        />
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        isHalfwayWarning={isHalfwayWarning}
+        quotaType={currentQuotaType}
+      />
 
-        <WelcomeModal
-          isOpen={isWelcomeModalOpen}
-          onClose={() => setIsWelcomeModalOpen(false)}
-          onViewAllTiers={() => setActiveTab('obServer')}
-        />
+      <WelcomeModal
+        isOpen={isWelcomeModalOpen}
+        onClose={() => setIsWelcomeModalOpen(false)}
+        onViewAllTiers={() => setActiveTab('obServer')}
+      />
 
-        <AppHeader
-          serverStatus={serverStatus}
-          setServerStatus={setServerStatus}
-          setError={setError}
-          isUsingObServer={isUsingObServer}
-          setIsUsingObServer={setIsUsingObServer}
-          hostingContext={hostingContext}
-          authState={{
-            isLoading,
-            isAuthenticated,
-            user,
-            loginWithRedirect,
-            logout
-          }}
-          getToken={getToken}
-          onUpgradeClick={() => {
-            setIsHalfwayWarning(true);
-            setIsUpgradeModalOpen(true);
-          }}
-          onShowTerminalModal={() => setNoModels(true)}
-          quotaInfo={quotaInfo}
-          setQuotaInfo={setQuotaInfo}
-          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={toggleDarkMode}
-        />
+      <AppHeader
+        serverStatus={serverStatus}
+        setServerStatus={setServerStatus}
+        setError={setError}
+        isUsingObServer={isUsingObServer}
+        setIsUsingObServer={setIsUsingObServer}
+        hostingContext={hostingContext}
+        authState={{
+          isLoading,
+          isAuthenticated,
+          user,
+          loginWithRedirect: login,
+          logout
+        }}
+        getToken={getToken}
+        onUpgradeClick={() => {
+          setIsHalfwayWarning(true);
+          setIsUpgradeModalOpen(true);
+        }}
+        onShowTerminalModal={() => setNoModels(true)}
+        quotaInfo={quotaInfo}
+        setQuotaInfo={setQuotaInfo}
+        onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={toggleDarkMode}
+      />
 
-        <PersistentSidebar
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          isMobileMenuOpen={isMobileMenuOpen}
-          onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
-        />
+      <PersistentSidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+      />
 
-        <JupyterServerModal
-          isOpen={isJupyterModalOpen}
-          onClose={() => setIsJupyterModalOpen(false)}
-        />
+      <JupyterServerModal
+        isOpen={isJupyterModalOpen}
+        onClose={() => setIsJupyterModalOpen(false)}
+      />
 
-        <main className="w-full pt-4 px-0 md:px-4 pl-2 md:pl-20 wide:px-4 max-w-7xl mx-auto">
+      <main className="w-full pt-4 px-0 md:px-4 pl-2 md:pl-20 wide:px-4 max-w-7xl mx-auto">
+        {error && <ErrorDisplay message={error} />}
 
-          {error && <ErrorDisplay message={error} />}
-
-          {/* My Agents Tab - Always rendered, hidden when not active */}
-          <div className={activeTab !== 'myAgents' ? 'hidden' : ''}>
-            {sortedAgents.length > 0 ? (
-              <div className="px-4">
-                <AgentImportHandler
-                  onAddAgent={handleAddAgentClick}
-                  agentCount={agents.length}
-                  activeAgentCount={runningAgents.size}
-                  isRefreshing={isRefreshing}
-                  onRefresh={fetchAgents}
-                  onGenerateAgent={() => setIsConversationalModalOpen(true)}
-                />
-
-                <div className="flex flex-wrap gap-6 items-start overflow-x-hidden">
-                  {sortedAgents.map(agent => {
-                const isAgentLive = runningAgents.has(agent.id) || startingAgents.has(agent.id);
-                return (
-                  <div
-                    key={agent.id}
-                    className={`flex-shrink-0 transition-all duration-700 ease-in-out ${
-                      isAgentLive
-                        ? 'w-full'
-                        : 'w-full xl:w-[calc(50%-12px)]' // Use your preferred spacing, adjust if needed
-                    }`}
-                  >
-                    <AgentCard
-                      agent={agent}
-                      code={agentCodes[agent.id]}
-                      isRunning={runningAgents.has(agent.id)}
-                      isStarting={startingAgents.has(agent.id)}
-                      isMemoryFlashing={flashingMemories.has(agent.id)}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteClick}
-                      onToggle={toggleAgent}
-                      onMemory={handleMemoryClick}
-                      onActivity={handleActivityClick}
-                      onShowJupyterModal={() => setIsJupyterModalOpen(true)}
-                      getToken={getToken}
-                      isAuthenticated={isAuthenticated}
-                      hasQuotaError={agentsWithQuotaError.has(agent.id)}
-                      onUpgradeClick={() => {
-                        setIsHalfwayWarning(false);
-                        setIsUpgradeModalOpen(true);
-                      }}
-                      onSave={handleSaveAgent}
-                      isProUser={isProUser}
-                      onAIEdit={handleAIEditClick}
-                      hostingContext={hostingContext}
-                    />
-                  </div>
-                );
-              })}
-                </div>
-              </div>
-            ) : (
-                <GetStarted
-                  onExploreCommunity={() => setActiveTab('community')}
-                  onCreateNewAgent={handleAddAgentClick}
-                  getToken={getToken}
-                  isAuthenticated={isAuthenticated}
-                  isUsingObServer={isUsingObServer}
-                  isPro={isProUser}
-                  onSignIn={loginWithRedirect}
-                  onSwitchToObServer={() => setIsUsingObServer(true)}
-                  onUpgrade={() => {
-                    setActiveTab('obServer');
-                    setIsUsingObServer(true);
-                  }}
-                  onRefresh={fetchAgents}
-                  onUpgradeClick={() => {
-                    setIsHalfwayWarning(false);
-                    setIsUpgradeModalOpen(true);
-                  }}
-                />
-            )}
-          </div>
-
-          {/* Community Tab */}
-          <div className={`px-4 ${activeTab !== 'community' ? 'hidden' : ''}`}>
-            <CommunityTab />
-          </div>
-
-          {/* Models Tab */}
-          {activeTab === 'models' && (
+        {/* My Agents Tab */}
+        <div className={activeTab !== 'myAgents' ? 'hidden' : ''}>
+          {sortedAgents.length > 0 ? (
             <div className="px-4">
-              <AvailableModels isProUser={isProUser} />
+              <AgentImportHandler
+                onAddAgent={handleAddAgentClick}
+                agentCount={agents.length}
+                activeAgentCount={runningAgents.size}
+                isRefreshing={isRefreshing}
+                onRefresh={fetchAgents}
+                onGenerateAgent={() => setIsConversationalModalOpen(true)}
+              />
+
+              <div className="flex flex-wrap gap-6 items-start overflow-x-hidden">
+                {sortedAgents.map(agent => {
+                  const isAgentLive = runningAgents.has(agent.id) || startingAgents.has(agent.id);
+                  return (
+                    <div
+                      key={agent.id}
+                      className={`flex-shrink-0 transition-all duration-700 ease-in-out ${
+                        isAgentLive ? 'w-full' : 'w-full xl:w-[calc(50%-12px)]'
+                      }`}
+                    >
+                      <AgentCard
+                        agent={agent}
+                        code={agentCodes[agent.id]}
+                        isRunning={runningAgents.has(agent.id)}
+                        isStarting={startingAgents.has(agent.id)}
+                        isMemoryFlashing={flashingMemories.has(agent.id)}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                        onToggle={toggleAgent}
+                        onMemory={handleMemoryClick}
+                        onActivity={handleActivityClick}
+                        onShowJupyterModal={() => setIsJupyterModalOpen(true)}
+                        getToken={getToken}
+                        isAuthenticated={isAuthenticated}
+                        hasQuotaError={agentsWithQuotaError.has(agent.id)}
+                        onUpgradeClick={() => {
+                          setIsHalfwayWarning(false);
+                          setIsUpgradeModalOpen(true);
+                        }}
+                        onSave={handleSaveAgent}
+                        isProUser={isProUser}
+                        onAIEdit={handleAIEditClick}
+                        hostingContext={hostingContext}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          ) : (
+            <GetStarted
+              onExploreCommunity={() => setActiveTab('community')}
+              onCreateNewAgent={handleAddAgentClick}
+              getToken={getToken}
+              isAuthenticated={isAuthenticated}
+              isUsingObServer={isUsingObServer}
+              isPro={isProUser}
+              onSignIn={login}
+              onSwitchToObServer={() => setIsUsingObServer(true)}
+              onUpgrade={() => {
+                setActiveTab('obServer');
+                setIsUsingObServer(true);
+              }}
+              onRefresh={fetchAgents}
+              onUpgradeClick={() => {
+                setIsHalfwayWarning(false);
+                setIsUpgradeModalOpen(true);
+              }}
+            />
           )}
+        </div>
 
-          {/* Memory Store Tab */}
-          <div className={`px-4 ${activeTab !== 'memoryStore' ? 'hidden' : ''}`}>
-            <MemoryStoreTab />
+        {/* Community Tab */}
+        <div className={`px-4 ${activeTab !== 'community' ? 'hidden' : ''}`}>
+          <CommunityTab />
+        </div>
+
+        {/* Models Tab */}
+        {activeTab === 'models' && (
+          <div className="px-4">
+            <AvailableModels isProUser={isProUser} />
           </div>
+        )}
 
-          {/* Recordings Tab */}
-          <div className={`px-4 ${activeTab !== 'recordings' ? 'hidden' : ''}`}>
-            <RecordingsViewer />
+        {/* Memory Store Tab */}
+        <div className={`px-4 ${activeTab !== 'memoryStore' ? 'hidden' : ''}`}>
+          <MemoryStoreTab />
+        </div>
+
+        {/* Recordings Tab */}
+        <div className={`px-4 ${activeTab !== 'recordings' ? 'hidden' : ''}`}>
+          <RecordingsViewer />
+        </div>
+
+        {/* Settings Tab */}
+        <div className={`px-4 ${activeTab !== 'settings' ? 'hidden' : ''}`}>
+          <SettingsTab />
+        </div>
+
+        {/* ObServer Tab */}
+        <div className={`px-4 ${activeTab !== 'obServer' ? 'hidden' : ''}`}>
+          <ObServerTab />
+        </div>
+
+        {/* Fallback for unknown tabs */}
+        {!['myAgents', 'community', 'models', 'recordings', 'memoryStore', 'settings', 'obServer'].includes(activeTab) && (
+          <div className="text-center p-8">
+            <p className="text-gray-500">This feature is coming soon!</p>
           </div>
+        )}
+      </main>
 
-          {/* Settings Tab */}
-          <div className={`px-4 ${activeTab !== 'settings' ? 'hidden' : ''}`}>
-            <SettingsTab />
-          </div>
+      <SimpleCreatorModal
+        isOpen={isSimpleCreatorOpen}
+        onClose={() => setIsSimpleCreatorOpen(false)}
+        onNext={handleSimpleCreatorNext}
+        isAuthenticated={isAuthenticated}
+        hostingContext={hostingContext}
+      />
 
-          {/* ObServer Tab */}
-          <div className={`px-4 ${activeTab !== 'obServer' ? 'hidden' : ''}`}>
-            <ObServerTab />
-          </div>
-
-          {/* Fallback for unknown tabs */}
-          {!['myAgents', 'community', 'models', 'recordings', 'memoryStore', 'settings', 'obServer'].includes(activeTab) && (
-            <div className="text-center p-8">
-              <p className="text-gray-500">This feature is coming soon!</p>
-            </div>
-          )}
-        </main>
-
-        <SimpleCreatorModal
-          isOpen={isSimpleCreatorOpen}
-          onClose={() => setIsSimpleCreatorOpen(false)}
-          onNext={handleSimpleCreatorNext}
-          isAuthenticated={isAuthenticated}
-          hostingContext={hostingContext}
-        />
-        <ConversationalGeneratorModal
-          isOpen={isConversationalModalOpen}
-          onClose={() => {
-            setIsConversationalModalOpen(false);
-            setAiEditMessage(undefined); // Clear the AI edit message when closing
-          }}
-          getToken={getToken}
-          isAuthenticated={isAuthenticated}
-          isUsingObServer={isUsingObServer}
-          isPro={isProUser}
-          onSignIn={loginWithRedirect}
-          onSwitchToObServer={() => setIsUsingObServer(true)}
-          onUpgrade={() => {
-            setActiveTab('obServer');
-            setIsUsingObServer(true);
-          }}
-          onRefresh={fetchAgents}
-          initialMessage={aiEditMessage}
-          onUpgradeClick={() => {
-            setIsHalfwayWarning(false);
-            setIsUpgradeModalOpen(true);
-          }}
-        />
+      <ConversationalGeneratorModal
+        isOpen={isConversationalModalOpen}
+        onClose={() => {
+          setIsConversationalModalOpen(false);
+          setAiEditMessage(undefined);
+        }}
+        getToken={getToken}
+        isAuthenticated={isAuthenticated}
+        isUsingObServer={isUsingObServer}
+        isPro={isProUser}
+        onSignIn={login}
+        onSwitchToObServer={() => setIsUsingObServer(true)}
+        onUpgrade={() => {
+          setActiveTab('obServer');
+          setIsUsingObServer(true);
+        }}
+        onRefresh={fetchAgents}
+        initialMessage={aiEditMessage}
+        onUpgradeClick={() => {
+          setIsHalfwayWarning(false);
+          setIsUpgradeModalOpen(true);
+        }}
+      />
 
       {isEditModalOpen && (
         <EditAgentModal
@@ -978,7 +904,7 @@ function AppContent() {
         />
       )}
 
-      {/* Mobile FAB - only shows below md */}
+      {/* Mobile FAB */}
       <button
         onClick={() => setIsMobileFooterOpen(true)}
         className="fixed bottom-4 right-4 z-50 md:hidden w-9 h-9 bg-gray-800 text-white rounded-full shadow-lg flex items-center justify-center"
@@ -990,25 +916,21 @@ function AppContent() {
       {/* Mobile expanded footer panel */}
       {isMobileFooterOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/50 z-50 md:hidden"
             onClick={() => setIsMobileFooterOpen(false)}
           />
-          {/* Panel */}
           <div
             className="fixed bottom-0 left-0 right-0 bg-white border-t z-50 md:hidden"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
             <div className="max-w-7xl mx-auto px-4 py-3 relative">
-              {/* Close button */}
               <button
                 onClick={() => setIsMobileFooterOpen(false)}
                 className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-700"
               >
                 <X size={20} />
               </button>
-              {/* Footer content */}
               <div className="flex flex-col space-y-3">
                 <div className="flex space-x-3">
                   <button
@@ -1031,52 +953,17 @@ function AppContent() {
                   <div className="flex items-center space-x-4">
                     <span className="text-xs text-gray-500">Support the Project!</span>
                     <div className="flex items-center space-x-2">
-                      <a
-                        href="https://discord.gg/wnBb7ZQDUC"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-500 hover:text-indigo-600"
-                        title="Join our Discord community"
-                      >
-                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.127 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
-                        </svg>
+                      <a href="https://discord.gg/wnBb7ZQDUC" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:text-indigo-600" title="Join our Discord community">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.127 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" /></svg>
                       </a>
-
-                      <a
-                        href="https://x.com/AppObserverAI"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-800 hover:text-gray-900"
-                        title="Follow us on X (Twitter)"
-                      >
-                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                        </svg>
+                      <a href="https://x.com/AppObserverAI" target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-gray-900" title="Follow us on X (Twitter)">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                       </a>
-
-                      <a
-                        href="https://buymeacoffee.com/roy3838"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-600 hover:text-gray-900"
-                        title="Support the project"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
+                      <a href="https://buymeacoffee.com/roy3838" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900" title="Support the project">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                       </a>
-
-                      <a
-                        href="https://github.com/Roy3838/Observer"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-600 hover:text-gray-900"
-                        title="GitHub Repository"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
-                          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
-                        </svg>
+                      <a href="https://github.com/Roy3838/Observer" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900" title="GitHub Repository">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg>
                       </a>
                     </div>
                   </div>
@@ -1087,7 +974,7 @@ function AppContent() {
         </>
       )}
 
-      {/* Desktop footer - fixed overlay */}
+      {/* Desktop footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t z-40 hidden md:block">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
@@ -1111,52 +998,17 @@ function AppContent() {
               </button>
               <span className="text-xs text-gray-500">Support the Project!</span>
               <div className="flex items-center space-x-2">
-                <a
-                  href="https://discord.gg/wnBb7ZQDUC"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-indigo-500 hover:text-indigo-600"
-                  title="Join our Discord community"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.127 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
-                  </svg>
+                <a href="https://discord.gg/wnBb7ZQDUC" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:text-indigo-600" title="Join our Discord community">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.127 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" /></svg>
                 </a>
-
-                <a
-                  href="https://x.com/AppObserverAI"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-800 hover:text-gray-900"
-                  title="Follow us on X (Twitter)"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
+                <a href="https://x.com/AppObserverAI" target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-gray-900" title="Follow us on X (Twitter)">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                 </a>
-
-                <a
-                  href="https://buymeacoffee.com/roy3838"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-600 hover:text-gray-900"
-                  title="Support the project"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
+                <a href="https://buymeacoffee.com/roy3838" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900" title="Support the project">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                 </a>
-
-                <a
-                  href="https://github.com/Roy3838/Observer"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-600 hover:text-gray-900"
-                  title="GitHub Repository"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
-                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
-                  </svg>
+                <a href="https://github.com/Roy3838/Observer" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900" title="GitHub Repository">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg>
                 </a>
               </div>
             </div>
@@ -1188,7 +1040,7 @@ function AppContent() {
       {showStartupDialog && (
         <StartupDialogs
           onDismiss={handleDismissStartupDialog}
-          onLogin={loginWithRedirect}
+          onLogin={login}
           onToggleObServer={() => setIsUsingObServer(true)}
           isAuthenticated={isAuthenticated}
           hostingContext={hostingContext}
@@ -1202,7 +1054,6 @@ function AppContent() {
           setIsTerminalModalOpen(false);
         }}
         onPullComplete={async () => {
-          // Refresh models after pulling
           await fetchModels();
         }}
         noModels={noModels}
@@ -1232,7 +1083,6 @@ function AppContent() {
                     return updated;
                   });
                   try {
-                    // Start agent with whitelist check skipped
                     await startAgentLoop(agentId, getToken, true);
                   } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -1265,24 +1115,32 @@ function AppContent() {
   );
 }
 
+// Wrapper that uses real Auth0 hook
+function AppContentWithAuth() {
+  return <AppContent useAuthHook={useAuth} />;
+}
+
+// Wrapper that uses mock auth hook (for local dev)
+function AppContentWithMockAuth() {
+  return <AppContent useAuthHook={useMockAuth} />;
+}
+
 export function App() {
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
   Logger.info('AUTH', `is Auth disabled?: ${isAuthDisabled}`);
 
   if (isAuthDisabled) {
-    Logger.info('isAuthDisabled',"Auth0 is disabled for local development.");
-    // Even in dev mode, we need the router for consistency
+    Logger.info('isAuthDisabled', "Auth0 is disabled for local development.");
     return (
       <BrowserRouter>
         <Routes>
-          <Route path="/*" element={<AppContent />} />
+          <Route path="/*" element={<AppContentWithMockAuth />} />
         </Routes>
       </BrowserRouter>
     );
   }
 
-  // This is the main production logic
   return (
     <Auth0Provider
       domain="auth.observer-ai.com"
@@ -1303,22 +1161,10 @@ export function App() {
         );
       }}
     >
-      {/* The Router now lives inside the Auth0Provider */}
-      {/* This ensures all pages can use the useAuth0() hook */}
       <BrowserRouter>
         <Routes>
-          {/* Route 1: The special page for after payment */}
-          <Route
-            path="/upgrade-success"
-            element={<UpgradeSuccessPage />}
-          />
-
-          {/* Route 2: The catch-all for your main application */}
-          {/* The "/*" means "match any other URL" */}
-          <Route
-            path="/*"
-            element={<AppContent />}
-          />
+          <Route path="/upgrade-success" element={<UpgradeSuccessPage />} />
+          <Route path="/*" element={<AppContentWithAuth />} />
         </Routes>
       </BrowserRouter>
     </Auth0Provider>
