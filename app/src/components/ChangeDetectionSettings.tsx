@@ -19,20 +19,20 @@ interface PresetConfig {
   suspiciousSimilarity: number;
 }
 
-const MODE_DEFAULTS: Record<DetectionMode, PresetConfig> = {
-  [DetectionMode.DHashOnly]: {
+const MODE_DEFAULTS: Record<string, PresetConfig> = {
+  "Detect Mainly Camera Changes": {
     textSimilarity: 0.90,
     dhashImageSimilarity: 0.85, // More lenient for camera noise
     pixelImageSimilarity: 0.95, // Not used but set sensibly
     suspiciousSimilarity: 0.998, // Not used
   },
-  [DetectionMode.PixelDifferenceOnly]: {
+  "Detect Mainly UI Changes": {
     textSimilarity: 0.90,
     dhashImageSimilarity: 0.90, // Not used
     pixelImageSimilarity: 0.95, // Strict for UI testing
     suspiciousSimilarity: 0.998, // Not used
   },
-  [DetectionMode.Hybrid]: {
+  "Hybrid": {
     textSimilarity: 0.90,
     dhashImageSimilarity: 0.90,
     pixelImageSimilarity: 0.95,
