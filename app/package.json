@@ -63,9 +63,9 @@
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "slate": "^0.112.0",
+    "slate": "^0.111.0",
     "slate-history": "^0.110.3",
-    "slate-react": "^0.112.1",
+    "slate-react": "^0.111.0",
     "tesseract.js": "^6.0.0",
     "ts-node": "^10.9.2",
     "yaml": "^2.7.0"

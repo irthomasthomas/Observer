@@ -59,26 +59,32 @@ jobs:
       #     wget -O ~/.cache/tauri-bundler/AppRun-x86_64 https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
       #     chmod +x ~/.cache/tauri-bundler/AppRun-x86_64
 
-      # 4. Install frontend dependencies
-      #    We specify the working-directory to run this command inside the 'app/' folder.
+      # 4. Install pnpm
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      # 5. Install frontend dependencies
       - name: Install app dependencies
-        run: npm install
+        run: pnpm install
         working-directory: ./app
 
-      # 5. Build the Tauri application and create a GitHub release
+      # 6. Build the frontend
+      - name: Build frontend
+        run: pnpm build
+        working-directory: ./app
+
+      # 7. Build the Tauri application and create a GitHub release
       - name: Build and release Tauri app
-        # This is an official action from the Tauri team.
         uses: tauri-apps/tauri-action@v0
         env:
-          # This token is provided by GitHub Actions for free.
-          # It's required to create a release.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
-          # This is the most important part:
-          # It tells the action that your Tauri project is in the 'app/' directory.
-          projectPath: ./app
+          # Desktop Tauri project location
+          projectPath: ./app/desktop
 
           # Config for the GitHub Release
           tagName: ${{ github.ref_name }} # Uses the tag name that triggered the workflow (e.g., v1.0.0)
