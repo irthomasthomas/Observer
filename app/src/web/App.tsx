@@ -3,6 +3,7 @@ import { Terminal, MessageSquare, ChevronUp, X } from 'lucide-react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useAuth, useMockAuth, type UseAuthReturn } from '@hooks/useAuth';
+import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
 import { isMobile } from '@utils/platform';
 import {
   listAgents,
@@ -51,6 +52,9 @@ import InteractiveTutorial from '@components/InteractiveTutorial';
 // Main app content - uses the unified auth hook
 function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
   const { isAuthenticated, isLoading, user, login, logout, getAccessToken } = useAuthHook();
+
+  // Handle iOS keyboard - updates CSS variables when keyboard shows/hides
+  useIOSKeyboard();
 
   const [agents, setAgents] = useState<CompleteAgent[]>([]);
   const [agentCodes, setAgentCodes] = useState<Record<string, string>>({});

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap, Settings
 } from 'lucide-react';
@@ -104,10 +105,10 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
                 <span className="truncate max-w-[150px]">{currentModel || 'Select Model'}</span>
                 <ChevronDown className="-mr-1 ml-1.5 h-4 w-4" />
             </button>
-            {isOpen && dropdownPosition && (
+            {isOpen && dropdownPosition && createPortal(
                 <div
                     ref={dropdownRef}
-                    className="fixed w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+                    className="fixed w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[100]"
                     style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
                 >
                     <div className="py-1 max-h-72 overflow-y-auto">
@@ -140,7 +141,8 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
                             </button>
                         ))}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

@@ -115,6 +115,7 @@ pub fn run() {
         .plugin(tauri_plugin_edge_to_edge::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_auth::init())
+        .plugin(tauri_plugin_ios_keyboard::init())
         .setup(move |app| {
             // Load persisted ollama_url from settings.json
             let config_path = app.path().app_data_dir()
