@@ -36,7 +36,7 @@ tower-http = { version = "0.5.0", features = ["fs", "cors"] }
 futures = "0.3"
 reqwest = { version = "0.12", features = ["json", "stream"] }
 http-body-util = "0.1"
-tauri-plugin-dialog = "2.4"
+tauri-plugin-dialog = "2.6"
 tauri-plugin-notification = "2.3"
 uuid = { version = "1.8", features = ["v4"] }
 

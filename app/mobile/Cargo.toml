@@ -22,7 +22,7 @@ log = "0.4"
 tauri-plugin-screen-capture = { path = "./plugins/screen-capture" }
 tauri-plugin-pip = { path = "./plugins/pip" }
 tauri-plugin-notification = "2.3"
-tauri-plugin-dialog = "2.4"
+tauri-plugin-dialog = "2.6"
 tauri-plugin-shell = "2.3"
 tauri-plugin-os = "2.3"
 tauri-plugin-edge-to-edge = "0.3"
