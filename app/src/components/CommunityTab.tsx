@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit, Flag, Send, X } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@hooks/useAuth';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
 import PersonalInfoWarningModal from '@components/PersonalInfoWarningModal';
 import { detectSensitiveFunctions } from '@utils/code_sanitizer';
@@ -44,7 +44,7 @@ interface AgentUpload {
 }
 
 const CommunityTab: React.FC = () => {
-  const { isAuthenticated: auth0IsAuthenticated, loginWithRedirect, user: auth0User, isLoading, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated: auth0IsAuthenticated, login, user: auth0User, isLoading, getAccessToken } = useAuth();
   const [agents, setAgents] = useState<MarketplaceAgent[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,17 +137,13 @@ const CommunityTab: React.FC = () => {
       return undefined;
     }
     try {
-      const token = await getAccessTokenSilently({
-        authorizationParams: {
-          audience: 'https://api.observer-ai.com',
-        },
-      });
+      const token = await getAccessToken();
       return token;
     } catch (error) {
       Logger.error('AUTH', 'CommunityTab: Failed to retrieve access token.', error);
       throw error;
     }
-  }, [auth0IsAuthenticated, isLoading, getAccessTokenSilently]);
+  }, [auth0IsAuthenticated, isLoading, getAccessToken]);
   
   const fetchAgents = async () => {
     try {
@@ -377,7 +373,7 @@ const CommunityTab: React.FC = () => {
   // New function to handle edit button click
   const handleEditClick = (agent: MarketplaceAgent) => {
     if (!isAuthenticated) {
-      loginWithRedirect();
+      login();
       return;
     }
 
@@ -388,7 +384,7 @@ const CommunityTab: React.FC = () => {
   // Handle report button click
   const handleReportClick = (agent: MarketplaceAgent) => {
     if (!isAuthenticated) {
-      loginWithRedirect();
+      login();
       return;
     }
 
@@ -515,7 +511,7 @@ ${reportComment}
 
   const handleUploadClick = () => {
     if (!isAuthenticated) {
-      loginWithRedirect();
+      login();
       return;
     }
     
@@ -525,7 +521,7 @@ ${reportComment}
 
   const handleFileUploadClick = () => {
     if (!isAuthenticated) {
-      loginWithRedirect();
+      login();
       return;
     }
     

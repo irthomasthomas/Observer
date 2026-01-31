@@ -1,7 +1,7 @@
 // src/components/InteractiveTutorial.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@hooks/useAuth';
 import { X as CloseIcon, Sparkles, Wrench, Play } from 'lucide-react';
 import { Logger } from '@utils/logging';
 
@@ -33,7 +33,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   agentId,
   hasPhoneTools,
 }) => {
-  const { user } = useAuth0();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [dontShowAgain, setDontShowAgain] = useState(false);

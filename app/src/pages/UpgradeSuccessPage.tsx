@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@hooks/useAuth';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 export function UpgradeSuccessPage() {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessToken } = useAuth();
   const navigate = useNavigate();
 
   // State management for polling flow
@@ -22,16 +22,8 @@ export function UpgradeSuccessPage() {
         try {
           console.log(`UPGRADE_SUCCESS: Polling attempt ${attemptCount + 1}/${maxAttempts}`);
 
-          // Force fresh token on each attempt
-          await getAccessTokenSilently({
-            authorizationParams: {
-              audience: 'https://api.observer-ai.com',
-            },
-            cacheMode: 'off',
-          });
-
           // Check quota endpoint to see if upgrade is reflected
-          const token = await getAccessTokenSilently();
+          const token = await getAccessToken();
           const response = await fetch('https://api.observer-ai.com/quota', {
             headers: {
               Authorization: `Bearer ${token}`
@@ -79,7 +71,7 @@ export function UpgradeSuccessPage() {
     };
 
     checkUpgrade();
-  }, [getAccessTokenSilently, navigate]);
+  }, [getAccessToken, navigate]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-center">

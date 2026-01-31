@@ -1,7 +1,7 @@
 // src/components/WelcomeModal.new.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@hooks/useAuth';
 import { X as CloseIcon, Loader2, Sparkles, Zap, Heart, Star } from 'lucide-react';
 import { Logger } from '@utils/logging';
 
@@ -17,7 +17,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  const { getAccessTokenSilently, isAuthenticated, user } = useAuth0();
+  const { getAccessToken, isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     if (!isOpen || !isAuthenticated) {
@@ -28,7 +28,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
     const checkSubscriptionStatus = async () => {
       setStatus('loading');
       try {
-        const token = await getAccessTokenSilently();
+        const token = await getAccessToken();
         const response = await fetch('https://api.observer-ai.com/quota', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -43,13 +43,13 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
     };
 
     checkSubscriptionStatus();
-  }, [isOpen, isAuthenticated, getAccessTokenSilently]);
+  }, [isOpen, isAuthenticated, getAccessToken]);
 
   const handleApiAction = async (endpoint: 'create-checkout-session' | 'create-checkout-session-plus' | 'create-checkout-session-max' | 'create-customer-portal-session') => {
     setIsButtonLoading(true);
     setError(null);
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getAccessToken();
       const response = await fetch(`https://api.observer-ai.com/payments/${endpoint}`, {
         method: 'POST',
         headers: {
