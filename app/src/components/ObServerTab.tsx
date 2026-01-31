@@ -1,7 +1,7 @@
 // src/components/ObServerTab.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@hooks/useAuth';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { PricingTable } from './PricingTable'; // Import our new reusable component
@@ -11,7 +11,7 @@ export const ObServerTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   
-  const { getAccessTokenSilently, isAuthenticated, loginWithRedirect } = useAuth0();
+  const { getAccessToken, isAuthenticated, login } = useAuth();
 
   // This logic stays here, as this component is responsible for fetching its own data.
   useEffect(() => {
@@ -23,7 +23,7 @@ export const ObServerTab: React.FC = () => {
     const checkProStatus = async () => {
       setStatus('loading');
       try {
-        const token = await getAccessTokenSilently();
+        const token = await getAccessToken();
         const response = await fetch('https://api.observer-ai.com/quota', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -39,14 +39,14 @@ export const ObServerTab: React.FC = () => {
     };
 
     checkProStatus();
-  }, [isAuthenticated, getAccessTokenSilently]);
+  }, [isAuthenticated, getAccessToken]);
 
   // This logic also stays here. The PricingTable component calls these functions via props.
   const handleApiAction = async (endpoint: 'create-checkout-session' | 'create-checkout-session-plus' | 'create-checkout-session-max' | 'create-customer-portal-session') => {
     setIsButtonLoading(true);
     setError(null);
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getAccessToken();
       const response = await fetch(`https://api.observer-ai.com/payments/${endpoint}`, {
         method: 'POST',
         headers: {
@@ -107,7 +107,7 @@ export const ObServerTab: React.FC = () => {
           onCheckoutPlus={handlePlusCheckout}
           onCheckoutMax={handleMaxCheckout}
           onManageSubscription={() => handleApiAction('create-customer-portal-session')}
-          onLogin={loginWithRedirect}
+          onLogin={login}
           isTriggeredByQuotaError={true}
         />
       </div>

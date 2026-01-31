@@ -1,12 +1,14 @@
 // src/components/CommunityTab.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit } from 'lucide-react';
+import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit, Flag, Send, X } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@hooks/useAuth';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
 import PersonalInfoWarningModal from '@components/PersonalInfoWarningModal';
 import { detectSensitiveFunctions } from '@utils/code_sanitizer';
+import { isIOS } from '@utils/platform';
+import { sendEmail } from '@utils/handlers/utils';
 
 
 // Type for marketplace agents matching CompleteAgent structure
@@ -42,7 +44,7 @@ interface AgentUpload {
 }
 
 const CommunityTab: React.FC = () => {
-  const { isAuthenticated: auth0IsAuthenticated, loginWithRedirect, user: auth0User, isLoading, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated: auth0IsAuthenticated, login, user: auth0User, isLoading, getAccessToken } = useAuth();
   const [agents, setAgents] = useState<MarketplaceAgent[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,13 @@ const CommunityTab: React.FC = () => {
     code: string;
     memory: string;
   } | null>(null);
+
+  // State for report agent modal
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportingAgent, setReportingAgent] = useState<MarketplaceAgent | null>(null);
+  const [reportComment, setReportComment] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportStatus, setReportStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   // File input ref for direct file uploads
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,17 +137,13 @@ const CommunityTab: React.FC = () => {
       return undefined;
     }
     try {
-      const token = await getAccessTokenSilently({
-        authorizationParams: {
-          audience: 'https://api.observer-ai.com',
-        },
-      });
+      const token = await getAccessToken();
       return token;
     } catch (error) {
       Logger.error('AUTH', 'CommunityTab: Failed to retrieve access token.', error);
       throw error;
     }
-  }, [auth0IsAuthenticated, isLoading, getAccessTokenSilently]);
+  }, [auth0IsAuthenticated, isLoading, getAccessToken]);
   
   const fetchAgents = async () => {
     try {
@@ -368,12 +373,84 @@ const CommunityTab: React.FC = () => {
   // New function to handle edit button click
   const handleEditClick = (agent: MarketplaceAgent) => {
     if (!isAuthenticated) {
-      loginWithRedirect();
+      login();
       return;
     }
-    
+
     setEditingAgent(agent);
     setShowEditModal(true);
+  };
+
+  // Handle report button click
+  const handleReportClick = (agent: MarketplaceAgent) => {
+    if (!isAuthenticated) {
+      login();
+      return;
+    }
+
+    setReportingAgent(agent);
+    setShowReportModal(true);
+  };
+
+  // Handle report submission
+  const handleReportSubmit = async () => {
+    if (!reportingAgent || !reportComment.trim() || !isAuthenticated) return;
+
+    setIsSubmittingReport(true);
+    setReportStatus('idle');
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication failed. Could not retrieve token.');
+      }
+
+      const emailContent = `# Agent Report
+
+## Reported Agent
+- **Name:** ${reportingAgent.name}
+- **ID:** ${reportingAgent.id}
+- **Model:** ${reportingAgent.model_name}
+${reportingAgent.author ? `- **Author:** ${reportingAgent.author}` : ''}
+
+## Report Details
+**Reason:**
+${reportComment}
+
+---
+
+## Metadata
+- **Timestamp:** ${new Date().toISOString()}
+- **Reporter:** ${user?.email || 'Unknown'}
+`;
+
+      await sendEmail(emailContent, 'roymedina@me.com', token);
+
+      setReportStatus('success');
+      setTimeout(() => {
+        setShowReportModal(false);
+        setReportingAgent(null);
+        setReportComment('');
+        setReportStatus('idle');
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to send report email:', error);
+      setReportStatus('error');
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
+  // Handle report modal close
+  const handleReportClose = () => {
+    if (!isSubmittingReport) {
+      setShowReportModal(false);
+      setTimeout(() => {
+        setReportingAgent(null);
+        setReportComment('');
+        setReportStatus('idle');
+      }, 300);
+    }
   };
 
   // New function to handle saving edited agent
@@ -434,7 +511,7 @@ const CommunityTab: React.FC = () => {
 
   const handleUploadClick = () => {
     if (!isAuthenticated) {
-      loginWithRedirect();
+      login();
       return;
     }
     
@@ -444,7 +521,7 @@ const CommunityTab: React.FC = () => {
 
   const handleFileUploadClick = () => {
     if (!isAuthenticated) {
-      loginWithRedirect();
+      login();
       return;
     }
     
@@ -759,7 +836,7 @@ const CommunityTab: React.FC = () => {
                     Model: {agent.model_name}
                   </p>
                   <p className="mt-2 text-sm">{agent.description}</p>
-                  {agent.author && (
+                  {agent.author && !isIOS() && (
                     <p className="mt-1 text-xs text-gray-500">
                       Contributed by: {agent.author}
                       {agent.date_added && (
@@ -808,29 +885,29 @@ const CommunityTab: React.FC = () => {
       {/* Agent Details Modal */}
       {selectedAgent && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4"
           onClick={closeDetails}
         >
           <div
-            className="bg-white rounded-lg shadow-lg w-3/4 max-w-4xl max-h-3/4 flex flex-col"
+            className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-xl font-semibold">{selectedAgent.name}</h2>
-              <button onClick={closeDetails} className="p-1 rounded-full hover:bg-gray-100">
-                &times;
+            <div className="flex justify-between items-center p-4 border-b flex-shrink-0">
+              <h2 className="text-xl font-semibold truncate pr-4">{selectedAgent.name}</h2>
+              <button onClick={closeDetails} className="p-2 rounded-full hover:bg-gray-100 flex-shrink-0">
+                <X className="h-5 w-5" />
               </button>
             </div>
             
-            <div className="flex-1 p-4 overflow-auto">
+            <div className="flex-1 p-4 overflow-y-auto overflow-x-hidden min-h-0">
               <div className="mb-4">
                 <h3 className="font-medium mb-2">Details</h3>
-                <p><strong>ID:</strong> {selectedAgent.id}</p>
+                <p className="break-words"><strong>ID:</strong> {selectedAgent.id}</p>
                 <p><strong>Model:</strong> {selectedAgent.model_name}</p>
                 <p><strong>Interval:</strong> {selectedAgent.loop_interval_seconds}s</p>
-                <p><strong>Description:</strong> {selectedAgent.description}</p>
+                <p className="break-words"><strong>Description:</strong> {selectedAgent.description}</p>
                 
-                {selectedAgent.author && (
+                {selectedAgent.author && !isIOS() && (
                   <div className="mt-2 p-2 bg-blue-50 rounded-md text-sm">
                     <p><strong>Author:</strong> {selectedAgent.author}</p>
                     {selectedAgent.date_added && (
@@ -857,27 +934,38 @@ const CommunityTab: React.FC = () => {
               </div>
             </div>
             
-            <div className="p-4 border-t flex justify-end space-x-3">
-              {isAuthorOfAgent(selectedAgent) && (
-                <button
-                  onClick={() => {
-                    handleEditClick(selectedAgent);
-                    closeDetails();
-                  }}
-                  className="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600"
-                >
-                  Edit Agent
-                </button>
-              )}
+            <div className="p-4 border-t flex flex-col sm:flex-row justify-between gap-3 flex-shrink-0">
               <button
                 onClick={() => {
-                  handleImport(selectedAgent);
-                  closeDetails();
+                  handleReportClick(selectedAgent);
                 }}
-                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"
+                className="px-4 py-3 sm:py-2 rounded-md border border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 order-last sm:order-first"
               >
-                Import Agent
+                <Flag className="h-4 w-4" />
+                Report
               </button>
+              <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3">
+                {isAuthorOfAgent(selectedAgent) && (
+                  <button
+                    onClick={() => {
+                      handleEditClick(selectedAgent);
+                      closeDetails();
+                    }}
+                    className="px-4 py-3 sm:py-2 rounded-md bg-green-500 text-white hover:bg-green-600"
+                  >
+                    Edit Agent
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    handleImport(selectedAgent);
+                    closeDetails();
+                  }}
+                  className="px-4 py-3 sm:py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"
+                >
+                  Import Agent
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1000,6 +1088,114 @@ const CommunityTab: React.FC = () => {
         onEditAgent={handleWarningEditAgent}
         onUploadAnyway={handleWarningUploadAnyway}
       />
+
+      {/* Report Agent Modal */}
+      {showReportModal && reportingAgent && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4"
+          onClick={handleReportClose}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {reportStatus === 'idle' && (
+              <>
+                <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                  <h2 className="text-xl font-semibold text-gray-800">Report Agent</h2>
+                  <button
+                    onClick={handleReportClose}
+                    className="p-1 rounded-full text-gray-400 hover:bg-gray-100 transition"
+                    disabled={isSubmittingReport}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      Reporting: <strong>{reportingAgent.name}</strong>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for report <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={reportComment}
+                      onChange={(e) => setReportComment(e.target.value)}
+                      placeholder="Please describe why you're reporting this agent..."
+                      className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition resize-none"
+                      rows={4}
+                      disabled={isSubmittingReport}
+                    />
+                  </div>
+
+                  <p className="text-xs text-gray-500">
+                    Reports help keep the community safe. Please provide as much detail as possible.
+                  </p>
+
+                  <button
+                    onClick={handleReportSubmit}
+                    disabled={!reportComment.trim() || isSubmittingReport || !isAuthenticated}
+                    className="w-full px-4 py-3 bg-red-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                  >
+                    {isSubmittingReport ? 'Sending...' : 'Submit Report'}
+                    <Send className="w-4 h-4" />
+                  </button>
+
+                  {!isAuthenticated && (
+                    <p className="text-xs text-red-600 text-center flex items-center justify-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4" />
+                      Please sign in to report agents.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {reportStatus === 'success' && (
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg
+                    className="w-8 h-8 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+                <p className="text-lg font-semibold text-gray-800">Report Submitted</p>
+                <p className="text-sm text-gray-600 mt-1">Thank you for helping keep the community safe.</p>
+              </div>
+            )}
+
+            {reportStatus === 'error' && (
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+                <p className="text-lg font-semibold text-gray-800">Oops!</p>
+                <p className="text-sm text-gray-600 mt-1">Something went wrong. Please try again.</p>
+                <button
+                  onClick={() => setReportStatus('idle')}
+                  className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

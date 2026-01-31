@@ -96,8 +96,13 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
       {/* Footer */}
       {(isExpanded || isMobileMenuOpen) && (
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            Observer v0.1.0
+          <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
+            <div>Observer v0.1.0</div>
+            <div className="flex justify-center gap-2">
+              <a href="https://observer-ai.com/#/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">Privacy</a>
+              <span>·</span>
+              <a href="https://observer-ai.com/#/terms" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">Terms</a>
+            </div>
           </div>
         </div>
       )}

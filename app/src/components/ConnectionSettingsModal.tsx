@@ -1,8 +1,9 @@
 // components/ConnectionSettingsModal.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import type { CustomServer } from '@utils/inferenceServer';
+import { isTauri } from '@utils/platform';
 
 // Re-using the types from AppHeader. You might want to move these to a shared types file.
 type QuotaInfo = {
@@ -28,6 +29,10 @@ interface ConnectionSettingsModalProps {
   onRemoveCustomServer: (address: string) => void;
   onToggleCustomServer: (address: string) => void;
   onCheckCustomServer: (address: string) => void;
+  // Tauri-specific props for inference URL management
+  appInferenceUrl?: string | null;
+  onSetAppInferenceUrl?: (url: string) => void;
+  isCheckingAppServer?: boolean;
 }
 
 const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
@@ -45,10 +50,20 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
   onRemoveCustomServer,
   onToggleCustomServer,
   onCheckCustomServer,
+  appInferenceUrl,
+  onSetAppInferenceUrl,
 }) => {
   const [isAddingServer, setIsAddingServer] = useState(false);
   const [newServerAddress, setNewServerAddress] = useState('');
   const [addError, setAddError] = useState('');
+  const [inferenceUrlInput, setInferenceUrlInput] = useState(appInferenceUrl || 'http://localhost:11434');
+
+  // Update input when appInferenceUrl changes
+  useEffect(() => {
+    if (appInferenceUrl) {
+      setInferenceUrlInput(appInferenceUrl);
+    }
+  }, [appInferenceUrl]);
 
   if (!isOpen) return null;
 
@@ -123,7 +138,7 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
         </div>
 
         {/* Local Server Section */}
-        <div className="p-3 border rounded-md bg-gray-50">
+        <div className="p-3 border rounded-md bg-gray-50 mb-4">
             <div className="flex justify-between items-center">
                 <label className="font-medium text-gray-700">Local Server</label>
                 <div className="flex items-center space-x-2">
@@ -141,13 +156,43 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
                   </button>
                 </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">http://localhost:3838</p>
+
+            {/* Tauri-only: Editable inference URL */}
+            {isTauri() && (
+              <div className="mt-3">
+                <label className="text-xs text-gray-600 mb-1 block">Inference Server URL</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={inferenceUrlInput}
+                    onChange={(e) => setInferenceUrlInput(e.target.value)}
+                    placeholder="http://192.168.1.100:11434"
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => {
+                      onSetAppInferenceUrl?.(inferenceUrlInput);
+                    }}
+                    className="px-3 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                  >
+                    Save
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Set your Ollama or compatible server address</p>
+              </div>
+            )}
+
+            {/* Browser-only: Show localhost address */}
+            {!isTauri() && (
+              <p className="text-xs text-gray-500 mt-1">http://localhost:3838</p>
+            )}
         </div>
 
-        {/* Custom Servers Section */}
+        {/* Custom Servers Section - only show when NOT in Tauri */}
+        {!isTauri() && (
         <div className="mt-4">
           <h3 className="font-medium text-gray-700 mb-2">Custom Inference Servers</h3>
-          <p className="text-xs text-gray-500 mt-1">Warning: Manage CORS correctly with a proxy.</p>
+          <p className="text-xs text-gray-500 mb-2">Warning: Manage CORS correctly with a proxy.</p>
 
           {/* Custom servers list */}
           {customServers.length > 0 && (
@@ -252,6 +297,7 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
             </div>
           )}
         </div>
+        )}
 
       </div>
     </div>

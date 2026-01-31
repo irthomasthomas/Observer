@@ -1,7 +1,7 @@
 // src/components/InteractiveTutorial.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@hooks/useAuth';
 import { X as CloseIcon, Sparkles, Wrench, Play } from 'lucide-react';
 import { Logger } from '@utils/logging';
 
@@ -33,7 +33,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   agentId,
   hasPhoneTools,
 }) => {
-  const { user } = useAuth0();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -568,8 +568,8 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           </button>
         )}
 
-        {/* Don't show again checkbox (on last step or second to last) */}
-        {currentStep >= steps.length - 2 && (
+        {/* Don't show again checkbox (on first step, or last two steps) */}
+        {(currentStep === 0 || currentStep >= steps.length - 2) && (
           <div className="pt-3 border-t border-gray-200">
             <label className="flex items-center cursor-pointer text-xs text-gray-600 hover:text-gray-800 transition-colors">
               <input

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap, Settings
 } from 'lucide-react';
@@ -37,6 +38,8 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [availableModels, setAvailableModels] = useState<{ name: string; multimodal?: boolean; pro?: boolean; server: string; }[]>([]);
+    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const fetchModels = async () => {
@@ -55,38 +58,70 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
         }
     };
 
+    const updateDropdownPosition = () => {
+        if (buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setDropdownPosition({
+                top: rect.bottom + 8,
+                left: rect.right - 192, // 192px = w-48 (12rem)
+            });
+        }
+    };
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false);
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+                buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        if (isOpen) {
+            updateDropdownPosition();
+            window.addEventListener('scroll', updateDropdownPosition, true);
+            window.addEventListener('resize', updateDropdownPosition);
+            return () => {
+                window.removeEventListener('scroll', updateDropdownPosition, true);
+                window.removeEventListener('resize', updateDropdownPosition);
+            };
+        }
+    }, [isOpen]);
+
     const handleToggle = () => {
-        if (!isOpen) fetchModels();
+        if (!isOpen) {
+            fetchModels();
+            updateDropdownPosition();
+        }
         setIsOpen(!isOpen);
     };
 
     return (
-        <div className="relative inline-block text-left" ref={dropdownRef}>
-            <button type="button" onClick={handleToggle} className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 md:px-2.5 md:py-1.5 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 min-h-[44px] md:min-h-0">
+        <div className="relative inline-block text-left">
+            <button ref={buttonRef} type="button" onClick={handleToggle} className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 md:px-2.5 md:py-1.5 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 min-h-[44px] md:min-h-0">
                 <span className="truncate max-w-[150px]">{currentModel || 'Select Model'}</span>
                 <ChevronDown className="-mr-1 ml-1.5 h-4 w-4" />
             </button>
-            {isOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+            {isOpen && dropdownPosition && createPortal(
+                <div
+                    ref={dropdownRef}
+                    className="fixed w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[100]"
+                    style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+                >
                     <div className="py-1 max-h-72 overflow-y-auto">
                         {isLoading && <div className="px-3 py-1.5 text-xs text-gray-500">Loading...</div>}
                         {error && <div className="px-3 py-1.5 text-xs text-red-600">{error}</div>}
                         {!isLoading && !error && availableModels.map((model) => (
-                            <button 
-                                key={model.name} 
-                                onClick={() => { 
-                                    if (model.pro && !isProUser) return; // Prevent selection of pro models for non-pro users
-                                    onModelChange(model.name); 
-                                    setIsOpen(false); 
-                                }} 
+                            <button
+                                key={model.name}
+                                onClick={() => {
+                                    if (model.pro && !isProUser) return;
+                                    onModelChange(model.name);
+                                    setIsOpen(false);
+                                }}
                                 disabled={model.pro && !isProUser}
                                 className={`${model.name === currentModel ? 'bg-gray-100' : ''} block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 ${model.pro && !isProUser ? 'opacity-50 select-none cursor-not-allowed' : ''}`}>
                                 <div className="flex items-center justify-between">
@@ -106,7 +141,8 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
                             </button>
                         ))}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

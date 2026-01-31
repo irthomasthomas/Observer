@@ -5,6 +5,7 @@ import {
   Loader2, Zap, ExternalLink, Heart, HeartCrack,
   Check, HardDrive, Server, Sparkles
 } from 'lucide-react';
+import { isIOS } from '../utils/platform';
 
 // Define the props this component will accept
 interface PricingTableProps {
@@ -38,6 +39,24 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   isTriggeredByQuotaError = false,
   isHalfwayWarning = false,
 }) => {
+  // On iOS, show alternative message instead of pricing (App Store compliance)
+  if (isIOS()) {
+    return (
+      <div className="w-full max-w-md mx-auto p-6 bg-white rounded-lg text-center">
+        <div className="flex justify-center mb-4">
+          <HardDrive className="h-12 w-12 text-blue-500" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Use Local Models</h2>
+        <p className="text-gray-600 mb-4">
+          Keep monitoring with local models! They run directly on your device with no usage limits.
+        </p>
+        <p className="text-sm text-gray-500">
+          For cloud features and subscriptions, please visit app.observer-ai.com on desktop or web.
+        </p>
+      </div>
+    );
+  }
+
   // Use smaller sizing for non-modal contexts (like ObServerTab)
   const containerClass = isTriggeredByQuotaError
     ? "w-full max-w-6xl mx-auto p-4 sm:p-6 md:p-8 bg-white rounded-lg"  // Modal - larger
@@ -54,7 +73,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <p className={isTriggeredByQuotaError ? "text-base sm:text-lg text-gray-600 mb-3" : "text-sm sm:text-base text-gray-600 mb-2"}>{subheadline}</p>
           {isTriggeredByQuotaError && (
             <div className="flex items-center space-x-3 text-xs text-gray-500">
-              <span>🚀 900+ users</span>
+              <span>🚀 1k+ users</span>
               <span>•</span>
               <span>⭐ 1k+ GitHub stars</span>
               <span>•</span>

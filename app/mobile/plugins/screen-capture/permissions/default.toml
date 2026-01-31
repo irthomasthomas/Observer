@@ -1,0 +1,7 @@
+# Screen Capture Plugin Permissions
+
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Default permissions for screen capture plugin"
+permissions = ["allow-start-capture-cmd", "allow-stop-capture-cmd", "allow-get-frame-cmd"]

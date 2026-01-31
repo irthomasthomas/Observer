@@ -3,6 +3,7 @@
 import { Logger } from '../logging';
 import { getAgentMemory as fetchAgentMemory, updateAgentMemory as saveAgentMemory, getAgentImageMemory as fetchAgentImageMemory, updateAgentImageMemory as saveAgentImageMemory, appendAgentImageMemory as addAgentImageMemory } from '../agent_database';
 import { recordingManager } from '../recordingManager';
+import { pauseAgentLoop } from '../main_loop';
 
 /**
  * Utility functions for handlers
@@ -137,8 +138,9 @@ export function notify(title: string, message: string): void {
  * @param number The phone number to send to.
  * @param authToken The authentication token for the Observer AI API.
  * @param images Optional array of base64-encoded images (without data:image prefix).
+ * @param videos Optional array of base64-encoded videos (without data:video prefix).
  */
-export async function sendSms(message: string, number: string, authToken: string, images?: string[]): Promise<void> {
+export async function sendSms(message: string, number: string, authToken: string, images?: string[], videos?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -146,13 +148,17 @@ export async function sendSms(message: string, number: string, authToken: string
   }
 
   try {
-    const requestBody: { to_number: string; message: string; images?: string[] } = {
+    const requestBody: { to_number: string; message: string; images?: string[]; videos?: string[] } = {
       to_number: number,
       message: message,
     };
 
     if (images && images.length > 0) {
       requestBody.images = images;
+    }
+
+    if (videos && videos.length > 0) {
+      requestBody.videos = videos;
     }
 
     const response = await fetch(`${API_HOST}/tools/send-sms`, {
@@ -203,8 +209,9 @@ export async function sendSms(message: string, number: string, authToken: string
  * @param number The phone number to send to.
  * @param authToken The authentication token for the Observer AI API.
  * @param images Optional array of base64-encoded images (without data:image prefix).
+ * @param videos Optional array of base64-encoded videos (without data:video prefix).
  */
-export async function sendWhatsapp(message: string, number: string, authToken: string, images?: string[]): Promise<void> {
+export async function sendWhatsapp(message: string, number: string, authToken: string, images?: string[], videos?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -212,13 +219,17 @@ export async function sendWhatsapp(message: string, number: string, authToken: s
   }
 
   try {
-    const requestBody: { to_number: string; message: string; images?: string[] } = {
+    const requestBody: { to_number: string; message: string; images?: string[]; videos?: string[] } = {
       to_number: number,
       message: message,
     };
 
     if (images && images.length > 0) {
       requestBody.images = images;
+    }
+
+    if (videos && videos.length > 0) {
+      requestBody.videos = videos;
     }
 
     const response = await fetch(`${API_HOST}/tools/send-whatsapp`, {
@@ -265,8 +276,13 @@ export async function sendWhatsapp(message: string, number: string, authToken: s
 
 /**
  * Sends an email by calling the backend API.
+ * @param message The email message content.
+ * @param emailAddress The recipient email address.
+ * @param authToken The authentication token for the Observer AI API.
+ * @param images Optional array of base64-encoded images (without data:image prefix).
+ * @param videos Optional array of base64-encoded videos (without data:video prefix).
  */
-export async function sendEmail(message: string, emailAddress: string, authToken: string, images?: string[]): Promise<void> {
+export async function sendEmail(message: string, emailAddress: string, authToken: string, images?: string[], videos?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -274,13 +290,17 @@ export async function sendEmail(message: string, emailAddress: string, authToken
   }
 
   try {
-    const requestBody: { to_email: string; message: string; images?: string[] } = {
+    const requestBody: { to_email: string; message: string; images?: string[]; videos?: string[] } = {
       to_email: emailAddress,
       message: message,
     };
 
     if (images && images.length > 0) {
       requestBody.images = images;
+    }
+
+    if (videos && videos.length > 0) {
+      requestBody.videos = videos;
     }
 
     const response = await fetch(`${API_HOST}/tools/send-email`, {
@@ -343,8 +363,9 @@ export function markClip(label: string): void {
  * @param authToken The authentication token for the Observer AI API.
  * @param images Optional array of base64-encoded images (without data:image prefix).
  * @param title An optional title for the notification.
+ * @param videos Optional array of base64-encoded videos (without data:video prefix).
  */
-export async function sendPushover(message: string, userKey: string, authToken: string, images?: string[], title?: string): Promise<void> {
+export async function sendPushover(message: string, userKey: string, authToken: string, images?: string[], title?: string, videos?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -356,7 +377,7 @@ export async function sendPushover(message: string, userKey: string, authToken: 
   }
 
   try {
-    const requestBody: { user_key: string; message: string; title?: string; images?: string[] } = {
+    const requestBody: { user_key: string; message: string; title?: string; images?: string[]; videos?: string[] } = {
       user_key: userKey, // Note: snake_case to match the Pydantic model on the backend
       message: message,
     };
@@ -367,6 +388,10 @@ export async function sendPushover(message: string, userKey: string, authToken: 
 
     if (images && images.length > 0) {
       requestBody.images = images;
+    }
+
+    if (videos && videos.length > 0) {
+      requestBody.videos = videos;
     }
 
     const response = await fetch(`${API_HOST}/tools/send-pushover`, {
@@ -403,8 +428,9 @@ export async function sendPushover(message: string, userKey: string, authToken: 
  * @param message The main content of the notification.
  * @param webhookUrl The user's unique Discord Webhook URL.
  * @param images Optional array of base64-encoded images (without data:image prefix).
+ * @param videos Optional array of base64-encoded videos (without data:video prefix).
  */
-export async function sendDiscord(message: string, webhookUrl: string, images?: string[]): Promise<void> {
+export async function sendDiscord(message: string, webhookUrl: string, images?: string[], videos?: string[]): Promise<void> {
   if (!webhookUrl) {
     throw new Error("Discord webhook URL is missing.");
   }
@@ -413,6 +439,12 @@ export async function sendDiscord(message: string, webhookUrl: string, images?: 
   if (images && typeof images === 'string') {
     Logger.warn('utils', 'sendDiscord received a string for images parameter, wrapping in array');
     images = [images];
+  }
+
+  // Guard against videos being a string instead of array
+  if (videos && typeof videos === 'string') {
+    Logger.warn('utils', 'sendDiscord received a string for videos parameter, wrapping in array');
+    videos = [videos];
   }
 
   const DISCORD_MESSAGE_LIMIT = 1900;
@@ -442,28 +474,59 @@ export async function sendDiscord(message: string, webhookUrl: string, images?: 
       embeds: [embed]
     };
 
-    // Send images as file attachments if provided
-    if (images && images.length > 0) {
-      // For images, we need to use multipart/form-data
+    // Filter out null/undefined values
+    const validImages = images?.filter(img => img != null) || [];
+    const validVideos = videos?.filter(vid => vid != null) || [];
+    const hasImages = validImages.length > 0;
+    const hasVideos = validVideos.length > 0;
+
+    // Send images/videos as file attachments if provided
+    if (hasImages || hasVideos) {
+      // For files, we need to use multipart/form-data
       const formData = new FormData();
 
       // Add the payload as JSON string
       formData.append('payload_json', JSON.stringify(payload));
 
+      let fileIndex = 0;
+
       // Add each image as a file
-      for (let i = 0; i < images.length; i++) {
-        try {
-          // Decode base64 image
-          const base64Data = images[i];
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let j = 0; j < binaryString.length; j++) {
-            bytes[j] = binaryString.charCodeAt(j);
+      if (hasImages) {
+        for (let i = 0; i < validImages.length; i++) {
+          try {
+            // Decode base64 image
+            const base64Data = validImages[i].includes(',') ? validImages[i].split(',')[1] : validImages[i];
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let j = 0; j < binaryString.length; j++) {
+              bytes[j] = binaryString.charCodeAt(j);
+            }
+            const blob = new Blob([bytes], { type: 'image/png' });
+            formData.append(`file${fileIndex}`, blob, `image_${i+1}.png`);
+            fileIndex++;
+          } catch (error) {
+            Logger.warn('utils', `Failed to process image ${i+1} for Discord: ${error}`);
           }
-          const blob = new Blob([bytes], { type: 'image/png' });
-          formData.append(`file${i}`, blob, `image_${i+1}.png`);
-        } catch (error) {
-          Logger.warn('utils', `Failed to process image ${i+1} for Discord: ${error}`);
+        }
+      }
+
+      // Add each video as a file
+      if (hasVideos) {
+        for (let i = 0; i < validVideos.length; i++) {
+          try {
+            // Decode base64 video
+            const base64Data = validVideos[i].includes(',') ? validVideos[i].split(',')[1] : validVideos[i];
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let j = 0; j < binaryString.length; j++) {
+              bytes[j] = binaryString.charCodeAt(j);
+            }
+            const blob = new Blob([bytes], { type: 'video/webm' });
+            formData.append(`file${fileIndex}`, blob, `video_${i+1}.webm`);
+            fileIndex++;
+          } catch (error) {
+            Logger.warn('utils', `Failed to process video ${i+1} for Discord: ${error}`);
+          }
         }
       }
 
@@ -477,7 +540,7 @@ export async function sendDiscord(message: string, webhookUrl: string, images?: 
         throw new Error(`Failed to send Discord notification: ${response.status} ${errorText}`);
       }
     } else {
-      // Send as JSON if no images
+      // Send as JSON if no images or videos
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
@@ -503,8 +566,9 @@ export async function sendDiscord(message: string, webhookUrl: string, images?: 
  * @param chatId The Telegram chat ID to send the message to.
  * @param authToken The authentication token for the Observer AI API.
  * @param images Optional array of base64-encoded images (without data:image prefix).
+ * @param videos Optional array of base64-encoded videos (without data:video prefix).
  */
-export async function sendTelegram(message: string, chatId: string, authToken: string, images?: string[]): Promise<void> {
+export async function sendTelegram(message: string, chatId: string, authToken: string, images?: string[], videos?: string[]): Promise<void> {
   const API_HOST = "https://api.observer-ai.com";
 
   if (!authToken) {
@@ -512,13 +576,17 @@ export async function sendTelegram(message: string, chatId: string, authToken: s
   }
 
   try {
-    const requestBody: { chat_id: string; message: string; images?: string[] } = {
+    const requestBody: { chat_id: string; message: string; images?: string[]; videos?: string[] } = {
       chat_id: chatId,
       message: message,
     };
 
     if (images && images.length > 0) {
       requestBody.images = images;
+    }
+
+    if (videos && videos.length > 0) {
+      requestBody.videos = videos;
     }
 
     const response = await fetch(`${API_HOST}/tools/send-telegram`, {
@@ -683,7 +751,6 @@ export async function overlay(appUrl: string, message: string): Promise<void> {
  */
 export async function sleep(ms: number = 2000, agentId?: string): Promise<void> {
   if (agentId) {
-    const { pauseAgentLoop } = await import('../main_loop');
     pauseAgentLoop(agentId, ms);
   }
   await new Promise(r => setTimeout(r, ms));

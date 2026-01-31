@@ -67,7 +67,7 @@ const SensorDropdownButton = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-30 mt-1 w-full min-w-[200px] max-h-60 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto">
+        <div className="absolute z-30 bottom-full mb-1 w-full min-w-[200px] max-h-60 bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {agents.map((agent) => (
             <button
               key={agent.id}

@@ -11,9 +11,21 @@ website/src-tauri/Cargo.lock
 website/node_modules
 website/.pnp
 
+app/mobile/public
+app/mobile/AppStore.md
+
+
 app/node_modules
 app/dist
 app/.env
+app/mobile/plugins/screen-capture/ios/.build/
+app/mobile/plugins/pip/ios/.build/
+
+# Tauri Android generated API files
+app/mobile/plugins/**/android/.tauri/
+
+# Generated certs
+observer-ollama/certs/
 
 desktop/node_modules
 desktop/public/assets/

@@ -36,26 +36,18 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Vendor chunks
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('scheduler')) {
-              return 'vendor-react';
+            // Heavy isolated dependencies get their own chunks
+            if (id.includes('tesseract')) {
+              return 'vendor-tesseract';
             }
             if (id.includes('jupyterlab')) {
               return 'vendor-jupyter';
             }
-            if (id.includes('tesseract')) {
-              return 'vendor-tesseract';
+            if (id.includes('onnxruntime')) {
+              return 'vendor-onnx';
             }
-            return 'vendor'; // Other dependencies
-          }
-          
-          // App chunks
-          if (id.includes('/src/components/')) {
-            return 'app-components';
-          }
-          if (id.includes('/src/utils/')) {
-            return 'app-utils';
+            // Let Vite handle the rest automatically
           }
         }
       }

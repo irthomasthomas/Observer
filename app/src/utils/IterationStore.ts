@@ -33,7 +33,8 @@ export interface IterationData {
   tools: ToolCall[];
   duration?: number;
   hasError: boolean;
-  isSkipped?: boolean; // True if iteration was skipped due to no significant change
+  isSkipped?: boolean; // True if iteration was skipped
+  skipReason?: 'same_inputs' | 'network_error'; // Why the iteration was skipped
 }
 
 export interface AgentSession {
@@ -114,7 +115,14 @@ class IterationStoreClass {
       this.calculateDuration(currentIteration);
     } else if (logType === 'iteration-skipped') {
       currentIteration.isSkipped = true;
-      currentIteration.modelResponse = 'No significant change detected - iteration skipped to save resources.';
+      const skipReason = log.details?.content?.reason;
+      if (skipReason === 'network_error') {
+        currentIteration.skipReason = 'network_error';
+        currentIteration.modelResponse = `Network error - iteration skipped: ${log.details?.content?.error || 'Connection failed'}`;
+      } else {
+        currentIteration.skipReason = 'same_inputs';
+        currentIteration.modelResponse = 'No significant change detected - iteration skipped to save resources.';
+      }
       this.calculateDuration(currentIteration);
     } else if (logType === 'tool-success' || logType === 'tool-error') {
       this.processToolLog(currentIteration, log);

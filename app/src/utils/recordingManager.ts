@@ -239,6 +239,61 @@ class RecordingManager {
   public getState(): RecordingState {
     return this.state;
   }
+
+  /**
+   * Get the current video buffer as base64 array.
+   * Returns whatever chunks currently exist in the buffer.
+   * In BUFFERING state: returns just this loop's video.
+   * In RECORDING state: returns all video since startClip() was called.
+   *
+   * @param type - Optional. If specified, returns only that stream type.
+   *               If omitted, returns all active streams.
+   * @returns Array of base64-encoded videos. Empty array if no videos available.
+   */
+  public async getVideo(type?: RecordableStreamType): Promise<string[]> {
+    // Minimum size threshold - videos smaller than this are likely just headers/init data
+    const MIN_VIDEO_SIZE_BYTES = 10 * 1024; // 10KB
+
+    const typesToGet: RecordableStreamType[] = type
+      ? [type]
+      : (['screen', 'camera'] as RecordableStreamType[]);
+
+    const results: string[] = [];
+
+    for (const streamType of typesToGet) {
+      const chunks = this.chunks.get(streamType);
+      if (!chunks || chunks.length === 0) {
+        Logger.debug("RecordingManager", `getVideo: no chunks available for '${streamType}'`);
+        continue;
+      }
+
+      const recorder = this.recorders.get(streamType);
+      const mimeType = recorder?.mimeType || 'video/webm';
+      const blob = new Blob(chunks, { type: mimeType });
+
+      // Skip videos that are too small to be useful (likely just init data)
+      if (blob.size < MIN_VIDEO_SIZE_BYTES) {
+        Logger.warn("RecordingManager", `getVideo: '${streamType}' video too small (${blob.size} bytes < ${MIN_VIDEO_SIZE_BYTES}). Not enough data yet - try again after more iterations.`);
+        continue;
+      }
+
+      Logger.debug("RecordingManager", `getVideo for '${streamType}': ${chunks.length} chunks, ${blob.size} bytes, mimeType: ${mimeType}`);
+
+      // Convert blob to base64
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = (reader.result as string).split(',')[1];
+          resolve(result);
+        };
+        reader.readAsDataURL(blob);
+      });
+
+      results.push(base64);
+    }
+
+    return results;
+  }
 }
 
 export const recordingManager = new RecordingManager();

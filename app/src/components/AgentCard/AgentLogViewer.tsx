@@ -356,18 +356,27 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
 
       // Render minimal card for skipped iterations
       if (iteration.isSkipped) {
+        const isNetworkError = iteration.skipReason === 'network_error';
+        const borderColor = isNetworkError ? 'border-red-200' : 'border-orange-200';
+        const bgColor = isNetworkError ? 'bg-red-50' : 'bg-orange-50';
+        const dotColor = isNetworkError ? 'bg-red-500' : 'bg-orange-500';
+        const textColor = isNetworkError ? 'text-red-700' : 'text-orange-700';
+        const labelBg = isNetworkError ? 'bg-red-100' : 'bg-orange-100';
+        const labelText = isNetworkError ? 'text-red-600' : 'text-orange-600';
+        const skipMessage = isNetworkError ? 'Network Error' : 'Same Inputs';
+
         return (
           <div
             key={iteration.id}
-            className="border border-orange-200 bg-orange-50 rounded-lg px-4 py-3 transition-all duration-200 shadow-sm"
+            className={`border ${borderColor} ${bgColor} rounded-lg px-4 py-3 transition-all duration-200 shadow-sm`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
-              <span className="text-sm font-medium text-orange-700">
-                #{iterationNumber} Iteration Skipped - Same Inputs
+              <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`}></div>
+              <span className={`text-sm font-medium ${textColor}`}>
+                #{iterationNumber} Iteration Skipped - {skipMessage}
               </span>
               {sessionLabel && (
-                <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded ml-auto">
+                <span className={`text-xs ${labelBg} ${labelText} px-1.5 py-0.5 rounded ml-auto`}>
                   {sessionLabel}
                 </span>
               )}

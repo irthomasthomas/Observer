@@ -1,7 +1,7 @@
 // src/components/UpgradeModal.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@hooks/useAuth';
 import { X as CloseIcon, Loader2 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { PricingTable } from './PricingTable'; // Import our new reusable component
@@ -81,7 +81,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   
-  const { getAccessTokenSilently, isAuthenticated, loginWithRedirect } = useAuth0();
+  const { getAccessToken, isAuthenticated, login } = useAuth();
 
   // This logic is copied from ObServerTab - it's specific to this data-fetching context
   useEffect(() => {
@@ -93,7 +93,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
     const checkProStatus = async () => {
       setStatus('loading');
       try {
-        const token = await getAccessTokenSilently();
+        const token = await getAccessToken();
         const response = await fetch('https://api.observer-ai.com/quota', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -109,13 +109,13 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
     };
 
     checkProStatus();
-  }, [isOpen, isAuthenticated, getAccessTokenSilently]);
+  }, [isOpen, isAuthenticated, getAccessToken]);
 
   const handleApiAction = async (endpoint: 'create-checkout-session' | 'create-checkout-session-plus' | 'create-checkout-session-max' | 'create-customer-portal-session') => {
     setIsButtonLoading(true);
     setError(null);
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getAccessToken();
       const response = await fetch(`https://api.observer-ai.com/payments/${endpoint}`, {
         method: 'POST',
         headers: {
@@ -185,7 +185,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
             onCheckoutPlus={handlePlusCheckout}
             onCheckoutMax={handleMaxCheckout}
             onManageSubscription={() => handleApiAction('create-customer-portal-session')}
-            onLogin={loginWithRedirect}
+            onLogin={login}
             isTriggeredByQuotaError={true} // <-- Pass the special prop here
             isHalfwayWarning={isHalfwayWarning}
           />

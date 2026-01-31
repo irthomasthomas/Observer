@@ -2,30 +2,32 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 // Import the shared CSS
-import '@/index.css'; 
+import '@/index.css';
 
 // Import the three possible application entry points
 import App from './web/App'; // Your existing App.tsx, now the "WebApp"
 import LauncherShell from './desktop/LauncherShell'; // The new "DesktopApp"
 import OverlayWindow from './desktop/OverlayWindow'; // The overlay window
 
-// Helper function to safely check for the Tauri environment
-function isTauri() {
-  return Boolean(
-    typeof window !== 'undefined' &&
-    (window as any).__TAURI__
-  );
-}
+// Import platform detection utilities
+import { isDesktop } from './utils/platform';
 
 // Decide which component to render at the root level
 function getRootComponent() {
-  // Check if we're on the overlay path
-  if (window.location.pathname === '/overlay') {
+  // Desktop only: overlay route
+  if (isDesktop() && window.location.pathname === '/overlay') {
     return OverlayWindow;
   }
-  
-  // Otherwise use the original logic
-  return isTauri() ? LauncherShell : App;
+
+  // Desktop Tauri: use LauncherShell with desktop-specific features
+  if (isDesktop()) {
+    return LauncherShell;
+  }
+
+  // Mobile Tauri or Web: use App
+  // This ensures mobile Tauri users get the same UI as web users
+  // (without desktop-specific features like keyboard shortcuts, overlay controls, etc.)
+  return App;
 }
 
 const RootComponent = getRootComponent();
