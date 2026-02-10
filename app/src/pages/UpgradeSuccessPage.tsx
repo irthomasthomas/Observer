@@ -1,34 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle } from 'lucide-react';
 
 export function UpgradeSuccessPage() {
-  const { refreshSession } = useAuth();
+  const { refreshSession, logout } = useAuth();
   const navigate = useNavigate();
 
-  // State management for polling flow
   const [pageStatus, setPageStatus] = useState<'polling' | 'success' | 'timeout'>('polling');
-  const [statusMessage, setStatusMessage] = useState('Verifying your upgrade...');
   const [currentTier, setCurrentTier] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
 
   useEffect(() => {
     const checkUpgrade = async () => {
-      const maxAttempts = 15; // 15 attempts * 2 seconds = 30 seconds total
+      const maxAttempts = 15;
       let attemptCount = 0;
 
       while (attemptCount < maxAttempts) {
         try {
-          console.log(`UPGRADE_SUCCESS: Polling attempt ${attemptCount + 1}/${maxAttempts}`);
-
-          // Force fresh token on each attempt - this is the KEY pattern from the old working code
-          // Calling refreshSession() with cacheMode: 'off' ensures we get updated tier claims
-          console.log('UPGRADE_SUCCESS: Forcing fresh JWT token...');
           const token = await refreshSession();
 
           if (!token) {
-            console.warn('UPGRADE_SUCCESS: No token returned from refreshSession, retrying...');
             attemptCount++;
             setAttempts(attemptCount);
             if (attemptCount < maxAttempts) {
@@ -37,134 +29,108 @@ export function UpgradeSuccessPage() {
             continue;
           }
 
-          console.log('UPGRADE_SUCCESS: Fresh JWT obtained, checking quota...');
-
-          // Check quota endpoint to see if upgrade is reflected
           const response = await fetch('https://api.observer-ai.com/quota', {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
+            headers: { Authorization: `Bearer ${token}` }
           });
-
-
 
           if (response.ok) {
             const data = await response.json();
-            console.log('UPGRADE_SUCCESS: Quota data received:', data);
-
-            // If tier is updated (not free), we're done!
             if (data.tier && data.tier !== 'free') {
-              console.log('UPGRADE_SUCCESS: Upgrade confirmed! New tier:', data.tier);
               setCurrentTier(data.tier);
               setPageStatus('success');
-              setStatusMessage('Upgrade confirmed! Redirecting...');
-
-              // Redirect after showing success for 1.5 seconds
-              setTimeout(() => {
-                navigate('/');
-              }, 1500);
-
-              return; // Exit polling loop
+              setTimeout(() => navigate('/'), 1500);
+              return;
             }
           }
         } catch (error) {
           console.error('UPGRADE_SUCCESS: Polling error on attempt', attemptCount + 1, error);
-          // Continue polling even on errors
         }
 
-        // Update attempt counter for UI
         attemptCount++;
         setAttempts(attemptCount);
 
-        // Wait 2 seconds before next attempt (unless this was the last attempt)
         if (attemptCount < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
 
-      // Timeout - no tier change detected after 30 seconds
-      console.log('UPGRADE_SUCCESS: Polling timeout - upgrade not detected');
       setPageStatus('timeout');
-      setStatusMessage('Having trouble confirming your upgrade...');
     };
 
     checkUpgrade();
   }, [refreshSession, navigate]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-center">
-      <div className="p-8 bg-white rounded-lg shadow-md max-w-2xl w-full mx-4">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Thank You for Upgrading!</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      <div className="p-10 bg-white rounded-2xl shadow-lg max-w-md w-full mx-4 text-center">
 
-        {/* Polling State */}
+        {/* Icon */}
+        <div className="flex justify-center mb-5">
+          {pageStatus === 'polling' && (
+            <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+            </div>
+          )}
+          {pageStatus === 'success' && (
+            <div className="h-16 w-16 rounded-full bg-green-50 flex items-center justify-center">
+              <CheckCircle className="h-8 w-8 text-green-500" />
+            </div>
+          )}
+          {pageStatus === 'timeout' && (
+            <div className="h-16 w-16 rounded-full bg-green-50 flex items-center justify-center">
+              <CheckCircle className="h-8 w-8 text-green-500" />
+            </div>
+          )}
+        </div>
+
+        {/* Heading */}
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment received!</h1>
+
+        {/* Subtext */}
         {pageStatus === 'polling' && (
-          <div className="flex flex-col items-center space-y-4">
-            <div className="flex items-center justify-center space-x-3 text-gray-600">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <div className="text-left">
-                <p className="font-medium">{statusMessage}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Attempt {attempts} of {15}
-                </p>
-              </div>
-            </div>
-          </div>
+          <>
+            <p className="text-gray-500 text-sm mb-1">
+              We're updating your account on our servers.
+            </p>
+            <p className="text-xs text-gray-400">
+              Checking... ({attempts}/{15})
+            </p>
+          </>
         )}
 
-        {/* Success State */}
         {pageStatus === 'success' && (
-          <div className="flex flex-col items-center space-y-4">
-            <CheckCircle className="h-16 w-16 text-green-500" />
-            <div className="text-center">
-              <p className="text-xl font-semibold text-green-600">{statusMessage}</p>
-              {currentTier && (
-                <p className="text-sm text-gray-600 mt-2">
-                  Welcome to Observer {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}!
-                </p>
-              )}
-            </div>
-          </div>
+          <p className="text-green-600 font-medium text-sm">
+            {currentTier
+              ? `Welcome to Observer ${currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}!`
+              : 'Your account has been upgraded!'}
+          </p>
         )}
 
-        {/* Timeout State */}
         {pageStatus === 'timeout' && (
-          <div className="flex flex-col items-center space-y-4">
-            <AlertCircle className="h-16 w-16 text-orange-500" />
-            <div className="text-center max-w-md">
-              <p className="text-xl font-semibold text-gray-800 mb-3">
-                Having trouble confirming your upgrade
-              </p>
-              <p className="text-sm text-gray-600 mb-4">
-                Your payment was processed successfully, but we're still updating your account.
-                This usually takes just a few moments.
-              </p>
+          <>
+            <p className="text-gray-500 text-sm mb-6">
+              We're still updating your account on our servers — this usually
+              only takes a moment. Try logging out and back in if it doesn't
+              resolve shortly.
+            </p>
 
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg text-left text-sm">
-                <p className="font-medium mb-2 text-gray-800">What to do next:</p>
-                <ul className="list-disc ml-5 space-y-1.5 text-gray-700">
-                  <li>Wait 1-2 minutes and refresh this page</li>
-                  <li>Log out and log back in to refresh your session</li>
-                  <li>If your subscription is still not updated after a few minutes, please contact support</li>
-                </ul>
-              </div>
-
-              <div className="mt-6 flex gap-3 justify-center">
-                <button
-                  onClick={() => window.location.reload()}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  Retry Now
-                </button>
-                <button
-                  onClick={() => navigate('/')}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                >
-                  Go to Dashboard
-                </button>
-              </div>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-5 py-2.5 bg-blue-500 text-white text-sm font-medium rounded-xl hover:bg-blue-600 transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => logout()}
+                className="px-5 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Log Out
+              </button>
             </div>
-          </div>
+          </>
         )}
+
       </div>
     </div>
   );
