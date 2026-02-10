@@ -1,10 +1,11 @@
 // src/components/UpgradeModal.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@hooks/useAuth';
+import { useAuth } from '@contexts/AuthContext';
+import { useApplePayments } from '@hooks/useApplePayments';
 import { X as CloseIcon, Loader2 } from 'lucide-react';
 import { Logger } from '@utils/logging';
-import { PricingTable } from './PricingTable'; // Import our new reusable component
+import { PricingTable } from './PricingTable';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -80,8 +81,9 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
   const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
-  
+
   const { getAccessToken, isAuthenticated, login } = useAuth();
+  const applePayments = useApplePayments();
 
   // This logic is copied from ObServerTab - it's specific to this data-fetching context
   useEffect(() => {
@@ -186,8 +188,10 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
             onCheckoutMax={handleMaxCheckout}
             onManageSubscription={() => handleApiAction('create-customer-portal-session')}
             onLogin={login}
-            isTriggeredByQuotaError={true} // <-- Pass the special prop here
+            isTriggeredByQuotaError={true}
             isHalfwayWarning={isHalfwayWarning}
+            applePayments={applePayments}
+            onModalClose={onClose}
           />
         )}
       </div>

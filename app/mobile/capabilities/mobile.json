@@ -17,6 +17,7 @@
     "screen-capture:default",
     "pip:default",
     "deep-link:default",
-    "auth:default"
+    "auth:default",
+    "iap:default"
   ]
 }

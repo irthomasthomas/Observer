@@ -1,11 +1,13 @@
 // src/components/PricingTable.tsx
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Loader2, Zap, ExternalLink, Heart, HeartCrack,
-  Check, HardDrive, Server, Sparkles
+  Check, HardDrive, Server, Sparkles, RotateCcw
 } from 'lucide-react';
 import { isIOS } from '../utils/platform';
+import { Logger } from '@utils/logging';
+import type { UseApplePaymentsReturn } from '@hooks/useApplePayments';
 
 // Define the props this component will accept
 interface PricingTableProps {
@@ -22,6 +24,9 @@ interface PricingTableProps {
   onLogin: () => void;
   isTriggeredByQuotaError?: boolean; // Optional prop for special styling
   isHalfwayWarning?: boolean; // New prop to indicate halfway warning vs full limit
+  // Apple In-App Purchase - pass the whole hook result
+  applePayments?: UseApplePaymentsReturn | null;
+  onModalClose?: () => void; // Optional callback to close modal after purchase
 }
 
 export const PricingTable: React.FC<PricingTableProps> = ({
@@ -38,29 +43,88 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   onLogin,
   isTriggeredByQuotaError = false,
   isHalfwayWarning = false,
+  applePayments,
+  onModalClose,
 }) => {
-  // On iOS, show alternative message instead of pricing (App Store compliance)
-  if (isIOS()) {
-    return (
-      <div className="w-full max-w-md mx-auto p-6 bg-white rounded-lg text-center">
-        <div className="flex justify-center mb-4">
-          <HardDrive className="h-12 w-12 text-blue-500" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Use Local Models</h2>
-        <p className="text-gray-600 mb-4">
-          Keep monitoring with local models! They run directly on your device with no usage limits.
-        </p>
-        <p className="text-sm text-gray-500">
-          For cloud features and subscriptions, please visit app.observer-ai.com on desktop or web.
-        </p>
-      </div>
-    );
-  }
+  const isAppleDevice = isIOS();
+  const [internalLoading, setInternalLoading] = useState(false);
+
+  // Apple In-App Purchase handlers - handle everything internally
+  const handleApplePurchase = useCallback(async (tier: 'plus' | 'pro' | 'max') => {
+    if (!applePayments) return;
+
+    Logger.info('PRICING_TABLE', `Starting Apple purchase for tier: ${tier}`);
+    setInternalLoading(true);
+
+    try {
+      const result = await applePayments.purchaseSubscription(tier);
+      Logger.info('PRICING_TABLE', 'Purchase result:', result);
+
+      if (result.success) {
+        Logger.info('PRICING_TABLE', `Purchase successful! Navigating to /upgrade-success`);
+
+        // Close modal if provided
+        if (onModalClose) {
+          onModalClose();
+        }
+
+        // Navigate to success page which will refresh JWT and poll quota
+        window.location.href = '/upgrade-success';
+      }
+    } catch (err) {
+      Logger.error('PRICING_TABLE', 'Purchase failed:', err);
+    } finally {
+      setInternalLoading(false);
+    }
+  }, [applePayments, onModalClose]);
+
+  const handleAppleRestore = useCallback(async () => {
+    if (!applePayments) return;
+
+    Logger.info('PRICING_TABLE', 'Starting Apple restore');
+    setInternalLoading(true);
+
+    try {
+      const result = await applePayments.restorePurchases();
+      Logger.info('PRICING_TABLE', 'Restore result:', result);
+
+      if (result.success) {
+        Logger.info('PRICING_TABLE', 'Restore successful! Navigating to /upgrade-success');
+
+        // Close modal if provided
+        if (onModalClose) {
+          onModalClose();
+        }
+
+        // Navigate to success page
+        window.location.href = '/upgrade-success';
+      }
+    } catch (err) {
+      Logger.error('PRICING_TABLE', 'Restore failed:', err);
+    } finally {
+      setInternalLoading(false);
+    }
+  }, [applePayments, onModalClose]);
+
+  // Determine which checkout handlers to use (Apple native or Stripe web)
+  const handlePlusCheckout = isAppleDevice && applePayments
+    ? () => handleApplePurchase('plus')
+    : onCheckoutPlus;
+  const handleProCheckout = isAppleDevice && applePayments
+    ? () => handleApplePurchase('pro')
+    : onCheckout;
+  const handleMaxCheckout = isAppleDevice && applePayments
+    ? () => handleApplePurchase('max')
+    : onCheckoutMax;
+
+  // Combine loading states
+  const combinedLoading = isButtonLoading || internalLoading || (applePayments?.isLoading ?? false);
+  const combinedError = error || (applePayments?.error ?? null);
 
   // Use smaller sizing for non-modal contexts (like ObServerTab)
   const containerClass = isTriggeredByQuotaError
     ? "w-full max-w-6xl mx-auto p-4 sm:p-6 md:p-8 bg-white rounded-lg"  // Modal - larger
-    : "w-full max-w-2xl mx-auto p-3 sm:p-4 bg-white rounded-lg";         // Tab - 60% smaller
+    : "w-full max-w-6xl mx-auto p-4 sm:p-6 md:p-8 bg-white rounded-lg";  // Tab - same as modal
 
   return (
     <div className={containerClass}>
@@ -99,28 +163,25 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           </div>
           <ul className="space-y-2.5 mb-6 text-sm">
             <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Cost:</strong> Free to try out!</span>
-            </li>
-            <li className="flex items-start">
               <HardDrive className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
               <span><strong>Local Monitoring 24/7 </strong></span>
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Unlimited Local Notifications:</strong> Discord, Browser, System & Overlay!
-                <span className="block text-gray-600 text-xs mt-1">(SMS, Phone, Email, WhatsApp, Telegram, Pushover): 5/day</span>
+                <strong>Unlimited Discord Notifications</strong>
               </span>
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Alert Builder:</strong> 2-3 builds/week</span>
+              <span>
+                <strong>Notifications: </strong> SMS, Phone Calling, Email, WhatsApp, Telegram, Pushover <strong>5/Day</strong>
+              </span>
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Cloud Monitoring:</strong> 15 min/day
+                <strong>Cloud Monitoring:</strong> 30 min/day
                 {isHalfwayWarning && <span className="block text-yellow-600 text-xs mt-1">(Halfway there!)</span>}
               </span>
             </li>
@@ -153,28 +214,17 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <Zap className="mx-auto h-12 w-12 text-blue-500 mb-3" />
             <h2 className="text-2xl font-bold text-blue-800">Observer Plus</h2>
             <p className="text-blue-700 text-sm">Unlimited alerts for local monitoring</p>
-            <p className="text-3xl font-bold text-blue-900 mt-2">$5<span className="text-base font-normal">/month</span></p>
+            <p className="text-3xl font-bold text-blue-900 mt-2">${isAppleDevice ? '5.99' : '5'}<span className="text-base font-normal">/month</span></p>
           </div>
           <ul className="space-y-2.5 mb-6 text-sm">
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Unlimited notifications</strong> (all channels)</span>
-            </li>
-            <li className="flex items-start">
-              <HardDrive className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Local Monitoring 24/7</strong></span>
+              <span><strong>Unlimited notifications:</strong> SMS, Phone Calling, Email, WhatsApp, Telegram, Pushover
+</span>
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
               <span><strong>Unlimited Alert Builder</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Cloud Monitoring:</strong> 2 hours/day  
-              <span className="text-xs text-blue-700">     1¢/hour!</span></span>
-
-              
-
             </li>
             <li className="flex items-start">
               <Heart className="h-5 w-5 text-pink-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -184,19 +234,19 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           {status === 'plus' ? (
             <button
               onClick={onManageSubscription}
-              disabled={isButtonLoading}
+              disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 disabled:bg-gray-300 transition-colors"
             >
-              {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
               Manage Subscription
             </button>
           ) : (
             <button
-              onClick={isAuthenticated ? onCheckoutPlus : onLogin}
-              disabled={isButtonLoading}
+              onClick={isAuthenticated ? handlePlusCheckout : onLogin}
+              disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
             >
-              {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
               Upgrade to Plus
             </button>
           )}
@@ -218,16 +268,12 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <Sparkles className="mx-auto h-12 w-12 text-purple-500 mb-3" />
             <h2 className="text-2xl font-bold text-purple-800">Observer Pro</h2>
             <p className="text-purple-700 text-sm">Coordinate agent teams, solve complex tasks</p>
-            <p className="text-3xl font-bold text-purple-900 mt-2">$20<span className="text-base font-normal">/month</span></p>
+            <p className="text-3xl font-bold text-purple-900 mt-2">${isAppleDevice ? '22.99' : '20'}<span className="text-base font-normal">/month</span></p>
           </div>
           <ul className="space-y-2.5 mb-6 text-sm">
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
               <span><strong>Unlimited notifications</strong></span>
-            </li>
-            <li className="flex items-start">
-              <HardDrive className="h-5 w-5 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Local Monitoring 24/7</strong></span>
             </li>
             <li className="flex items-start">
               <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -253,20 +299,20 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           {status === 'pro' ? (
             <button
               onClick={onManageSubscription}
-              disabled={isButtonLoading}
+              disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200 disabled:bg-gray-300 transition-colors"
             >
-              {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
               Manage Subscription
             </button>
           ) : (
             <button
-              onClick={isAuthenticated ? onCheckout : onLogin}
-              disabled={isButtonLoading}
+              onClick={isAuthenticated ? handleProCheckout : onLogin}
+              disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 transition-colors"
             >
-              {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-              Start Free Trial
+              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+              {isAppleDevice ? 'Upgrade to Pro' : 'Start Free Trial'}
             </button>
           )}
         </div>
@@ -289,7 +335,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             </div>
             <h2 className="text-2xl font-bold text-amber-900">Observer Max</h2>
             <p className="text-amber-800 text-sm font-semibold">Absolutely everything, unlimited</p>
-            <p className="text-3xl font-bold text-amber-900 mt-2">$80<span className="text-base font-normal">/month</span></p>
+            <p className="text-3xl font-bold text-amber-900 mt-2">${isAppleDevice ? '99.99' : '80'}<span className="text-base font-normal">/month</span></p>
           </div>
           <ul className="space-y-2.5 mb-6 text-sm">
             <li className="flex items-start">
@@ -316,27 +362,50 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           {status === 'max' ? (
             <button
               onClick={onManageSubscription}
-              disabled={isButtonLoading}
+              disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-amber-700 bg-amber-100 hover:bg-amber-200 disabled:bg-gray-300 transition-colors"
             >
-              {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
               Manage Subscription
             </button>
           ) : (
             <button
-              onClick={isAuthenticated ? onCheckoutMax : onLogin}
-              disabled={isButtonLoading}
+              onClick={isAuthenticated ? handleMaxCheckout : onLogin}
+              disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 disabled:bg-gray-300 transition-all shadow-md"
             >
-              {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
               Upgrade to Max
             </button>
           )}
         </div>
       </div>
-      {error && (
+      {combinedError && (
         <div className="text-center mt-8">
-          <p className="text-sm text-red-600 font-semibold">{error}</p>
+          <p className="text-sm text-red-600 font-semibold">{combinedError}</p>
+        </div>
+      )}
+      {/* iOS Debug & Restore Purchases */}
+      {isAppleDevice && applePayments && isAuthenticated && (
+        <div className="text-center mt-4 flex justify-center gap-4">
+          {applePayments.loadProducts && (
+            <button
+              onClick={applePayments.loadProducts}
+              disabled={combinedLoading}
+              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-300 font-medium"
+            >
+              <Sparkles className="h-4 w-4 mr-1" />
+              Load Products
+            </button>
+          )}
+          <button
+            onClick={handleAppleRestore}
+            disabled={combinedLoading}
+            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+          >
+            <RotateCcw className="h-4 w-4 mr-1" />
+            Restore Purchases
+          </button>
         </div>
       )}
     </div>

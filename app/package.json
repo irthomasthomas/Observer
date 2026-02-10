@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.3.0",
+    "@choochmeque/tauri-plugin-iap-api": "^0.7.0",
     "@codemirror/lang-javascript": "^6.2.3",
     "@codemirror/lang-python": "^6.1.7",
     "@codemirror/view": "^6.38.1",

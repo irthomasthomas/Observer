@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit, Flag, Send, X } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
-import { useAuth } from '@hooks/useAuth';
+import { useAuth } from '@contexts/AuthContext';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
 import PersonalInfoWarningModal from '@components/PersonalInfoWarningModal';
 import { detectSensitiveFunctions } from '@utils/code_sanitizer';

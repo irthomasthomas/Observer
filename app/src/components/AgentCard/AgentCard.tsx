@@ -7,6 +7,7 @@ import { listModels } from '@utils/inferenceServer';
 import { getInferenceAddresses } from '@utils/inferenceServer';
 import { Logger, LogEntry } from '@utils/logging';
 import { StreamManager, StreamState } from '@utils/streamManager';
+import { isIOS } from '@utils/platform';
 
 // Import the new modular components
 import AgentCardHeader from './AgentCardHeader';
@@ -350,7 +351,20 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
         <div className="overflow-visible">
           {hasQuotaError ? (
-            <QuotaErrorView onUpgradeClick={onUpgradeClick} />
+            isIOS() ? (
+              // On iOS, show quota error without upgrade button
+              <div className="mt-4 p-4 bg-orange-50 border-l-4 border-orange-400 rounded-r-lg animate-fade-in">
+                <div className="flex items-start">
+                  <Zap className="h-6 w-6 text-orange-500 mr-3 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-orange-800">Daily Limit Reached</h4>
+                    <p className="text-sm text-orange-700 mt-1">You've used all free cloud credits. The agent has been paused.</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <QuotaErrorView onUpgradeClick={onUpgradeClick} />
+            )
           ) : isLive ? (
             <ActiveAgentView
               streams={streams}

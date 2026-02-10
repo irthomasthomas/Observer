@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@hooks/useAuth';
+import { useAuth } from '@contexts/AuthContext';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 export function UpgradeSuccessPage() {
-  const { getAccessToken } = useAuth();
+  const { refreshSession } = useAuth();
   const navigate = useNavigate();
 
   // State management for polling flow
@@ -22,13 +22,31 @@ export function UpgradeSuccessPage() {
         try {
           console.log(`UPGRADE_SUCCESS: Polling attempt ${attemptCount + 1}/${maxAttempts}`);
 
+          // Force fresh token on each attempt - this is the KEY pattern from the old working code
+          // Calling refreshSession() with cacheMode: 'off' ensures we get updated tier claims
+          console.log('UPGRADE_SUCCESS: Forcing fresh JWT token...');
+          const token = await refreshSession();
+
+          if (!token) {
+            console.warn('UPGRADE_SUCCESS: No token returned from refreshSession, retrying...');
+            attemptCount++;
+            setAttempts(attemptCount);
+            if (attemptCount < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            continue;
+          }
+
+          console.log('UPGRADE_SUCCESS: Fresh JWT obtained, checking quota...');
+
           // Check quota endpoint to see if upgrade is reflected
-          const token = await getAccessToken();
           const response = await fetch('https://api.observer-ai.com/quota', {
             headers: {
               Authorization: `Bearer ${token}`
             }
           });
+
+
 
           if (response.ok) {
             const data = await response.json();
@@ -71,7 +89,7 @@ export function UpgradeSuccessPage() {
     };
 
     checkUpgrade();
-  }, [getAccessToken, navigate]);
+  }, [refreshSession, navigate]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-center">

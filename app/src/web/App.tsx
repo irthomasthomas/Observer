@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Terminal, MessageSquare, ChevronUp, X } from 'lucide-react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useAuth, useMockAuth, type UseAuthReturn } from '@hooks/useAuth';
+import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
 import { isMobile } from '@utils/platform';
 import {
@@ -50,8 +50,8 @@ import WhitelistModal from '@components/WhitelistModal';
 import InteractiveTutorial from '@components/InteractiveTutorial';
 
 // Main app content - uses the unified auth hook
-function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
-  const { isAuthenticated, isLoading, user, login, logout, getAccessToken } = useAuthHook();
+function AppContent() {
+  const { isAuthenticated, isLoading, user, login, logout, getAccessToken } = useAuth();
 
   // Handle iOS keyboard - updates CSS variables when keyboard shows/hides
   useIOSKeyboard();
@@ -119,6 +119,7 @@ function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
 
   // Welcome modal state
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
+  const [welcomeModalIntent, setWelcomeModalIntent] = useState<'local' | 'login' | null>(null);
 
   // Tutorial modal state
   const [tutorialModalInfo, setTutorialModalInfo] = useState<{
@@ -588,12 +589,22 @@ function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
     }
   }, [isLoading, isAuthenticated]);
 
-  // Welcome modal for free tier users
+  // Welcome modal - check for login intent after auth completes
   useEffect(() => {
     if (!isLoading && isAuthenticated && user && 'sub' in user) {
-      const hasSeenWelcome = localStorage.getItem(`observer_welcome_dismissed_${user.sub}`);
+      // Check if user just logged in (sessionStorage intent)
+      const loginIntent = sessionStorage.getItem('observer_login_intent');
+      if (loginIntent) {
+        sessionStorage.removeItem('observer_login_intent'); // Clear immediately
+        Logger.info('WELCOME', 'User just logged in, showing welcome modal with login intent');
+        setWelcomeModalIntent('login');
+        setIsWelcomeModalOpen(true);
+        return;
+      }
 
-      if (!hasSeenWelcome) {
+      // Otherwise, check if they've completed onboarding
+      const hasCompletedOnboarding = localStorage.getItem(`observer_onboarding_complete_${user.sub}`);
+      if (!hasCompletedOnboarding) {
         const checkTierAndShowModal = async () => {
           try {
             const token = await getAccessToken();
@@ -605,16 +616,19 @@ function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
               const data = await response.json();
               if (data.tier === 'free' || !data.tier) {
                 Logger.info('WELCOME', 'User is on free tier, showing welcome modal');
+                setWelcomeModalIntent('login'); // They're already authenticated
                 setIsWelcomeModalOpen(true);
               } else {
                 Logger.info('WELCOME', `User is on ${data.tier} tier, skipping welcome modal`);
               }
             } else {
               Logger.info('WELCOME', 'Could not determine tier, showing welcome modal');
+              setWelcomeModalIntent('login');
               setIsWelcomeModalOpen(true);
             }
           } catch (err) {
             Logger.error('WELCOME', 'Error checking tier:', err);
+            setWelcomeModalIntent('login');
             setIsWelcomeModalOpen(true);
           }
         };
@@ -687,6 +701,7 @@ function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
         isOpen={isWelcomeModalOpen}
         onClose={() => setIsWelcomeModalOpen(false)}
         onViewAllTiers={() => setActiveTab('obServer')}
+        intent={welcomeModalIntent}
       />
 
       <AppHeader
@@ -1044,6 +1059,10 @@ function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
       {showStartupDialog && (
         <StartupDialogs
           onDismiss={handleDismissStartupDialog}
+          onSkip={() => {
+            setWelcomeModalIntent('local');
+            setIsWelcomeModalOpen(true);
+          }}
           onLogin={login}
           onToggleObServer={() => setIsUsingObServer(true)}
           isAuthenticated={isAuthenticated}
@@ -1119,16 +1138,6 @@ function AppContent({ useAuthHook }: { useAuthHook: () => UseAuthReturn }) {
   );
 }
 
-// Wrapper that uses real Auth0 hook
-function AppContentWithAuth() {
-  return <AppContent useAuthHook={useAuth} />;
-}
-
-// Wrapper that uses mock auth hook (for local dev)
-function AppContentWithMockAuth() {
-  return <AppContent useAuthHook={useMockAuth} />;
-}
-
 export function App() {
   const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
@@ -1139,7 +1148,7 @@ export function App() {
     return (
       <BrowserRouter>
         <Routes>
-          <Route path="/*" element={<AppContentWithMockAuth />} />
+          <Route path="/*" element={<AppContent />} />
         </Routes>
       </BrowserRouter>
     );
@@ -1165,12 +1174,14 @@ export function App() {
         );
       }}
     >
-      <BrowserRouter>
-        <Routes>
-          <Route path="/upgrade-success" element={<UpgradeSuccessPage />} />
-          <Route path="/*" element={<AppContentWithAuth />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/upgrade-success" element={<UpgradeSuccessPage />} />
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </Auth0Provider>
   );
 }

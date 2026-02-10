@@ -1,6 +1,6 @@
-// Unified authentication hook that works for both web (Auth0) and mobile (ASWebAuthenticationSession)
+// contexts/AuthContext.tsx
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { useState, useEffect, useCallback, useMemo } from 'react';
 import { isMobile } from '@utils/platform';
 import { authenticate } from '@inkibra/tauri-plugin-auth';
 
@@ -74,44 +74,38 @@ interface AuthUser {
   [key: string]: unknown;
 }
 
-// Return type for the hook
-export interface UseAuthReturn {
+// Context type
+export interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: AuthUser | null;
   login: () => Promise<void>;
   logout: () => void;
   getAccessToken: () => Promise<string | undefined>;
-  refreshSession: () => Promise<string | undefined>; // Returns the fresh token after refresh
+  refreshSession: () => Promise<string | undefined>;
 }
 
-/**
- * Unified auth hook that handles both web (Auth0 SDK) and mobile (native ASWebAuthenticationSession)
- */
-export function useAuth(): UseAuthReturn {
-  // Check platform once on mount
-  const [isMobileDevice, setIsMobileDevice] = useState<boolean | null>(null);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-  // Mobile auth state
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [isMobileDevice, setIsMobileDevice] = useState<boolean | null>(null);
   const [mobileState, setMobileState] = useState({
     isAuthenticated: false,
     isLoading: true,
     user: null as AuthUser | null,
   });
 
-  // Get Auth0 hook (will be used on web, ignored on mobile)
   const auth0 = useAuth0();
 
-  // Determine if we're on mobile after mount (Tauri needs to be ready)
+  // Platform detection
   useEffect(() => {
-    // Small delay to ensure Tauri is initialized
     const timer = setTimeout(() => {
       try {
         const mobile = isMobile();
-        console.log('[useAuth] Platform detection - isMobile:', mobile);
+        console.log('[AuthContext] Platform detection - isMobile:', mobile);
         setIsMobileDevice(mobile);
       } catch (err) {
-        console.warn('[useAuth] Platform detection failed, assuming web:', err);
+        console.warn('[AuthContext] Platform detection failed, assuming web:', err);
         setIsMobileDevice(false);
       }
     }, 50);
@@ -126,7 +120,7 @@ export function useAuth(): UseAuthReturn {
     if (tokens && tokens.expires_at > Date.now()) {
       const payload = parseJwt(tokens.id_token);
       if (payload) {
-        console.log('[useAuth] Restored mobile session for:', payload.email);
+        console.log('[AuthContext] Restored mobile session for:', payload.email);
         setMobileState({
           isAuthenticated: true,
           isLoading: false,
@@ -141,12 +135,10 @@ export function useAuth(): UseAuthReturn {
   // Login function
   const login = useCallback(async () => {
     if (isMobileDevice !== true) {
-      // Web: use Auth0 redirect
       return auth0.loginWithRedirect();
     }
 
-    // Mobile: use ASWebAuthenticationSession
-    console.log('[useAuth] Starting mobile login flow');
+    console.log('[AuthContext] Starting mobile login flow');
     setMobileState(prev => ({ ...prev, isLoading: true }));
 
     try {
@@ -162,9 +154,9 @@ export function useAuth(): UseAuthReturn {
       authUrl.searchParams.set('code_challenge', challenge);
       authUrl.searchParams.set('code_challenge_method', 'S256');
       authUrl.searchParams.set('state', state);
-      authUrl.searchParams.set('prompt', 'login'); // Always show login screen
+      authUrl.searchParams.set('prompt', 'login');
 
-      console.log('[useAuth] Opening ASWebAuthenticationSession...');
+      console.log('[AuthContext] Opening ASWebAuthenticationSession...');
       const result = await authenticate({
         authUrl: authUrl.toString(),
         callbackScheme: CALLBACK_SCHEME,
@@ -174,10 +166,8 @@ export function useAuth(): UseAuthReturn {
         throw new Error(result.error || 'Authentication cancelled');
       }
 
-      // Parse callback URL
       const callbackUrl = new URL(result.token);
 
-      // Verify state
       if (callbackUrl.searchParams.get('state') !== state) {
         throw new Error('State mismatch - possible CSRF attack');
       }
@@ -187,8 +177,7 @@ export function useAuth(): UseAuthReturn {
         throw new Error('No authorization code received');
       }
 
-      // Exchange code for tokens
-      console.log('[useAuth] Exchanging code for tokens...');
+      console.log('[AuthContext] Exchanging code for tokens...');
       const tokenResponse = await fetch(`https://${AUTH0_DOMAIN}/oauth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -210,7 +199,7 @@ export function useAuth(): UseAuthReturn {
       storeTokens(tokens);
 
       const payload = parseJwt(tokens.id_token);
-      console.log('[useAuth] Mobile login successful for:', payload?.email);
+      console.log('[AuthContext] Mobile login successful for:', payload?.email);
 
       setMobileState({
         isAuthenticated: true,
@@ -218,7 +207,7 @@ export function useAuth(): UseAuthReturn {
         user: payload ? { name: payload.name, email: payload.email, sub: payload.sub } : null,
       });
     } catch (err) {
-      console.error('[useAuth] Mobile login failed:', err);
+      console.error('[AuthContext] Mobile login failed:', err);
       setMobileState({ isAuthenticated: false, isLoading: false, user: null });
       throw err;
     }
@@ -227,7 +216,7 @@ export function useAuth(): UseAuthReturn {
   // Logout function
   const logout = useCallback(() => {
     if (isMobileDevice) {
-      console.log('[useAuth] Mobile logout - clearing tokens');
+      console.log('[AuthContext] Mobile logout - clearing tokens');
       clearStoredTokens();
       setMobileState({ isAuthenticated: false, isLoading: false, user: null });
     } else {
@@ -238,7 +227,6 @@ export function useAuth(): UseAuthReturn {
   // Get access token function
   const getAccessToken = useCallback(async (): Promise<string | undefined> => {
     if (isMobileDevice !== true) {
-      // Web: use Auth0
       try {
         return await auth0.getAccessTokenSilently({
           authorizationParams: { audience: AUTH0_AUDIENCE },
@@ -248,14 +236,12 @@ export function useAuth(): UseAuthReturn {
       }
     }
 
-    // Mobile: get from storage, refresh if needed
     const tokens = getStoredTokens();
     if (!tokens) return undefined;
 
-    // If token expires in < 5 min, try refresh
     if (tokens.expires_at < Date.now() + 5 * 60 * 1000 && tokens.refresh_token) {
       try {
-        console.log('[useAuth] Refreshing mobile token...');
+        console.log('[AuthContext] Refreshing mobile token...');
         const response = await fetch(`https://${AUTH0_DOMAIN}/oauth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -275,41 +261,39 @@ export function useAuth(): UseAuthReturn {
           return newTokens.access_token;
         }
       } catch (err) {
-        console.error('[useAuth] Token refresh failed:', err);
+        console.error('[AuthContext] Token refresh failed:', err);
       }
     }
 
     return tokens.access_token;
   }, [isMobileDevice, auth0]);
 
-  // Force refresh session to get new JWT with updated claims (e.g., after subscription purchase)
-  // CRITICAL: This returns the NEW token after refreshing, following the old working pattern
+  // Refresh session
   const refreshSession = useCallback(async (): Promise<string | undefined> => {
-    if (isMobileDevice !== true) {
-      // Web: force Auth0 to get a fresh token (bypassing cache)
-      // This follows the old working pattern from before the auth refactor
+    const tokens = getStoredTokens();
+    const shouldUseMobileFlow = tokens?.refresh_token !== undefined;
+
+    if (!shouldUseMobileFlow) {
       try {
-        console.log('[useAuth] Forcing web token refresh with cacheMode: off...');
+        console.log('[AuthContext] Forcing web token refresh with cacheMode: off...');
         const freshToken = await auth0.getAccessTokenSilently({
           authorizationParams: { audience: AUTH0_AUDIENCE },
-          cacheMode: 'off', // Force fresh token from Auth0
+          cacheMode: 'off',
         });
-        console.log('[useAuth] Web token refreshed successfully');
+        console.log('[AuthContext] Web token refreshed successfully');
         return freshToken;
       } catch (err) {
-        console.error('[useAuth] Web token refresh failed:', err);
+        console.error('[AuthContext] Web token refresh failed:', err);
         throw err;
       }
     } else {
-      // Mobile: force token refresh using refresh_token
-      const tokens = getStoredTokens();
       if (!tokens?.refresh_token) {
-        console.warn('[useAuth] No refresh token available for mobile session refresh');
+        console.warn('[AuthContext] No refresh token available for mobile session refresh');
         return undefined;
       }
 
       try {
-        console.log('[useAuth] Forcing mobile token refresh...');
+        console.log('[AuthContext] Forcing mobile token refresh...');
         const response = await fetch(`https://${AUTH0_DOMAIN}/oauth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -322,7 +306,7 @@ export function useAuth(): UseAuthReturn {
 
         if (!response.ok) {
           const errorData = await response.text();
-          console.error('[useAuth] Token refresh response:', response.status, errorData);
+          console.error('[AuthContext] Token refresh response:', response.status, errorData);
           throw new Error(`Token refresh failed: ${response.status} - ${errorData}`);
         }
 
@@ -332,7 +316,6 @@ export function useAuth(): UseAuthReturn {
           refresh_token: newTokens.refresh_token || tokens.refresh_token,
         });
 
-        // Update mobile state with new user info from refreshed token
         const payload = parseJwt(newTokens.id_token);
         if (payload) {
           setMobileState({
@@ -342,58 +325,67 @@ export function useAuth(): UseAuthReturn {
           });
         }
 
-        console.log('[useAuth] Mobile token refreshed successfully');
+        console.log('[AuthContext] Mobile token refreshed successfully');
         return newTokens.access_token;
       } catch (err) {
-        console.error('[useAuth] Mobile token refresh failed:', err);
+        console.error('[AuthContext] Mobile token refresh failed:', err);
         throw err;
       }
     }
-  }, [isMobileDevice, auth0]);
+  }, [auth0]);
 
   // Return unified interface
-  // While still determining platform, show loading
-  if (isMobileDevice === null) {
+  const value: AuthContextType = (() => {
+    if (isMobileDevice === null) {
+      return {
+        isAuthenticated: false,
+        isLoading: true,
+        user: null,
+        login,
+        logout,
+        getAccessToken,
+        refreshSession,
+      };
+    }
+
+    if (isMobileDevice) {
+      return {
+        isAuthenticated: mobileState.isAuthenticated,
+        isLoading: mobileState.isLoading,
+        user: mobileState.user,
+        login,
+        logout,
+        getAccessToken,
+        refreshSession,
+      };
+    }
+
     return {
-      isAuthenticated: false,
-      isLoading: true,
-      user: null,
+      isAuthenticated: auth0.isAuthenticated,
+      isLoading: auth0.isLoading,
+      user: auth0.user as AuthUser | null,
       login,
       logout,
       getAccessToken,
       refreshSession,
     };
-  }
+  })();
 
-  if (isMobileDevice) {
-    return {
-      isAuthenticated: mobileState.isAuthenticated,
-      isLoading: mobileState.isLoading,
-      user: mobileState.user,
-      login,
-      logout,
-      getAccessToken,
-      refreshSession,
-    };
-  }
-
-  // Web: return Auth0 state
-  return {
-    isAuthenticated: auth0.isAuthenticated,
-    isLoading: auth0.isLoading,
-    user: auth0.user as AuthUser | null,
-    login,
-    logout,
-    getAccessToken,
-    refreshSession,
-  };
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-/**
- * Mock auth hook for local development when Auth0 is disabled
- */
-export function useMockAuth(): UseAuthReturn {
-  return useMemo(() => ({
+// Hook to use the auth context
+export function useAuth(): AuthContextType {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+// Mock auth for local dev
+export function useMockAuth(): AuthContextType {
+  return {
     isAuthenticated: false,
     isLoading: false,
     user: { name: 'Local Dev User', email: 'dev@local.host' },
@@ -404,5 +396,5 @@ export function useMockAuth(): UseAuthReturn {
       console.log('[MockAuth] Refresh session called');
       return 'mock_token';
     },
-  }), []);
+  };
 }

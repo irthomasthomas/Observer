@@ -1,8 +1,8 @@
 import React from 'react';
-import { isIOS } from '../utils/platform';
 
 interface StartupDialogProps {
   onDismiss: () => void;
+  onSkip?: () => void;
   onLogin?: () => void;
   onToggleObServer?: () => void;
   isAuthenticated: boolean;
@@ -12,6 +12,7 @@ interface StartupDialogProps {
 
 const StartupDialog: React.FC<StartupDialogProps> = ({
   onDismiss,
+  onSkip,
   onLogin,
   onToggleObServer,
   isAuthenticated,
@@ -24,6 +25,9 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
   }
 
   const handleSignIn = () => {
+    // Set login intent in sessionStorage (persists through auth redirect, clears on tab close)
+    sessionStorage.setItem('observer_login_intent', 'true');
+
     if (onLogin) {
       onLogin();
     }
@@ -34,6 +38,10 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
   };
 
   const handleSkip = () => {
+    // Call parent's onSkip handler which will show welcome modal with 'local' intent
+    if (onSkip) {
+      onSkip();
+    }
     onDismiss();
   };
 
@@ -66,8 +74,8 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
             </button>
           </div>
 
-          {/* Small Skip button positioned bottom-right for Tauri and Self-hosted (hidden on iOS for App Store compliance) */}
-          {(hostingContext !== 'official-web') && !isIOS() && (
+          {/* Small Skip button positioned bottom-right for Tauri and Self-hosted */}
+          {(hostingContext !== 'official-web') && (
             <button
               onClick={handleSkip}
               className="absolute bottom-4 right-4 text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1"
@@ -77,7 +85,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
           )}
 
           {/* Footer - only show for self-hosted and tauri */}
-          {hostingContext !== 'official-web' && !isIOS() && (
+          {hostingContext !== 'official-web' && (
             <p className="text-xs text-gray-500 mt-6">
               You can always sign in later from the app header to unlock cloud features.
             </p>

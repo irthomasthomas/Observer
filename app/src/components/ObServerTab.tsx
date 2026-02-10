@@ -1,17 +1,19 @@
 // src/components/ObServerTab.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@hooks/useAuth';
+import { useAuth } from '@contexts/AuthContext';
+import { useApplePayments } from '@hooks/useApplePayments';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Logger } from '@utils/logging';
-import { PricingTable } from './PricingTable'; // Import our new reusable component
+import { PricingTable } from './PricingTable';
 
 export const ObServerTab: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
-  
+
   const { getAccessToken, isAuthenticated, login } = useAuth();
+  const applePayments = useApplePayments();
 
   // This logic stays here, as this component is responsible for fetching its own data.
   useEffect(() => {
@@ -94,23 +96,22 @@ export const ObServerTab: React.FC = () => {
   // The main render path is now incredibly simple.
   // It renders the reusable table with props tailored for the general "Ob-Server" tab.
   return (
-    <div className="flex justify-center pt-8">
-      <div className="w-full max-w-4xl">
-        <PricingTable
-          headline="Choose Your Way to Observe"
-          subheadline=""
-          status={status}
-          isButtonLoading={isButtonLoading}
-          isAuthenticated={isAuthenticated}
-          error={error}
-          onCheckout={handleCheckout}
-          onCheckoutPlus={handlePlusCheckout}
-          onCheckoutMax={handleMaxCheckout}
-          onManageSubscription={() => handleApiAction('create-customer-portal-session')}
-          onLogin={login}
-          isTriggeredByQuotaError={true}
-        />
-      </div>
+    <div className="w-full pt-8">
+      <PricingTable
+        headline="Choose Your Way to Observe"
+        subheadline=""
+        status={status}
+        isButtonLoading={isButtonLoading}
+        isAuthenticated={isAuthenticated}
+        error={error}
+        onCheckout={handleCheckout}
+        onCheckoutPlus={handlePlusCheckout}
+        onCheckoutMax={handleMaxCheckout}
+        onManageSubscription={() => handleApiAction('create-customer-portal-session')}
+        onLogin={login}
+        isTriggeredByQuotaError={false}
+        applePayments={applePayments}
+      />
     </div>
   );
 };

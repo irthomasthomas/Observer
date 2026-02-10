@@ -1,24 +1,56 @@
-// src/components/WelcomeModal.new.tsx
+// src/components/WelcomeModal.tsx
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@hooks/useAuth';
-import { X as CloseIcon, Loader2, Sparkles, Zap, Heart, Star } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@contexts/AuthContext';
+import { useApplePayments } from '@hooks/useApplePayments';
+import { X as CloseIcon, X, Loader2, Sparkles, Zap, Heart, Star, Lock, Shield, ExternalLink, Check } from 'lucide-react';
 import { Logger } from '@utils/logging';
+import { isIOS } from '../utils/platform';
 
 interface WelcomeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onViewAllTiers: () => void;
+  intent: 'local' | 'login' | null;
 }
 
-export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onViewAllTiers }) => {
+export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onViewAllTiers, intent }) => {
   const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(false);
 
-  const { getAccessToken, isAuthenticated, user } = useAuth();
+  const { getAccessToken, isAuthenticated, user, login, logout } = useAuth();
+  const {
+    isLoading: isAppleLoading,
+    error: appleError,
+    purchaseSubscription,
+  } = useApplePayments();
 
+  const isAppleDevice = isIOS();
+
+  // Check if user has already accepted privacy policy
+  useEffect(() => {
+    if (isOpen && user?.sub) {
+      const hasAccepted = localStorage.getItem(`observer_privacy_accepted_${user.sub}`);
+      if (hasAccepted === 'true') {
+        setHasAcceptedPrivacy(true);
+        Logger.info('WELCOME', 'User has already accepted privacy policy');
+      }
+    }
+  }, [isOpen, user]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setHasAcceptedPrivacy(false);
+      setDontShowAgain(false);
+      setError(null);
+    }
+  }, [isOpen]);
+
+  // Fetch subscription status for authenticated users
   useEffect(() => {
     if (!isOpen || !isAuthenticated) {
       if (!isAuthenticated) setStatus('free');
@@ -70,21 +102,81 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
 
   const handleProCheckout = () => handleApiAction('create-checkout-session');
 
+  // Refresh subscription status (called after successful Apple purchase)
+  const refreshStatus = useCallback(async () => {
+    try {
+      const token = await getAccessToken();
+      const response = await fetch('https://api.observer-ai.com/quota', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStatus(data.tier || 'free');
+      }
+    } catch (err) {
+      Logger.error('WELCOME', 'Failed to refresh status after purchase', err);
+    }
+  }, [getAccessToken]);
+
+  // Apple In-App Purchase handler for Pro
+  const handleApplePurchasePro = useCallback(async () => {
+    setIsButtonLoading(true);
+    setError(null);
+    try {
+      const result = await purchaseSubscription('pro');
+      if (result.success) {
+        Logger.info('WELCOME', 'Apple Pro purchase successful', { tier: result.tier });
+        await refreshStatus();
+        handleClose(); // Close modal on success
+      } else {
+        setError(result.error || 'Purchase failed');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Purchase failed';
+      setError(message);
+    } finally {
+      setIsButtonLoading(false);
+    }
+  }, [purchaseSubscription, refreshStatus]);
+
   const handleStarGithub = () => {
     window.open('https://github.com/Roy3838/Observer', '_blank');
   };
 
   const handleClose = () => {
+    // If user is authenticated but hasn't accepted privacy, sign them out
+    if (isAuthenticated && !hasAcceptedPrivacy) {
+      Logger.info('WELCOME', 'User closed modal without accepting privacy - signing out');
+      logout();
+    }
+
     if (dontShowAgain && user?.sub) {
-      localStorage.setItem(`observer_welcome_dismissed_${user.sub}`, 'true');
-      Logger.info('WELCOME', 'User dismissed welcome modal with "Don\'t show again"');
+      localStorage.setItem(`observer_onboarding_complete_${user.sub}`, 'true');
+      Logger.info('WELCOME', 'User completed onboarding (don\'t show again)');
     }
     onClose();
+  };
+
+  const handleAcceptPrivacy = () => {
+    if (user?.sub) {
+      localStorage.setItem(`observer_privacy_accepted_${user.sub}`, 'true');
+      Logger.info('WELCOME', 'User accepted privacy policy');
+    }
+    setHasAcceptedPrivacy(true);
+  };
+
+  const handleSignIn = () => {
+    login();
   };
 
   if (!isOpen) {
     return null;
   }
+
+  // Determine which state to show based on intent prop
+  const shouldShowLocalMode = intent === 'local' || (!isAuthenticated && intent === null);
+  const shouldShowPrivacyConsent = (intent === 'login' || (isAuthenticated && intent === null)) && !hasAcceptedPrivacy;
+  const shouldShowSubscription = (intent === 'login' || (isAuthenticated && intent === null)) && hasAcceptedPrivacy;
 
   return (
     <div
@@ -99,11 +191,147 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
           <CloseIcon className="h-5 w-5 md:h-6 md:w-6" />
         </button>
 
-        {status === 'loading' ? (
+        {/* STATE 1: Local Mode Welcome (Not Signed In) */}
+        {shouldShowLocalMode && (
+          <div className="p-6 md:p-8">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="flex justify-center items-center mb-4">
+                <Lock className="h-12 w-12 md:h-16 md:w-16 text-green-600 mr-3" />
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Welcome to Observer</h2>
+                  <p className="text-lg md:text-xl text-green-600 font-semibold">100% Local Mode</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Privacy Badge */}
+            <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4 md:p-6 mb-6">
+              <div className="flex items-start gap-3">
+                <Lock className="h-6 w-6 text-green-600 flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="text-lg font-bold text-green-900 mb-2">Complete Privacy Mode Active</h3>
+                  <p className="text-sm md:text-base text-green-800 mb-4">
+                    All your data stays on your device. We won't even know you exist!
+                  </p>
+
+                  {/* What Works */}
+                  <div className="space-y-2 text-sm md:text-base">
+                    <div className="flex items-start">
+                      <Check className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-green-900"><strong>Local AI models</strong> (Ollama, llama.cpp, etc.)</span>
+                    </div>
+                    <div className="flex items-start">
+                      <Check className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-green-900"><strong>Discord notifications</strong></span>
+                    </div>
+                    <div className="flex items-start">
+                      <Check className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-green-900"><strong>Recording, logging, memory</strong> - all local</span>
+                    </div>
+                    <div className="flex items-start">
+                      <X className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-600">Cloud notifications (WhatsApp, SMS, Email require sign-in)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Pro Tip */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm md:text-base text-blue-900">
+                <strong>💡 Pro Tip:</strong> You can sign in and still use local models to get ALL notification services with 100% privacy!
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleSignIn}
+                className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
+              >
+                Sign In to Unlock Cloud Features
+              </button>
+              <button
+                onClick={handleClose}
+                className="w-full px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-400 transition-all duration-200 font-semibold"
+              >
+                Continue in Local-Only Mode
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STATE 2 PAGE 1: Privacy & ToS Consent (Signed In, Not Accepted) */}
+        {shouldShowPrivacyConsent && (
+          <div className="p-6 md:p-8">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-5 rounded-t-xl -mx-6 -mt-6 md:-mx-8 md:-mt-8 mb-6">
+              <div className="flex items-center gap-3">
+                <Shield className="h-8 w-8 flex-shrink-0" />
+                <div>
+                  <h2 className="text-2xl font-bold">Privacy & Data Sharing Notice</h2>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-5">
+              {/* Simple Statement */}
+              <p className="text-base text-gray-700 leading-relaxed">
+                By using Observer, you agree to our{' '}
+                <a
+                  href="https://observer-ai.com/#/Terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline font-semibold inline-flex items-center gap-1"
+                >
+                  Terms of Service
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                {' '}and{' '}
+                <a
+                  href="https://observer-ai.com/#/Privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline font-semibold inline-flex items-center gap-1"
+                >
+                  Privacy Policy
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>.
+              </p>
+
+              {/* Pro Tip - Hybrid Approach */}
+              <div className="bg-green-50 border-2 border-green-300 rounded-xl p-5">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-lg font-bold text-green-900 mb-2">💡 Pro Tip</h3>
+                    <p className="text-sm md:text-base text-green-800 leading-relaxed">
+                      Stay signed in and use local models for your agents! This makes your data <strong>100% private on your device</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Accept Button */}
+              <button
+                onClick={handleAcceptPrivacy}
+                className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 font-semibold shadow-md hover:shadow-lg text-base"
+              >
+                I Accept
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STATE 2 PAGE 2: Subscription Info (Signed In, Accepted) */}
+        {shouldShowSubscription && status === 'loading' ? (
           <div className="flex justify-center items-center p-12 md:p-20">
             <Loader2 className="h-10 w-10 md:h-12 md:w-12 animate-spin text-gray-500" />
           </div>
-        ) : (
+        ) : shouldShowSubscription ? (
           <div className="p-4 md:p-8">
             {/* ============ WELCOME SECTION (Top 60%) ============ */}
             <div className="text-center mb-4 pb-4 md:mb-6 md:pb-6 border-b-2 border-gray-200">
@@ -130,19 +358,27 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
 
               {/* Observer Pro - Hero Free Trial Option */}
               <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-xl p-4 md:p-6 max-w-md mx-auto mb-4 hover:shadow-xl transition-all duration-200 relative">
-                <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap shadow-lg">
-                    Free Trial 
+                {!isAppleDevice && (
+                  <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
+                    <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap shadow-lg">
+                      Free Trial
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4 mt-2">
                   <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-purple-500" />
                   <div className="text-left">
                     <h3 className="text-lg md:text-xl font-bold text-purple-900">Observer Pro</h3>
                     <p className="text-sm text-purple-700">
-                      <span className="text-xl md:text-2xl font-bold text-purple-900">7 days free</span>
-                      <span className="text-xs ml-1">then $20/month</span>
+                      {isAppleDevice ? (
+                        <span className="text-xl md:text-2xl font-bold text-purple-900">${'22.99'}/month</span>
+                      ) : (
+                        <>
+                          <span className="text-xl md:text-2xl font-bold text-purple-900">7 days free</span>
+                          <span className="text-xs ml-1">then $20/month</span>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -167,19 +403,19 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                 </div>
 
                 <button
-                  onClick={handleProCheckout}
-                  disabled={isButtonLoading}
+                  onClick={isAppleDevice ? handleApplePurchasePro : handleProCheckout}
+                  disabled={isButtonLoading || isAppleLoading}
                   className="w-full px-4 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all duration-200 font-semibold text-sm md:text-base shadow-md hover:shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                  {isButtonLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                  Start Free Trial
+                  {isButtonLoading || isAppleLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                  {isAppleDevice ? 'Upgrade to Pro' : 'Start Free Trial'}
                 </button>
               </div>
 
               {/* Error Display */}
-              {error && (
+              {(error || appleError) && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-2 md:p-3 mb-3 md:mb-4 text-center max-w-md mx-auto">
-                  <p className="text-xs md:text-sm text-red-700">{error}</p>
+                  <p className="text-xs md:text-sm text-red-700">{error || appleError}</p>
                 </div>
               )}
 
@@ -231,7 +467,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               </label>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

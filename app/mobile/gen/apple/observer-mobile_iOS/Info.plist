@@ -55,11 +55,9 @@
 	<array>
 		<dict>
 			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>observerai</string>
-			</array>
+			<array/>
 			<key>CFBundleURLName</key>
-			<string>com.observer.ai</string>
+			<string>https</string>
 		</dict>
 	</array>
 </dict>

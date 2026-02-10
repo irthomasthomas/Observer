@@ -1,7 +1,7 @@
 // src/components/InteractiveTutorial.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@hooks/useAuth';
+import { useAuth } from '@contexts/AuthContext';
 import { X as CloseIcon, Sparkles, Wrench, Play } from 'lucide-react';
 import { Logger } from '@utils/logging';
 

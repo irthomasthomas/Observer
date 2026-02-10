@@ -11,11 +11,13 @@
 		3076197E0C83DD294C245946 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 38A0DD97A1AFE4A9A1BFB4A6 /* LaunchScreen.storyboard */; };
 		44BDE93E169C3ACF4A2D05E8 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A8EA609F761A7095FBB3645C /* UIKit.framework */; };
 		585EB46477D170C8C04B7141 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 51043A2EE84D2742D6FA8F55 /* CoreGraphics.framework */; };
+		6913C03A2F33FD9500A59E46 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6913C0392F33FD9500A59E46 /* StoreKit.framework */; };
 		6946E9422F0C7E5900C2BBF5 /* ReplayKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6946E9412F0C7E5800C2BBF5 /* ReplayKit.framework */; };
 		6946E94C2F0C7E5900C2BBF5 /* ReplayKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6946E9412F0C7E5800C2BBF5 /* ReplayKit.framework */; };
 		6946E94D2F0C7E5900C2BBF5 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A8EA609F761A7095FBB3645C /* UIKit.framework */; };
 		6946E9542F0C7E5900C2BBF5 /* broadcastSetupUI.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6946E94B2F0C7E5900C2BBF5 /* broadcastSetupUI.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6946E9572F0C7E5900C2BBF5 /* broadcast.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6946E9402F0C7E5800C2BBF5 /* broadcast.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		69E91E152F369B7B00D2E599 /* ObserverProducts.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 69E91E142F369B7B00D2E599 /* ObserverProducts.storekit */; };
 		722FC0D9DFC22BC9F828D483 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0A297DE6CDD08733F09B61CB /* MetalKit.framework */; };
 		89AA6397BC56F8802D7CC8D1 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7A7569084F2E227B06FD9135 /* Security.framework */; };
 		8CD3C39303CC682D9E6A98EB /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 35B8ED5DC5E081EB234BFB24 /* assets */; };
@@ -67,9 +69,11 @@
 		463CD43BE0383268AA98738D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		51043A2EE84D2742D6FA8F55 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		53E41389EFC27FC322F704D0 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		6913C0392F33FD9500A59E46 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		6946E9402F0C7E5800C2BBF5 /* broadcast.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = broadcast.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6946E9412F0C7E5800C2BBF5 /* ReplayKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ReplayKit.framework; path = System/Library/Frameworks/ReplayKit.framework; sourceTree = SDKROOT; };
 		6946E94B2F0C7E5900C2BBF5 /* broadcastSetupUI.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = broadcastSetupUI.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		69E91E142F369B7B00D2E599 /* ObserverProducts.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = ObserverProducts.storekit; path = /Users/jay/repos/Observer/app/mobile/ObserverProducts.storekit; sourceTree = "<absolute>"; };
 		7A7569084F2E227B06FD9135 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		A6631772DF24EE92AF43FB5F /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		A8EA609F761A7095FBB3645C /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
@@ -109,6 +113,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6913C03A2F33FD9500A59E46 /* StoreKit.framework in Frameworks */,
 				173D634B745449B21D81F685 /* libapp.a in Frameworks */,
 				585EB46477D170C8C04B7141 /* CoreGraphics.framework in Frameworks */,
 				CECCEEC10C1CDE9FA3A9497F /* Metal.framework in Frameworks */,
@@ -170,6 +175,7 @@
 		416688FD00BB20A9F4643879 = {
 			isa = PBXGroup;
 			children = (
+				69E91E142F369B7B00D2E599 /* ObserverProducts.storekit */,
 				35B8ED5DC5E081EB234BFB24 /* assets */,
 				CDFAC5802A80D029C7418C06 /* Assets.xcassets */,
 				38A0DD97A1AFE4A9A1BFB4A6 /* LaunchScreen.storyboard */,
@@ -195,6 +201,7 @@
 		56B99606F6CED5C0D0D6F550 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6913C0392F33FD9500A59E46 /* StoreKit.framework */,
 				51043A2EE84D2742D6FA8F55 /* CoreGraphics.framework */,
 				D1C3503EBE21848D7B1BBAE7 /* libapp.a */,
 				E88DA13C1552ACEB4094162F /* Metal.framework */,
@@ -362,6 +369,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				69E91E152F369B7B00D2E599 /* ObserverProducts.storekit in Resources */,
 				BD668C9BB3E9294BF954097D /* Assets.xcassets in Resources */,
 				3076197E0C83DD294C245946 /* LaunchScreen.storyboard in Resources */,
 				8CD3C39303CC682D9E6A98EB /* assets in Resources */,
@@ -559,7 +567,7 @@
 				INFOPLIST_FILE = broadcast/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = broadcast;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -639,7 +647,7 @@
 				INFOPLIST_FILE = broadcast/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = broadcast;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -723,7 +731,7 @@
 				INFOPLIST_FILE = broadcastSetupUI/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = broadcastSetupUI;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -802,7 +810,7 @@
 				INFOPLIST_FILE = broadcastSetupUI/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = broadcastSetupUI;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -842,6 +850,7 @@
 					"\".\"",
 				);
 				INFOPLIST_FILE = "observer-mobile_iOS/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -948,6 +957,7 @@
 					"\".\"",
 				);
 				INFOPLIST_FILE = "observer-mobile_iOS/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
