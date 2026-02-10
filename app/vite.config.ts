@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { resolve } from 'path';
 
+const devHost = process.env.TAURI_DEV_HOST;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -16,8 +18,12 @@ export default defineConfig({
     format: 'es', // Enable ES module format for workers to support code-splitting
   },
   server: {
-    host: '0.0.0.0',
+    host: devHost || '0.0.0.0',
     port: 3001, // Different from desktop and website
+    strictPort: true,
+    hmr: devHost
+      ? { protocol: 'ws', host: devHost, port: 3001 }
+      : undefined,
   },
   resolve: {
     alias: {

@@ -124,7 +124,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   })();
 
   const handleLogout = () => {
-    authState?.logout({ logoutParams: { returnTo: window.location.origin } });
+    authState?.logout();
   };
 
   const handleDeleteAccount = async () => {

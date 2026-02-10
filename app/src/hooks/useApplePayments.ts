@@ -4,7 +4,7 @@
 import { useState, useCallback } from 'react';
 import { isIOS } from '@utils/platform';
 import { Logger } from '@utils/logging';
-import { useAuth } from './useAuth';
+import { useAuth } from '@contexts/AuthContext';
 
 const LOG_SOURCE = 'APPLE_PAYMENTS';
 
