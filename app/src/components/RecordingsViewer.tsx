@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAllRecordings, deleteRecording } from '@utils/recordingsDB'; // Assuming deleteRecording exists
 import ClipPlayer from '@components/ClipPlayer';
-import { Play, ChevronUp, Download, Trash2, Clock } from 'lucide-react';
+import { Play, ChevronUp, Download, Trash2, Clock, RefreshCw } from 'lucide-react';
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
 
 // --- TYPE DEFINITIONS ---
@@ -49,22 +49,28 @@ export default function RecordingsViewer() {
     const [recordings, setRecordings] = useState<RecordingData[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [expandedRecordingId, setExpandedRecordingId] = useState<string | null>(null);
+    const [isReloading, setIsReloading] = useState(false);
+
+    const fetchRecordings = async () => {
+        setIsReloading(true);
+        setError(null);
+        try {
+            const allRecs = await getAllRecordings();
+            // Ensure createdAt is a Date object for reliable sorting and formatting
+            const formattedRecs = allRecs.map(rec => ({
+              ...rec,
+              createdAt: rec.createdAt instanceof Date ? rec.createdAt : new Date(rec.createdAt),
+            }));
+            setRecordings(formattedRecs);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setError(`Failed to load recordings: ${msg}`);
+        } finally {
+            setIsReloading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchRecordings = async () => {
-            try {
-                const allRecs = await getAllRecordings();
-                // Ensure createdAt is a Date object for reliable sorting and formatting
-                const formattedRecs = allRecs.map(rec => ({
-                  ...rec,
-                  createdAt: rec.createdAt instanceof Date ? rec.createdAt : new Date(rec.createdAt),
-                }));
-                setRecordings(formattedRecs);
-            } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e);
-                setError(`Failed to load recordings: ${msg}`);
-            }
-        };
         fetchRecordings();
     }, []);
 
@@ -105,7 +111,17 @@ export default function RecordingsViewer() {
 
     return (
         <div className="p-4 bg-gray-50 min-h-screen">
-            <h1 className="text-3xl font-semibold text-gray-900 mb-6">Recordings</h1>
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-semibold text-gray-900">Recordings</h1>
+                <button
+                    onClick={fetchRecordings}
+                    disabled={isReloading}
+                    className="flex items-center justify-center p-2 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-50"
+                    title="Reload recordings"
+                >
+                    <RefreshCw size={18} className={isReloading ? 'animate-spin' : ''} />
+                </button>
+            </div>
 
             {recordings.length > 0 ? (
                 Object.entries(groupedRecordings).map(([groupTitle, groupRecordings]) => (
