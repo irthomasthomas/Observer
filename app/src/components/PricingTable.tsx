@@ -326,7 +326,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
               className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 transition-colors"
             >
               {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-              {isAppleDevice ? 'Upgrade to Pro' : 'Start Free Trial'}
+              Start Free Trial
             </button>
           )}
         </div>
