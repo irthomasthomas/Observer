@@ -289,9 +289,9 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     // Handle top-left positioning
     if (position === 'top-left') {
       return {
-        top: padding,
-        left: padding,
-        right: padding,
+        top: `calc(${padding}px + var(--sat, 0px))`,
+        left: `calc(${padding}px + var(--sal, 0px))`,
+        right: `calc(${padding}px + var(--sar, 0px))`,
       };
     }
 
@@ -316,9 +316,9 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     // On mobile, position at the top with padding
     if (isMobile) {
       return {
-        top: padding,
-        left: padding,
-        right: padding,
+        top: `calc(${padding}px + var(--sat, 0px))`,
+        left: `calc(${padding}px + var(--sal, 0px))`,
+        right: `calc(${padding}px + var(--sar, 0px))`,
       };
     }
 
@@ -585,6 +585,12 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       </div>
 
       <style>{`
+        :root {
+          --sat: env(safe-area-inset-top, 0px);
+          --sal: env(safe-area-inset-left, 0px);
+          --sar: env(safe-area-inset-right, 0px);
+        }
+
         @keyframes pulse {
           0%, 100% {
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.7);
