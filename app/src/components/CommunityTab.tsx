@@ -8,7 +8,7 @@ import { useAuth } from '@contexts/AuthContext';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
 import PersonalInfoWarningModal from '@components/PersonalInfoWarningModal';
 import { detectSensitiveFunctions } from '@utils/code_sanitizer';
-import { isIOS } from '@utils/platform';
+import { isIOS, confirm } from '@utils/platform';
 import { sendEmail } from '@utils/handlers/utils';
 
 
@@ -673,7 +673,7 @@ ${reportComment}
       setError('You must be logged in to delete agents');
       return;
     }
-    if (!window.confirm(`Delete "${agent.name}" from the community marketplace? This cannot be undone.`)) {
+    if (!await confirm(`Delete "${agent.name}" from the community marketplace? This cannot be undone.`)) {
       return;
     }
     try {

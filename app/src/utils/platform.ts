@@ -132,6 +132,19 @@ export const getPlatformName = (): string => {
 };
 
 /**
+ * Cross-platform confirm dialog.
+ * Uses @tauri-apps/plugin-dialog in any Tauri context (where window.confirm may be
+ * suppressed by the native webview), and falls back to window.confirm in the browser.
+ */
+export const confirm = async (message: string): Promise<boolean> => {
+  if (isTauri()) {
+    const { confirm: tauriConfirm } = await import('@tauri-apps/plugin-dialog');
+    return tauriConfirm(message);
+  }
+  return window.confirm(message);
+};
+
+/**
  * Log platform information for debugging
  */
 export const logPlatformInfo = (): void => {

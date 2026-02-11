@@ -4,7 +4,7 @@ import { Auth0Provider } from '@auth0/auth0-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
-import { isMobile } from '@utils/platform';
+import { isMobile, confirm } from '@utils/platform';
 import {
   listAgents,
   getAgentCode,
@@ -345,38 +345,34 @@ function AppContent() {
     setTutorialModalInfo(null);
   };
 
-  const handleDeleteClick = (agentId: string) => {
+  const handleDeleteClick = async (agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     if (!agent) return;
 
-    // Keep confirm synchronous (outside async) to fix iOS Safari issue
-    if (!window.confirm(`Are you sure you want to delete agent "${agent.name}"?`)) {
+    if (!await confirm(`Are you sure you want to delete agent "${agent.name}"?`)) {
       return;
     }
 
-    // Run async deletion after confirm returns
-    (async () => {
-      try {
-        setError(null);
-        Logger.info('APP', `Deleting agent "${agent.name}" (${agentId})`);
+    try {
+      setError(null);
+      Logger.info('APP', `Deleting agent "${agent.name}" (${agentId})`);
 
-        if (runningAgents.has(agentId)) {
-          Logger.info(agentId, `Stopping agent before deletion`);
-          stopAgentLoop(agentId);
-        }
-
-        await IterationStore.clearAllHistory(agentId);
-        Logger.info('APP', `Cleared iteration history for agent "${agent.name}"`);
-
-        await deleteAgent(agentId);
-        Logger.info('APP', `Agent "${agent.name}" deleted successfully`);
-        await fetchAgents();
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        setError(errorMessage);
-        Logger.error('APP', `Failed to delete agent: ${errorMessage}`, err);
+      if (runningAgents.has(agentId)) {
+        Logger.info(agentId, `Stopping agent before deletion`);
+        stopAgentLoop(agentId);
       }
-    })();
+
+      await IterationStore.clearAllHistory(agentId);
+      Logger.info('APP', `Cleared iteration history for agent "${agent.name}"`);
+
+      await deleteAgent(agentId);
+      Logger.info('APP', `Agent "${agent.name}" deleted successfully`);
+      await fetchAgents();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      Logger.error('APP', `Failed to delete agent: ${errorMessage}`, err);
+    }
   };
 
   const handleDismissStartupDialog = () => {

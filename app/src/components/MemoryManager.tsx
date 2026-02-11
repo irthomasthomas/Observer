@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
 import { getAgentMemory, updateAgentMemory, getAgentImageMemory, clearAgentImageMemory, updateAgentImageMemory, appendAgentImageMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
+import { confirm } from '@utils/platform';
 
 // Create a custom event for memory updates
 export const MEMORY_UPDATE_EVENT = 'agent-memory-update';
@@ -113,7 +114,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({
   };
 
   const handleClear = async () => {
-    if (window.confirm(`Are you sure you want to clear the text memory for agent "${agentName}"?`)) {
+    if (await confirm(`Are you sure you want to clear the text memory for agent "${agentName}"?`)) {
       try {
         setError(null);
         setIsClearing(true);
@@ -132,7 +133,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({
   };
 
   const handleClearImages = async () => {
-    if (window.confirm(`Are you sure you want to clear all images for agent "${agentName}"?`)) {
+    if (await confirm(`Are you sure you want to clear all images for agent "${agentName}"?`)) {
       try {
         setError(null);
         setIsClearingImages(true);

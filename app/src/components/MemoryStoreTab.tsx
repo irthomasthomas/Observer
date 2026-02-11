@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, BookOpen, Image as ImageIcon } from 'lucide-react';
 import { getAllMemories, getAllImageMemories, updateAgentMemory, deleteMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
+import { confirm } from '@utils/platform';
 import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
 import MemoryManager from '@components/MemoryManager';
 
@@ -96,7 +97,7 @@ const MemoryStoreTab: React.FC = () => {
   };
 
   const handleDeleteMemory = async (memoryId: string) => {
-    if (!window.confirm(`Delete memory "${memoryId}"?`)) {
+    if (!await confirm(`Delete memory "${memoryId}"?`)) {
       return;
     }
 

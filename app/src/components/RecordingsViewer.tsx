@@ -3,6 +3,7 @@ import { getAllRecordings, deleteRecording } from '@utils/recordingsDB'; // Assu
 import ClipPlayer from '@components/ClipPlayer';
 import { Play, ChevronUp, Download, Trash2, Clock, RefreshCw } from 'lucide-react';
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
+import { confirm } from '@utils/platform';
 
 // --- TYPE DEFINITIONS ---
 interface ClipMarker {
@@ -94,7 +95,7 @@ export default function RecordingsViewer() {
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation(); // Prevent card from toggling
-        if (window.confirm('Are you sure you want to permanently delete this recording?')) {
+        if (await confirm('Are you sure you want to permanently delete this recording?')) {
             try {
                 await deleteRecording(id);
                 setRecordings(prev => prev.filter(rec => rec.id !== id));
