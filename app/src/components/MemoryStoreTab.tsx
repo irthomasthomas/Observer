@@ -120,7 +120,7 @@ const MemoryStoreTab: React.FC = () => {
     <div className="py-6">
       <div className="max-w-6xl mx-auto">
         {/* Header with inline create */}
-        <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <BookOpen className="w-7 h-7 text-blue-600 dark:text-blue-400" />
             <div>
@@ -147,13 +147,13 @@ const MemoryStoreTab: React.FC = () => {
                 }
               }}
               placeholder="new-memory-id"
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 w-48"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 flex-1 sm:w-48 sm:flex-none min-w-0"
               disabled={isCreating}
             />
             <button
               onClick={handleCreateMemory}
               disabled={isCreating || !newMemoryId.trim()}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shrink-0"
             >
               <Plus className="w-4 h-4" />
               {isCreating ? 'Creating...' : 'Create'}
