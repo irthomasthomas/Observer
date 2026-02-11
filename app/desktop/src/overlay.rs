@@ -1,9 +1,9 @@
 // In src-tauri/src/overlay.rs
 
+use crate::{AppState, OverlayMessage, OverlayState};
 use axum::{extract::State as AxumState, http::StatusCode, response::Json};
 use serde::Deserialize;
 use tauri::{Emitter, Manager};
-use crate::{AppState, OverlayMessage, OverlayState};
 
 #[derive(Deserialize)]
 pub struct OverlayPayload {
@@ -18,7 +18,7 @@ pub async fn overlay_handler(
 
     // Get the overlay state from the app handle
     let overlay_state = state.app_handle.state::<OverlayState>();
-    
+
     // Create a new overlay message
     let overlay_message = OverlayMessage {
         id: uuid::Uuid::new_v4().to_string(),
@@ -37,7 +37,10 @@ pub async fn overlay_handler(
     if let Err(e) = state.app_handle.emit("overlay-messages-updated", &messages) {
         log::warn!("Failed to emit overlay-messages-updated event: {}", e);
     } else {
-        log::debug!("Emitted overlay-messages-updated event with {} messages", messages.len());
+        log::debug!(
+            "Emitted overlay-messages-updated event with {} messages",
+            messages.len()
+        );
     }
 
     StatusCode::OK

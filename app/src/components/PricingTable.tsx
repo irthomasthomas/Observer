@@ -8,6 +8,7 @@ import {
 import { isIOS } from '../utils/platform';
 import { Logger } from '@utils/logging';
 import type { UseApplePaymentsReturn } from '@hooks/useApplePayments';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 // Define the props this component will accept
 interface PricingTableProps {
@@ -105,6 +106,19 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       setInternalLoading(false);
     }
   }, [applePayments, onModalClose]);
+
+  // On Apple, redirect to Apple subscription management instead of Stripe portal
+  const handleManageSubscription = isAppleDevice && applePayments
+    ? () => {
+        Logger.info('PRICING_TABLE', `handleManageSubscription: Apple device, opening App Store subscriptions. isAppleDevice=${isAppleDevice}, applePayments=${!!applePayments}`);
+        openUrl('https://apps.apple.com/account/subscriptions')
+          .then(() => Logger.info('PRICING_TABLE', 'openUrl succeeded'))
+          .catch((err: unknown) => Logger.error('PRICING_TABLE', 'openUrl failed:', err));
+      }
+    : () => {
+        Logger.info('PRICING_TABLE', `handleManageSubscription: falling back to onManageSubscription. isAppleDevice=${isAppleDevice}, applePayments=${!!applePayments}`);
+        onManageSubscription();
+      };
 
   // Determine which checkout handlers to use (Apple native or Stripe web)
   const handlePlusCheckout = isAppleDevice && applePayments
@@ -233,7 +247,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           </ul>
           {status === 'plus' ? (
             <button
-              onClick={onManageSubscription}
+              onClick={handleManageSubscription}
               disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 disabled:bg-gray-300 transition-colors"
             >
@@ -298,7 +312,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           </ul>
           {status === 'pro' ? (
             <button
-              onClick={onManageSubscription}
+              onClick={handleManageSubscription}
               disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200 disabled:bg-gray-300 transition-colors"
             >
@@ -361,7 +375,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           </ul>
           {status === 'max' ? (
             <button
-              onClick={onManageSubscription}
+              onClick={handleManageSubscription}
               disabled={combinedLoading}
               className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-amber-700 bg-amber-100 hover:bg-amber-200 disabled:bg-gray-300 transition-colors"
             >

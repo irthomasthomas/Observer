@@ -18,6 +18,10 @@
     "pip:default",
     "deep-link:default",
     "auth:default",
-    "iap:default"
+    "iap:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://apps.apple.com/*" }, { "url": "https://observer-ai.com/*" }]
+    }
   ]
 }

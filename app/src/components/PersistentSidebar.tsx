@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Home, Users, Database, Settings, Cpu, Video, Sparkles } from 'lucide-react';
 import { Logger } from '@utils/logging';
+import { isIOS } from '../utils/platform';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 interface PersistentSidebarProps {
   activeTab: string;
@@ -99,9 +101,19 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
           <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
             <div>Observer v0.1.0</div>
             <div className="flex justify-center gap-2">
-              <a href="https://observer-ai.com/#/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">Privacy</a>
-              <span>·</span>
-              <a href="https://observer-ai.com/#/terms" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">Terms</a>
+              {isIOS() ? (
+                <>
+                  <button onClick={() => openUrl('https://observer-ai.com/#/Privacy')} className="hover:text-blue-500 underline">Privacy</button>
+                  <span>·</span>
+                  <button onClick={() => openUrl('https://observer-ai.com/#/Terms')} className="hover:text-blue-500 underline">Terms</button>
+                </>
+              ) : (
+                <>
+                  <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">Privacy</a>
+                  <span>·</span>
+                  <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">Terms</a>
+                </>
+              )}
             </div>
           </div>
         </div>

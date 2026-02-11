@@ -2,11 +2,11 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod commands;
+mod controls;
 mod notifications;
 mod overlay;
 mod shortcuts;
-mod commands;
-mod controls;
 
 // Import unified shortcut types (desktop only)
 use shortcuts::UnifiedShortcutState;
@@ -26,9 +26,7 @@ use http_body_util::BodyExt;
 
 use reqwest::Client;
 use std::sync::Mutex;
-use tauri::{
-    AppHandle, Emitter, Manager, State,
-};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -76,7 +74,6 @@ struct CommandState {
     // SSE broadcast channel for real-time commands
     command_broadcaster: broadcast::Sender<CommandMessage>,
 }
-
 
 #[tauri::command]
 async fn set_ollama_url(
@@ -157,7 +154,9 @@ async fn check_ollama_servers(urls: Vec<String>) -> Result<Vec<String>, String> 
 }
 
 #[tauri::command]
-async fn get_overlay_messages(overlay_state: State<'_, OverlayState>) -> Result<Vec<OverlayMessage>, String> {
+async fn get_overlay_messages(
+    overlay_state: State<'_, OverlayState>,
+) -> Result<Vec<OverlayMessage>, String> {
     log::info!("Getting overlay messages");
     let messages = overlay_state.messages.lock().unwrap().clone();
     Ok(messages)
@@ -174,7 +173,10 @@ async fn clear_overlay_messages(
     // Emit event to notify frontend of cleared messages
     let empty_messages: Vec<OverlayMessage> = vec![];
     if let Err(e) = app_handle.emit("overlay-messages-updated", &empty_messages) {
-        log::warn!("Failed to emit overlay-messages-updated event after clear: {}", e);
+        log::warn!(
+            "Failed to emit overlay-messages-updated event after clear: {}",
+            e
+        );
     } else {
         log::debug!("Emitted overlay-messages-updated event with 0 messages after clear");
     }
@@ -304,14 +306,29 @@ fn start_static_server(app_handle: tauri::AppHandle) {
                     "pong"
                 }),
             )
-            .route("/message", axum::routing::post(notifications::message_handler))
-            .route("/notification", axum::routing::post(notifications::notification_handler))
+            .route(
+                "/message",
+                axum::routing::post(notifications::message_handler),
+            )
+            .route(
+                "/notification",
+                axum::routing::post(notifications::notification_handler),
+            )
             .route("/overlay", axum::routing::post(overlay::overlay_handler))
             .route("/click", axum::routing::post(controls::click_handler))
-            .route("/commands-stream", axum::routing::get(commands::commands_stream_handler))
+            .route(
+                "/commands-stream",
+                axum::routing::get(commands::commands_stream_handler),
+            )
             // Legacy HTTP endpoints (for backward compatibility during migration)
-            .route("/commands", axum::routing::get(commands::get_commands_handler))
-            .route("/commands", axum::routing::post(commands::post_commands_handler))
+            .route(
+                "/commands",
+                axum::routing::get(commands::get_commands_handler),
+            )
+            .route(
+                "/commands",
+                axum::routing::post(commands::post_commands_handler),
+            )
             .fallback_service(ServeDir::new(resource_path))
             .with_state(state)
             .layer(cors);
@@ -341,6 +358,7 @@ fn start_static_server(app_handle: tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init());
 
