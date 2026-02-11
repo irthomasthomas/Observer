@@ -21,7 +21,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(false);
 
-  const { getAccessToken, isAuthenticated, user, login, logout } = useAuth();
+  const { getAccessToken, isAuthenticated, user, login } = useAuth();
   const {
     isLoading: isAppleLoading,
     error: appleError,
@@ -29,17 +29,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
   } = useApplePayments();
 
   const isAppleDevice = isIOS();
-
-  // Check if user has already accepted privacy policy
-  useEffect(() => {
-    if (isOpen && user?.sub) {
-      const hasAccepted = localStorage.getItem(`observer_privacy_accepted_${user.sub}`);
-      if (hasAccepted === 'true') {
-        setHasAcceptedPrivacy(true);
-        Logger.info('WELCOME', 'User has already accepted privacy policy');
-      }
-    }
-  }, [isOpen, user]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -102,22 +91,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
 
   const handleProCheckout = () => handleApiAction('create-checkout-session');
 
-  // Refresh subscription status (called after successful Apple purchase)
-  const refreshStatus = useCallback(async () => {
-    try {
-      const token = await getAccessToken();
-      const response = await fetch('https://api.observer-ai.com/quota', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setStatus(data.tier || 'free');
-      }
-    } catch (err) {
-      Logger.error('WELCOME', 'Failed to refresh status after purchase', err);
-    }
-  }, [getAccessToken]);
-
   // Apple In-App Purchase handler for Pro
   const handleApplePurchasePro = useCallback(async () => {
     setIsButtonLoading(true);
@@ -126,8 +99,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
       const result = await purchaseSubscription('pro');
       if (result.success) {
         Logger.info('WELCOME', 'Apple Pro purchase successful', { tier: result.tier });
-        await refreshStatus();
-        handleClose(); // Close modal on success
+        window.location.href = '/upgrade-success';
       } else {
         setError(result.error || 'Purchase failed');
       }
@@ -137,31 +109,21 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
     } finally {
       setIsButtonLoading(false);
     }
-  }, [purchaseSubscription, refreshStatus]);
+  }, [purchaseSubscription]);
 
   const handleStarGithub = () => {
     window.open('https://github.com/Roy3838/Observer', '_blank');
   };
 
   const handleClose = () => {
-    // If user is authenticated but hasn't accepted privacy, sign them out
-    if (isAuthenticated && !hasAcceptedPrivacy) {
-      Logger.info('WELCOME', 'User closed modal without accepting privacy - signing out');
-      logout();
-    }
-
     if (dontShowAgain && user?.sub) {
       localStorage.setItem(`observer_onboarding_complete_${user.sub}`, 'true');
-      Logger.info('WELCOME', 'User completed onboarding (don\'t show again)');
+      Logger.info('WELCOME', 'User set don\'t show again');
     }
     onClose();
   };
 
   const handleAcceptPrivacy = () => {
-    if (user?.sub) {
-      localStorage.setItem(`observer_privacy_accepted_${user.sub}`, 'true');
-      Logger.info('WELCOME', 'User accepted privacy policy');
-    }
     setHasAcceptedPrivacy(true);
   };
 
@@ -181,15 +143,17 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] backdrop-blur-sm p-2 md:p-4"
-      onClick={handleClose}
+      onClick={shouldShowPrivacyConsent ? undefined : handleClose}
     >
       <div
         className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[85vh] md:max-h-[90vh] overflow-y-auto transition-all duration-300"
         onClick={e => e.stopPropagation()}
       >
-        <button onClick={handleClose} className="absolute top-3 right-3 md:top-4 md:right-4 text-gray-400 hover:text-gray-700 z-10 transition-colors">
-          <CloseIcon className="h-5 w-5 md:h-6 md:w-6" />
-        </button>
+        {!shouldShowPrivacyConsent && (
+          <button onClick={handleClose} className="absolute top-3 right-3 md:top-4 md:right-4 text-gray-400 hover:text-gray-700 z-10 transition-colors">
+            <CloseIcon className="h-5 w-5 md:h-6 md:w-6" />
+          </button>
+        )}
 
         {/* STATE 1: Local Mode Warning (Not Signed In) */}
         {shouldShowLocalMode && (
@@ -253,6 +217,19 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               >
                 Continue Without Sign In
               </button>
+            </div>
+
+            {/* Don't show again checkbox */}
+            <div className="flex items-center justify-center pt-4 mt-4 border-t border-gray-200">
+              <label className="flex items-center cursor-pointer text-xs md:text-sm text-gray-600 hover:text-gray-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                  className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Don't show this again
+              </label>
             </div>
           </div>
         )}
@@ -402,7 +379,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                   className="w-full px-4 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all duration-200 font-semibold text-sm md:text-base shadow-md hover:shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isButtonLoading || isAppleLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                  {isAppleDevice ? 'Upgrade to Pro' : 'Start Free Trial'}
+                  Start Free Trial
                 </button>
               </div>
 
