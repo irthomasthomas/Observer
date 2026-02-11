@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@contexts/AuthContext';
 import { useApplePayments } from '@hooks/useApplePayments';
-import { X as CloseIcon, X, Loader2, Sparkles, Zap, Heart, Star, Lock, Shield, ExternalLink, Check } from 'lucide-react';
+import { X as CloseIcon, X, Loader2, Sparkles, Zap, Heart, Star, Shield, ExternalLink, Check } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { isIOS } from '../utils/platform';
 
@@ -191,57 +191,53 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
           <CloseIcon className="h-5 w-5 md:h-6 md:w-6" />
         </button>
 
-        {/* STATE 1: Local Mode Welcome (Not Signed In) */}
+        {/* STATE 1: Local Mode Warning (Not Signed In) */}
         {shouldShowLocalMode && (
           <div className="p-6 md:p-8">
-            {/* Header */}
-            <div className="text-center mb-6">
-              <div className="flex justify-center items-center mb-4">
-                <Lock className="h-12 w-12 md:h-16 md:w-16 text-green-600 mr-3" />
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Welcome to Observer</h2>
-                  <p className="text-lg md:text-xl text-green-600 font-semibold">100% Local Mode</p>
-                </div>
+            {/* Warning Header */}
+            <div className="bg-amber-50 border-2 border-amber-400 rounded-xl p-4 md:p-5 mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-2xl">⚠️</span>
+                <h2 className="text-xl md:text-2xl font-bold text-amber-900">Warning: 100% Offline Mode</h2>
               </div>
+              <p className="text-sm md:text-base text-amber-800 leading-relaxed">
+                It's really cool that you value your privacy! Observer is all in on that.
+                <br />
+                Everything will work if you host your own models.
+              </p>
             </div>
 
-            {/* Privacy Badge */}
-            <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4 md:p-6 mb-6">
-              <div className="flex items-start gap-3">
-                <Lock className="h-6 w-6 text-green-600 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-lg font-bold text-green-900 mb-2">Complete Privacy Mode Active</h3>
-                  <p className="text-sm md:text-base text-green-800 mb-4">
-                    All your data stays on your device. We won't even know you exist!
-                  </p>
-
-                  {/* What Works */}
-                  <div className="space-y-2 text-sm md:text-base">
-                    <div className="flex items-start">
-                      <Check className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
-                      <span className="text-green-900"><strong>Local AI models</strong> (Ollama, llama.cpp, etc.)</span>
-                    </div>
-                    <div className="flex items-start">
-                      <Check className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
-                      <span className="text-green-900"><strong>Discord notifications</strong></span>
-                    </div>
-                    <div className="flex items-start">
-                      <Check className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
-                      <span className="text-green-900"><strong>Recording, logging, memory</strong> - all local</span>
-                    </div>
-                    <div className="flex items-start">
-                      <X className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-600">Cloud notifications (WhatsApp, SMS, Email require sign-in)</span>
-                    </div>
+            {/* API Features Warning */}
+            <div className="mb-5">
+              <p className="text-sm md:text-base text-gray-700 font-semibold mb-3">
+                Just be mindful that API functions will not work:
+              </p>
+              <div className="space-y-1.5 text-sm md:text-base pl-2">
+                {['Telegram', 'SMS', 'Calling', 'WhatsApp', 'Email', 'Pushover'].map((item) => (
+                  <div key={item} className="flex items-center gap-2">
+                    <X className="h-4 w-4 text-red-400 flex-shrink-0" />
+                    <span className="text-gray-600">{item}</span>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Pro Tip */}
+            {/* What Works */}
+            <div className="space-y-2 text-sm md:text-base mb-6">
+              <div className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-600 flex-shrink-0" />
+                <span className="text-gray-800 font-medium">Discord will work!</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-600 flex-shrink-0" />
+                <span className="text-gray-800 font-medium">All logging/recording features will work!</span>
+              </div>
+            </div>
+
+            {/* Recommended */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm md:text-base text-blue-900">
-                <strong>💡 Pro Tip:</strong> You can sign in and still use local models to get ALL notification services with 100% privacy!
+                <strong>Recommended:</strong> Sign in and use local models — that way you have access to those features while keeping your sensitive data 100% on your device!
               </p>
             </div>
 
@@ -251,13 +247,13 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                 onClick={handleSignIn}
                 className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
-                Sign In to Unlock Cloud Features
+                Sign In
               </button>
               <button
                 onClick={handleClose}
                 className="w-full px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-400 transition-all duration-200 font-semibold"
               >
-                Continue in Local-Only Mode
+                Continue Without Sign In
               </button>
             </div>
           </div>
