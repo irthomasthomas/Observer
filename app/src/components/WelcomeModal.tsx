@@ -213,12 +213,10 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                 Just be mindful that API functions will not work:
               </p>
               <div className="space-y-1.5 text-sm md:text-base pl-2">
-                {['Telegram', 'SMS', 'Calling', 'WhatsApp', 'Email', 'Pushover'].map((item) => (
-                  <div key={item} className="flex items-center gap-2">
-                    <X className="h-4 w-4 text-red-400 flex-shrink-0" />
-                    <span className="text-gray-600">{item}</span>
-                  </div>
-                ))}
+                <div className="flex items-center gap-2">
+                  <X className="h-4 w-4 text-red-400 flex-shrink-0" />
+                  <span className="text-gray-600">Telegram, SMS, Calling, Whatsapp, Email and Pushover</span>
+                </div>
               </div>
             </div>
 
@@ -237,7 +235,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
             {/* Recommended */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm md:text-base text-blue-900">
-                <strong>Recommended:</strong> Sign in and use local models — that way you have access to those features while keeping your sensitive data 100% on your device!
+                <strong>Recommended:</strong> Sign in AND use local models, that way you have access to those features while keeping your sensitive data 100% on your device!
               </p>
             </div>
 
@@ -349,7 +347,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                 <span className="font-semibold">Built by a solo developer</span>
               </p>
               <p className="text-xs md:text-sm text-gray-600 mb-4 md:mb-6">
-                Try Observer Pro free - give feedback and help development
+                Try Observer Pro - give feedback and help development
               </p>
 
               {/* Observer Pro - Hero Free Trial Option */}
