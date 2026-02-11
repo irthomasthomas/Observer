@@ -1,7 +1,7 @@
 // src/components/CommunityTab.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit, Flag, Send, X } from 'lucide-react';
+import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit, Flag, Send, X, Trash2 } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
 import { useAuth } from '@contexts/AuthContext';
@@ -52,6 +52,7 @@ const CommunityTab: React.FC = () => {
   const [importing, setImporting] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<MarketplaceAgent | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [myAgents, setMyAgents] = useState<CompleteAgent[]>([]);
   const [selectedUploadAgent, setSelectedUploadAgent] = useState<string | null>(null);
@@ -191,6 +192,18 @@ const CommunityTab: React.FC = () => {
     if (!isAuthenticated || !user || !agent.author_id) return false;
     return user.sub === agent.author_id;
   };
+
+  // Sort: user's own agents first, then featured, then rest
+  const sortedAgents = useMemo(() => {
+    return [...agents].sort((a, b) => {
+      const aOwned = isAuthenticated && user && a.author_id === user.sub ? 0 : 1;
+      const bOwned = isAuthenticated && user && b.author_id === user.sub ? 0 : 1;
+      if (aOwned !== bOwned) return aOwned - bOwned;
+      const aFeatured = a.featured_order != null ? 0 : 1;
+      const bFeatured = b.featured_order != null ? 0 : 1;
+      return aFeatured - bFeatured;
+    });
+  }, [agents, isAuthenticated, user]);
 
   // Check for sensitive functions in code and show warning if found
   const checkForSensitiveData = (
@@ -630,10 +643,12 @@ ${reportComment}
         date_added: agentData.date_added || new Date().toISOString()
       };
       
+      const token = await getToken();
       const response = await fetch(`${SERVER_URL}/agents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(enrichedAgentData)
       });
@@ -650,6 +665,38 @@ ${reportComment}
       setShowUploadModal(false);
     } catch (err) {
       throw err;
+    }
+  };
+
+  const handleDeleteAgent = async (agent: MarketplaceAgent) => {
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to delete agents');
+      return;
+    }
+    if (!window.confirm(`Delete "${agent.name}" from the community marketplace? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      setIsDeleting(agent.id);
+      const token = await getToken();
+      const response = await fetch(`${SERVER_URL}/agents/${agent.id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+      Logger.info('COMMUNITY', `Agent ${agent.name} deleted from marketplace`);
+      fetchAgents();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to delete agent: ${errorMessage}`);
+      Logger.error('COMMUNITY', `Error deleting agent: ${errorMessage}`, err);
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -769,7 +816,7 @@ ${reportComment}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {agents.map(agent => (
+          {sortedAgents.map(agent => (
             <div
               key={agent.id}
               className={`bg-white rounded-lg shadow-md p-4 flex flex-col ${
@@ -789,13 +836,23 @@ ${reportComment}
                     <Info className="h-5 w-5" />
                   </button>
                   {isAuthorOfAgent(agent) && (
-                    <button
-                      onClick={() => handleEditClick(agent)}
-                      className="p-2 rounded-md hover:bg-green-100 text-green-600"
-                      title="Edit your agent"
-                    >
-                      <Edit className="h-5 w-5" />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleEditClick(agent)}
+                        className="p-2 rounded-md hover:bg-green-100 text-green-600"
+                        title="Edit your agent"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAgent(agent)}
+                        disabled={isDeleting === agent.id}
+                        className="p-2 rounded-md hover:bg-red-100 text-red-500 disabled:opacity-50"
+                        title="Delete your agent"
+                      >
+                        <Trash2 className={`h-5 w-5 ${isDeleting === agent.id ? 'animate-pulse' : ''}`} />
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={async () => {
@@ -974,37 +1031,42 @@ ${reportComment}
       )}
 
       {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-lg shadow-lg w-1/2 max-w-lg flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-xl font-semibold">Upload Agent</h2>
-              <button 
-                onClick={() => setShowUploadModal(false)} 
-                className="p-1 rounded-full hover:bg-gray-100"
+      {showUploadModal && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-[70] p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:w-auto sm:max-w-lg flex flex-col max-h-[92dvh] sm:max-h-[90vh]">
+            {/* Header */}
+            <div className="flex justify-between items-center px-5 py-4 border-b flex-shrink-0">
+              <h2 className="text-lg font-semibold text-gray-900">Upload Agent</h2>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 text-xl leading-none"
               >
                 &times;
               </button>
             </div>
-            
-            <div className="p-4">
+
+            {/* Scrollable body */}
+            <div className="p-5 overflow-y-auto flex-1">
               <p className="mb-4 text-sm text-gray-600">
-                You can upload one of your agents to the community marketplace. This will make your agent available for others to use.
+                Share one of your agents with the community marketplace so others can use it.
               </p>
-              
-              <div className="bg-blue-50 p-3 rounded-md mb-4 text-sm text-blue-700">
-                <p><strong>Note:</strong> By uploading an agent, you agree to share it with the community. Your agent will be publicly available.</p>
+
+              {/* Public sharing notice */}
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-5 text-sm text-amber-800">
+                <strong>⚠️ Heads up:</strong> Your agent will be publicly visible to everyone on the marketplace.
               </div>
-              
+
+              {/* Select existing agent */}
               <div className="mb-4">
-                <h3 className="font-medium mb-2">Select agent to upload</h3>
-                
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select an agent to upload
+                </label>
                 <select
                   value={selectedUploadAgent || ''}
                   onChange={(e) => setSelectedUploadAgent(e.target.value || null)}
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  <option value="">Select an agent...</option>
+                  <option value="">Choose an agent...</option>
                   {myAgents.map(agent => (
                     <option key={agent.id} value={agent.id}>
                       {agent.name}
@@ -1012,38 +1074,38 @@ ${reportComment}
                   ))}
                 </select>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  - OR -
-                </p>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs text-gray-400 font-medium">OR</span>
+                <div className="flex-1 h-px bg-gray-200" />
               </div>
-              
-              <div className="mt-4">
-                <button
-                  onClick={handleFileUploadClick}
-                  className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 flex items-center justify-center"
-                >
-                  <Upload className="h-5 w-5 mr-2" />
-                  Upload Agent File (.json or .yaml)
-                </button>
-              </div>
+
+              {/* File upload */}
+              <button
+                onClick={handleFileUploadClick}
+                className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:bg-gray-50 hover:border-gray-400 flex items-center justify-center gap-2 transition-colors"
+              >
+                <Upload className="h-4 w-4 flex-shrink-0" />
+                Upload Agent File (.json or .yaml)
+              </button>
             </div>
-            
-            <div className="p-4 border-t flex justify-end space-x-3">
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t flex flex-col-reverse sm:flex-row gap-3 sm:justify-end flex-shrink-0">
               <button
                 onClick={() => setShowUploadModal(false)}
-                className="px-4 py-2 border rounded-md hover:bg-gray-50"
+                className="w-full sm:w-auto px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
-              
               <button
                 onClick={handleExistingAgentUpload}
                 disabled={!selectedUploadAgent || isUploading}
-                className={`px-4 py-2 rounded-md ${
+                className={`w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                   !selectedUploadAgent
-                    ? 'bg-gray-300 text-gray-500'
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : isUploading
                       ? 'bg-yellow-500 text-white'
                       : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -1053,7 +1115,8 @@ ${reportComment}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Agent Modal */}
