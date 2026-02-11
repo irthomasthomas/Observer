@@ -1,5 +1,6 @@
 // src/components/CommunityTab.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit, Flag, Send, X } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
@@ -883,7 +884,7 @@ ${reportComment}
       />
 
       {/* Agent Details Modal */}
-      {selectedAgent && (
+      {selectedAgent && createPortal(
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4"
           onClick={closeDetails}
@@ -968,7 +969,8 @@ ${reportComment}
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Upload Modal */}
