@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@contexts/AuthContext';
 import { useApplePayments } from '@hooks/useApplePayments';
-import { X as CloseIcon, X, Loader2, Sparkles, Zap, Heart, Star, Shield, ExternalLink, Check, Monitor, Camera, Mic, Clipboard, Server } from 'lucide-react';
+import { X as CloseIcon, X, Loader2, Sparkles, Zap, Heart, Star, Shield, Check, Monitor, Camera, Mic, Clipboard, Server } from 'lucide-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Logger } from '@utils/logging';
 import { isIOS } from '../utils/platform';
