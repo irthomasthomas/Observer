@@ -98,11 +98,27 @@ const PrivacyPolicy = () => {
             </p>
 
             <h3 className="text-lg font-medium mt-6 mb-2 text-gray-800">AI Inference Providers</h3>
-            <p>
-              Your prompts and sensor data (such as screenshots) are sent to AI inference providers including
-              Google AI Studio, OpenRouter, and Fireworks.ai to generate responses. <strong>These providers have
-              their own privacy policies and data practices, and we are not responsible for how they use, store,
-              or process the data sent to them.</strong> We encourage you to review their respective privacy policies.
+            <p className="mb-3">
+              Your prompts and sensor data (such as screenshots) are sent to AI inference providers to generate responses.
+              We select providers that maintain industry-standard data protection practices. The specific providers we use are:
+            </p>
+            <ul className="list-disc pl-6 space-y-2 mb-3">
+              <li>
+                <strong>Google AI Studio (Gemini API)</strong> — We use the paid API tier, which does not use your data for model training.{' '}
+                <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Privacy Policy</a>
+              </li>
+              <li>
+                <strong>Fireworks.ai</strong> — Explicitly commits to zero data retention for prompts and does not use your data for training without opt-in.{' '}
+                <a href="https://fireworks.ai/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Privacy Policy</a>
+              </li>
+              <li>
+                <strong>OpenRouter</strong> — Routes requests to various AI providers. Data handling depends on the underlying model provider.{' '}
+                <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Privacy Policy</a>
+              </li>
+            </ul>
+            <p className="text-sm text-gray-600">
+              <strong>For maximum privacy:</strong> Use local models (via Ollama or similar) — your data never leaves your device.
+              The app clearly indicates whether each model is cloud-based or local, and links to the relevant provider's privacy policy.
             </p>
 
             <h3 className="text-lg font-medium mt-6 mb-2 text-gray-800">Notification Providers</h3>
@@ -202,7 +218,7 @@ const PrivacyPolicy = () => {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="container mx-auto px-6 text-center text-gray-400">
-          <p>&copy; 2025 Observer AI. Open source and community driven.</p>
+          <p>&copy; 2026 Observer AI. Open source and community driven.</p>
         </div>
       </footer>
     </div>
