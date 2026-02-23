@@ -4,7 +4,7 @@ import {
     Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap, Settings, Cloud
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
-import { listModels } from '@utils/inferenceServer';
+import { listModels, fetchModels } from '@utils/inferenceServer';
 import { getInferenceAddresses } from '@utils/inferenceServer';
 import { detectAgentCapabilities } from './agentCapabilities';
 import SensorModal from './SensorModal';
@@ -289,15 +289,30 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [currentModelInfo, setCurrentModelInfo] = useState<{ server?: string; ownedBy?: string } | null>(null);
 
-    // Look up current model info for cloud indicator
+    // Look up current model info for location indicator
     useEffect(() => {
+        let cancelled = false;
+
+        const lookupModel = () => {
+            if (cancelled) return;
+            const models = listModels().models;
+            const modelInfo = models.find(m => m.name === currentModel);
+            setCurrentModelInfo(modelInfo
+                ? { server: modelInfo.server, ownedBy: modelInfo.ownedBy }
+                : null
+            );
+        };
+
+        // Try immediately
         const models = listModels().models;
-        const modelInfo = models.find(m => m.name === currentModel);
-        if (modelInfo) {
-            setCurrentModelInfo({ server: modelInfo.server, ownedBy: modelInfo.ownedBy });
-        } else {
-            setCurrentModelInfo(null);
+        if (models.length > 0) {
+            lookupModel();
+        } else if (currentModel) {
+            // Models not loaded yet, fetch them (only if needed)
+            fetchModels().then(lookupModel);
         }
+
+        return () => { cancelled = true; };
     }, [currentModel]);
 
     // Derive model location info
