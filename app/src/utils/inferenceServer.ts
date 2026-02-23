@@ -10,6 +10,7 @@ export interface Model {
   multimodal?: boolean;
   pro?: boolean;
   server: string;
+  ownedBy?: string;
 }
 
 export interface CustomServer {
@@ -194,7 +195,8 @@ async function listModelsFromAddress(address: string): Promise<Model[]> {
       parameterSize: model.parameter_size,
       multimodal: model.multimodal ?? false,
       pro: model.pro ?? false,
-      server: address
+      server: address,
+      ownedBy: model.owned_by
     }));
   } catch (error) {
     return [];

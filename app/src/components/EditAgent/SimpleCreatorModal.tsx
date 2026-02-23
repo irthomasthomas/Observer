@@ -3,7 +3,8 @@ import Modal from '@components/EditAgent/Modal';
 import SensorInputText from '@components/EditAgent/SensorInputText';
 import { SimpleTool, ToolData } from '@utils/agentTemplateManager';
 import { Model, listModels } from '@utils/inferenceServer';
-// Removed getOllamaServerAddress import - no longer needed
+import { isIOS } from '@utils/platform';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
   Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server, MousePointer, Phone
@@ -72,6 +73,82 @@ const ToolWarning = ({ icon: Icon, message, colorClass }: { icon: React.ElementT
   </div>
 );
 // --- END NEW ---
+
+// --- Cloud Privacy Notice ---
+interface SensorDataType {
+  sensor: string;
+  label: string;
+}
+
+const SENSOR_DATA_MAP: SensorDataType[] = [
+  { sensor: '$SCREEN_64', label: 'Screen captures (images)' },
+  { sensor: '$CAMERA', label: 'Camera images' },
+  { sensor: '$SCREEN_OCR', label: 'Text extracted from your screen' },
+  { sensor: '$CLIPBOARD_TEXT', label: 'Clipboard content' },
+  { sensor: '$MICROPHONE', label: 'Microphone audio transcription' },
+  { sensor: '$SCREEN_AUDIO', label: 'Screen audio transcription' },
+  { sensor: '$ALL_AUDIO', label: 'Microphone and screen audio transcription' },
+];
+
+function getDetectedSensorData(prompt: string): SensorDataType[] {
+  return SENSOR_DATA_MAP.filter(item => prompt.includes(item.sensor));
+}
+
+function isCloudModel(model: Model | undefined): boolean {
+  if (!model) return false;
+  return model.server.includes('api.observer-ai.com');
+}
+
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  'gemini': 'Google AI Studio',
+  'gemini-pro': 'Google AI Studio',
+  'fireworks': 'Fireworks.ai',
+  'openrouter': 'OpenRouter',
+  'openai': 'OpenAI',
+  'anthropic': 'Anthropic',
+};
+
+function getProviderName(model: Model | undefined): string {
+  if (!model?.ownedBy) return 'a third-party AI service';
+  return PROVIDER_DISPLAY_NAMES[model.ownedBy.toLowerCase()] || model.ownedBy;
+}
+
+interface CloudPrivacyNoticeProps {
+  detectedData: SensorDataType[];
+  providerName: string;
+}
+
+const PrivacyLink: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const privacyUrl = 'https://observer-ai.com/#/Privacy';
+
+  if (isIOS()) {
+    return (
+      <button onClick={() => openUrl(privacyUrl)} className="inline-flex items-center text-blue-500 hover:text-blue-600">
+        {children}
+      </button>
+    );
+  }
+  return (
+    <a href={privacyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-blue-500 hover:text-blue-600">
+      {children}
+    </a>
+  );
+};
+
+const CloudPrivacyNotice: React.FC<CloudPrivacyNoticeProps> = ({ detectedData, providerName }) => {
+  return (
+    <div className="flex-1 flex items-center space-x-2 text-sm text-gray-600 px-4">
+      <PrivacyLink><Info className="h-4 w-4 flex-shrink-0" /></PrivacyLink>
+      <div>
+        <span>This agent uses a cloud model hosted by <strong>{providerName}</strong>.</span>
+        {detectedData.length > 0 && (
+          <span> When running, the following will be sent: <strong>{detectedData.map(d => d.label.toLowerCase()).join(', ')}</strong>.</span>
+        )}
+      </div>
+    </div>
+  );
+};
+// --- END Cloud Privacy Notice ---
 
 
 // --- MAIN WIZARD COMPONENT ---
@@ -420,12 +497,30 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
       </div>
       
       {/* Footer */}
-      <div className="flex justify-between items-center p-4 border-t bg-gray-50 flex-shrink-0">
-        {step > 1 ? (<button onClick={handleBack} className="inline-flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-md"><ArrowLeft className="h-5 w-5 mr-2" />Back</button>) : (<div></div>)}
-        <button onClick={handleNext} disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)} className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
-          {step === 3 ? 'Finish & Create' : 'Next'}
-          {step < 3 && <ArrowRight className="h-5 w-5 ml-2" />}
-        </button>
+      <div className="flex items-center justify-between p-4 border-t bg-gray-50 flex-shrink-0">
+        {(() => {
+          const selectedModelInfo = availableModels.find(m => m.name === model);
+          const isCloud = step === 2 && isCloudModel(selectedModelInfo);
+          const detectedSensors = getDetectedSensorData(systemPrompt);
+          const showPrivacyConsent = isCloud && detectedSensors.length > 0;
+          const buttonText = step === 3 ? 'Finish & Create' : showPrivacyConsent ? 'I Agree, Next' : 'Next';
+
+          return (
+            <>
+              {step > 1 ? (<button onClick={handleBack} className="inline-flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-md"><ArrowLeft className="h-5 w-5 mr-2" />Back</button>) : (<div></div>)}
+              {isCloud ? (
+                <CloudPrivacyNotice
+                  detectedData={detectedSensors}
+                  providerName={getProviderName(selectedModelInfo)}
+                />
+              ) : <div className="flex-1" />}
+              <button onClick={handleNext} disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)} className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {buttonText}
+                {step < 3 && <ArrowRight className="h-5 w-5 ml-2" />}
+              </button>
+            </>
+          );
+        })()}
       </div>
     </Modal>
   );
