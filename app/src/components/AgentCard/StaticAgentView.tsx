@@ -44,6 +44,18 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
     'groq': 'Groq',
 };
 
+// Provider privacy policy URLs
+const PROVIDER_PRIVACY_URLS: Record<string, string> = {
+    'Google AI Studio': 'https://ai.google.dev/gemini-api/terms',
+    'Fireworks.ai': 'https://fireworks.ai/privacy-policy',
+    'OpenRouter': 'https://openrouter.ai/privacy',
+    'OpenAI': 'https://openai.com/policies/privacy-policy',
+    'Anthropic': 'https://www.anthropic.com/privacy',
+    'Together AI': 'https://www.together.ai/privacy',
+    'Groq': 'https://groq.com/privacy-policy/',
+    'Observer Cloud': 'https://observer-ai.com/#/Privacy',
+};
+
 // Helper to get provider display name from ownedBy or server
 const getProviderName = (ownedBy?: string, server?: string): string | null => {
     if (ownedBy) {
@@ -103,10 +115,21 @@ const ModelLocationIndicator: React.FC<{
                     {isCloud ? (
                         <>
                             <div className="text-xs font-semibold text-gray-800 mb-2">
-                                → {providerName}
+                                → {providerName && PROVIDER_PRIVACY_URLS[providerName] ? (
+                                    <a
+                                        href={PROVIDER_PRIVACY_URLS[providerName]}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {providerName} ↗
+                                    </a>
+                                ) : providerName}
                             </div>
                             {sensors.length > 0 && (
-                                <div className="space-y-1">
+                                <div className="space-y-1 mb-2">
+                                    <div className="text-xs text-gray-500 font-medium">Data sent to provider:</div>
                                     {sensors.map(sensor => (
                                         <div key={sensor.key} className="flex items-center gap-2 text-xs text-gray-600">
                                             <sensor.icon className="w-3.5 h-3.5 text-gray-400" />
