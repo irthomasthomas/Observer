@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap, Settings
+    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap, Settings, Cloud
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { listModels } from '@utils/inferenceServer';
@@ -31,13 +31,116 @@ const InfoTag: React.FC<{ icon: React.ElementType; label: string; warning?: stri
     </div>
 );
 
+// Provider display names mapping
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+    'gemini': 'Google AI Studio',
+    'gemini-pro': 'Google AI Studio',
+    'google': 'Google AI Studio',
+    'fireworks': 'Fireworks.ai',
+    'openrouter': 'OpenRouter',
+    'openai': 'OpenAI',
+    'anthropic': 'Anthropic',
+    'together': 'Together AI',
+    'groq': 'Groq',
+};
+
+// Helper to get provider display name from ownedBy or server
+const getProviderName = (ownedBy?: string, server?: string): string | null => {
+    if (ownedBy) {
+        const key = ownedBy.toLowerCase();
+        return PROVIDER_DISPLAY_NAMES[key] || ownedBy;
+    }
+    // Check if it's a cloud server (not localhost)
+    if (server && !server.includes('localhost') && !server.includes('127.0.0.1')) {
+        if (server.includes('api.observer-ai.com')) return 'Observer Cloud';
+        return 'Cloud Provider';
+    }
+    return null;
+};
+
+// Helper to check if model is cloud-based
+const isCloudModel = (server?: string): boolean => {
+    if (!server) return false;
+    return !server.includes('localhost') && !server.includes('127.0.0.1');
+};
+
+// Model Location Indicator - Shows cloud or local status with popover
+const ModelLocationIndicator: React.FC<{
+    isCloud: boolean;
+    providerName?: string;
+    sensors: { key: string; label: string; icon: React.ElementType }[];
+}> = ({ isCloud, providerName, sensors }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [isOpen]);
+
+    return (
+        <div ref={containerRef} className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`p-1 rounded transition-colors ${
+                    isCloud
+                        ? 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'
+                        : 'text-gray-400 hover:text-gray-500 hover:bg-gray-100'
+                }`}
+                title={isCloud ? "Cloud model" : "Local model"}
+            >
+                {isCloud ? <Cloud className="w-4 h-4" /> : <Server className="w-4 h-4" />}
+            </button>
+            {isOpen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 p-3 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    {isCloud ? (
+                        <>
+                            <div className="text-xs font-semibold text-gray-800 mb-2">
+                                → {providerName}
+                            </div>
+                            {sensors.length > 0 && (
+                                <div className="space-y-1">
+                                    {sensors.map(sensor => (
+                                        <div key={sensor.key} className="flex items-center gap-2 text-xs text-gray-600">
+                                            <sensor.icon className="w-3.5 h-3.5 text-gray-400" />
+                                            <span>{sensor.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="mt-2 pt-2 border-t border-gray-100">
+                                <p className="text-xs text-gray-400">
+                                    Use local models for 100% privacy
+                                </p>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <Server className="w-4 h-4 text-green-500" />
+                            <p className="text-xs text-gray-700">
+                                <span className="font-semibold text-green-600">Local model</span> — all data stays on your device!
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
 
 
 const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName: string) => void; isProUser?: boolean; }> = ({ currentModel, onModelChange, isProUser = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [availableModels, setAvailableModels] = useState<{ name: string; multimodal?: boolean; pro?: boolean; server: string; }[]>([]);
+    const [availableModels, setAvailableModels] = useState<{ name: string; multimodal?: boolean; pro?: boolean; server: string; ownedBy?: string; }[]>([]);
     const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -102,7 +205,7 @@ const ModelDropdown: React.FC<{ currentModel: string; onModelChange: (modelName:
     return (
         <div className="relative inline-block text-left">
             <button ref={buttonRef} type="button" onClick={handleToggle} className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 md:px-2.5 md:py-1.5 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 min-h-[44px] md:min-h-0">
-                <span className="truncate max-w-[150px]">{currentModel || 'Select Model'}</span>
+                <span className="truncate max-w-[120px]">{currentModel || 'Select Model'}</span>
                 <ChevronDown className="-mr-1 ml-1.5 h-4 w-4" />
             </button>
             {isOpen && dropdownPosition && createPortal(
@@ -184,6 +287,25 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     const [isSensorModalOpen, setIsSensorModalOpen] = useState(false);
     const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [currentModelInfo, setCurrentModelInfo] = useState<{ server?: string; ownedBy?: string } | null>(null);
+
+    // Look up current model info for cloud indicator
+    useEffect(() => {
+        const models = listModels().models;
+        const modelInfo = models.find(m => m.name === currentModel);
+        if (modelInfo) {
+            setCurrentModelInfo({ server: modelInfo.server, ownedBy: modelInfo.ownedBy });
+        } else {
+            setCurrentModelInfo(null);
+        }
+    }, [currentModel]);
+
+    // Derive model location info
+    const cloudProviderName = currentModelInfo
+        ? getProviderName(currentModelInfo.ownedBy, currentModelInfo.server)
+        : null;
+    const isCloud = isCloudModel(currentModelInfo?.server);
+    const showModelIndicator = currentModelInfo?.server;
 
     useEffect(() => {
         const loadCapabilities = async () => {
@@ -255,7 +377,16 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                             <Brain className="w-5 h-5 text-gray-500" />
                         </div>
                         <div className="flex flex-col items-center space-y-3">
-                            <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
+                            <div className="flex items-center gap-1">
+                                <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
+                                {showModelIndicator && (
+                                    <ModelLocationIndicator
+                                        isCloud={isCloud}
+                                        providerName={cloudProviderName || undefined}
+                                        sensors={detectedSensors}
+                                    />
+                                )}
+                            </div>
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1" data-tutorial-loop-timer={agent.id}>
                                     <Clock className="w-4 h-4 text-gray-500" />
@@ -304,9 +435,16 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                             <Brain className="w-5 h-5 text-gray-500" />
                         </div>
 
-                        {/* Column 2: Model dropdown */}
-                        <div className="flex items-center justify-center">
+                        {/* Column 2: Model dropdown + model location indicator */}
+                        <div className="flex items-center justify-center gap-1">
                             <ModelDropdown currentModel={currentModel} onModelChange={onModelChange} isProUser={isProUser} />
+                            {showModelIndicator && (
+                                <ModelLocationIndicator
+                                    isCloud={isCloud}
+                                    providerName={cloudProviderName || undefined}
+                                    sensors={detectedSensors}
+                                />
+                            )}
                         </div>
 
                         {/* Column 3: Timer, Flash button, and Settings button stacked */}
