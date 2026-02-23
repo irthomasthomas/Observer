@@ -497,7 +497,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
       </div>
       
       {/* Footer */}
-      <div className="flex items-center justify-between p-4 border-t bg-gray-50 flex-shrink-0">
+      <div className="p-4 border-t bg-gray-50 flex-shrink-0">
         {(() => {
           const selectedModelInfo = availableModels.find(m => m.name === model);
           const isCloud = step === 2 && isCloudModel(selectedModelInfo);
@@ -507,17 +507,33 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
 
           return (
             <>
-              {step > 1 ? (<button onClick={handleBack} className="inline-flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-md"><ArrowLeft className="h-5 w-5 mr-2" />Back</button>) : (<div></div>)}
-              {isCloud ? (
-                <CloudPrivacyNotice
-                  detectedData={detectedSensors}
-                  providerName={getProviderName(selectedModelInfo)}
-                />
-              ) : <div className="flex-1" />}
-              <button onClick={handleNext} disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)} className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                {buttonText}
-                {step < 3 && <ArrowRight className="h-5 w-5 ml-2" />}
-              </button>
+              {/* Privacy notice - full width on mobile, above buttons */}
+              {isCloud && (
+                <div className="mb-3 md:hidden">
+                  <CloudPrivacyNotice
+                    detectedData={detectedSensors}
+                    providerName={getProviderName(selectedModelInfo)}
+                  />
+                </div>
+              )}
+
+              {/* Button row */}
+              <div className="flex items-center justify-between">
+                {step > 1 ? (<button onClick={handleBack} className="inline-flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-md"><ArrowLeft className="h-5 w-5 mr-2" />Back</button>) : (<div></div>)}
+                {/* Desktop-only inline notice */}
+                {isCloud ? (
+                  <div className="hidden md:block flex-1">
+                    <CloudPrivacyNotice
+                      detectedData={detectedSensors}
+                      providerName={getProviderName(selectedModelInfo)}
+                    />
+                  </div>
+                ) : <div className="flex-1" />}
+                <button onClick={handleNext} disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)} className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  {buttonText}
+                  {step < 3 && <ArrowRight className="h-5 w-5 ml-2" />}
+                </button>
+              </div>
             </>
           );
         })()}
