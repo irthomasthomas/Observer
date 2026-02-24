@@ -6,6 +6,7 @@
 //! - Linux: Not yet supported
 //! - iOS/Android: Not yet supported
 
+#[allow(unused_imports)]
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Serialize;
@@ -356,7 +357,7 @@ mod windows_audio {
             log::info!("[AudioCapture] Windows capture thread started");
 
             // Initialize COM for this thread
-            if let Err(e) = initialize_mta() {
+            if let Err(e) = initialize_mta().ok() {
                 log::error!("[AudioCapture] Failed to initialize COM: {:?}", e);
                 return;
             }
@@ -396,7 +397,8 @@ mod windows_audio {
     ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         // Get default audio render device (speakers/headphones)
         log::info!("[AudioCapture] Getting default audio render device...");
-        let device = get_default_device(&Direction::Render)?;
+        let enumerator = DeviceEnumerator::new()?;
+        let device = enumerator.get_default_device(&Direction::Render)?;
 
         log::info!("[AudioCapture] Initializing audio client for loopback capture...");
         let mut audio_client = device.get_iaudioclient()?;
@@ -412,7 +414,7 @@ mod windows_audio {
 
         // Initialize in loopback mode (shared mode, capture direction)
         let blockalign = wave_format.get_blockalign();
-        let (def_time, min_time) = audio_client.get_periods()?;
+        let (def_time, min_time) = audio_client.get_device_period()?;
         log::info!(
             "[AudioCapture] Default period: {} ns, Minimum period: {} ns",
             def_time,
@@ -421,10 +423,11 @@ mod windows_audio {
 
         audio_client.initialize_client(
             &wave_format,
-            def_time,
             &Direction::Capture, // Capture direction for loopback
-            &ShareMode::Shared,  // Must use shared mode for loopback
-            true,                // Enable loopback
+            &StreamMode::PollingShared {
+                autoconvert: false,
+                buffer_duration_hns: def_time,
+            },
         )?;
 
         log::info!("[AudioCapture] Getting audio capture client...");
@@ -444,9 +447,10 @@ mod windows_audio {
             // Sleep a bit to avoid busy waiting
             thread::sleep(std::time::Duration::from_millis(10));
 
-            // Get number of frames available
-            let frames_available = match capture_client.get_next_nbr_frames() {
-                Ok(frames) => frames,
+            // Get number of frames available in next packet
+            let frames_available = match capture_client.get_next_packet_size() {
+                Ok(Some(frames)) => frames,
+                Ok(None) => continue, // exclusive mode returns None
                 Err(e) => {
                     log::debug!("[AudioCapture] Error getting frame count: {:?}", e);
                     continue;
@@ -457,9 +461,10 @@ mod windows_audio {
                 continue;
             }
 
-            // Read the buffer
-            let data = match capture_client.read_from_device_to_vec(blockalign as usize) {
-                Ok(data) => data,
+            // Allocate buffer and read audio data
+            let mut buf = vec![0u8; frames_available as usize * blockalign as usize];
+            let data = match capture_client.read_from_device(&mut buf) {
+                Ok(_) => buf,
                 Err(e) => {
                     log::error!("[AudioCapture] Error reading audio buffer: {:?}", e);
                     continue;
