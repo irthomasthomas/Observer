@@ -1,12 +1,13 @@
 import { Logger } from './logging';
 import { WhisperTranscriptionService } from './whisper/WhisperTranscriptionService';
-import { hasNativeScreenCapture } from './platform';
-import { tauriScreenCapture } from './tauriScreenCapture';
+import { isWeb } from './platform';
+import { browserStreamCapture } from './browserStreamCapture';
+import { tauriStreamCapture } from './tauriStreamCapture';
 
 // --- Core Type Definitions ---
 export type AudioStreamType = 'screenAudio' | 'microphone' | 'allAudio';
 export type PseudoStreamType = 'camera' | 'screenVideo' | AudioStreamType;
-type MasterStreamType = 'display' | 'camera' | 'microphone';
+type MasterStreamType = 'display' | 'camera' | 'microphone' | 'screenAudio';
 
 /**
  * The single source of truth for the stream state provided to the UI.
@@ -61,16 +62,19 @@ class Manager {
   /** The primary method for acquiring streams, using a "blueprint" approach. */
   public async requestStreamsForAgent(agentId: string, requiredStreams: PseudoStreamType[]): Promise<void> {
     Logger.debug("StreamManager", `Processing stream blueprint for agent '${agentId}': [${requiredStreams.join(', ')}]`);
-    
+
+    // Get the appropriate capture implementation based on platform
+    const captureImpl = isWeb() ? browserStreamCapture : tauriStreamCapture;
+
+    // Let the platform-specific implementation map pseudo streams to master streams
     const requiredMasterStreams = new Set<MasterStreamType>();
     for (const type of requiredStreams) {
-      if (type === 'camera') requiredMasterStreams.add('camera');
-      if (type === 'screenVideo' || type === 'screenAudio' || type === 'allAudio') requiredMasterStreams.add('display');
-      if (type === 'microphone' || type === 'allAudio') requiredMasterStreams.add('microphone');
+      const masterStreams = captureImpl.getMasterStreamsForPseudoStream(type);
+      masterStreams.forEach(ms => requiredMasterStreams.add(ms));
     }
 
     const acquisitionPromises: Promise<void>[] = [];
-    requiredMasterStreams.forEach(masterType => acquisitionPromises.push(this.ensureMasterStream(masterType)));
+    requiredMasterStreams.forEach(masterType => acquisitionPromises.push(this.ensureMasterStream(masterType, captureImpl)));
 
     try {
       await Promise.all(acquisitionPromises);
@@ -182,7 +186,8 @@ class Manager {
     // Re-acquire camera with new device for all users
     if (cameraUsers.length > 0) {
       try {
-        await this.ensureMasterStream('camera');
+        const captureImpl = isWeb() ? browserStreamCapture : tauriStreamCapture;
+        await this.ensureMasterStream('camera', captureImpl);
         Logger.info("StreamManager", "Camera switched successfully.");
       } catch (error) {
         Logger.error("StreamManager", "Failed to switch camera device.", error);
@@ -193,102 +198,67 @@ class Manager {
 
   // --- Private Implementation ---
 
-  private ensureMasterStream(type: MasterStreamType): Promise<void> {
+  private ensureMasterStream(type: MasterStreamType, captureImpl: typeof browserStreamCapture | typeof tauriStreamCapture): Promise<void> {
     if (this.pendingMasterStreams.has(type)) {
       Logger.debug("StreamManager", `Joining pending request for '${type}' stream.`);
       return this.pendingMasterStreams.get(type)!;
     }
-    
-    const promise = this.acquireMasterStream(type).finally(() => {
+
+    const promise = this.acquireMasterStream(type, captureImpl).finally(() => {
       this.pendingMasterStreams.delete(type);
     });
 
     this.pendingMasterStreams.set(type, promise);
     return promise;
   }
-  
-  private async acquireMasterStream(type: MasterStreamType): Promise<void> {
+
+  private async acquireMasterStream(type: MasterStreamType, captureImpl: typeof browserStreamCapture | typeof tauriStreamCapture): Promise<void> {
     try {
-      switch (type) {
-        case 'display':
-          if (this.masterDisplayStream) return;
-          
-          // Check if we're on tauri to use native plugin
-          if (hasNativeScreenCapture()) {
-            Logger.info("StreamManager", "Tauri detected - using channel-based native screen capture");
-
-            // Set up PiP overlay drawer before starting stream
-            tauriScreenCapture.setPipOverlayDrawer((ctx, width, height) => {
-              if (this.pipOverlayStatus) {
-                this.drawPipOverlay(ctx, width, height);
-              }
-            });
-
-            // Start the channel-based capture stream
-            // Frames are pushed from Rust as they're captured - no polling!
-            const captureResult = await tauriScreenCapture.startCaptureStream();
-
-            this.masterDisplayStream = captureResult.cleanStream;
-            this.screenVideoStream = captureResult.cleanStream;
-            this.screenVideoStreamWithPip = captureResult.pipStream;
-
-            // Store cleanup function
-            (this.masterDisplayStream as any)._mobileCleanup = captureResult.stop;
-
-            Logger.info("StreamManager", "Channel-based screen capture initialized");
-
-          } else {
-            // Desktop: use getDisplayMedia
-            Logger.info("StreamManager", "Desktop detected - using getDisplayMedia");
-            const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-            this.masterDisplayStream = displayStream;
-            this.screenVideoStream = new MediaStream(displayStream.getVideoTracks());
-            if (displayStream.getAudioTracks().length > 0) {
-              const audioStream = new MediaStream(displayStream.getAudioTracks());
-              this.screenAudioStream = audioStream;
-            }
-            displayStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('display'));
+      // Set up PiP overlay if using Tauri and acquiring display stream
+      if (!isWeb() && type === 'display') {
+        tauriStreamCapture.setPipOverlayDrawer((ctx, width, height) => {
+          if (this.pipOverlayStatus) {
+            this.drawPipOverlay(ctx, width, height);
           }
-          break;
-        case 'camera':
-          if (this.masterCameraStream) return;
-
-          // Try to use preferred camera device, fallback to default
-          const preferredDeviceId = this.getPreferredCameraDevice();
-          let constraints: MediaStreamConstraints = { video: true };
-
-          if (preferredDeviceId) {
-            constraints = { video: { deviceId: { exact: preferredDeviceId } } };
-            Logger.debug("StreamManager", `Requesting camera with deviceId: ${preferredDeviceId}`);
-          }
-
-          try {
-            const cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-            this.masterCameraStream = cameraStream;
-            this.cameraStream = cameraStream;
-            cameraStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('camera'));
-          } catch (error) {
-            // If preferred device fails, try default camera
-            if (preferredDeviceId) {
-              Logger.warn("StreamManager", `Preferred camera device failed, falling back to default.`, error);
-              const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-              this.masterCameraStream = fallbackStream;
-              this.cameraStream = fallbackStream;
-              fallbackStream.getVideoTracks()[0]?.addEventListener('ended', () => this.handleMasterStreamEnd('camera'));
-            } else {
-              throw error;
-            }
-          }
-          break;
-        case 'microphone':
-          if (this.masterMicrophoneStream) return;
-          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          this.masterMicrophoneStream = micStream;
-          this.microphoneStream = micStream;
-          // --- MODIFIED: Removed transcription start from here ---
-          break;
+        });
       }
-      Logger.info("StreamManager", `Master '${type}' stream acquired.`);
+
+      // Delegate to platform-specific implementation
+      await captureImpl.acquireMasterStream(type);
+
+      // Sync local state from the implementation
+      const streams = captureImpl.getStreams();
+
+      if ('screenVideoStream' in streams) {
+        // Tauri streams
+        this.screenVideoStream = streams.screenVideoStream;
+        if (!isWeb()) {
+          // Tauri has separate PiP stream
+          const tauriStreams = streams as any;
+          this.screenVideoStreamWithPip = tauriStreams.screenVideoStreamWithPip || null;
+        }
+        this.screenAudioStream = streams.screenAudioStream;
+        this.cameraStream = streams.cameraStream;
+        this.microphoneStream = streams.microphoneStream;
+      } else {
+        // Browser streams
+        const browserStreams = streams as any;
+        if (browserStreams.masterDisplayStream) {
+          this.masterDisplayStream = browserStreams.masterDisplayStream;
+        }
+        if (browserStreams.masterCameraStream) {
+          this.masterCameraStream = browserStreams.masterCameraStream;
+        }
+        if (browserStreams.masterMicrophoneStream) {
+          this.masterMicrophoneStream = browserStreams.masterMicrophoneStream;
+        }
+        this.screenVideoStream = browserStreams.screenVideoStream;
+        this.screenAudioStream = browserStreams.screenAudioStream;
+        this.cameraStream = browserStreams.cameraStream;
+        this.microphoneStream = browserStreams.microphoneStream;
+      }
+
+      Logger.info("StreamManager", `Master '${type}' stream acquired and synced.`);
       this.notifyListeners();
     } catch (error) {
       Logger.error("StreamManager", `Acquisition of master '${type}' stream failed.`, error);
@@ -297,12 +267,15 @@ class Manager {
   }
   
   private isPseudoStreamAvailable(type: PseudoStreamType): boolean {
+    const captureImpl = isWeb() ? browserStreamCapture : tauriStreamCapture;
+
     switch (type) {
-        case 'camera': return !!this.cameraStream;
-        case 'screenVideo': return !!this.screenVideoStream;
-        case 'screenAudio': return !!this.screenAudioStream;
-        case 'microphone': return !!this.microphoneStream;
-        case 'allAudio': return !!this.screenAudioStream && !!this.microphoneStream;
+        case 'camera': return captureImpl.isStreamAvailable('camera');
+        case 'screenVideo': return captureImpl.isStreamAvailable('screenVideo');
+        case 'screenAudio': return captureImpl.isStreamAvailable('screenAudio');
+        case 'microphone': return captureImpl.isStreamAvailable('microphone');
+        case 'allAudio':
+          return captureImpl.isStreamAvailable('screenAudio') && captureImpl.isStreamAvailable('microphone');
     }
     return false;
   }
@@ -327,64 +300,73 @@ class Manager {
   private checkForTeardown(): void {
     const isUsed = (type: PseudoStreamType) => (this.userSets.get(type)?.size || 0) > 0;
     // This logic is now robust because it correctly reflects the lifecycle based on user sets.
-    if (!isUsed('screenVideo') && !isUsed('screenAudio') && !isUsed('allAudio')) this.teardownDisplayStream();
+    if (!isUsed('screenVideo')) this.teardownDisplayStream();
+    if (!isUsed('screenAudio') && !isUsed('allAudio')) this.teardownScreenAudioStream();
     if (!isUsed('microphone') && !isUsed('allAudio')) this.teardownMicrophoneStream();
     if (!isUsed('camera')) this.teardownCameraStream();
     if (!isUsed('allAudio')) this.teardownAudioMixer();
   }
   
-  private handleMasterStreamEnd(type: MasterStreamType): void {
-    Logger.warn("StreamManager", `Master ${type} stream ended unexpectedly.`);
-    if (type === 'display') {
-      this.userSets.get('screenVideo')?.clear();
-      this.userSets.get('screenAudio')?.clear();
-    } else {
-      this.userSets.get('camera')?.clear();
-    }
-    this.userSets.get('allAudio')?.clear();
-    this.checkForTeardown();
-  }
 
   private teardownDisplayStream(): void {
-    if (!this.masterDisplayStream) return;
-    Logger.info("StreamManager", "Tearing down master display stream.");
+    const captureImpl = isWeb() ? browserStreamCapture : tauriStreamCapture;
 
-    // Call mobile cleanup if it exists
-    if ((this.masterDisplayStream as any)._mobileCleanup) {
-      (this.masterDisplayStream as any)._mobileCleanup();
-    }
+    if (!this.screenVideoStream && !this.masterDisplayStream) return;
 
-    this.masterDisplayStream.getTracks().forEach(track => track.stop());
+    Logger.info("StreamManager", "Tearing down display stream.");
+    captureImpl.teardownMasterStream('display');
 
-    // Also stop PiP stream tracks if they exist
-    if (this.screenVideoStreamWithPip) {
-      this.screenVideoStreamWithPip.getTracks().forEach(track => track.stop());
-    }
-
-    this.stopTranscriptionForStream('screenAudio');
+    // Sync local state
     this.masterDisplayStream = null;
     this.screenVideoStream = null;
     this.screenVideoStreamWithPip = null;
-    this.screenAudioStream = null;
+
     this.notifyListeners();
   }
-  
+
+  private teardownScreenAudioStream(): void {
+    const captureImpl = isWeb() ? browserStreamCapture : tauriStreamCapture;
+
+    if (!this.screenAudioStream) return;
+
+    Logger.info("StreamManager", "Tearing down screen audio stream.");
+    this.stopTranscriptionForStream('screenAudio');
+    captureImpl.teardownMasterStream('screenAudio');
+
+    // Sync local state
+    this.screenAudioStream = null;
+
+    this.notifyListeners();
+  }
+
   private teardownCameraStream(): void {
-    if (!this.masterCameraStream) return;
-    Logger.info("StreamManager", "Tearing down master camera stream.");
-    this.masterCameraStream.getTracks().forEach(track => track.stop());
+    const captureImpl = isWeb() ? browserStreamCapture : tauriStreamCapture;
+
+    if (!this.cameraStream && !this.masterCameraStream) return;
+
+    Logger.info("StreamManager", "Tearing down camera stream.");
+    captureImpl.teardownMasterStream('camera');
+
+    // Sync local state
     this.masterCameraStream = null;
     this.cameraStream = null;
+
     this.notifyListeners();
   }
 
   private teardownMicrophoneStream(): void {
-    if (!this.masterMicrophoneStream) return;
-    Logger.info("StreamManager", "Tearing down master microphone stream.");
-    this.masterMicrophoneStream.getTracks().forEach(track => track.stop());
-    this.stopTranscriptionForStream('microphone'); // This correctly stops the microphone transcription
+    const captureImpl = isWeb() ? browserStreamCapture : tauriStreamCapture;
+
+    if (!this.microphoneStream && !this.masterMicrophoneStream) return;
+
+    Logger.info("StreamManager", "Tearing down microphone stream.");
+    this.stopTranscriptionForStream('microphone');
+    captureImpl.teardownMasterStream('microphone');
+
+    // Sync local state
     this.masterMicrophoneStream = null;
     this.microphoneStream = null;
+
     this.notifyListeners();
   }
   

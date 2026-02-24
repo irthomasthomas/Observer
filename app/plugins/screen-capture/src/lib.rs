@@ -1,10 +1,12 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
-    Manager, Runtime,
+    Runtime,
 };
 
 mod error;
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod audio;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod desktop;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -25,12 +27,18 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             #[cfg(any(target_os = "android", target_os = "ios"))]
             start_capture_cmd,
             stop_capture_cmd,
+            stop_video_cmd,
+            stop_audio_cmd,
             #[cfg(any(target_os = "android", target_os = "ios"))]
             get_frame_cmd,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             get_capture_targets_cmd,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            start_capture_stream_cmd
+            start_capture_stream_cmd,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            start_video_stream_cmd,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            start_audio_stream_cmd
         ])
         .setup(|app, api| {
             #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -69,6 +77,7 @@ async fn get_frame_cmd<R: Runtime>(
 
 // ==================== Cross-platform commands ====================
 
+/// Stop all capture (video + audio)
 #[tauri::command]
 async fn stop_capture_cmd<R: Runtime>(
     #[allow(unused_variables)] app: tauri::AppHandle<R>,
@@ -80,7 +89,46 @@ async fn stop_capture_cmd<R: Runtime>(
     }
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    return desktop::stop_capture().await;
+    {
+        // Stop audio capture first
+        let _ = audio::stop_audio();
+        // Then stop video capture
+        return desktop::stop_capture().await;
+    }
+}
+
+/// Stop only video capture
+#[tauri::command]
+async fn stop_video_cmd<R: Runtime>(
+    #[allow(unused_variables)] app: tauri::AppHandle<R>,
+) -> Result<()> {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+        return screen_capture.stop_capture();
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        return desktop::stop_capture().await;
+    }
+}
+
+/// Stop only audio capture
+#[tauri::command]
+async fn stop_audio_cmd<R: Runtime>(
+    #[allow(unused_variables)] _app: tauri::AppHandle<R>,
+) -> Result<()> {
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        return audio::stop_audio();
+    }
+
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        // Audio capture not supported on mobile yet
+        Ok(())
+    }
 }
 
 // ==================== Desktop-only commands ====================
@@ -98,12 +146,47 @@ async fn get_capture_targets_cmd<R: Runtime>(
 
 /// Start capture with channel-based streaming (desktop only)
 /// Frames are pushed to frontend via channel instead of polling
+/// Audio capture is also started and streamed via separate channel
+/// NOTE: For independent control, use start_video_stream_cmd and start_audio_stream_cmd instead
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 fn start_capture_stream_cmd<R: Runtime>(
     _app: tauri::AppHandle<R>,
     target_id: Option<String>,
     on_frame: tauri::ipc::Channel<desktop::FrameData>,
+    on_audio: tauri::ipc::Channel<audio::AudioData>,
+) -> Result<()> {
+    // Start video capture
+    desktop::start_capture_stream(target_id, on_frame)?;
+
+    // Start audio capture
+    if let Err(e) = audio::start_audio_stream(on_audio) {
+        log::warn!("[ScreenCapture] Audio capture failed to start: {:?}", e);
+        // Continue with video-only capture - don't fail the whole command
+    }
+
+    Ok(())
+}
+
+/// Start video-only capture with channel-based streaming (desktop only)
+/// Frames are pushed to frontend via channel instead of polling
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+fn start_video_stream_cmd<R: Runtime>(
+    _app: tauri::AppHandle<R>,
+    target_id: Option<String>,
+    on_frame: tauri::ipc::Channel<desktop::FrameData>,
 ) -> Result<()> {
     desktop::start_capture_stream(target_id, on_frame)
+}
+
+/// Start audio-only capture with channel-based streaming (desktop only)
+/// System audio is captured via ScreenCaptureKit and pushed to frontend via channel
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+fn start_audio_stream_cmd<R: Runtime>(
+    _app: tauri::AppHandle<R>,
+    on_audio: tauri::ipc::Channel<audio::AudioData>,
+) -> Result<()> {
+    audio::start_audio_stream(on_audio)
 }

@@ -216,13 +216,13 @@ fn run_capture_loop_with_channel(
             let monitors = Monitor::all()
                 .map_err(|e| crate::error::Error::Platform(format!("Failed to get monitors: {}", e)))?;
             let monitor = monitors.into_iter()
-                .find(|m| m.id() == *id)
+                .find(|m| m.id().ok() == Some(*id))
                 .ok_or_else(|| crate::error::Error::Platform(format!("Monitor {} not found", id)))?;
             log::info!(
                 "[ScreenCapture] Channel capturing monitor: {} ({}x{})",
-                monitor.name(),
-                monitor.width(),
-                monitor.height()
+                monitor.name().unwrap_or_default(),
+                monitor.width().unwrap_or(0),
+                monitor.height().unwrap_or(0)
             );
             CaptureSource::Monitor(monitor)
         }
@@ -230,13 +230,13 @@ fn run_capture_loop_with_channel(
             let windows = Window::all()
                 .map_err(|e| crate::error::Error::Platform(format!("Failed to get windows: {}", e)))?;
             let window = windows.into_iter()
-                .find(|w| w.id() == *id)
+                .find(|w| w.id().ok() == Some(*id))
                 .ok_or_else(|| crate::error::Error::Platform(format!("Window {} not found", id)))?;
             log::info!(
                 "[ScreenCapture] Channel capturing window: {} ({}x{})",
-                window.title(),
-                window.width(),
-                window.height()
+                window.title().unwrap_or_default(),
+                window.width().unwrap_or(0),
+                window.height().unwrap_or(0)
             );
             CaptureSource::Window(window)
         }
@@ -244,14 +244,14 @@ fn run_capture_loop_with_channel(
             let monitors = Monitor::all()
                 .map_err(|e| crate::error::Error::Platform(format!("Failed to get monitors: {}", e)))?;
             let monitor = monitors.into_iter()
-                .find(|m| m.is_primary())
+                .find(|m| m.is_primary().unwrap_or(false))
                 .or_else(|| Monitor::all().ok().and_then(|m| m.into_iter().next()))
                 .ok_or_else(|| crate::error::Error::Platform("No monitors found".to_string()))?;
             log::info!(
                 "[ScreenCapture] Channel capturing primary monitor: {} ({}x{}, {}fps)",
-                monitor.name(),
-                monitor.width(),
-                monitor.height(),
+                monitor.name().unwrap_or_default(),
+                monitor.width().unwrap_or(0),
+                monitor.height().unwrap_or(0),
                 TARGET_FPS
             );
             CaptureSource::Monitor(monitor)

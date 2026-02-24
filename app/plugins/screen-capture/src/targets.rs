@@ -57,13 +57,13 @@ pub fn get_all_targets(include_thumbnails: bool) -> Result<Vec<CaptureTarget>> {
     let monitors = Monitor::all().map_err(|e| Error::Platform(format!("Failed to enumerate monitors: {}", e)))?;
 
     for monitor in monitors {
-        let id = format!("monitor:{}", monitor.id());
-        let name = monitor.name().to_string();
-        let width = monitor.width();
-        let height = monitor.height();
-        let x = monitor.x();
-        let y = monitor.y();
-        let is_primary = monitor.is_primary();
+        let id = format!("monitor:{}", monitor.id().unwrap_or(0));
+        let name = monitor.name().unwrap_or_default();
+        let width = monitor.width().unwrap_or(0);
+        let height = monitor.height().unwrap_or(0);
+        let x = monitor.x().unwrap_or(0);
+        let y = monitor.y().unwrap_or(0);
+        let is_primary = monitor.is_primary().unwrap_or(false);
 
         let thumbnail = if include_thumbnails {
             capture_monitor_thumbnail(&monitor).ok()
@@ -90,13 +90,13 @@ pub fn get_all_targets(include_thumbnails: bool) -> Result<Vec<CaptureTarget>> {
 
     for window in windows {
         // Skip windows with no title or very small windows
-        let title = window.title();
+        let title = window.title().unwrap_or_default();
         if title.is_empty() {
             continue;
         }
 
-        let width = window.width();
-        let height = window.height();
+        let width = window.width().unwrap_or(0);
+        let height = window.height().unwrap_or(0);
 
         // Skip tiny windows (likely hidden or utility windows)
         if width < 100 || height < 100 {
@@ -104,12 +104,12 @@ pub fn get_all_targets(include_thumbnails: bool) -> Result<Vec<CaptureTarget>> {
         }
 
         // Skip minimized windows (they can't be captured without native picker)
-        if window.is_minimized() {
+        if window.is_minimized().unwrap_or(false) {
             continue;
         }
 
-        let id = format!("window:{}", window.id());
-        let app_name = window.app_name().to_string();
+        let id = format!("window:{}", window.id().unwrap_or(0));
+        let app_name = window.app_name().unwrap_or_default();
 
         let thumbnail = if include_thumbnails {
             capture_window_thumbnail(&window).ok()
@@ -117,13 +117,13 @@ pub fn get_all_targets(include_thumbnails: bool) -> Result<Vec<CaptureTarget>> {
             None
         };
 
-        let x = window.x();
-        let y = window.y();
+        let x = window.x().unwrap_or(0);
+        let y = window.y().unwrap_or(0);
 
         targets.push(CaptureTarget {
             id,
             kind: TargetKind::Window,
-            name: title.to_string(),
+            name: title,
             app_name: Some(app_name),
             thumbnail,
             width,

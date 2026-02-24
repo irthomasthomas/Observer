@@ -17,6 +17,12 @@ pub enum Error {
     #[error("Platform error: {0}")]
     Platform(String),
 
+    #[error("Audio capture not available")]
+    AudioNotAvailable,
+
+    #[error("Audio device error: {0}")]
+    AudioDevice(String),
+
     #[error(transparent)]
     Tauri(#[from] tauri::Error),
 

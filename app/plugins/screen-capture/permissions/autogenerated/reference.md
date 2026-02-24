@@ -6,10 +6,14 @@ Default permissions for screen capture plugin
 
 - `allow-start-capture-cmd`
 - `allow-stop-capture-cmd`
+- `allow-stop-video-cmd`
+- `allow-stop-audio-cmd`
 - `allow-get-frame-cmd`
 - `allow-get-broadcast-status`
 - `allow-get-capture-targets-cmd`
 - `allow-start-capture-stream-cmd`
+- `allow-start-video-stream-cmd`
+- `allow-start-audio-stream-cmd`
 
 ## Permission Table
 
@@ -153,6 +157,32 @@ Denies the ios command without any pre-configured scope.
 <tr>
 <td>
 
+`screen-capture:allow-start-audio-stream-cmd`
+
+</td>
+<td>
+
+Enables the start_audio_stream_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-start-audio-stream-cmd`
+
+</td>
+<td>
+
+Denies the start_audio_stream_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `screen-capture:allow-start-capture-cmd`
 
 </td>
@@ -205,6 +235,58 @@ Denies the start_capture_stream_cmd command without any pre-configured scope.
 <tr>
 <td>
 
+`screen-capture:allow-start-video-stream-cmd`
+
+</td>
+<td>
+
+Enables the start_video_stream_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-start-video-stream-cmd`
+
+</td>
+<td>
+
+Denies the start_video_stream_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:allow-stop-audio-cmd`
+
+</td>
+<td>
+
+Enables the stop_audio_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-stop-audio-cmd`
+
+</td>
+<td>
+
+Denies the stop_audio_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `screen-capture:allow-stop-capture-cmd`
 
 </td>
@@ -224,6 +306,32 @@ Enables the stop_capture_cmd command without any pre-configured scope.
 <td>
 
 Denies the stop_capture_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:allow-stop-video-cmd`
+
+</td>
+<td>
+
+Enables the stop_video_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-stop-video-cmd`
+
+</td>
+<td>
+
+Denies the stop_video_cmd command without any pre-configured scope.
 
 </td>
 </tr>
