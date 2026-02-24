@@ -1,5 +1,6 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
+    Manager,
     Runtime,
 };
 
@@ -126,7 +127,8 @@ async fn stop_audio_cmd<R: Runtime>(
 
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
-        // Audio capture not supported on mobile yet
+        // Audio stop is handled by mobile crate's stop_audio_stream_cmd
+        // Frontend should call that command directly on iOS/Android
         Ok(())
     }
 }

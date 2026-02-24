@@ -4,7 +4,7 @@ use tauri::{ipc::Channel, AppHandle, Manager, State};
 use base64::Engine;
 
 mod server;
-use server::{FrameData, ServerState, start_server};
+use server::{AudioData, FrameData, ServerState, start_server};
 
 pub struct AppSettings {
     pub ollama_url: Mutex<Option<String>>,
@@ -122,6 +122,34 @@ async fn stop_capture_stream_cmd(
     Ok(())
 }
 
+/// Start audio stream with channel-based audio delivery
+/// Audio from the broadcast extension will be pushed through the channel
+#[tauri::command]
+async fn start_audio_stream_cmd(
+    state: State<'_, ServerState>,
+    on_audio: Channel<AudioData>,
+) -> Result<(), String> {
+    eprintln!("🎵 Starting audio stream with channel");
+
+    // Store the channel so HTTP handler can push audio to it
+    state.set_audio_channel(Some(on_audio)).await;
+
+    Ok(())
+}
+
+/// Stop the audio stream channel
+#[tauri::command]
+async fn stop_audio_stream_cmd(
+    state: State<'_, ServerState>,
+) -> Result<(), String> {
+    eprintln!("🔇 Stopping audio stream channel");
+
+    // Clear the channel
+    state.set_audio_channel(None).await;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // EARLY LOG - Check if app is starting
@@ -192,7 +220,9 @@ pub fn run() {
             get_ollama_url,
             get_broadcast_status,
             start_capture_stream_cmd,
-            stop_capture_stream_cmd
+            stop_capture_stream_cmd,
+            start_audio_stream_cmd,
+            stop_audio_stream_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -36,6 +36,22 @@ pub struct FrameData {
     pub frame_count: u64,
 }
 
+/// Audio data sent through the channel to the frontend
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioData {
+    /// Base64-encoded f32 PCM samples
+    pub samples: String,
+    /// Unix timestamp in seconds
+    pub timestamp: f64,
+    /// Sample rate (e.g., 48000)
+    pub sample_rate: u32,
+    /// Number of channels (e.g., 2 for stereo)
+    pub channels: u16,
+    /// Audio chunk sequence number
+    pub chunk_count: u64,
+}
+
 /// Broadcast lifecycle state
 #[derive(Clone, Default)]
 pub struct BroadcastState {
@@ -52,6 +68,10 @@ pub struct ServerState {
     pub broadcast: Arc<RwLock<BroadcastState>>,
     /// Channel for pushing frames to frontend (when streaming is active)
     pub frame_channel: Arc<RwLock<Option<Channel<FrameData>>>>,
+    /// Channel for pushing audio to frontend (when streaming is active)
+    pub audio_channel: Arc<RwLock<Option<Channel<AudioData>>>>,
+    /// Audio chunk counter
+    pub audio_chunk_count: Arc<RwLock<u64>>,
 }
 
 impl ServerState {
@@ -60,12 +80,20 @@ impl ServerState {
             latest_frame: Arc::new(RwLock::new(None)),
             broadcast: Arc::new(RwLock::new(BroadcastState::default())),
             frame_channel: Arc::new(RwLock::new(None)),
+            audio_channel: Arc::new(RwLock::new(None)),
+            audio_chunk_count: Arc::new(RwLock::new(0)),
         }
     }
 
     /// Set the frame channel for streaming
     pub async fn set_frame_channel(&self, channel: Option<Channel<FrameData>>) {
         let mut ch = self.frame_channel.write().await;
+        *ch = channel;
+    }
+
+    /// Set the audio channel for streaming
+    pub async fn set_audio_channel(&self, channel: Option<Channel<AudioData>>) {
+        let mut ch = self.audio_channel.write().await;
         *ch = channel;
     }
 }
@@ -132,6 +160,61 @@ async fn handle_frame(
     // Also store latest frame for polling fallback
     let mut frame = state.server_state.latest_frame.write().await;
     *frame = Some((frame_bytes, timestamp));
+
+    "OK"
+}
+
+/// Handle incoming audio data from broadcast extension
+async fn handle_audio(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> &'static str {
+    let audio_bytes = body.to_vec();
+
+    // Parse headers for audio metadata
+    let sample_rate = headers
+        .get("X-Sample-Rate")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(48000);
+
+    let channels = headers
+        .get("X-Channels")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(2);
+
+    let timestamp = headers
+        .get("X-Timestamp")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap_or_else(now);
+
+    // Increment chunk count
+    let chunk_count = {
+        let mut count = state.server_state.audio_chunk_count.write().await;
+        *count += 1;
+        *count
+    };
+
+    // Try to push audio through channel if one is registered
+    {
+        let channel_guard = state.server_state.audio_channel.read().await;
+        if let Some(channel) = channel_guard.as_ref() {
+            let audio_data = AudioData {
+                samples: base64::prelude::BASE64_STANDARD.encode(&audio_bytes),
+                timestamp,
+                sample_rate,
+                channels,
+                chunk_count,
+            };
+
+            if let Err(e) = channel.send(audio_data) {
+                eprintln!("Failed to send audio through channel: {:?}", e);
+            }
+        }
+    }
 
     "OK"
 }
@@ -261,6 +344,7 @@ pub async fn start_server(state: ServerState, app_handle: AppHandle) {
     let app = Router::new()
         // Frame routes (for broadcast extension)
         .route("/frames", post(handle_frame))
+        .route("/audio", post(handle_audio))
         .route("/broadcast/start", post(handle_broadcast_start))
         .route("/broadcast/stop", post(handle_broadcast_stop))
         .route("/broadcast/status", get(handle_broadcast_status))

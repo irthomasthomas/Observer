@@ -291,21 +291,19 @@ class TauriStreamCapture {
   /**
    * Start video-only capture stream.
    * Independent from audio - use startAudioStream separately if you also need audio.
-   * Desktop only.
+   * Works on both desktop and iOS.
    */
   async startVideoStream(targetId?: string): Promise<VideoStreamResult> {
     if (!isTauri()) {
       throw new Error('Screen capture only available in Tauri');
     }
-    if (!isDesktop()) {
-      throw new Error('Video-only stream is only available on desktop. Use startCaptureStream on mobile.');
-    }
 
     Logger.info("TAURI_STREAM", `Starting video-only capture stream`);
 
-    // Show selector and wait for target selection (unless targetId provided)
+    // Desktop: Show selector and wait for target selection (unless targetId provided)
+    // iOS: Will trigger ReplayKit picker later
     let selectedTargetId: string | undefined = targetId;
-    if (!selectedTargetId) {
+    if (isDesktop() && !selectedTargetId) {
       const selected = await this.waitForTargetSelection();
       if (!selected) {
         throw new Error('Screen capture cancelled by user');
@@ -313,7 +311,7 @@ class TauriStreamCapture {
       selectedTargetId = selected;
     }
 
-    Logger.info("TAURI_STREAM", `Starting video capture with target: ${selectedTargetId}`);
+    Logger.info("TAURI_STREAM", `Starting video capture with target: ${selectedTargetId || 'iOS broadcast'}`);
 
     // Create two canvases: clean (for AI) and pip (for display with overlay)
     const canvasClean = document.createElement('canvas');
@@ -378,10 +376,19 @@ class TauriStreamCapture {
     };
 
     // Start video-only capture
-    await invoke('plugin:screen-capture|start_video_stream_cmd', {
-      targetId: selectedTargetId || null,
-      onFrame: frameChannel,
-    });
+    if (isDesktop()) {
+      // Desktop: Use screen-capture plugin
+      await invoke('plugin:screen-capture|start_video_stream_cmd', {
+        targetId: selectedTargetId || null,
+        onFrame: frameChannel,
+      });
+    } else {
+      // iOS: Register channel then trigger ReplayKit picker
+      await invoke('start_capture_stream_cmd', {
+        onFrame: frameChannel,
+      });
+      await invoke<boolean>('plugin:screen-capture|start_capture_cmd');
+    }
 
     this.capturing = true;
     Logger.info("TAURI_STREAM", "Video-only capture stream started");
@@ -394,7 +401,17 @@ class TauriStreamCapture {
         this.capturing = false;
         this.latestBase64Frame = null;
 
-        await invoke('plugin:screen-capture|stop_video_cmd');
+        if (isDesktop()) {
+          await invoke('plugin:screen-capture|stop_video_cmd');
+        } else {
+          // iOS: Stop capture stream and broadcast
+          try {
+            await invoke('stop_capture_stream_cmd');
+          } catch (e) {
+            Logger.warn("TAURI_STREAM", `Error stopping capture stream: ${e}`);
+          }
+          await invoke('plugin:screen-capture|stop_capture_cmd');
+        }
 
         cleanStream.getTracks().forEach(track => track.stop());
         pipStream.getTracks().forEach(track => track.stop());
@@ -408,14 +425,11 @@ class TauriStreamCapture {
   /**
    * Start audio-only capture stream.
    * Independent from video - use startVideoStream separately if you also need video.
-   * Desktop only (macOS).
+   * Works on both desktop (macOS) and iOS.
    */
   async startAudioStream(): Promise<AudioStreamResult> {
     if (!isTauri()) {
       throw new Error('Audio capture only available in Tauri');
-    }
-    if (!isDesktop()) {
-      throw new Error('Audio-only stream is only available on desktop.');
     }
 
     Logger.info("TAURI_STREAM", `Starting audio-only capture stream`);
@@ -508,9 +522,18 @@ class TauriStreamCapture {
     };
 
     // Start audio-only capture
-    await invoke('plugin:screen-capture|start_audio_stream_cmd', {
-      onAudio: audioChannel,
-    });
+    if (isDesktop()) {
+      // Desktop: Use screen-capture plugin
+      await invoke('plugin:screen-capture|start_audio_stream_cmd', {
+        onAudio: audioChannel,
+      });
+    } else {
+      // iOS: Register audio channel then trigger ReplayKit picker
+      await invoke('start_audio_stream_cmd', {
+        onAudio: audioChannel,
+      });
+      await invoke<boolean>('plugin:screen-capture|start_capture_cmd');
+    }
 
     Logger.info("TAURI_STREAM", "Audio-only capture stream started");
 
@@ -520,7 +543,17 @@ class TauriStreamCapture {
         isActive = false;
         this.latestAudioData = null;
 
-        await invoke('plugin:screen-capture|stop_audio_cmd');
+        if (isDesktop()) {
+          await invoke('plugin:screen-capture|stop_audio_cmd');
+        } else {
+          // iOS: Stop audio stream and broadcast
+          try {
+            await invoke('stop_audio_stream_cmd');
+          } catch (e) {
+            Logger.warn("TAURI_STREAM", `Error stopping audio stream: ${e}`);
+          }
+          await invoke('plugin:screen-capture|stop_capture_cmd');
+        }
 
         if (audioStream) {
           audioStream.getTracks().forEach(track => track.stop());
@@ -662,9 +695,8 @@ class TauriStreamCapture {
     };
 
     // Initialize audio stream immediately (don't wait for first chunk)
-    if (isDesktop()) {
-      await initializeAudioStreamUpfront();
-    }
+    // Works on both desktop and iOS
+    await initializeAudioStreamUpfront();
 
     frameChannel.onmessage = (frameData: FrameData) => {
       if (!isActive) return;
@@ -755,10 +787,15 @@ class TauriStreamCapture {
           onAudio: audioChannel,
         });
       } else {
-        // Mobile (iOS): First set up the channel, then trigger ReplayKit picker
-        // The channel receives frames when broadcast extension sends them via HTTP
+        // Mobile (iOS): First set up the channels, then trigger ReplayKit picker
+        // The channels receive frames/audio when broadcast extension sends them via HTTP
         await invoke('start_capture_stream_cmd', {
           onFrame: frameChannel,
+        });
+
+        // Register audio channel on iOS
+        await invoke('start_audio_stream_cmd', {
+          onAudio: audioChannel,
         });
 
         // Trigger the ReplayKit picker to start broadcast
@@ -787,11 +824,16 @@ class TauriStreamCapture {
           // Desktop: Stop the xcap capture (also stops audio)
           await this.stopCapture();
         } else {
-          // Mobile: Stop the channel and broadcast
+          // Mobile: Stop the channels and broadcast
           try {
             await invoke('stop_capture_stream_cmd');
           } catch (e) {
             Logger.warn("TAURI_STREAM", `Error stopping capture stream: ${e}`);
+          }
+          try {
+            await invoke('stop_audio_stream_cmd');
+          } catch (e) {
+            Logger.warn("TAURI_STREAM", `Error stopping audio stream: ${e}`);
           }
           await this.stopCapture();
         }
@@ -899,7 +941,7 @@ class TauriStreamCapture {
 
   /**
    * Stop only video capture.
-   * Desktop only.
+   * Works on both desktop and iOS.
    */
   async stopVideo(): Promise<void> {
     if (!isTauri()) {
@@ -907,7 +949,13 @@ class TauriStreamCapture {
     }
 
     try {
-      await invoke('plugin:screen-capture|stop_video_cmd');
+      if (isDesktop()) {
+        await invoke('plugin:screen-capture|stop_video_cmd');
+      } else {
+        // iOS: Stop capture stream and broadcast
+        await invoke('stop_capture_stream_cmd');
+        await invoke('plugin:screen-capture|stop_capture_cmd');
+      }
       this.capturing = false;
       this.latestBase64Frame = null;
     } catch (error) {
@@ -917,7 +965,7 @@ class TauriStreamCapture {
 
   /**
    * Stop only audio capture.
-   * Desktop only (macOS).
+   * Works on desktop (macOS) and iOS.
    */
   async stopAudio(): Promise<void> {
     if (!isTauri()) {
@@ -925,7 +973,13 @@ class TauriStreamCapture {
     }
 
     try {
-      await invoke('plugin:screen-capture|stop_audio_cmd');
+      if (isDesktop()) {
+        await invoke('plugin:screen-capture|stop_audio_cmd');
+      } else {
+        // iOS: Stop audio stream and broadcast
+        await invoke('stop_audio_stream_cmd');
+        await invoke('plugin:screen-capture|stop_capture_cmd');
+      }
       this.latestAudioData = null;
     } catch (error) {
       throw error;
