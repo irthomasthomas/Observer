@@ -388,7 +388,7 @@ class Manager {
     const router = TranscriptionRouter.getInstance();
     await router.ensureReady();
     const newService = router.createProvider();
-    await newService.start(stream);
+    await newService.start(stream, type);
     this.transcriptionServices.set(type, newService);
   }
 

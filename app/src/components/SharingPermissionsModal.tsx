@@ -4,6 +4,7 @@ import FixedDropdown from '@components/ui/FixedDropdown';
 import { StreamManager, StreamState } from '@utils/streamManager';
 import { Logger } from '@utils/logging';
 import { SensorPlaceholder, SENSOR_DESCRIPTIONS, getRequiredStreamsFromSensors } from '@utils/sensorMapping';
+import AudioTranscriptionVisualizer from '@components/shared/AudioTranscriptionVisualizer';
 
 // --- Self-Contained UI Sub-Components for the Modal ---
 
@@ -190,52 +191,6 @@ const VideoStream: React.FC<{ stream: MediaStream; streamType?: 'camera' | 'scre
   );
 };
 
-/**
- * Renders a live audio waveform visualizer.
- */
-const AudioWaveform: React.FC<{ stream: MediaStream }> = ({ stream }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    if (!stream || !canvasRef.current || stream.getAudioTracks().length === 0 || !stream.getAudioTracks().some(t => t.enabled && !t.muted)) {
-      return;
-    }
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaStreamSource(stream);
-    source.connect(analyser);
-    analyser.fftSize = 256;
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    const canvasCtx = canvasRef.current.getContext('2d')!;
-    let animationFrameId: number;
-    const draw = () => {
-      animationFrameId = requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
-      canvasCtx.fillStyle = '#f9fafb'; // bg-gray-50
-      canvasCtx.fillRect(0, 0, canvasCtx.canvas.width, canvasCtx.canvas.height);
-      const barWidth = (canvasCtx.canvas.width / dataArray.length) * 1.5;
-      let x = 0;
-      for (const value of dataArray) {
-        const percent = value / 256;
-        const barHeight = canvasCtx.canvas.height * percent;
-        canvasCtx.fillStyle = `rgba(16, 185, 129, ${Math.max(0.2, percent)})`; // A vibrant green
-        canvasCtx.fillRect(x, canvasCtx.canvas.height - barHeight, barWidth, barHeight);
-        x += barWidth;
-      }
-    };
-    draw();
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      source.disconnect();
-      audioContext.close();
-    };
-  }, [stream]);
-  return (
-    <div className="bg-gray-50 rounded-lg overflow-hidden flex-1 min-w-0 aspect-video h-full">
-      <canvas ref={canvasRef} className="w-full h-full"></canvas>
-    </div>
-  );
-};
-
 // --- Main Modal Component ---
 
 interface SharingPermissionsModalProps {
@@ -418,12 +373,26 @@ const SharingPermissionsModal: React.FC<SharingPermissionsModalProps> = ({ isOpe
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {streams.screenAudioStream ? (
-                <div className="animate-fade-in"><AudioWaveform stream={streams.screenAudioStream} /></div>
+                <div className="animate-fade-in">
+                  <AudioTranscriptionVisualizer
+                    stream={streams.screenAudioStream}
+                    streamType="screenAudio"
+                    title="System Audio"
+                    icon={<Volume2 className="w-4 h-4" />}
+                  />
+                </div>
               ) : (
                 <StreamPlaceholder Icon={Waves} text="System Audio" />
               )}
               {streams.microphoneStream ? (
-                <div className="animate-fade-in"><AudioWaveform stream={streams.microphoneStream} /></div>
+                <div className="animate-fade-in">
+                  <AudioTranscriptionVisualizer
+                    stream={streams.microphoneStream}
+                    streamType="microphone"
+                    title="Microphone"
+                    icon={<Mic className="w-4 h-4" />}
+                  />
+                </div>
               ) : (
                 <StreamPlaceholder Icon={Mic} text="Microphone" />
               )}

@@ -1,7 +1,8 @@
-import { TranscriptionChunk } from './types';
 import { WhisperModelManager } from './WhisperModelManager';
+import { AudioStreamType } from '../streamManager';
 import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
+import { TranscriptionStateManager } from './TranscriptionStateManager';
 
 declare interface MediaRecorderErrorEvent extends Event {
   readonly error: DOMException;
@@ -10,16 +11,13 @@ declare interface MediaRecorderErrorEvent extends Event {
 export class WhisperTranscriptionService {
   private isRunning = false;
   private currentStream: MediaStream | null = null;
-  private onChunkProcessed: ((chunk: TranscriptionChunk) => void) | null = null;
+  private streamType: AudioStreamType = 'microphone';
   private chunkCounter = 0;
   private chunkDurationMs = 15000;
   private recentChunkTexts: string[] = [];
-  private readonly MAX_CHUNKS_TO_KEEP = 20;
-  
-  // NEW: Map to store audio blobs by their chunk ID until transcription is complete
-  private pendingChunks = new Map<number, Blob>();
+  private maxChunksToKeep = 20;
 
-  public async start(stream: MediaStream, onChunkProcessed?: (chunk: TranscriptionChunk) => void): Promise<void> {
+  public async start(stream: MediaStream, streamType?: AudioStreamType): Promise<void> {
     if (this.isRunning) {
       Logger.warn('WhisperTranscriptionService', 'Service already running');
       return;
@@ -33,16 +31,16 @@ export class WhisperTranscriptionService {
 
     this.isRunning = true;
     this.currentStream = stream;
-    this.onChunkProcessed = onChunkProcessed || null;
+    this.streamType = streamType || 'microphone';
     this.chunkCounter = 0;
     this.recentChunkTexts = [];
-    this.pendingChunks.clear();
-    
+
     const settings = SensorSettings.getWhisperSettings();
     this.chunkDurationMs = settings.chunkDurationMs;
+    this.maxChunksToKeep = settings.maxChunksToKeep;
 
-    Logger.info('WhisperTranscriptionService', `Starting transcription with ${this.chunkDurationMs}ms chunks`);
-    
+    Logger.info('WhisperTranscriptionService', `Starting transcription for ${this.streamType} with ${this.chunkDurationMs}ms chunks`);
+
     this.transcribeLoop();
   }
 
@@ -52,9 +50,10 @@ export class WhisperTranscriptionService {
     Logger.info('WhisperTranscriptionService', 'Stopping transcription service');
     this.isRunning = false;
     this.currentStream = null;
-    this.onChunkProcessed = null;
     this.recentChunkTexts = [];
-    this.pendingChunks.clear();
+
+    // Notify state manager that stream stopped
+    TranscriptionStateManager.streamStopped(this.streamType);
   }
 
   public getTranscript(): string {
@@ -65,24 +64,31 @@ export class WhisperTranscriptionService {
     while (this.isRunning) {
       try {
         const currentChunkId = ++this.chunkCounter;
-        
+
         if (!this.currentStream) {
           Logger.error('WhisperTranscriptionService', 'No stream available');
           break;
         }
 
-        const audioBlob = await this.recordChunk(this.currentStream, this.chunkDurationMs);
-        
-        if (!this.isRunning) break;
+        // Notify state manager: recording started
+        TranscriptionStateManager.chunkRecordingStarted(
+          this.streamType,
+          this.chunkDurationMs,
+          this.maxChunksToKeep
+        );
 
-        // Store the blob with its ID for later retrieval
-        this.pendingChunks.set(currentChunkId, audioBlob);
+        const audioBlob = await this.recordChunk(this.currentStream, this.chunkDurationMs);
+
+        if (!this.isRunning) break;
 
         Logger.debug('WhisperTranscriptionService', `Processing chunk ${currentChunkId}`);
 
+        // Notify state manager: transcription started
+        TranscriptionStateManager.chunkTranscriptionStarted(this.streamType);
+
         // Send to worker without awaiting - decoupled!
         this.transcribeChunkAsync(audioBlob, currentChunkId);
-        
+
       } catch (error) {
         if (this.isRunning) {
           Logger.error('WhisperTranscriptionService', `Error in transcription loop: ${error}`);
@@ -98,29 +104,21 @@ export class WhisperTranscriptionService {
 
       if (result?.text && this.isRunning) {
         this.recentChunkTexts.push(result.text);
-        this.recentChunkTexts = this.recentChunkTexts.slice(-this.MAX_CHUNKS_TO_KEEP);
+        this.recentChunkTexts = this.recentChunkTexts.slice(-this.maxChunksToKeep);
 
-        Logger.debug('WhisperTranscriptionService', `Chunk ${chunkId}: "${result.text}"`);
+        const fullTranscript = this.recentChunkTexts.join(' ');
 
-        // Retrieve the stored blob
-        const storedBlob = this.pendingChunks.get(chunkId);
-        
-        if (this.onChunkProcessed && storedBlob) {
-          this.onChunkProcessed({
-            id: chunkId,
-            blob: storedBlob,
-            text: result.text
-          });
-        }
-        
-        // Clean up the stored blob
-        this.pendingChunks.delete(chunkId);
+        // Notify state manager: transcription ended
+        TranscriptionStateManager.chunkTranscriptionEnded(
+          this.streamType,
+          result.text,
+          fullTranscript,
+          this.recentChunkTexts.length
+        );
       }
     } catch (transcriptionError) {
       if (this.isRunning) {
         Logger.error('WhisperTranscriptionService', `Transcription failed for chunk ${chunkId}: ${transcriptionError}`);
-        // Clean up on error too
-        this.pendingChunks.delete(chunkId);
       }
     }
   }

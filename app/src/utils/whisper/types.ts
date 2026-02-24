@@ -44,12 +44,6 @@ export interface WhisperModelState {
   error: string | null;
 }
 
-export interface TranscriptionChunk {
-  id: number;
-  blob: Blob;
-  text: string;
-}
-
 export interface WorkerMessage {
   type: 'configure' | 'transcribe' | 'progress' | 'ready' | 'error' | 'transcription-complete';
   data?: any;

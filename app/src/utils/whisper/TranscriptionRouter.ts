@@ -1,16 +1,17 @@
-import { TranscriptionChunk, TranscriptionMode } from './types';
+import { TranscriptionMode } from './types';
 import { WhisperTranscriptionService } from './WhisperTranscriptionService';
 import { CloudTranscriptionService } from './CloudTranscriptionService';
 import { WhisperModelManager } from './WhisperModelManager';
 import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
+import { AudioStreamType } from '../streamManager';
 
 // Token provider type
 export type TokenProvider = () => Promise<string | undefined>;
 
 // Common interface for both providers
 export interface TranscriptionProvider {
-  start(stream: MediaStream, onChunkProcessed?: (chunk: TranscriptionChunk) => void): Promise<void>;
+  start(stream: MediaStream, streamType?: AudioStreamType): Promise<void>;
   stop(): void;
   getTranscript(): string;
 }

@@ -8,8 +8,9 @@ import { StreamState, AudioStreamType, StreamManager } from '@utils/streamManage
 import { CropConfig, setAgentCrop, getAgentCrop } from '@utils/screenCapture';
 import { getAgentMemory, getAgentImageMemory } from '@utils/agent_database';
 import { agentHasScreenSensor, agentHasCameraSensor, agentHasSensor } from './agentCapabilities';
-import { useTranscriptionPolling } from '@hooks/useTranscriptionPolling';
 import TranscriptionModal from '@components/AgentCard/TranscriptionModal';
+import AudioTranscriptionVisualizer from '@components/shared/AudioTranscriptionVisualizer';
+import { useTranscriptionState } from '@hooks/useTranscriptionState';
 
 // --- Crop Overlay Component ---
 
@@ -391,113 +392,32 @@ const getActiveAudioStreamsForDisplay = (state: StreamState): { type: AudioStrea
   return activeStreams;
 };
 
-// --- Audio Waveform Component ---
+// --- Audio Waveform Component (with modal) ---
 
-const AudioWaveform: React.FC<{
+const AudioWaveformWithModal: React.FC<{
   stream: MediaStream;
   title: string;
   icon: React.ReactNode;
   type: AudioStreamType;
 }> = ({ stream, title, icon, type }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameId = useRef<number>();
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Use transcription polling hook
-  const transcription = useTranscriptionPolling(type, true, 25, 500);
-
-  useEffect(() => {
-    if (!stream || !canvasRef.current || stream.getAudioTracks().length === 0) return;
-    const audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    const canvas = canvasRef.current;
-    const canvasCtx = canvas.getContext('2d')!;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    const draw = () => {
-      animationFrameId.current = requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
-      canvasCtx.fillStyle = '#1f2937';
-      canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-      const barWidth = (canvas.width / bufferLength) * 2;
-      let x = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        const barHeight = (dataArray[i] / 255) * canvas.height;
-        canvasCtx.fillStyle = `rgba(52, 211, 153, ${barHeight / canvas.height})`;
-        canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-        x += barWidth + 1;
-      }
-    };
-    draw();
-    return () => {
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-      source.disconnect();
-      analyser.disconnect();
-      audioContext.close().catch(() => {});
-    };
-  }, [stream]);
+  const state = useTranscriptionState(type);
 
   return (
     <>
-      <div
-        className="bg-gray-800 rounded-lg p-3 flex-1 min-w-0 text-white flex flex-col gap-2 cursor-pointer hover:bg-gray-700 transition-colors"
+      <AudioTranscriptionVisualizer
+        stream={stream}
+        streamType={type}
+        title={title}
+        icon={icon}
         onClick={() => setIsModalOpen(true)}
-        title="Click to view full transcription"
-      >
-        <div className="flex items-center gap-2 text-xs font-medium text-gray-300">
-          {icon} {title}
-        </div>
-        <canvas ref={canvasRef} className="w-full h-12 rounded"></canvas>
+      />
 
-        {/* Sliding Window Transcription Display */}
-        {transcription.lastWords.length > 0 && (
-          <div className="relative overflow-hidden h-6">
-            <div
-              className={`absolute inset-0 flex items-center transition-opacity duration-300 ${
-                transcription.hasNewContent ? 'opacity-100' : 'opacity-80'
-              }`}
-            >
-              {/* Gradient fade effect - only on the left */}
-              <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-gray-800 to-transparent z-10 pointer-events-none" />
-
-              {/* Sliding text - positioned to show the end */}
-              <div
-                className="absolute top-0 bottom-0 right-8 left-12 flex items-center justify-end overflow-hidden"
-              >
-                <div
-                  className={`text-xs text-gray-300 whitespace-nowrap transition-all duration-500 ease-out ${
-                    transcription.hasNewContent ? 'animate-pulse' : ''
-                  }`}
-                  style={{
-                    transform: transcription.hasNewContent ? 'translateX(-4px)' : 'translateX(0)',
-                  }}
-                >
-                  {transcription.lastWords.join(' ')}
-                </div>
-              </div>
-            </div>
-
-            {/* Typing indicator when active */}
-            {transcription.isActive && transcription.hasNewContent && (
-              <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex gap-1">
-                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Transcription Modal */}
       <TranscriptionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         streamType={type}
-        fullTranscript={transcription.fullTranscript}
+        fullTranscript={state.fullTranscript}
         streamTitle={title}
       />
     </>
@@ -1069,7 +989,7 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
       <div className="grid grid-cols-1 gap-2">
         {/* Active audio streams */}
         {audioStreamsToDisplay.map(({ type, stream, title, icon }) => (
-          <AudioWaveform key={type} stream={stream} title={title} icon={icon} type={type} />
+          <AudioWaveformWithModal key={type} stream={stream} title={title} icon={icon} type={type} />
         ))}
 
         {/* Placeholders for inactive audio sensors */}

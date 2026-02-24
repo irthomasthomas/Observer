@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Settings, TestTube2, Play, Download, Loader2, FileDown, CheckCircle2, Database, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2 } from 'lucide-react';
 import { SensorSettings } from '../utils/settings';
 
 // New Whisper imports
@@ -7,7 +7,8 @@ import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
 import { WhisperTranscriptionService } from '../utils/whisper/WhisperTranscriptionService';
 import { CloudTranscriptionService } from '../utils/whisper/CloudTranscriptionService';
 import { TranscriptionRouter } from '../utils/whisper/TranscriptionRouter';
-import { TranscriptionChunk, WhisperModelState, TranscriptionMode } from '../utils/whisper/types';
+import { WhisperModelState, TranscriptionMode } from '../utils/whisper/types';
+import { useTranscriptionState } from '../hooks/useTranscriptionState';
 import { SUGGESTED_MODELS, LANGUAGE_NAMES } from '../config/whisper-models';
 
 import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
@@ -72,14 +73,13 @@ const SettingsTab = () => {
   const [whisperSettings, setWhisperSettings] = useState(SensorSettings.getWhisperSettings());
   const [modelState, setModelState] = useState<WhisperModelState | null>(null);
   const [isTestRunning, setIsTestRunning] = useState(false);
-  const [auditTrail, setAuditTrail] = useState<TranscriptionChunk[]>([]);
   const [transcriptionService, setTranscriptionService] = useState<WhisperTranscriptionService | CloudTranscriptionService | null>(null);
   const [transcriptionMode, setTranscriptionModeState] = useState<TranscriptionMode>(
     TranscriptionRouter.getInstance().getMode()
   );
-  
-  // Ref for the hidden audio player
-  const audioPlayerRef = useRef<HTMLAudioElement>(null);
+
+  // Use transcription state from manager (for test microphone)
+  const transcriptionState = useTranscriptionState('microphone');
 
   // Model manager instance
   const modelManager = WhisperModelManager.getInstance();
@@ -172,18 +172,13 @@ const SettingsTab = () => {
       // to avoid creating duplicate transcription services
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      setAuditTrail([]);
-
       // Create the appropriate service based on mode
       const newService = transcriptionMode === 'cloud'
         ? new CloudTranscriptionService()
         : new WhisperTranscriptionService();
 
-      const onChunkProcessedCallback = (chunk: TranscriptionChunk) => {
-        setAuditTrail(prev => [...prev, chunk].sort((a, b) => a.id - b.id));
-      };
-
-      await newService.start(micStream, onChunkProcessedCallback);
+      // Start with microphone stream type - results will come via TranscriptionStateManager
+      await newService.start(micStream, 'microphone');
       setTranscriptionService(newService);
       setIsTestRunning(true);
     } catch (error) {
@@ -197,31 +192,6 @@ const SettingsTab = () => {
     setTranscriptionService(null);
     setIsTestRunning(false);
   };
-
-  // Handler to play an audio chunk from the audit trail
-  const playChunk = (blob: Blob) => {
-      if (audioPlayerRef.current) {
-          const url = URL.createObjectURL(blob);
-          audioPlayerRef.current.src = url;
-          audioPlayerRef.current.play();
-          audioPlayerRef.current.onended = () => {
-            URL.revokeObjectURL(url); // Clean up the object URL after playback
-          };
-      }
-  };
-
-  // Handler to download an audio chunk from the audit trail
-  const downloadChunk = (blob: Blob, id: number) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `observer_chunk_${id}.webm`; // Assuming MediaRecorder defaults to webm
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url); // Clean up the object URL
-  };
-
 
   return (
     <div className="space-y-8">
@@ -515,43 +485,35 @@ const SettingsTab = () => {
           <div>
             <h4 className="text-md font-semibold text-gray-700 mb-2">Live Transcription</h4>
             <div className="border rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
-              {auditTrail.length === 0 ? (
+              {!transcriptionState.fullTranscript ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                  {isTestRunning ? 'Listening... Speak into your microphone.' : 'Start a test to see transcription results here.'}
+                  {isTestRunning ? (
+                    <span className="flex items-center justify-center gap-2">
+                      {transcriptionState.isTranscribing && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Listening... Speak into your microphone.
+                      {transcriptionState.chunkCount > 0 && ` (${transcriptionState.chunkCount} chunks)`}
+                    </span>
+                  ) : 'Start a test to see transcription results here.'}
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {auditTrail.map((chunk) => (
-                    <div key={chunk.id} className="bg-white p-3 rounded-md shadow-sm border flex justify-between items-center">
-                      <div className="flex-1">
-                        <p className="font-mono text-sm font-semibold">Chunk #{chunk.id}</p>
-                        <p className="text-gray-800 italic mt-1">"{chunk.text || '...'}"</p>
-                      </div>
-                      <div className="flex items-center space-x-2 ml-4">
-                        <button 
-                          onClick={() => playChunk(chunk.blob)} 
-                          title="Play Audio" 
-                          className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
-                        >
-                          <Play className="h-5 w-5"/>
-                        </button>
-                        <button 
-                          onClick={() => downloadChunk(chunk.blob, chunk.id)} 
-                          title="Download Audio" 
-                          className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
-                        >
-                          <Download className="h-5 w-5"/>
-                        </button>
-                      </div>
+                  <div className="bg-white p-3 rounded-md shadow-sm border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="font-mono text-sm font-semibold text-gray-600">
+                        {transcriptionState.chunkCount}/{transcriptionState.maxChunks} chunks
+                      </p>
+                      {transcriptionState.isTranscribing && (
+                        <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                      )}
                     </div>
-                  ))}
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                      {transcriptionState.fullTranscript}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
           </div>
-          
-          {/* Hidden audio player for playback */}
-          <audio ref={audioPlayerRef} className="hidden" controls={false}></audio>
         </div>
       </SettingsCard>
     </div>
