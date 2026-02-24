@@ -1,9 +1,10 @@
-//! Cross-platform system audio capture using cpal.
+//! Cross-platform system audio capture using platform-specific native APIs.
 //!
-//! This module captures desktop/system audio (loopback) using cpal's platform-specific backends:
-//! - macOS 14.6+: Core Audio loopback via AudioHardwareCreateProcessTap
-//! - Windows: WASAPI loopback
-//! - Linux: Not yet supported by cpal (show error)
+//! This module captures desktop/system audio (loopback) using platform-native implementations:
+//! - macOS: ScreenCaptureKit API (requires screen recording permission)
+//! - Windows: WASAPI loopback API
+//! - Linux: Not yet supported
+//! - iOS/Android: Not yet supported
 
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -11,11 +12,6 @@ use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::ipc::Channel;
-
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-use std::sync::Mutex;
 
 /// Audio data sent through the channel to the frontend
 #[derive(Clone, Serialize)]
@@ -56,276 +52,543 @@ fn get_audio_state() -> Arc<AudioCaptureState> {
         .clone()
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-static AUDIO_STREAM: std::sync::OnceLock<Mutex<Option<cpal::Stream>>> =
-    std::sync::OnceLock::new();
+// ==================== macOS ScreenCaptureKit Implementation ====================
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-fn get_audio_stream_holder() -> &'static Mutex<Option<cpal::Stream>> {
-    AUDIO_STREAM.get_or_init(|| Mutex::new(None))
-}
+#[cfg(target_os = "macos")]
+mod macos_audio {
+    use super::*;
+    use screencapturekit::prelude::*;
+    use std::sync::Mutex;
 
-/// Find a loopback device for system audio capture
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-fn find_loopback_device() -> Result<cpal::Device> {
-    let host = cpal::default_host();
+    static AUDIO_CAPTURE: std::sync::OnceLock<Mutex<Option<AudioCapture>>> =
+        std::sync::OnceLock::new();
 
-    #[cfg(target_os = "macos")]
-    {
-        // On macOS 14.6+, cpal uses CoreAudio's AudioHardwareCreateProcessTap
-        // The loopback works by recording FROM the output device (what would go to speakers)
-        // See: https://github.com/RustAudio/cpal/pull/1003
-        let output_device = host
-            .default_output_device()
-            .ok_or_else(|| Error::AudioDevice("No output device available for loopback".to_string()))?;
-
-        let device_name = output_device.description()
-            .map(|d| d.name().to_string())
-            .unwrap_or_default();
-
-        log::info!(
-            "[AudioCapture] Using default output device for loopback: {}",
-            device_name
-        );
-
-        return Ok(output_device);
+    fn get_audio_capture() -> &'static Mutex<Option<AudioCapture>> {
+        AUDIO_CAPTURE.get_or_init(|| Mutex::new(None))
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        // On Windows, look for explicit loopback devices like "Stereo Mix"
-        let devices = host
-            .input_devices()
-            .map_err(|e| Error::AudioDevice(format!("Failed to enumerate audio devices: {}", e)))?;
+    struct AudioCapture {
+        stream: SCStream,
+        _chunk_count: Arc<std::sync::atomic::AtomicU64>,
+    }
 
-        for device in devices {
-            let device_name = device.description()
-                .map(|d| d.name().to_string())
-                .unwrap_or_default();
-            let name_lower = device_name.to_lowercase();
+    impl Drop for AudioCapture {
+        fn drop(&mut self) {
+            log::info!("[AudioCapture] Dropping macOS audio capture stream");
+            // Stream is automatically stopped when dropped
+        }
+    }
 
-            log::debug!("[AudioCapture] Found audio device: {}", device_name);
+    pub fn start_capture(on_audio: Channel<AudioData>) -> Result<()> {
+        let state = get_audio_state();
 
-            // Look for loopback indicators in device name
-            if name_lower.contains("stereo mix") || name_lower.contains("what you hear") || name_lower.contains("wave out") || name_lower.contains("loopback") {
-                log::info!("[AudioCapture] Found loopback device: {}", device_name);
-                return Ok(device);
+        // Check if already active
+        if state.is_active.load(Ordering::SeqCst) {
+            log::warn!("[AudioCapture] Audio capture already active, stopping first...");
+            stop_capture()?;
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+
+        log::info!("[AudioCapture] Starting macOS ScreenCaptureKit audio capture");
+        log::info!("[AudioCapture] ⚠️  IMPORTANT: Requires 'Screen Recording' permission");
+        log::info!("[AudioCapture] ⚠️  Go to System Settings → Privacy & Security → Screen Recording");
+
+        // Get shareable content to access display/audio
+        log::info!("[AudioCapture] Getting shareable content...");
+        let content = SCShareableContent::get().map_err(|e| {
+            log::error!("[AudioCapture] Failed to get shareable content: {:?}", e);
+            Error::AudioDevice(format!("Failed to get shareable content: {:?}", e))
+        })?;
+        log::info!(
+            "[AudioCapture] Found {} displays, {} windows",
+            content.displays().len(),
+            content.windows().len()
+        );
+
+        // Create a content filter to capture system audio
+        // We need to capture from a display to get the system audio
+        let displays = content.displays();
+        let display = displays
+            .first()
+            .ok_or_else(|| Error::AudioDevice("No displays found".to_string()))?;
+
+        log::info!(
+            "[AudioCapture] Using display: {:?}",
+            display.display_id()
+        );
+
+        // Create content filter for display capture (which includes audio)
+        let filter = SCContentFilter::create().with_display(display).build();
+
+        // Configure stream for audio capture
+        // Note: Even for audio-only, we need valid video dimensions
+        // ScreenCaptureKit captures video+audio together, then we just ignore the video
+        let config = SCStreamConfiguration::new()
+            .with_captures_audio(true)
+            .with_excludes_current_process_audio(false) // Capture all system audio including this process
+            .with_sample_rate(48000) // 48kHz
+            .with_channel_count(2) // Stereo
+            // Use small but valid video dimensions (we'll ignore the video frames)
+            .with_width(100)
+            .with_height(100)
+            .with_pixel_format(PixelFormat::YCbCr_420v);
+
+        // Create stream output handler
+        let chunk_count = Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let chunk_count_clone = chunk_count.clone();
+        let on_audio_clone = on_audio.clone();
+
+        // Create the stream
+        log::info!("[AudioCapture] Creating SCStream...");
+        let mut stream = SCStream::new(&filter, &config);
+
+        log::info!("[AudioCapture] Adding audio output handler...");
+        // Add the audio output handler as a closure
+        stream.add_output_handler(
+            Box::new(move |sample: CMSampleBuffer, of_type: SCStreamOutputType| {
+                match of_type {
+                    SCStreamOutputType::Audio => {
+                        let count = chunk_count_clone.fetch_add(1, Ordering::SeqCst) + 1;
+
+                        if count == 1 {
+                            log::info!("[AudioCapture] First audio sample received");
+                        }
+
+                        if count % 500 == 0 {
+                            log::debug!("[AudioCapture] Received {} audio samples", count);
+                        }
+
+                        // Extract audio data from CMSampleBuffer
+                        match sample.audio_buffer_list() {
+                            Some(audio_buffer_list) => {
+                                // Get the number of buffers
+                                let num_buffers = audio_buffer_list.num_buffers();
+
+                                if num_buffers == 0 {
+                                    if count < 5 {
+                                        log::warn!("[AudioCapture] Audio buffer list is empty");
+                                    }
+                                    return;
+                                }
+
+                                // Process each buffer (usually just one for stereo)
+                                for i in 0..num_buffers {
+                                    let Some(audio_buffer) = audio_buffer_list.buffer(i) else {
+                                        if count < 5 {
+                                            log::warn!("[AudioCapture] Failed to get buffer at index {}", i);
+                                        }
+                                        continue;
+                                    };
+
+                                    // Get audio data as a byte slice
+                                    let data_bytes = audio_buffer.data();
+
+                                    if data_bytes.is_empty() {
+                                        if count < 5 {
+                                            log::warn!("[AudioCapture] Empty audio buffer data");
+                                        }
+                                        continue;
+                                    }
+
+                                    // Convert bytes to f32 samples (audio is in f32 PCM format)
+                                    // Safety: We know ScreenCaptureKit provides f32 audio data
+                                    let audio_slice = unsafe {
+                                        std::slice::from_raw_parts(
+                                            data_bytes.as_ptr() as *const f32,
+                                            data_bytes.len() / 4, // 4 bytes per f32
+                                        )
+                                    };
+
+                                    // Convert f32 samples to bytes (little-endian)
+                                    let bytes: Vec<u8> = audio_slice
+                                        .iter()
+                                        .flat_map(|&sample| sample.to_le_bytes())
+                                        .collect();
+
+                                    // Get timestamp
+                                    let timestamp = std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default()
+                                        .as_secs_f64();
+
+                                    // Create AudioData payload
+                                    let audio_payload = AudioData {
+                                        samples: STANDARD.encode(&bytes),
+                                        timestamp,
+                                        sample_rate: 48000, // We configured 48kHz
+                                        channels: 2,        // We configured stereo
+                                        chunk_count: count,
+                                    };
+
+                                    if count == 1 {
+                                        log::info!(
+                                            "[AudioCapture] First audio chunk sent ({} samples, {} bytes)",
+                                            audio_slice.len(),
+                                            bytes.len()
+                                        );
+                                    }
+
+                                    // Send through channel
+                                    if let Err(e) = on_audio_clone.send(audio_payload) {
+                                        log::error!("[AudioCapture] Failed to send audio data: {:?}", e);
+                                    }
+                                }
+                            }
+                            None => {
+                                if count < 5 {
+                                    log::warn!("[AudioCapture] No audio buffer list available");
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }),
+            SCStreamOutputType::Audio,
+        );
+
+        // Start capture
+        log::info!("[AudioCapture] Starting capture...");
+        stream.start_capture().map_err(|e| {
+            log::error!("[AudioCapture] Failed to start capture: {:?}", e);
+            log::error!("[AudioCapture] This may be due to:");
+            log::error!("[AudioCapture]   - Screen Recording permission not fully granted");
+            log::error!("[AudioCapture]   - Kitty terminal needs Screen Recording permission");
+            log::error!("[AudioCapture]   - Invalid stream configuration");
+            log::error!("[AudioCapture]   - Display not accessible");
+            Error::AudioDevice(format!("Failed to start capture: {:?}", e))
+        })?;
+
+        log::info!("[AudioCapture] Capture started successfully");
+
+        // Store the capture
+        let capture = AudioCapture {
+            stream,
+            _chunk_count: chunk_count,
+        };
+
+        {
+            let mut capture_holder = get_audio_capture().lock().unwrap();
+            *capture_holder = Some(capture);
+        }
+
+        // Mark as active
+        state.is_active.store(true, Ordering::SeqCst);
+
+        log::info!("[AudioCapture] macOS ScreenCaptureKit audio capture started (48kHz, stereo)");
+        Ok(())
+    }
+
+    pub fn stop_capture() -> Result<()> {
+        let state = get_audio_state();
+
+        if !state.is_active.load(Ordering::SeqCst) {
+            log::info!("[AudioCapture] Audio capture not active");
+            return Ok(());
+        }
+
+        log::info!("[AudioCapture] Stopping macOS audio capture...");
+
+        // Mark as inactive first
+        state.is_active.store(false, Ordering::SeqCst);
+
+        // Stop the stream
+        let mut capture_holder = get_audio_capture().lock().unwrap();
+        if let Some(capture) = capture_holder.take() {
+            if let Err(e) = capture.stream.stop_capture() {
+                log::warn!("[AudioCapture] Error stopping stream: {:?}", e);
+            }
+            drop(capture);
+        }
+
+        log::info!("[AudioCapture] macOS audio capture stopped");
+        Ok(())
+    }
+}
+
+// ==================== Windows WASAPI Implementation ====================
+
+#[cfg(target_os = "windows")]
+mod windows_audio {
+    use super::*;
+    use std::sync::Mutex;
+    use std::thread;
+    use wasapi::*;
+
+    static AUDIO_CAPTURE: std::sync::OnceLock<Mutex<Option<AudioCapture>>> =
+        std::sync::OnceLock::new();
+
+    fn get_audio_capture() -> &'static Mutex<Option<AudioCapture>> {
+        AUDIO_CAPTURE.get_or_init(|| Mutex::new(None))
+    }
+
+    struct AudioCapture {
+        stop_signal: Arc<AtomicBool>,
+        thread_handle: Option<thread::JoinHandle<()>>,
+    }
+
+    impl Drop for AudioCapture {
+        fn drop(&mut self) {
+            log::info!("[AudioCapture] Dropping Windows audio capture");
+            self.stop_signal.store(true, Ordering::SeqCst);
+            if let Some(handle) = self.thread_handle.take() {
+                let _ = handle.join();
+            }
+        }
+    }
+
+    pub fn start_capture(on_audio: Channel<AudioData>) -> Result<()> {
+        let state = get_audio_state();
+
+        // Check if already active
+        if state.is_active.load(Ordering::SeqCst) {
+            log::warn!("[AudioCapture] Audio capture already active, stopping first...");
+            stop_capture()?;
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+
+        log::info!("[AudioCapture] Starting Windows WASAPI loopback capture");
+
+        let stop_signal = Arc::new(AtomicBool::new(false));
+        let stop_signal_clone = stop_signal.clone();
+
+        let thread_handle = thread::spawn(move || {
+            log::info!("[AudioCapture] Windows capture thread started");
+
+            // Initialize COM for this thread
+            if let Err(e) = initialize_mta() {
+                log::error!("[AudioCapture] Failed to initialize COM: {:?}", e);
+                return;
+            }
+
+            let chunk_count = Arc::new(std::sync::atomic::AtomicU64::new(0));
+
+            // Run the capture loop
+            if let Err(e) = run_capture_loop(on_audio, stop_signal_clone, chunk_count) {
+                log::error!("[AudioCapture] Capture loop error: {:?}", e);
+            }
+
+            log::info!("[AudioCapture] Windows capture thread stopped");
+        });
+
+        let capture = AudioCapture {
+            stop_signal,
+            thread_handle: Some(thread_handle),
+        };
+
+        {
+            let mut capture_holder = get_audio_capture().lock().unwrap();
+            *capture_holder = Some(capture);
+        }
+
+        // Mark as active
+        state.is_active.store(true, Ordering::SeqCst);
+
+        log::info!("[AudioCapture] Windows WASAPI loopback capture started");
+
+        Ok(())
+    }
+
+    fn run_capture_loop(
+        on_audio: Channel<AudioData>,
+        stop_signal: Arc<AtomicBool>,
+        chunk_count: Arc<std::sync::atomic::AtomicU64>,
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+        // Get default audio render device (speakers/headphones)
+        log::info!("[AudioCapture] Getting default audio render device...");
+        let device = get_default_device(&Direction::Render)?;
+
+        log::info!("[AudioCapture] Initializing audio client for loopback capture...");
+        let mut audio_client = device.get_iaudioclient()?;
+
+        // Get the default format
+        let wave_format = audio_client.get_mixformat()?;
+        log::info!(
+            "[AudioCapture] Device format: {}Hz, {} channels, {} bits",
+            wave_format.get_samplespersec(),
+            wave_format.get_nchannels(),
+            wave_format.get_bitspersample()
+        );
+
+        // Initialize in loopback mode (shared mode, capture direction)
+        let blockalign = wave_format.get_blockalign();
+        let (def_time, min_time) = audio_client.get_periods()?;
+        log::info!(
+            "[AudioCapture] Default period: {} ns, Minimum period: {} ns",
+            def_time,
+            min_time
+        );
+
+        audio_client.initialize_client(
+            &wave_format,
+            def_time,
+            &Direction::Capture, // Capture direction for loopback
+            &ShareMode::Shared,  // Must use shared mode for loopback
+            true,                // Enable loopback
+        )?;
+
+        log::info!("[AudioCapture] Getting audio capture client...");
+        let capture_client = audio_client.get_audiocaptureclient()?;
+
+        log::info!("[AudioCapture] Starting audio client...");
+        audio_client.start_stream()?;
+
+        log::info!("[AudioCapture] Loopback capture started, reading audio data...");
+
+        let sample_rate = wave_format.get_samplespersec();
+        let channels = wave_format.get_nchannels() as u16;
+        let bits_per_sample = wave_format.get_bitspersample();
+
+        // Capture loop
+        while !stop_signal.load(Ordering::SeqCst) {
+            // Sleep a bit to avoid busy waiting
+            thread::sleep(std::time::Duration::from_millis(10));
+
+            // Get number of frames available
+            let frames_available = match capture_client.get_next_nbr_frames() {
+                Ok(frames) => frames,
+                Err(e) => {
+                    log::debug!("[AudioCapture] Error getting frame count: {:?}", e);
+                    continue;
+                }
+            };
+
+            if frames_available == 0 {
+                continue;
+            }
+
+            // Read the buffer
+            let data = match capture_client.read_from_device_to_vec(blockalign as usize) {
+                Ok(data) => data,
+                Err(e) => {
+                    log::error!("[AudioCapture] Error reading audio buffer: {:?}", e);
+                    continue;
+                }
+            };
+
+            if data.is_empty() {
+                continue;
+            }
+
+            let count = chunk_count.fetch_add(1, Ordering::SeqCst) + 1;
+
+            // Convert audio data to f32 based on bit depth
+            let f32_samples: Vec<f32> = match bits_per_sample {
+                32 => {
+                    // Already f32, just reinterpret bytes
+                    data.chunks_exact(4)
+                        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                        .collect()
+                }
+                16 => {
+                    // Convert i16 to f32
+                    data.chunks_exact(2)
+                        .map(|chunk| {
+                            let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
+                            sample as f32 / 32768.0
+                        })
+                        .collect()
+                }
+                _ => {
+                    log::warn!("[AudioCapture] Unsupported bit depth: {}", bits_per_sample);
+                    continue;
+                }
+            };
+
+            // Convert f32 samples to bytes
+            let bytes: Vec<u8> = f32_samples
+                .iter()
+                .flat_map(|&sample| sample.to_le_bytes())
+                .collect();
+
+            // Get timestamp
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs_f64();
+
+            // Create AudioData payload
+            let audio_payload = AudioData {
+                samples: STANDARD.encode(&bytes),
+                timestamp,
+                sample_rate,
+                channels,
+                chunk_count: count,
+            };
+
+            if count == 1 {
+                log::info!(
+                    "[AudioCapture] First audio chunk sent ({} samples, {} bytes)",
+                    f32_samples.len(),
+                    bytes.len()
+                );
+            }
+
+            if count % 500 == 0 {
+                log::debug!("[AudioCapture] Sent {} audio chunks", count);
+            }
+
+            // Send through channel
+            if let Err(e) = on_audio.send(audio_payload) {
+                log::error!("[AudioCapture] Failed to send audio data: {:?}", e);
+                break;
             }
         }
 
-        return Err(Error::AudioDevice(
-            "No loopback device found on Windows. Please enable 'Stereo Mix' in audio settings.".to_string()
-        ));
+        log::info!("[AudioCapture] Stopping audio client...");
+        audio_client.stop_stream()?;
+
+        Ok(())
     }
 
-    #[cfg(target_os = "linux")]
-    {
-        // Linux loopback not supported by cpal yet
-        return Err(Error::AudioDevice(
-            "System audio capture not supported on Linux".to_string()
-        ));
+    pub fn stop_capture() -> Result<()> {
+        let state = get_audio_state();
+
+        if !state.is_active.load(Ordering::SeqCst) {
+            log::info!("[AudioCapture] Audio capture not active");
+            return Ok(());
+        }
+
+        log::info!("[AudioCapture] Stopping Windows audio capture...");
+
+        // Mark as inactive first
+        state.is_active.store(false, Ordering::SeqCst);
+
+        // Stop the capture thread
+        let mut capture_holder = get_audio_capture().lock().unwrap();
+        if let Some(capture) = capture_holder.take() {
+            drop(capture); // Drop will stop the thread
+        }
+
+        log::info!("[AudioCapture] Windows audio capture stopped");
+        Ok(())
     }
 }
+
+// ==================== Platform-Specific Public API ====================
 
 /// Start system audio capture and stream data through the channel (desktop only)
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(target_os = "macos")]
 pub fn start_audio_stream(on_audio: Channel<AudioData>) -> Result<()> {
-    let state = get_audio_state();
-
-    // Check if already active
-    if state.is_active.load(Ordering::SeqCst) {
-        log::warn!("[AudioCapture] Audio capture already active, stopping first...");
-        stop_audio()?;
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-
-    // Check platform support
-    #[cfg(target_os = "linux")]
-    {
-        log::error!("[AudioCapture] System audio capture not supported on Linux");
-        return Err(Error::AudioDevice(
-            "System audio capture not supported on Linux. Please use PulseAudio/PipeWire monitoring.".to_string()
-        ));
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        // Check macOS version - cpal loopback requires 14.6+
-        // This is a simplified check - in production you'd want to actually check the OS version
-        log::info!("[AudioCapture] Starting Core Audio loopback (requires macOS 14.6+)");
-    }
-
-    log::info!("[AudioCapture] Starting system audio capture via cpal");
-
-    // Find loopback device
-    let device = find_loopback_device()?;
-
-    // Get the config - on macOS loopback, we use the OUTPUT config
-    // because we're recording from the output device (what goes to speakers)
-    #[cfg(target_os = "macos")]
-    let config = device
-        .default_output_config()
-        .map_err(|e| Error::AudioDevice(format!("Failed to get audio config: {}", e)))?;
-
-    #[cfg(not(target_os = "macos"))]
-    let config = device
-        .default_input_config()
-        .map_err(|e| Error::AudioDevice(format!("Failed to get audio config: {}", e)))?;
-
-    let sample_rate = config.sample_rate();
-    let channels = config.channels();
-    let sample_format = config.sample_format();
-
-    log::info!(
-        "[AudioCapture] Audio config - Sample rate: {}Hz, Channels: {}, Format: {:?}",
-        sample_rate,
-        channels,
-        sample_format
-    );
-
-    // Counter for chunk sequence
-    let chunk_count = Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let chunk_count_clone = chunk_count.clone();
-
-    // Build the input stream based on sample format
-    let stream = match sample_format {
-        cpal::SampleFormat::F32 => {
-            let stream_config = config.config();
-            device.build_input_stream(
-                &stream_config,
-                move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                    handle_audio_data_f32(
-                        data,
-                        sample_rate,
-                        channels,
-                        &on_audio,
-                        &chunk_count_clone,
-                    );
-                },
-                |err| log::error!("[AudioCapture] Stream error: {}", err),
-                None,
-            )
-            .map_err(|e| Error::AudioDevice(format!("Failed to build audio stream: {}", e)))?
-        }
-        cpal::SampleFormat::I16 => {
-            let stream_config = config.config();
-            device.build_input_stream(
-                &stream_config,
-                move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                    // Convert i16 to f32 and handle
-                    let f32_data: Vec<f32> = data.iter().map(|&s| s as f32 / 32768.0).collect();
-                    handle_audio_data_f32(
-                        &f32_data,
-                        sample_rate,
-                        channels,
-                        &on_audio,
-                        &chunk_count_clone,
-                    );
-                },
-                |err| log::error!("[AudioCapture] Stream error: {}", err),
-                None,
-            )
-            .map_err(|e| Error::AudioDevice(format!("Failed to build audio stream: {}", e)))?
-        }
-        cpal::SampleFormat::U16 => {
-            let stream_config = config.config();
-            device.build_input_stream(
-                &stream_config,
-                move |data: &[u16], _: &cpal::InputCallbackInfo| {
-                    // Convert u16 to f32 and handle
-                    let f32_data: Vec<f32> = data
-                        .iter()
-                        .map(|&s| (s as f32 - 32768.0) / 32768.0)
-                        .collect();
-                    handle_audio_data_f32(
-                        &f32_data,
-                        sample_rate,
-                        channels,
-                        &on_audio,
-                        &chunk_count_clone,
-                    );
-                },
-                |err| log::error!("[AudioCapture] Stream error: {}", err),
-                None,
-            )
-            .map_err(|e| Error::AudioDevice(format!("Failed to build audio stream: {}", e)))?
-        }
-        _ => {
-            return Err(Error::AudioDevice(format!(
-                "Unsupported sample format: {:?}",
-                sample_format
-            )))
-        }
-    };
-
-    // Start the stream
-    stream
-        .play()
-        .map_err(|e| Error::AudioDevice(format!("Failed to start audio stream: {}", e)))?;
-
-    // Mark as active
-    state.is_active.store(true, Ordering::SeqCst);
-
-    // Store the stream so we can stop it later
-    {
-        let mut stream_holder = get_audio_stream_holder().lock().unwrap();
-        *stream_holder = Some(stream);
-    }
-
-    log::info!(
-        "[AudioCapture] System audio capture started ({}Hz, {}ch)",
-        sample_rate,
-        channels
-    );
-
-    Ok(())
+    macos_audio::start_capture(on_audio)
 }
 
-/// Handle audio data from the stream (f32 format)
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-fn handle_audio_data_f32(
-    data: &[f32],
-    sample_rate: u32,
-    channels: u16,
-    on_audio: &Channel<AudioData>,
-    chunk_count: &Arc<std::sync::atomic::AtomicU64>,
-) {
-    if data.is_empty() {
-        return;
-    }
+#[cfg(target_os = "windows")]
+pub fn start_audio_stream(on_audio: Channel<AudioData>) -> Result<()> {
+    windows_audio::start_capture(on_audio)
+}
 
-    let count = chunk_count.fetch_add(1, Ordering::SeqCst) + 1;
-
-    // Convert f32 samples to bytes (little-endian)
-    let bytes: Vec<u8> = data
-        .iter()
-        .flat_map(|&sample| sample.to_le_bytes())
-        .collect();
-
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs_f64();
-
-    let audio_payload = AudioData {
-        samples: STANDARD.encode(&bytes),
-        timestamp,
-        sample_rate,
-        channels,
-        chunk_count: count,
-    };
-
-    if count == 1 {
-        log::info!(
-            "[AudioCapture] First audio chunk sent ({} samples, {} bytes)",
-            data.len(),
-            bytes.len()
-        );
-    }
-
-    if let Err(e) = on_audio.send(audio_payload) {
-        log::error!("[AudioCapture] Failed to send audio data: {:?}", e);
-    }
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    not(target_os = "macos"),
+    not(target_os = "windows")
+))]
+pub fn start_audio_stream(_on_audio: Channel<AudioData>) -> Result<()> {
+    log::error!("[AudioCapture] System audio capture not supported on Linux");
+    Err(Error::AudioDevice(
+        "System audio capture not supported on Linux. Please use PulseAudio/PipeWire monitoring."
+            .to_string(),
+    ))
 }
 
 /// Start audio capture (mobile stub)
@@ -336,30 +599,33 @@ pub fn start_audio_stream(_on_audio: Channel<AudioData>) -> Result<()> {
 }
 
 /// Stop audio capture
+#[cfg(target_os = "macos")]
+pub fn stop_audio() -> Result<()> {
+    macos_audio::stop_capture()
+}
+
+#[cfg(target_os = "windows")]
+pub fn stop_audio() -> Result<()> {
+    windows_audio::stop_capture()
+}
+
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    not(target_os = "macos"),
+    not(target_os = "windows")
+))]
 pub fn stop_audio() -> Result<()> {
     let state = get_audio_state();
-
-    if !state.is_active.load(Ordering::SeqCst) {
-        log::info!("[AudioCapture] Audio capture not active");
-        return Ok(());
-    }
-
-    log::info!("[AudioCapture] Stopping audio capture...");
-
-    // Mark as inactive first
     state.is_active.store(false, Ordering::SeqCst);
+    log::info!("[AudioCapture] Audio capture stopped (Linux - not implemented)");
+    Ok(())
+}
 
-    // Stop the stream
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
-        let mut stream_holder = get_audio_stream_holder().lock().unwrap();
-        if let Some(stream) = stream_holder.take() {
-            drop(stream); // Dropping the stream stops it
-        }
-    }
-
-    log::info!("[AudioCapture] Audio capture stopped");
-
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub fn stop_audio() -> Result<()> {
+    let state = get_audio_state();
+    state.is_active.store(false, Ordering::SeqCst);
+    log::info!("[AudioCapture] Audio capture stopped (mobile - not implemented)");
     Ok(())
 }
 

@@ -22,8 +22,13 @@ image = { version = "0.25", default-features = false, features = ["jpeg"] }
 base64 = "0.21.0"
 tokio = { version = "1", features = ["sync", "time"] }
 parking_lot = "0.12"
-# Cross-platform audio capture (macOS 14.6+ & Windows)
-cpal = "0.17.3"
+
+# Platform-specific audio capture (cpal was unreliable for system audio loopback)
+[target.'cfg(target_os = "macos")'.dependencies]
+screencapturekit = "1.5.0"  # macOS ScreenCaptureKit for system audio capture
+
+[target.'cfg(target_os = "windows")'.dependencies]
+wasapi = "0.22.0"  # Windows WASAPI for system audio loopback
 
 [build-dependencies]
 tauri-plugin = { version = "2.0", features = ["build"] }
