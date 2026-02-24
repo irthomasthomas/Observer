@@ -187,7 +187,7 @@ App Tools:
   * `message(message, title="Agent Message")` - Pops up a system message
   * `system_notify(body, title="Observer AI")` - Sends a system notification
   * `overlay(body)` - Pushes a message to the overlay
-  * `click()` - Triggers a mouse click at the current cursor position 
+  * `click('left'|'right')` - Triggers a mouse click at the current cursor position accepts either 'left' or 'right', defaults to left.
 ## Code Tab
 
 The "Code" tab receives the following variables as context before running: 

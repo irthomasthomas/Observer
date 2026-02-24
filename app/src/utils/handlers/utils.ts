@@ -760,11 +760,13 @@ export async function sleep(ms: number = 2000, agentId?: string): Promise<void> 
  * Triggers a mouse click at the current cursor position.
  * User must position the mouse before calling this function.
  * @param appUrl The base URL of the local Tauri server.
+ * @param button The mouse button to click ('left' or 'right'). Defaults to 'left'.
  */
-export async function click(appUrl: string): Promise<void> {
+export async function click(appUrl: string, button: 'left' | 'right' = 'left'): Promise<void> {
   const response = await fetch(`${appUrl}/click`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ button }),
   });
 
   if (!response.ok) {
