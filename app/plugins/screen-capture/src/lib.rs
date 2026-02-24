@@ -1,6 +1,5 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
-    Manager,
     Runtime,
 };
 
@@ -9,9 +8,17 @@ mod error;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod audio;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-pub mod desktop;
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod targets;
+
+// Platform-specific desktop implementations
+// macOS uses ScreenCaptureKit for better performance
+// Windows/Linux use xcap for cross-platform support
+#[cfg(all(target_os = "macos", not(any(target_os = "android", target_os = "ios"))))]
+#[path = "macos.rs"]
+pub mod desktop;
+
+#[cfg(all(not(target_os = "macos"), not(any(target_os = "android", target_os = "ios"))))]
+pub mod desktop;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
 mod mobile;

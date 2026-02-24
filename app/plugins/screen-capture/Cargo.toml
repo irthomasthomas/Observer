@@ -15,17 +15,21 @@ tauri = "2.3.0"
 log = "0.4"
 thiserror = "2.0"
 
-# Desktop-only dependencies
+# Desktop-only dependencies (shared across all desktop platforms)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-xcap = "0.8.2"  # Cross-platform window/monitor enumeration and capture
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 base64 = "0.21.0"
 tokio = { version = "1", features = ["sync", "time"] }
 parking_lot = "0.12"
 
-# Platform-specific audio capture (cpal was unreliable for system audio loopback)
+# xcap for Windows/Linux (cross-platform capture)
+[target.'cfg(all(not(any(target_os = "android", target_os = "ios")), not(target_os = "macos")))'.dependencies]
+xcap = "0.8.2"  # Cross-platform window/monitor enumeration and capture for Windows/Linux
+
+# macOS-specific dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
-screencapturekit = "1.5.0"  # macOS ScreenCaptureKit for system audio capture
+screencapturekit = "1.5.0"  # macOS ScreenCaptureKit for video and audio capture
+xcap = "0.8.2"  # Still used for target enumeration (can be replaced with SCShareableContent later)
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.22.0"  # Windows WASAPI for system audio loopback
