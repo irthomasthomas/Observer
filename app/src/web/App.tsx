@@ -14,6 +14,7 @@ import {
 } from '@utils/agent_database';
 import { startAgentLoop, stopAgentLoop } from '@utils/main_loop';
 import { Logger, type WhitelistChannel } from '@utils/logging';
+import { TranscriptionRouter } from '@utils/whisper/TranscriptionRouter';
 import { MEMORY_UPDATE_EVENT } from '@components/MemoryManager';
 import { IterationStore } from '@utils/IterationStore';
 
@@ -190,6 +191,11 @@ function AppContent() {
       throw error;
     }
   }, [isAuthenticated, isLoading, getAccessToken]);
+
+  // Set up token provider for cloud transcription
+  useEffect(() => {
+    TranscriptionRouter.setTokenProvider(getToken);
+  }, [getToken]);
 
   const hostingContext = useMemo(() => {
     const { protocol, hostname } = window.location;

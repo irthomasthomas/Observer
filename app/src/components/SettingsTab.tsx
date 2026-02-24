@@ -5,7 +5,9 @@ import { SensorSettings } from '../utils/settings';
 // New Whisper imports
 import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
 import { WhisperTranscriptionService } from '../utils/whisper/WhisperTranscriptionService';
-import { TranscriptionChunk, WhisperModelState } from '../utils/whisper/types';
+import { CloudTranscriptionService } from '../utils/whisper/CloudTranscriptionService';
+import { TranscriptionRouter } from '../utils/whisper/TranscriptionRouter';
+import { TranscriptionChunk, WhisperModelState, TranscriptionMode } from '../utils/whisper/types';
 import { SUGGESTED_MODELS, LANGUAGE_NAMES } from '../config/whisper-models';
 
 import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
@@ -71,7 +73,10 @@ const SettingsTab = () => {
   const [modelState, setModelState] = useState<WhisperModelState | null>(null);
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [auditTrail, setAuditTrail] = useState<TranscriptionChunk[]>([]);
-  const [transcriptionService, setTranscriptionService] = useState<WhisperTranscriptionService | null>(null);
+  const [transcriptionService, setTranscriptionService] = useState<WhisperTranscriptionService | CloudTranscriptionService | null>(null);
+  const [transcriptionMode, setTranscriptionModeState] = useState<TranscriptionMode>(
+    TranscriptionRouter.getInstance().getMode()
+  );
   
   // Ref for the hidden audio player
   const audioPlayerRef = useRef<HTMLAudioElement>(null);
@@ -86,6 +91,15 @@ const SettingsTab = () => {
     return unsubscribe;
   }, [modelManager]);
 
+
+  // --- TRANSCRIPTION MODE HANDLER ---
+  const handleTranscriptionModeChange = (mode: TranscriptionMode) => {
+    if (isTestRunning) {
+      handleStopTest();
+    }
+    TranscriptionRouter.getInstance().setMode(mode);
+    setTranscriptionModeState(mode);
+  };
 
   // --- SIMPLE WHISPER HANDLERS ---
 
@@ -147,7 +161,8 @@ const SettingsTab = () => {
 
 
   const handleStartTest = async () => {
-    if (!modelManager.isReady()) {
+    // For local mode, ensure model is loaded
+    if (transcriptionMode === 'local' && !modelManager.isReady()) {
       alert('Please load a model first');
       return;
     }
@@ -156,10 +171,14 @@ const SettingsTab = () => {
       // For testing, directly get microphone stream without using StreamManager
       // to avoid creating duplicate transcription services
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+
       setAuditTrail([]);
-      const newService = new WhisperTranscriptionService();
-      
+
+      // Create the appropriate service based on mode
+      const newService = transcriptionMode === 'cloud'
+        ? new CloudTranscriptionService()
+        : new WhisperTranscriptionService();
+
       const onChunkProcessedCallback = (chunk: TranscriptionChunk) => {
         setAuditTrail(prev => [...prev, chunk].sort((a, b) => a.id - b.id));
       };
@@ -232,7 +251,45 @@ const SettingsTab = () => {
       {/* --- NEW Whisper Model Management Card --- */}
       <SettingsCard title="Whisper Speech Recognition">
         <div className="space-y-6">
-          {/* Model Configuration */}
+          {/* Transcription Mode Toggle */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Transcription Mode
+            </label>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => handleTranscriptionModeChange('cloud')}
+                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                  transcriptionMode === 'cloud'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-medium">Cloud</div>
+                <div className="text-xs mt-1 opacity-75">Fast, no CPU load</div>
+              </button>
+              <button
+                onClick={() => handleTranscriptionModeChange('local')}
+                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                  transcriptionMode === 'local'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-medium">Local</div>
+                <div className="text-xs mt-1 opacity-75">Offline, private</div>
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {transcriptionMode === 'cloud'
+                ? 'Audio is sent to Observer servers for transcription. Fast and lightweight.'
+                : 'Audio is processed locally using Whisper. Requires model download and uses CPU/GPU.'}
+            </p>
+          </div>
+
+          {/* Local Mode: Model Configuration */}
+          {transcriptionMode === 'local' && (
+          <>
           <div>
             <label htmlFor="model-id" className="block text-sm font-medium text-gray-700 mb-2">
               Model ID
@@ -310,8 +367,10 @@ const SettingsTab = () => {
               Quantized (smaller file sizes, faster loading)
             </label>
           </div>
+          </>
+          )}
 
-          {/* Chunk Duration */}
+          {/* Chunk Duration - Shared by both modes */}
           <div>
             <label htmlFor="chunk-duration" className="block text-sm font-medium text-gray-700 mb-2">
               Chunk Duration ({Math.round(whisperSettings.chunkDurationMs / 1000)}s)
@@ -319,16 +378,16 @@ const SettingsTab = () => {
             <input
               type="range"
               id="chunk-duration"
-              min="5000"
+              min="1000"
               max="60000"
-              step="5000"
+              step="1000"
               value={whisperSettings.chunkDurationMs}
               onChange={handleChunkDurationChange}
               disabled={isTestRunning}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>5s</span>
+              <span>1s</span>
               <span>30s</span>
               <span>60s</span>
             </div>
@@ -360,36 +419,41 @@ const SettingsTab = () => {
             </div>
           </div>
 
-          {/* Model Management Buttons */}
+          {/* Local Mode: Model Management Buttons */}
+          {transcriptionMode === 'local' && (
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleLoadModel}
+                disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center transition-all"
+              >
+                {modelState?.status === 'loading' ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : modelState?.status === 'loaded' ? (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                ) : (
+                  <Database className="mr-2 h-4 w-4" />
+                )}
+                {modelState?.status === 'loading' ? 'Loading...' : modelState?.status === 'loaded' ? 'Model Loaded' : 'Load Model'}
+              </button>
+
+              {modelState?.status === 'loaded' && (
+                <button
+                  onClick={handleUnloadModel}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center transition-all"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Unload Model
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Test Button - Works for both modes */}
           <div className="flex items-center space-x-4">
             <button
-              onClick={handleLoadModel}
-              disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center transition-all"
-            >
-              {modelState?.status === 'loading' ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : modelState?.status === 'loaded' ? (
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-              ) : (
-                <Database className="mr-2 h-4 w-4" />
-              )}
-              {modelState?.status === 'loading' ? 'Loading...' : modelState?.status === 'loaded' ? 'Model Loaded' : 'Load Model'}
-            </button>
-            
-            {modelState?.status === 'loaded' && (
-              <button
-                onClick={handleUnloadModel}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center transition-all"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Unload Model
-              </button>
-            )}
-            
-            <button
               onClick={isTestRunning ? handleStopTest : handleStartTest}
-              disabled={modelState?.status !== 'loaded'}
+              disabled={transcriptionMode === 'local' && modelState?.status !== 'loaded'}
               className={`px-4 py-2 rounded-md text-white flex items-center transition-all disabled:bg-gray-400 disabled:cursor-not-allowed ${
                 isTestRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
               }`}
@@ -397,10 +461,16 @@ const SettingsTab = () => {
               <TestTube2 className="mr-2 h-4 w-4" />
               {isTestRunning ? 'Stop Test' : 'Start Test'}
             </button>
+            {transcriptionMode === 'cloud' && (
+              <span className="text-sm text-green-600 flex items-center">
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Cloud Ready
+              </span>
+            )}
           </div>
 
-          {/* Model Loading Progress */}
-          {modelState?.status === 'loading' && modelState.progress.length > 0 && (
+          {/* Local Mode: Model Loading Progress */}
+          {transcriptionMode === 'local' && modelState?.status === 'loading' && modelState.progress.length > 0 && (
             <div className="space-y-3 pt-2">
               <h4 className="text-md font-semibold text-gray-700">
                 Loading Model: {modelState.config?.modelId}
@@ -432,8 +502,8 @@ const SettingsTab = () => {
             </div>
           )}
 
-          {/* Error Display */}
-          {modelState?.error && (
+          {/* Local Mode: Error Display */}
+          {transcriptionMode === 'local' && modelState?.error && (
             <div className="bg-red-50 border border-red-200 rounded-md p-3">
               <p className="text-sm text-red-800">
                 <strong>Error:</strong> {modelState.error}

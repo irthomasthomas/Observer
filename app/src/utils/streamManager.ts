@@ -1,5 +1,5 @@
 import { Logger } from './logging';
-import { WhisperTranscriptionService } from './whisper/WhisperTranscriptionService';
+import { TranscriptionRouter, TranscriptionProvider } from './whisper/TranscriptionRouter';
 import { isWeb } from './platform';
 import { browserStreamCapture } from './browserStreamCapture';
 import { tauriStreamCapture } from './tauriStreamCapture';
@@ -40,7 +40,7 @@ class Manager {
   private userSets = new Map<PseudoStreamType, Set<string>>();
   private listeners = new Set<StreamListener>();
   private pendingMasterStreams = new Map<MasterStreamType, Promise<void>>();
-  private transcriptionServices = new Map<AudioStreamType, WhisperTranscriptionService>();
+  private transcriptionServices = new Map<AudioStreamType, TranscriptionProvider>();
   
   private audioContext: AudioContext | null = null;
   private sourceNodes = new Map<string, MediaStreamAudioSourceNode>();
@@ -88,13 +88,13 @@ class Manager {
       // --- ADDED: Centralized Transcription & Mixer Logic ---
       // This block ensures services are only started for the streams the agent explicitly requested.
       if (requiredStreams.includes('allAudio')) {
-        this.initializeAudioMixer();
+        await this.initializeAudioMixer();
       }
       if (requiredStreams.includes('microphone') && this.microphoneStream) {
-        this.startTranscriptionForStream('microphone', this.microphoneStream);
+        await this.startTranscriptionForStream('microphone', this.microphoneStream);
       }
       if (requiredStreams.includes('screenAudio') && this.screenAudioStream) {
-        this.startTranscriptionForStream('screenAudio', this.screenAudioStream);
+        await this.startTranscriptionForStream('screenAudio', this.screenAudioStream);
       }
       // --- END ADDED ---
 
@@ -280,7 +280,7 @@ class Manager {
     return false;
   }
 
-  private initializeAudioMixer(): void {
+  private async initializeAudioMixer(): Promise<void> {
     if (this.audioContext || !this.screenAudioStream || !this.microphoneStream) return;
     Logger.info("StreamManager", "Initializing audio mixer for 'allAudio'.");
     this.audioContext = new AudioContext();
@@ -293,7 +293,7 @@ class Manager {
     this.sourceNodes.set('microphone', micSource);
     this.allAudioStream = destination.stream;
     // This now correctly starts transcription only when the mixer is initialized
-    this.startTranscriptionForStream('allAudio', this.allAudioStream);
+    await this.startTranscriptionForStream('allAudio', this.allAudioStream);
     this.notifyListeners();
   }
   
@@ -382,11 +382,13 @@ class Manager {
     this.notifyListeners();
   }
 
-  private startTranscriptionForStream(type: AudioStreamType, stream: MediaStream): void {
+  private async startTranscriptionForStream(type: AudioStreamType, stream: MediaStream): Promise<void> {
     if (this.transcriptionServices.has(type)) return;
     Logger.info("StreamManager", `Starting transcription service for '${type}'.`);
-    const newService = new WhisperTranscriptionService();
-    newService.start(stream);
+    const router = TranscriptionRouter.getInstance();
+    await router.ensureReady();
+    const newService = router.createProvider();
+    await newService.start(stream);
     this.transcriptionServices.set(type, newService);
   }
 

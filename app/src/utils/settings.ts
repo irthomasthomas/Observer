@@ -1,7 +1,7 @@
 // src/utils/settings.ts
 
 // NOTE: No imports are needed from your config files anymore.
-import { WhisperSettings } from './whisper/types';
+import { WhisperSettings, TranscriptionMode } from './whisper/types';
 import { getDefaultWhisperSettings } from '../config/whisper-models';
 
 class SettingsManager {
@@ -14,6 +14,7 @@ class SettingsManager {
     
     // --- WHISPER SETTINGS KEYS ---
     private readonly WHISPER_SETTINGS_KEY = 'observer-ai:settings:whisperSettings';
+    private readonly TRANSCRIPTION_MODE_KEY = 'observer-ai:settings:transcriptionMode';
 
     // --- SENSIBLE DEFAULTS ---
     private readonly DEFAULTS = {
@@ -22,7 +23,8 @@ class SettingsManager {
         ocrLangPath: 'https://tessdata.projectnaptha.com/4.0.0',
         ocrCorePath: 'https://unpkg.com/tesseract.js-core@4.0.2/tesseract-core.wasm.js',
         ocrLanguage: 'eng',
-        whisperSettings: getDefaultWhisperSettings()
+        whisperSettings: getDefaultWhisperSettings(),
+        transcriptionMode: 'cloud' as TranscriptionMode
     };
 
     // --- GETTER AND SETTER FUNCTIONS ---
@@ -143,8 +145,8 @@ class SettingsManager {
 
 
     public setWhisperChunkDuration(durationMs: number): void {
-        if (durationMs < 5000 || durationMs > 60000) {
-            throw new Error('Chunk duration must be between 5-60 seconds');
+        if (durationMs < 1000 || durationMs > 60000) {
+            throw new Error('Chunk duration must be between 1-60 seconds');
         }
         const settings = this.getWhisperSettings();
         settings.chunkDurationMs = durationMs;
@@ -158,6 +160,19 @@ class SettingsManager {
         const settings = this.getWhisperSettings();
         settings.maxChunksToKeep = maxChunks;
         this.setWhisperSettings(settings);
+    }
+
+    // Transcription Mode (cloud vs local)
+    public getTranscriptionMode(): TranscriptionMode {
+        const stored = localStorage.getItem(this.TRANSCRIPTION_MODE_KEY);
+        if (stored === 'cloud' || stored === 'local') {
+            return stored;
+        }
+        return this.DEFAULTS.transcriptionMode;
+    }
+
+    public setTranscriptionMode(mode: TranscriptionMode): void {
+        localStorage.setItem(this.TRANSCRIPTION_MODE_KEY, mode);
     }
 }
 
