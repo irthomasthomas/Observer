@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@contexts/AuthContext';
 import { useApplePayments } from '@hooks/useApplePayments';
 import { X as CloseIcon, X, Loader2, Sparkles, Zap, Heart, Star, Shield, Check, Monitor, Camera, Mic, Clipboard, Server } from 'lucide-react';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import { Logger } from '@utils/logging';
 import { isIOS } from '../utils/platform';
 
@@ -257,23 +256,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               <div>
                 <p className="text-sm md:text-base text-gray-700 leading-relaxed mb-4">
                   Using Cloud AI models, the data you choose will be sent to third-party AI providers for processing. View their privacy policies:{' '}
-                  {isAppleDevice ? (
-                    <>
-                      <button type="button" onClick={() => openUrl('https://ai.google.dev/gemini-api/terms')} className="text-blue-600 hover:underline font-medium cursor-pointer inline">Google AI Studio</button>
-                      {', '}
-                      <button type="button" onClick={() => openUrl('https://openrouter.ai/privacy')} className="text-blue-600 hover:underline font-medium cursor-pointer inline">OpenRouter</button>
-                      {', '}
-                      <button type="button" onClick={() => openUrl('https://fireworks.ai/privacy-policy')} className="text-blue-600 hover:underline font-medium cursor-pointer inline">Fireworks.ai</button>
-                    </>
-                  ) : (
-                    <>
-                      <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Google AI Studio</a>
-                      {', '}
-                      <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">OpenRouter</a>
-                      {', '}
-                      <a href="https://fireworks.ai/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Fireworks.ai</a>
-                    </>
-                  )}
+                  <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Google AI Studio</a>
+                  {', '}
+                  <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">OpenRouter</a>
+                  {', '}
+                  <a href="https://fireworks.ai/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Fireworks.ai</a>
                 </p>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -441,19 +428,9 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                   Start Free Trial
                 </button>
                 <p className="text-xs text-gray-500 mt-2 text-center">
-                  {isAppleDevice ? (
-                    <>
-                      <button onClick={() => openUrl('https://observer-ai.com/#/Terms')} className="hover:underline">Terms</button>
-                      {' · '}
-                      <button onClick={() => openUrl('https://observer-ai.com/#/Privacy')} className="hover:underline">Privacy</button>
-                    </>
-                  ) : (
-                    <>
-                      <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms</a>
-                      {' · '}
-                      <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy</a>
-                    </>
-                  )}
+                  <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms</a>
+                  {' · '}
+                  <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy</a>
                 </p>
               </div>
 
