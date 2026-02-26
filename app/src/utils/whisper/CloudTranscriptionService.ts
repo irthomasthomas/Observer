@@ -3,6 +3,7 @@ import { AudioStreamType } from '../streamManager';
 import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
 import { TranscriptionStateManager } from './TranscriptionStateManager';
+import { TranscriptionSubscriber } from './TranscriptionSubscriber';
 
 const CLOUD_API_URL = 'https://api.observer-ai.com/v1/audio/transcriptions';
 
@@ -16,8 +17,9 @@ export class CloudTranscriptionService {
   private streamType: AudioStreamType = 'microphone';
   private chunkCounter = 0;
   private chunkDurationMs = 15000;
-  private recentChunkTexts: string[] = [];
-  private maxChunksToKeep = 20;
+
+  // Subscriber management - services push to all subscribers
+  private subscribers = new Set<TranscriptionSubscriber>();
 
   public async start(stream: MediaStream, streamType?: AudioStreamType): Promise<void> {
     if (this.isRunning) {
@@ -29,11 +31,9 @@ export class CloudTranscriptionService {
     this.currentStream = stream;
     this.streamType = streamType || 'microphone';
     this.chunkCounter = 0;
-    this.recentChunkTexts = [];
 
     const settings = SensorSettings.getWhisperSettings();
     this.chunkDurationMs = settings.chunkDurationMs;
-    this.maxChunksToKeep = settings.maxChunksToKeep;
 
     Logger.info('CloudTranscriptionService', `Starting cloud transcription for ${this.streamType} with ${this.chunkDurationMs}ms chunks`);
 
@@ -46,18 +46,37 @@ export class CloudTranscriptionService {
     Logger.info('CloudTranscriptionService', 'Stopping cloud transcription service');
     this.isRunning = false;
     this.currentStream = null;
-    this.recentChunkTexts = [];
+
+    // Note: We don't clear subscribers here - they are managed by StreamManager
+    // and may persist across service restarts
 
     // Notify state manager that stream stopped
     TranscriptionStateManager.streamStopped(this.streamType);
   }
 
-  public getTranscript(): string {
-    return this.recentChunkTexts.join(' ');
-  }
-
   public isReady(): boolean {
     return true; // Cloud service is always ready
+  }
+
+  // --- Subscriber Management ---
+
+  public addSubscriber(subscriber: TranscriptionSubscriber): void {
+    this.subscribers.add(subscriber);
+    Logger.debug('CloudTranscriptionService', `Added subscriber ${subscriber.id}, total: ${this.subscribers.size}`);
+  }
+
+  public removeSubscriber(subscriber: TranscriptionSubscriber): void {
+    this.subscribers.delete(subscriber);
+    Logger.debug('CloudTranscriptionService', `Removed subscriber ${subscriber.id}, total: ${this.subscribers.size}`);
+  }
+
+  /**
+   * Push transcribed text to all registered subscribers
+   */
+  private pushToSubscribers(text: string): void {
+    for (const subscriber of this.subscribers) {
+      subscriber.appendText(text);
+    }
   }
 
   private async transcribeLoop(): Promise<void> {
@@ -70,11 +89,10 @@ export class CloudTranscriptionService {
           break;
         }
 
-        // Notify state manager: recording started
+        // Notify state manager: recording started (UI state only)
         TranscriptionStateManager.chunkRecordingStarted(
           this.streamType,
-          this.chunkDurationMs,
-          this.maxChunksToKeep
+          this.chunkDurationMs
         );
 
         const audioBlob = await this.recordChunk(this.currentStream, this.chunkDurationMs);
@@ -130,17 +148,14 @@ export class CloudTranscriptionService {
       const result = await response.json();
 
       if (result?.text && this.isRunning) {
-        this.recentChunkTexts.push(result.text);
-        this.recentChunkTexts = this.recentChunkTexts.slice(-this.maxChunksToKeep);
+        // Push to all registered subscribers (agent-specific accumulators)
+        this.pushToSubscribers(result.text);
 
-        const fullTranscript = this.recentChunkTexts.join(' ');
-
-        // Notify state manager: transcription ended
+        // Notify state manager for UI updates (maintains its own rolling window)
         TranscriptionStateManager.chunkTranscriptionEnded(
           this.streamType,
           result.text,
-          fullTranscript,
-          this.recentChunkTexts.length
+          chunkId
         );
       }
     } catch (error) {

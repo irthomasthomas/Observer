@@ -5,6 +5,7 @@ import { WhisperModelManager } from './WhisperModelManager';
 import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
 import { AudioStreamType } from '../streamManager';
+import { TranscriptionSubscriber } from './TranscriptionSubscriber';
 
 // Token provider type
 export type TokenProvider = () => Promise<string | undefined>;
@@ -13,7 +14,10 @@ export type TokenProvider = () => Promise<string | undefined>;
 export interface TranscriptionProvider {
   start(stream: MediaStream, streamType?: AudioStreamType): Promise<void>;
   stop(): void;
-  getTranscript(): string;
+
+  // Subscriber management - services push transcribed text to all subscribers
+  addSubscriber(subscriber: TranscriptionSubscriber): void;
+  removeSubscriber(subscriber: TranscriptionSubscriber): void;
 }
 
 export class TranscriptionRouter {

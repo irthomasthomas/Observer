@@ -121,19 +121,12 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
       title={onClick ? 'Click to view full transcription' : undefined}
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-medium text-gray-300">
-          {icon}
-          <span>{title}</span>
-          <span className={`${statusInfo.color} text-[10px] font-normal`}>
-            {statusInfo.label}
-          </span>
-        </div>
-        {state.maxChunks > 0 && (
-          <span className="text-xs text-gray-400 font-mono">
-            {state.chunkCount}/{state.maxChunks}
-          </span>
-        )}
+      <div className="flex items-center gap-2 text-xs font-medium text-gray-300">
+        {icon}
+        <span>{title}</span>
+        <span className={`${statusInfo.color} text-[10px] font-normal`}>
+          {statusInfo.label}
+        </span>
       </div>
 
       {/* Waveform */}

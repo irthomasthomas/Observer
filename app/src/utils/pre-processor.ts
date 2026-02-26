@@ -143,11 +143,13 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$MICROPHONE/g,
     handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
-        const transcript = StreamManager.getTranscript('microphone');
-        Logger.debug(agentId, `Retrieved microphone transcript via StreamManager: "${transcript}"`);
+        // Get or create subscriber for this agent - accumulates transcript independently
+        const subscriber = StreamManager.getOrCreateSubscriber(agentId, 'microphone');
+        const transcript = subscriber.getTranscript();
+        Logger.debug(agentId, `Retrieved microphone transcript via subscriber: "${transcript}"`);
         // Enhanced logging: Log audio transcript separately
-        Logger.info(agentId, `Microphone transcript (${transcript.length} characters)`, { 
-          logType: 'sensor-audio', 
+        Logger.info(agentId, `Microphone transcript (${transcript.length} characters)`, {
+          logType: 'sensor-audio',
           iterationId,
           content: { source: 'microphone', transcript: transcript }
         });
@@ -197,11 +199,13 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     regex: /\$SCREEN_AUDIO/g,
     handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
-        const transcript = StreamManager.getTranscript('screenAudio');
-        Logger.debug(agentId, `Retrieved system audio transcript via StreamManager: "${transcript}"`);
+        // Get or create subscriber for this agent - accumulates transcript independently
+        const subscriber = StreamManager.getOrCreateSubscriber(agentId, 'screenAudio');
+        const transcript = subscriber.getTranscript();
+        Logger.debug(agentId, `Retrieved system audio transcript via subscriber: "${transcript}"`);
         // Enhanced logging: Log audio transcript separately
-        Logger.info(agentId, `Screen audio transcript (${transcript.length} characters)`, { 
-          logType: 'sensor-audio', 
+        Logger.info(agentId, `Screen audio transcript (${transcript.length} characters)`, {
+          logType: 'sensor-audio',
           iterationId,
           content: { source: 'screenAudio', transcript: transcript }
         });
@@ -213,16 +217,18 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     }
   },
 
-  // NEW: Handler for the combined audio stream
+  // Handler for the combined audio stream
   'ALL_AUDIO': {
     regex: /\$ALL_AUDIO/g,
     handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
-        const transcript = StreamManager.getTranscript('allAudio');
-        Logger.debug(agentId, `Retrieved combined audio transcript via StreamManager: "${transcript}"`);
+        // Get or create subscriber for this agent - accumulates transcript independently
+        const subscriber = StreamManager.getOrCreateSubscriber(agentId, 'allAudio');
+        const transcript = subscriber.getTranscript();
+        Logger.debug(agentId, `Retrieved combined audio transcript via subscriber: "${transcript}"`);
         // Enhanced logging: Log audio transcript separately
-        Logger.info(agentId, `Combined audio transcript (${transcript.length} characters)`, { 
-          logType: 'sensor-audio', 
+        Logger.info(agentId, `Combined audio transcript (${transcript.length} characters)`, {
+          logType: 'sensor-audio',
           iterationId,
           content: { source: 'allAudio', transcript: transcript }
         });

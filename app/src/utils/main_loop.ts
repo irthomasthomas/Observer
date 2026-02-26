@@ -187,6 +187,10 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
   if (loop?.isRunning) {
     if (loop.intervalId !== null) window.clearInterval(loop.intervalId);
 
+    // --- SUBSCRIBER CLEANUP ---
+    // Destroy all transcription subscribers for this agent
+    StreamManager.destroySubscribersForAgent(agentId);
+
     // --- STREAM MANAGEMENT ---
     // Tell the StreamManager this agent no longer needs these streams.
     // The manager will handle stopping the hardware if it's the last user.
@@ -332,12 +336,15 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
       await postProcess(agentId, response, agentCode, iterationId, loopData.getToken, preprocessResult);
       Logger.debug(agentId, `postProcess completed successfully`, { iterationId });
 
+      // Clear subscriber transcripts for next loop window
+      StreamManager.clearSubscriberTranscripts(agentId);
+
       // Success path
       if (isAgentLoopRunning(agentId)) {
         recordingManager.handleEndOfLoop();
       }
 
-      // Dispach to UI that we skipped the model call and completed iteration
+      // Dispatch to UI that we skipped the model call and completed iteration
       if (fromCache){
         Logger.info(agentId, `Iteration completed - no significant change detected`, {
           logType: 'iteration-skipped',
@@ -345,7 +352,7 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
           content: { success: true, cached: fromCache, reason: 'same_inputs' }
         });
       }
-      // Dispach we completed with model call
+      // Dispatch we completed with model call
       else{
         Logger.info(agentId, `Iteration completed`, {
           logType: 'iteration-end',
@@ -355,6 +362,9 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
        }
       } catch (postProcessError) {
       Logger.error(agentId, `Error in postProcess: ${postProcessError}`, { iterationId, error: postProcessError });
+
+      // Still clear subscriber transcripts on error to prevent buildup
+      StreamManager.clearSubscriberTranscripts(agentId);
 
       // Error path - still clean up but log failure
       if (isAgentLoopRunning(agentId)) {

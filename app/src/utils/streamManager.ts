@@ -1,5 +1,6 @@
 import { Logger } from './logging';
 import { TranscriptionRouter, TranscriptionProvider } from './whisper/TranscriptionRouter';
+import { TranscriptionSubscriber, TranscriptionSubscriberImpl } from './whisper/TranscriptionSubscriber';
 import { isWeb } from './platform';
 import { browserStreamCapture } from './browserStreamCapture';
 import { tauriStreamCapture } from './tauriStreamCapture';
@@ -41,7 +42,11 @@ class Manager {
   private listeners = new Set<StreamListener>();
   private pendingMasterStreams = new Map<MasterStreamType, Promise<void>>();
   private transcriptionServices = new Map<AudioStreamType, TranscriptionProvider>();
-  
+
+  // Subscriber management for agent-owned transcripts
+  // Key format: `${agentId}:${streamType}`
+  private subscribers = new Map<string, TranscriptionSubscriber>();
+
   private audioContext: AudioContext | null = null;
   private sourceNodes = new Map<string, MediaStreamAudioSourceNode>();
 
@@ -117,8 +122,81 @@ class Manager {
     this.checkForTeardown();
   }
 
-  public getTranscript(type: AudioStreamType): string {
-    return this.transcriptionServices.get(type)?.getTranscript() ?? '';
+  // --- Subscriber Management API ---
+
+  /**
+   * Create subscriber key from agentId and stream type
+   */
+  private subscriberKey(agentId: string, type: AudioStreamType): string {
+    return `${agentId}:${type}`;
+  }
+
+  /**
+   * Get or create a subscriber for an agent and stream type.
+   * The subscriber accumulates transcripts independently for each agent.
+   */
+  public getOrCreateSubscriber(agentId: string, type: AudioStreamType): TranscriptionSubscriber {
+    const key = this.subscriberKey(agentId, type);
+
+    if (!this.subscribers.has(key)) {
+      const subscriber = new TranscriptionSubscriberImpl(agentId, type);
+      this.subscribers.set(key, subscriber);
+
+      // Register with transcription service to receive pushes
+      const service = this.transcriptionServices.get(type);
+      if (service) {
+        service.addSubscriber(subscriber);
+        Logger.debug("StreamManager", `Registered subscriber ${key} with transcription service for ${type}`);
+      } else {
+        Logger.warn("StreamManager", `No transcription service found for ${type} when creating subscriber ${key}`);
+      }
+    }
+
+    return this.subscribers.get(key)!;
+  }
+
+  /**
+   * Clear all subscriber transcripts for an agent.
+   * Called at the end of each agent loop iteration.
+   */
+  public clearSubscriberTranscripts(agentId: string): void {
+    let clearedCount = 0;
+    for (const [key, subscriber] of this.subscribers) {
+      if (key.startsWith(`${agentId}:`)) {
+        subscriber.clear();
+        clearedCount++;
+      }
+    }
+    if (clearedCount > 0) {
+      Logger.debug("StreamManager", `Cleared ${clearedCount} subscriber transcript(s) for agent ${agentId}`);
+    }
+  }
+
+  /**
+   * Destroy all subscribers for an agent.
+   * Called when an agent stops.
+   */
+  public destroySubscribersForAgent(agentId: string): void {
+    const keysToDelete: string[] = [];
+
+    for (const [key, subscriber] of this.subscribers) {
+      if (key.startsWith(`${agentId}:`)) {
+        // Remove from transcription service
+        const service = this.transcriptionServices.get(subscriber.streamType);
+        if (service) {
+          service.removeSubscriber(subscriber);
+        }
+
+        subscriber.destroy();
+        keysToDelete.push(key);
+      }
+    }
+
+    keysToDelete.forEach(key => this.subscribers.delete(key));
+
+    if (keysToDelete.length > 0) {
+      Logger.debug("StreamManager", `Destroyed ${keysToDelete.length} subscriber(s) for agent ${agentId}`);
+    }
   }
 
   public addListener(listener: StreamListener): void { this.listeners.add(listener); listener(this.getCurrentState()); }
@@ -390,6 +468,14 @@ class Manager {
     const newService = router.createProvider();
     await newService.start(stream, type);
     this.transcriptionServices.set(type, newService);
+
+    // Register any existing subscribers for this stream type with the new service
+    for (const [key, subscriber] of this.subscribers) {
+      if (subscriber.streamType === type) {
+        newService.addSubscriber(subscriber);
+        Logger.debug("StreamManager", `Registered existing subscriber ${key} with new transcription service for ${type}`);
+      }
+    }
   }
 
   private stopTranscriptionForStream(type: AudioStreamType): void {

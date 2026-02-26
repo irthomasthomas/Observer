@@ -38,22 +38,6 @@ const SettingsTab = () => {
   const [ocrLang, setOcrLang] = useState(SensorSettings.getOcrLanguage());
   const [ocrConfidence, setOcrConfidence] = useState(SensorSettings.getOcrConfidenceThreshold());
 
-  // Helper function to format transcript duration
-  const formatTranscriptDuration = (chunkDurationMs: number, maxChunks: number): string => {
-    const totalMs = chunkDurationMs * maxChunks;
-    const totalMinutes = Math.floor(totalMs / 60000);
-    const totalSeconds = Math.floor((totalMs % 60000) / 1000);
-
-    if (totalMinutes >= 60) {
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      return `${hours}h ${minutes}m ${totalSeconds}s`;
-    } else if (totalMinutes > 0) {
-      return `${totalMinutes}m ${totalSeconds}s`;
-    } else {
-      return `${totalSeconds}s`;
-    }
-  };
 
   // --- OCR Handler Functions (Existing) ---
   const handleOcrLangChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -134,13 +118,6 @@ const SettingsTab = () => {
     const newSettings = { ...whisperSettings, chunkDurationMs: newDuration };
     setWhisperSettings(newSettings);
     SensorSettings.setWhisperChunkDuration(newDuration);
-  };
-
-  const handleMaxChunksToKeepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newMaxChunks = parseInt(e.target.value, 10);
-    const newSettings = { ...whisperSettings, maxChunksToKeep: newMaxChunks };
-    setWhisperSettings(newSettings);
-    SensorSettings.setWhisperMaxChunksToKeep(newMaxChunks);
   };
 
   const handleLoadModel = async () => {
@@ -361,32 +338,9 @@ const SettingsTab = () => {
               <span>30s</span>
               <span>60s</span>
             </div>
-          </div>
-
-          {/* Transcript Size (Max Chunks to Keep) */}
-          <div>
-            <label htmlFor="max-chunks" className="block text-sm font-medium text-gray-700 mb-2">
-              Transcript Size ({whisperSettings.maxChunksToKeep} chunks)
-              <span className="ml-2 text-xs text-blue-600 font-medium">
-                💡 Keeps {formatTranscriptDuration(whisperSettings.chunkDurationMs, whisperSettings.maxChunksToKeep)} of history as text for the Agents
-              </span>
-            </label>
-            <input
-              type="range"
-              id="max-chunks"
-              min="1"
-              max="100"
-              step="1"
-              value={whisperSettings.maxChunksToKeep}
-              onChange={handleMaxChunksToKeepChange}
-              disabled={isTestRunning}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>1 chunk</span>
-              <span>50 chunks</span>
-              <span>100 chunks</span>
-            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Each agent accumulates transcripts during its loop window and clears them after processing.
+            </p>
           </div>
 
           {/* Local Mode: Model Management Buttons */}
@@ -491,7 +445,6 @@ const SettingsTab = () => {
                     <span className="flex items-center justify-center gap-2">
                       {transcriptionState.isTranscribing && <Loader2 className="h-4 w-4 animate-spin" />}
                       Listening... Speak into your microphone.
-                      {transcriptionState.chunkCount > 0 && ` (${transcriptionState.chunkCount} chunks)`}
                     </span>
                   ) : 'Start a test to see transcription results here.'}
                 </p>
@@ -499,12 +452,12 @@ const SettingsTab = () => {
                 <div className="space-y-2">
                   <div className="bg-white p-3 rounded-md shadow-sm border">
                     <div className="flex items-center gap-2 mb-2">
-                      <p className="font-mono text-sm font-semibold text-gray-600">
-                        {transcriptionState.chunkCount}/{transcriptionState.maxChunks} chunks
-                      </p>
                       {transcriptionState.isTranscribing && (
                         <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
                       )}
+                      <span className="text-xs text-gray-500">
+                        {transcriptionState.isTranscribing ? 'Processing...' : 'Recording'}
+                      </span>
                     </div>
                     <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
                       {transcriptionState.fullTranscript}
