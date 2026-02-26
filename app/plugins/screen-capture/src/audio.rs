@@ -18,14 +18,12 @@ use tauri::ipc::Channel;
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AudioData {
-    /// Base64-encoded PCM (f32 samples, little-endian, interleaved)
+    /// Base64-encoded PCM (f32 samples, little-endian, mono)
     pub samples: String,
     /// Unix timestamp in seconds
     pub timestamp: f64,
     /// Sample rate (e.g., 48000)
     pub sample_rate: u32,
-    /// Number of channels (e.g., 2 for stereo)
-    pub channels: u16,
     /// Chunk sequence number
     pub chunk_count: u64,
 }
@@ -128,7 +126,7 @@ mod macos_audio {
             .with_captures_audio(true)
             .with_excludes_current_process_audio(false) // Capture all system audio including this process
             .with_sample_rate(48000) // 48kHz
-            .with_channel_count(2) // Stereo
+            .with_channel_count(1) // Mono - let ScreenCaptureKit mix for us
             // Use small but valid video dimensions (we'll ignore the video frames)
             .with_width(100)
             .with_height(100)
@@ -162,49 +160,29 @@ mod macos_audio {
                         // Extract audio data from CMSampleBuffer
                         match sample.audio_buffer_list() {
                             Some(audio_buffer_list) => {
-                                // Get the number of buffers
-                                let num_buffers = audio_buffer_list.num_buffers();
+                                // With channel_count(1), we get mono audio in a single buffer
+                                let Some(audio_buffer) = audio_buffer_list.buffer(0) else {
+                                    return;
+                                };
 
-                                if num_buffers == 0 {
-                                    if count < 5 {
-                                        log::warn!("[AudioCapture] Audio buffer list is empty");
-                                    }
+                                let data_bytes = audio_buffer.data();
+                                if data_bytes.is_empty() {
                                     return;
                                 }
 
-                                // Process each buffer (usually just one for stereo)
-                                for i in 0..num_buffers {
-                                    let Some(audio_buffer) = audio_buffer_list.buffer(i) else {
-                                        if count < 5 {
-                                            log::warn!("[AudioCapture] Failed to get buffer at index {}", i);
-                                        }
-                                        continue;
-                                    };
+                                // Convert bytes to f32 samples (ScreenCaptureKit provides f32 PCM)
+                                let mono_samples = unsafe {
+                                    std::slice::from_raw_parts(
+                                        data_bytes.as_ptr() as *const f32,
+                                        data_bytes.len() / 4,
+                                    )
+                                };
 
-                                    // Get audio data as a byte slice
-                                    let data_bytes = audio_buffer.data();
-
-                                    if data_bytes.is_empty() {
-                                        if count < 5 {
-                                            log::warn!("[AudioCapture] Empty audio buffer data");
-                                        }
-                                        continue;
-                                    }
-
-                                    // Convert bytes to f32 samples (audio is in f32 PCM format)
-                                    // Safety: We know ScreenCaptureKit provides f32 audio data
-                                    let audio_slice = unsafe {
-                                        std::slice::from_raw_parts(
-                                            data_bytes.as_ptr() as *const f32,
-                                            data_bytes.len() / 4, // 4 bytes per f32
-                                        )
-                                    };
-
-                                    // Convert f32 samples to bytes (little-endian)
-                                    let bytes: Vec<u8> = audio_slice
-                                        .iter()
-                                        .flat_map(|&sample| sample.to_le_bytes())
-                                        .collect();
+                                // Convert f32 samples to bytes (little-endian)
+                                let bytes: Vec<u8> = mono_samples
+                                    .iter()
+                                    .flat_map(|&sample| sample.to_le_bytes())
+                                    .collect();
 
                                     // Get timestamp
                                     let timestamp = std::time::SystemTime::now()
@@ -217,22 +195,20 @@ mod macos_audio {
                                         samples: STANDARD.encode(&bytes),
                                         timestamp,
                                         sample_rate: 48000, // We configured 48kHz
-                                        channels: 2,        // We configured stereo
                                         chunk_count: count,
                                     };
 
                                     if count == 1 {
                                         log::info!(
-                                            "[AudioCapture] First audio chunk sent ({} samples, {} bytes)",
-                                            audio_slice.len(),
+                                            "[AudioCapture] First audio chunk sent ({} mono samples, {} bytes)",
+                                            mono_samples.len(),
                                             bytes.len()
                                         );
                                     }
 
-                                    // Send through channel
-                                    if let Err(e) = on_audio_clone.send(audio_payload) {
-                                        log::error!("[AudioCapture] Failed to send audio data: {:?}", e);
-                                    }
+                                // Send through channel
+                                if let Err(e) = on_audio_clone.send(audio_payload) {
+                                    log::error!("[AudioCapture] Failed to send audio data: {:?}", e);
                                 }
                             }
                             None => {
@@ -276,7 +252,7 @@ mod macos_audio {
         // Mark as active
         state.is_active.store(true, Ordering::SeqCst);
 
-        log::info!("[AudioCapture] macOS ScreenCaptureKit audio capture started (48kHz, stereo)");
+        log::info!("[AudioCapture] macOS ScreenCaptureKit audio capture started (48kHz, mono)");
         Ok(())
     }
 
@@ -500,8 +476,22 @@ mod windows_audio {
                 }
             };
 
-            // Convert f32 samples to bytes
-            let bytes: Vec<u8> = f32_samples
+            // Mix to mono if stereo: (L + R) / 2
+            let mono_samples: Vec<f32> = if channels == 2 {
+                f32_samples
+                    .chunks(2)
+                    .map(|pair| {
+                        let left = pair[0];
+                        let right = pair.get(1).copied().unwrap_or(left);
+                        (left + right) * 0.5
+                    })
+                    .collect()
+            } else {
+                f32_samples
+            };
+
+            // Convert mono f32 samples to bytes
+            let bytes: Vec<u8> = mono_samples
                 .iter()
                 .flat_map(|&sample| sample.to_le_bytes())
                 .collect();
@@ -517,14 +507,13 @@ mod windows_audio {
                 samples: STANDARD.encode(&bytes),
                 timestamp,
                 sample_rate,
-                channels,
                 chunk_count: count,
             };
 
             if count == 1 {
                 log::info!(
-                    "[AudioCapture] First audio chunk sent ({} samples, {} bytes)",
-                    f32_samples.len(),
+                    "[AudioCapture] First audio chunk sent ({} mono samples, {} bytes)",
+                    mono_samples.len(),
                     bytes.len()
                 );
             }

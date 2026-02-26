@@ -36,10 +36,9 @@ export interface FrameData {
 
 /** Audio data received from Rust via Channel */
 export interface AudioData {
-  samples: string;      // Base64-encoded PCM (f32 samples, little-endian)
+  samples: string;      // Base64-encoded PCM (f32 samples, little-endian, mono)
   timestamp: number;    // Unix timestamp
   sampleRate: number;   // e.g., 48000
-  channels: number;     // e.g., 2 (stereo)
   chunkCount: number;   // Sequence number
 }
 
@@ -441,27 +440,46 @@ class TauriStreamCapture {
     let audioChunkCount = 0;
     let isActive = true;
 
-    // Create AudioWorklet for PCM playback
+    // Create AudioWorklet for mono PCM playback using efficient ring buffer
     const workletCode = `
       class PCMPlayerProcessor extends AudioWorkletProcessor {
         constructor() {
           super();
-          this.buffers = [[], []]; // Stereo buffers
+          // Ring buffer: ~1.3 seconds at 48kHz (power of 2 for fast modulo)
+          this.bufferSize = 65536;
+          this.bufferMask = this.bufferSize - 1;
+          this.buffer = new Float32Array(this.bufferSize);
+          this.writeIndex = 0;
+          this.readIndex = 0;
+
           this.port.onmessage = (e) => {
-            const { samples, channels } = e.data;
-            for (let i = 0; i < samples.length; i++) {
-              this.buffers[i % channels].push(samples[i]);
+            const samples = e.data;
+            const len = samples.length;
+            for (let i = 0; i < len; i++) {
+              this.buffer[(this.writeIndex + i) & this.bufferMask] = samples[i];
             }
+            this.writeIndex = (this.writeIndex + len) & this.bufferMask;
           };
         }
 
         process(inputs, outputs, parameters) {
           const output = outputs[0];
-          for (let channel = 0; channel < output.length; channel++) {
-            const outputChannel = output[channel];
-            const buffer = this.buffers[channel] || this.buffers[0];
-            for (let i = 0; i < outputChannel.length; i++) {
-              outputChannel[i] = buffer.length > 0 ? buffer.shift() : 0;
+          const frameSize = output[0].length;
+          const available = (this.writeIndex - this.readIndex) & this.bufferMask;
+
+          if (available >= frameSize) {
+            // Output mono to all channels (typically L and R)
+            for (let i = 0; i < frameSize; i++) {
+              const sample = this.buffer[(this.readIndex + i) & this.bufferMask];
+              for (let ch = 0; ch < output.length; ch++) {
+                output[ch][i] = sample;
+              }
+            }
+            this.readIndex = (this.readIndex + frameSize) & this.bufferMask;
+          } else {
+            // Underrun: silence
+            for (let ch = 0; ch < output.length; ch++) {
+              output[ch].fill(0);
             }
           }
           return true;
@@ -485,7 +503,7 @@ class TauriStreamCapture {
     workletNode.connect(audioDestination);
     audioStream = audioDestination.stream;
 
-    Logger.info("TAURI_STREAM", `Audio MediaStream initialized (48000Hz, 2ch)`);
+    Logger.info("TAURI_STREAM", `Audio MediaStream initialized (48000Hz, mono)`);
 
     const audioChannel = new Channel<AudioData>();
 
@@ -496,7 +514,7 @@ class TauriStreamCapture {
       this.latestAudioData = audioData;
 
       if (audioChunkCount === 1) {
-        Logger.info("TAURI_STREAM", `First audio chunk received (${audioData.sampleRate}Hz, ${audioData.channels}ch)`);
+        Logger.info("TAURI_STREAM", `First audio chunk received (${audioData.sampleRate}Hz, mono)`);
       }
       if (audioChunkCount % 500 === 0) {
         Logger.debug("TAURI_STREAM", `Received ${audioChunkCount} audio chunks`);
@@ -504,17 +522,15 @@ class TauriStreamCapture {
 
       if (workletNode) {
         try {
+          // Decode base64 to bytes
           const binaryString = atob(audioData.samples);
           const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
           }
-          const floatArray = new Float32Array(bytes.buffer);
-
-          workletNode.port.postMessage({
-            samples: Array.from(floatArray),
-            channels: audioData.channels,
-          });
+          // Send mono samples directly to worklet
+          const samples = new Float32Array(bytes.buffer);
+          workletNode.port.postMessage(samples);
         } catch (error) {
           Logger.error("TAURI_STREAM", `Failed to decode audio chunk: ${error}`);
         }
@@ -631,7 +647,7 @@ class TauriStreamCapture {
     let audioChunkCount = 0;
 
     // Set up audio processing to convert PCM to MediaStream
-    // Create upfront with default settings (48kHz stereo - common for system audio)
+    // Create upfront with default settings (48kHz mono)
     let audioContext: AudioContext | null = null;
     let workletNode: AudioWorkletNode | null = null;
     let screenAudioStream: MediaStream | null = null;
@@ -641,28 +657,46 @@ class TauriStreamCapture {
     // Initialize audio stream upfront so MediaStream is available immediately
     const initializeAudioStreamUpfront = async () => {
       try {
-        // Create AudioWorklet processor inline using Blob URL
+        // Create AudioWorklet for mono PCM playback using efficient ring buffer
         const workletCode = `
           class PCMPlayerProcessor extends AudioWorkletProcessor {
             constructor() {
               super();
-              this.buffers = [[], []]; // Stereo buffers
+              // Ring buffer: ~1.3 seconds at 48kHz (power of 2 for fast modulo)
+              this.bufferSize = 65536;
+              this.bufferMask = this.bufferSize - 1;
+              this.buffer = new Float32Array(this.bufferSize);
+              this.writeIndex = 0;
+              this.readIndex = 0;
+
               this.port.onmessage = (e) => {
-                const { samples, channels } = e.data;
-                // Interleaved samples: L R L R L R...
-                for (let i = 0; i < samples.length; i++) {
-                  this.buffers[i % channels].push(samples[i]);
+                const samples = e.data;
+                const len = samples.length;
+                for (let i = 0; i < len; i++) {
+                  this.buffer[(this.writeIndex + i) & this.bufferMask] = samples[i];
                 }
+                this.writeIndex = (this.writeIndex + len) & this.bufferMask;
               };
             }
 
             process(inputs, outputs, parameters) {
               const output = outputs[0];
-              for (let channel = 0; channel < output.length; channel++) {
-                const outputChannel = output[channel];
-                const buffer = this.buffers[channel] || this.buffers[0];
-                for (let i = 0; i < outputChannel.length; i++) {
-                  outputChannel[i] = buffer.length > 0 ? buffer.shift() : 0;
+              const frameSize = output[0].length;
+              const available = (this.writeIndex - this.readIndex) & this.bufferMask;
+
+              if (available >= frameSize) {
+                // Output mono to all channels (typically L and R)
+                for (let i = 0; i < frameSize; i++) {
+                  const sample = this.buffer[(this.readIndex + i) & this.bufferMask];
+                  for (let ch = 0; ch < output.length; ch++) {
+                    output[ch][i] = sample;
+                  }
+                }
+                this.readIndex = (this.readIndex + frameSize) & this.bufferMask;
+              } else {
+                // Underrun: silence
+                for (let ch = 0; ch < output.length; ch++) {
+                  output[ch].fill(0);
                 }
               }
               return true;
@@ -674,7 +708,7 @@ class TauriStreamCapture {
         const blob = new Blob([workletCode], { type: 'application/javascript' });
         const workletUrl = URL.createObjectURL(blob);
 
-        // Use 48kHz stereo as default (most common for system audio)
+        // Use 48kHz mono
         audioContext = new AudioContext({ sampleRate: 48000 });
         await audioContext.audioWorklet.addModule(workletUrl);
         URL.revokeObjectURL(workletUrl);
@@ -688,7 +722,7 @@ class TauriStreamCapture {
         screenAudioStream = audioDestination.stream;
 
         audioInitialized = true;
-        Logger.info("TAURI_STREAM", `Audio MediaStream initialized (48000Hz, 2ch)`);
+        Logger.info("TAURI_STREAM", `Audio MediaStream initialized (48000Hz, mono)`);
       } catch (error) {
         Logger.error("TAURI_STREAM", `Failed to initialize audio stream: ${error}`);
       }
@@ -747,7 +781,7 @@ class TauriStreamCapture {
       this.latestAudioData = audioData;
 
       if (audioChunkCount === 1) {
-        Logger.info("TAURI_STREAM", `First audio chunk received via channel (${audioData.sampleRate}Hz, ${audioData.channels}ch)`);
+        Logger.info("TAURI_STREAM", `First audio chunk received via channel (${audioData.sampleRate}Hz, mono)`);
       }
       if (audioChunkCount % 500 === 0) {
         Logger.debug("TAURI_STREAM", `Received ${audioChunkCount} audio chunks via channel`);
@@ -763,14 +797,9 @@ class TauriStreamCapture {
             bytes[i] = binaryString.charCodeAt(i);
           }
 
-          // Convert bytes to f32 samples (little-endian)
-          const floatArray = new Float32Array(bytes.buffer);
-
-          // Send to worklet for playback
-          workletNode.port.postMessage({
-            samples: Array.from(floatArray),
-            channels: audioData.channels,
-          });
+          // Send mono samples directly to worklet
+          const samples = new Float32Array(bytes.buffer);
+          workletNode.port.postMessage(samples);
         } catch (error) {
           Logger.error("TAURI_STREAM", `Failed to decode audio chunk: ${error}`);
         }

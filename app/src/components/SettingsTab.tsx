@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2, Cloud, Server, Cpu } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Settings, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2, Cloud, Server, Cpu, Mic, Monitor, Play, Square, Volume2 } from 'lucide-react';
 import { SensorSettings } from '../utils/settings';
+import { StreamManager } from '../utils/streamManager';
 
 // New Whisper imports
 import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
@@ -64,8 +65,27 @@ const SettingsTab = () => {
   );
   const [selfHostedUrl, setSelfHostedUrl] = useState(SensorSettings.getSelfHostedWhisperUrl());
 
-  // Use transcription state from manager (for test microphone)
-  const transcriptionState = useTranscriptionState('microphone');
+  // --- AUDIO TEST STATE ---
+  type AudioTestSource = 'microphone' | 'screenAudio' | 'allAudio';
+  interface TranscriptionRecord {
+    id: string;
+    transcript: string;
+    audioUrl: string | null;
+    timestamp: Date;
+    source: AudioTestSource;
+  }
+  const [audioTestSource, setAudioTestSource] = useState<AudioTestSource>('microphone');
+  const [transcriptionHistory, setTranscriptionHistory] = useState<TranscriptionRecord[]>([]);
+  const [playingRecordId, setPlayingRecordId] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const currentTestIdRef = useRef<string | null>(null);
+  const TEST_AGENT_ID = 'settings-audio-test';
+
+  // Use transcription state from manager - maps audioTestSource to stream type
+  const transcriptionStreamType = audioTestSource === 'microphone' ? 'microphone' : 'screenAudio';
+  const transcriptionState = useTranscriptionState(transcriptionStreamType);
 
   // Model manager instance
   const modelManager = WhisperModelManager.getInstance();
@@ -158,11 +178,58 @@ const SettingsTab = () => {
     }
 
     try {
-      // For testing, directly get microphone stream without using StreamManager
-      // to avoid creating duplicate transcription services
-      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Create new test ID and clear recording chunks
+      currentTestIdRef.current = `test-${Date.now()}`;
+      recordedChunksRef.current = [];
 
-      // Create the appropriate service based on mode
+      // Map audio source to stream types
+      const streamTypeMap: Record<AudioTestSource, ('microphone' | 'screenAudio')[]> = {
+        'microphone': ['microphone'],
+        'screenAudio': ['screenAudio'],
+        'allAudio': ['microphone', 'screenAudio'],
+      };
+      const requiredStreams = streamTypeMap[audioTestSource];
+
+      // Use StreamManager to acquire streams
+      await StreamManager.requestStreamsForAgent(TEST_AGENT_ID, requiredStreams);
+      const streams = StreamManager.getCurrentState();
+
+      // Get the audio stream based on source selection
+      let audioStream: MediaStream | null = null;
+      let streamType: 'microphone' | 'screenAudio' = 'microphone';
+
+      if (audioTestSource === 'microphone') {
+        audioStream = streams.microphoneStream;
+        streamType = 'microphone';
+      } else if (audioTestSource === 'screenAudio') {
+        audioStream = streams.screenAudioStream;
+        streamType = 'screenAudio';
+      } else if (audioTestSource === 'allAudio') {
+        // For allAudio, combine both streams or use screenAudio for recording
+        // Transcription will handle both, but we record screenAudio for playback
+        audioStream = streams.screenAudioStream || streams.microphoneStream;
+        streamType = streams.screenAudioStream ? 'screenAudio' : 'microphone';
+      }
+
+      if (!audioStream) {
+        throw new Error(`Failed to acquire ${audioTestSource} stream`);
+      }
+
+      // Set up MediaRecorder for recording
+      try {
+        const recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            recordedChunksRef.current.push(e.data);
+          }
+        };
+        recorder.start(1000); // Collect chunks every second
+        mediaRecorderRef.current = recorder;
+      } catch (recorderError) {
+        console.warn('MediaRecorder not supported, playback will not be available:', recorderError);
+      }
+
+      // Create the appropriate transcription service based on mode
       let newService: CloudTranscriptionService | SelfHostedTranscriptionService | WhisperTranscriptionService;
       switch (transcriptionMode) {
         case 'cloud':
@@ -176,21 +243,105 @@ const SettingsTab = () => {
           break;
       }
 
-      // Start with microphone stream type - results will come via TranscriptionStateManager
-      await newService.start(micStream, 'microphone');
+      // Start transcription with the selected stream
+      await newService.start(audioStream, streamType);
       setTranscriptionService(newService);
       setIsTestRunning(true);
     } catch (error) {
       console.error('Failed to start transcription test:', error);
+      StreamManager.releaseStreamsForAgent(TEST_AGENT_ID);
       alert(`Failed to start test: ${error}`);
     }
   };
 
   const handleStopTest = () => {
+    // Capture current transcript before stopping
+    const currentTranscript = transcriptionState.fullTranscript || '';
+    const testId = currentTestIdRef.current;
+    const testSource = audioTestSource;
+
+    // Stop transcription service
     transcriptionService?.stop();
     setTranscriptionService(null);
+
+    // Stop MediaRecorder and save to history
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.onstop = () => {
+        let audioUrl: string | null = null;
+        if (recordedChunksRef.current.length > 0) {
+          const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+          audioUrl = URL.createObjectURL(blob);
+        }
+
+        // Add to history (newest first)
+        if (testId && currentTranscript) {
+          setTranscriptionHistory(prev => [{
+            id: testId,
+            transcript: currentTranscript,
+            audioUrl,
+            timestamp: new Date(),
+            source: testSource,
+          }, ...prev]);
+        }
+      };
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    } else if (testId && currentTranscript) {
+      // No recording, but still save transcript
+      setTranscriptionHistory(prev => [{
+        id: testId,
+        transcript: currentTranscript,
+        audioUrl: null,
+        timestamp: new Date(),
+        source: testSource,
+      }, ...prev]);
+    }
+
+    // Release streams
+    StreamManager.releaseStreamsForAgent(TEST_AGENT_ID);
     setIsTestRunning(false);
+    currentTestIdRef.current = null;
   };
+
+  // Handle audio playback for a specific record
+  const handlePlayRecording = (record: TranscriptionRecord) => {
+    if (!record.audioUrl) return;
+
+    // If clicking the same record that's playing, stop it
+    if (playingRecordId === record.id && audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.currentTime = 0;
+      setPlayingRecordId(null);
+      return;
+    }
+
+    // Stop any currently playing audio
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+    }
+
+    // Play the new recording
+    audioElementRef.current = new Audio(record.audioUrl);
+    audioElementRef.current.onended = () => setPlayingRecordId(null);
+    audioElementRef.current.play();
+    setPlayingRecordId(record.id);
+  };
+
+  // Cleanup audio URLs on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup all audio URLs in history
+      transcriptionHistory.forEach(record => {
+        if (record.audioUrl) {
+          URL.revokeObjectURL(record.audioUrl);
+        }
+      });
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -432,10 +583,53 @@ const SettingsTab = () => {
             </div>
           )}
 
-          {/* Test Button - Works for all modes */}
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={isTestRunning ? handleStopTest : handleStartTest}
+          {/* Audio Source Toggle + Test Button */}
+          <div className="bg-gray-50 p-4 rounded-lg border">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Test Audio Source
+            </label>
+            <div className="flex items-center space-x-3 mb-4">
+              <button
+                onClick={() => setAudioTestSource('microphone')}
+                disabled={isTestRunning}
+                className={`flex items-center px-3 py-2 rounded-lg border-2 transition-all ${
+                  audioTestSource === 'microphone'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Mic className="h-4 w-4 mr-2" />
+                <span className="text-sm font-medium">Microphone</span>
+              </button>
+              <button
+                onClick={() => setAudioTestSource('screenAudio')}
+                disabled={isTestRunning}
+                className={`flex items-center px-3 py-2 rounded-lg border-2 transition-all ${
+                  audioTestSource === 'screenAudio'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Monitor className="h-4 w-4 mr-2" />
+                <span className="text-sm font-medium">Screen Audio</span>
+              </button>
+              <button
+                onClick={() => setAudioTestSource('allAudio')}
+                disabled={isTestRunning}
+                className={`flex items-center px-3 py-2 rounded-lg border-2 transition-all ${
+                  audioTestSource === 'allAudio'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Volume2 className="h-4 w-4 mr-2" />
+                <span className="text-sm font-medium">All Audio</span>
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={isTestRunning ? handleStopTest : handleStartTest}
               disabled={
                 (transcriptionMode === 'local' && modelState?.status !== 'loaded') ||
                 (transcriptionMode === 'self-hosted' && !selfHostedUrl.trim())
@@ -464,6 +658,7 @@ const SettingsTab = () => {
                 Enter server URL to enable
               </span>
             )}
+            </div>
           </div>
 
           {/* Local Mode: Model Loading Progress */}
@@ -511,32 +706,77 @@ const SettingsTab = () => {
           {/* Transcription Results */}
           <div>
             <h4 className="text-md font-semibold text-gray-700 mb-2">Live Transcription</h4>
-            <div className="border rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
-              {!transcriptionState.fullTranscript ? (
-                <p className="text-sm text-gray-500 text-center py-4">
-                  {isTestRunning ? (
-                    <span className="flex items-center justify-center gap-2">
-                      {transcriptionState.isTranscribing && <Loader2 className="h-4 w-4 animate-spin" />}
-                      Listening... Speak into your microphone.
-                    </span>
-                  ) : 'Start a test to see transcription results here.'}
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <div className="bg-white p-3 rounded-md shadow-sm border">
-                    <div className="flex items-center gap-2 mb-2">
-                      {transcriptionState.isTranscribing && (
-                        <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
-                      )}
-                      <span className="text-xs text-gray-500">
-                        {transcriptionState.isTranscribing ? 'Processing...' : 'Recording'}
-                      </span>
+            <div className="border rounded-lg bg-gray-50 max-h-96 overflow-y-auto">
+              {/* Currently running test */}
+              {isTestRunning && (
+                <div className="p-3 border-b bg-blue-50">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                        <span className="text-xs font-medium text-blue-600">
+                          Recording ({audioTestSource === 'microphone' ? 'Mic' : audioTestSource === 'screenAudio' ? 'Screen' : 'All'})
+                        </span>
+                      </div>
+                      <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+                        {transcriptionState.fullTranscript || (
+                          <span className="text-gray-400 italic">
+                            {audioTestSource === 'microphone' ? 'Speak into your microphone...' : 'Play some audio on your device...'}
+                          </span>
+                        )}
+                      </p>
                     </div>
-                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                      {transcriptionState.fullTranscript}
-                    </p>
                   </div>
                 </div>
+              )}
+
+              {/* Transcription history */}
+              {transcriptionHistory.map((record) => (
+                <div key={record.id} className="p-3 border-b last:border-b-0 hover:bg-gray-100 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-gray-500">
+                          {record.source === 'microphone' ? (
+                            <Mic className="h-3 w-3 inline mr-1" />
+                          ) : record.source === 'screenAudio' ? (
+                            <Monitor className="h-3 w-3 inline mr-1" />
+                          ) : (
+                            <Volume2 className="h-3 w-3 inline mr-1" />
+                          )}
+                          {record.timestamp.toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+                        {record.transcript}
+                      </p>
+                    </div>
+                    {record.audioUrl && (
+                      <button
+                        onClick={() => handlePlayRecording(record)}
+                        className={`flex-shrink-0 p-2 rounded-full transition-all ${
+                          playingRecordId === record.id
+                            ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                            : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                        }`}
+                        title={playingRecordId === record.id ? 'Stop' : 'Play recording'}
+                      >
+                        {playingRecordId === record.id ? (
+                          <Square className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Empty state */}
+              {!isTestRunning && transcriptionHistory.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-8">
+                  Start a test to see transcription results here.
+                </p>
               )}
             </div>
           </div>
