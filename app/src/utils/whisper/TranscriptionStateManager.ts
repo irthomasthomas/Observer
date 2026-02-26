@@ -9,6 +9,7 @@ export interface TranscriptionState {
   chunkDurationMs: number;
   isTranscribing: boolean;
   fullTranscript: string;  // UI maintains its own rolling window for display
+  interimText: string;     // Current interim result (replaced on each update, cleared on final)
 }
 
 type StateListener = (state: TranscriptionState) => void;
@@ -18,6 +19,7 @@ const DEFAULT_STATE: TranscriptionState = {
   chunkDurationMs: 0,
   isTranscribing: false,
   fullTranscript: '',
+  interimText: '',
 };
 
 /**
@@ -68,6 +70,16 @@ class TranscriptionStateManagerClass {
     this.notify(type);
   }
 
+  public setInterimText(type: AudioStreamType, text: string): void {
+    const current = this.getState(type);
+    this.state.set(type, {
+      ...current,
+      interimText: text,
+      isTranscribing: true,
+    });
+    this.notify(type);
+  }
+
   public chunkTranscriptionEnded(
     type: AudioStreamType,
     text: string,
@@ -96,6 +108,7 @@ class TranscriptionStateManagerClass {
       ...current,
       isTranscribing: false,
       fullTranscript,
+      interimText: '',  // Clear interim when final arrives
     });
     this.notify(type);
   }

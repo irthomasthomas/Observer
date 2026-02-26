@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2 } from 'lucide-react';
+import { Settings, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2, Cloud, Server, Cpu } from 'lucide-react';
 import { SensorSettings } from '../utils/settings';
 
 // New Whisper imports
 import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
 import { WhisperTranscriptionService } from '../utils/whisper/WhisperTranscriptionService';
 import { CloudTranscriptionService } from '../utils/whisper/CloudTranscriptionService';
+import { SelfHostedTranscriptionService } from '../utils/whisper/SelfHostedTranscriptionService';
 import { TranscriptionRouter } from '../utils/whisper/TranscriptionRouter';
 import { WhisperModelState, TranscriptionMode } from '../utils/whisper/types';
 import { useTranscriptionState } from '../hooks/useTranscriptionState';
@@ -57,10 +58,11 @@ const SettingsTab = () => {
   const [whisperSettings, setWhisperSettings] = useState(SensorSettings.getWhisperSettings());
   const [modelState, setModelState] = useState<WhisperModelState | null>(null);
   const [isTestRunning, setIsTestRunning] = useState(false);
-  const [transcriptionService, setTranscriptionService] = useState<WhisperTranscriptionService | CloudTranscriptionService | null>(null);
+  const [transcriptionService, setTranscriptionService] = useState<WhisperTranscriptionService | CloudTranscriptionService | SelfHostedTranscriptionService | null>(null);
   const [transcriptionMode, setTranscriptionModeState] = useState<TranscriptionMode>(
     TranscriptionRouter.getInstance().getMode()
   );
+  const [selfHostedUrl, setSelfHostedUrl] = useState(SensorSettings.getSelfHostedWhisperUrl());
 
   // Use transcription state from manager (for test microphone)
   const transcriptionState = useTranscriptionState('microphone');
@@ -83,6 +85,11 @@ const SettingsTab = () => {
     }
     TranscriptionRouter.getInstance().setMode(mode);
     setTranscriptionModeState(mode);
+  };
+
+  const handleSelfHostedUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelfHostedUrl(e.target.value);
+    SensorSettings.setSelfHostedWhisperUrl(e.target.value);
   };
 
   // --- SIMPLE WHISPER HANDLERS ---
@@ -144,15 +151,30 @@ const SettingsTab = () => {
       return;
     }
 
+    // For self-hosted mode, ensure URL is configured
+    if (transcriptionMode === 'self-hosted' && !selfHostedUrl.trim()) {
+      alert('Please enter a Whisper server URL');
+      return;
+    }
+
     try {
       // For testing, directly get microphone stream without using StreamManager
       // to avoid creating duplicate transcription services
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       // Create the appropriate service based on mode
-      const newService = transcriptionMode === 'cloud'
-        ? new CloudTranscriptionService()
-        : new WhisperTranscriptionService();
+      let newService: CloudTranscriptionService | SelfHostedTranscriptionService | WhisperTranscriptionService;
+      switch (transcriptionMode) {
+        case 'cloud':
+          newService = new CloudTranscriptionService();
+          break;
+        case 'self-hosted':
+          newService = new SelfHostedTranscriptionService();
+          break;
+        case 'local':
+          newService = new WhisperTranscriptionService();
+          break;
+      }
 
       // Start with microphone stream type - results will come via TranscriptionStateManager
       await newService.start(micStream, 'microphone');
@@ -203,7 +225,7 @@ const SettingsTab = () => {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Transcription Mode
             </label>
-            <div className="flex space-x-4">
+            <div className="flex space-x-3">
               <button
                 onClick={() => handleTranscriptionModeChange('cloud')}
                 className={`flex-1 p-3 rounded-lg border-2 transition-all ${
@@ -212,8 +234,21 @@ const SettingsTab = () => {
                     : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                 }`}
               >
-                <div className="font-medium">Cloud</div>
-                <div className="text-xs mt-1 opacity-75">Fast, no CPU load</div>
+                <Cloud className="h-4 w-4 mx-auto mb-1" />
+                <div className="font-medium text-sm">Cloud</div>
+                <div className="text-xs mt-1 opacity-75">Real-time, low overhead</div>
+              </button>
+              <button
+                onClick={() => handleTranscriptionModeChange('self-hosted')}
+                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                  transcriptionMode === 'self-hosted'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <Server className="h-4 w-4 mx-auto mb-1" />
+                <div className="font-medium text-sm">Self-Hosted</div>
+                <div className="text-xs mt-1 opacity-75">Your own Whisper server</div>
               </button>
               <button
                 onClick={() => handleTranscriptionModeChange('local')}
@@ -223,16 +258,38 @@ const SettingsTab = () => {
                     : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                 }`}
               >
-                <div className="font-medium">Local</div>
-                <div className="text-xs mt-1 opacity-75">Offline, private</div>
+                <Cpu className="h-4 w-4 mx-auto mb-1" />
+                <div className="font-medium text-sm">Browser</div>
+                <div className="text-xs mt-1 opacity-75">Offline, uses CPU</div>
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-2">
               {transcriptionMode === 'cloud'
-                ? 'Audio is sent to Observer servers for transcription. Fast and lightweight.'
-                : 'Audio is processed locally using Whisper. Requires model download and uses CPU/GPU.'}
+                ? 'Audio is streamed to Observer servers for real-time transcription.'
+                : transcriptionMode === 'self-hosted'
+                ? 'Audio is sent to your own Whisper-compatible server for processing.'
+                : 'Audio is processed locally in your browser using transformers.js Very CPU intensive!'}
             </p>
           </div>
+
+          {/* Self-Hosted URL input */}
+          {transcriptionMode === 'self-hosted' && (
+            <div className="bg-gray-50 p-4 rounded-lg border">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Whisper Server URL
+              </label>
+              <input
+                type="url"
+                placeholder="http://localhost:8000"
+                value={selfHostedUrl}
+                onChange={handleSelfHostedUrlChange}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                OpenAI-compatible endpoint (faster-whisper, whisper.cpp, speaches, etc.)
+              </p>
+            </div>
+          )}
 
           {/* Local Mode: Model Configuration */}
           {transcriptionMode === 'local' && (
@@ -318,6 +375,7 @@ const SettingsTab = () => {
           )}
 
           {/* Chunk Duration - Shared by both modes */}
+          {transcriptionMode !== 'cloud' && (
           <div>
             <label htmlFor="chunk-duration" className="block text-sm font-medium text-gray-700 mb-2">
               Chunk Duration ({Math.round(whisperSettings.chunkDurationMs / 1000)}s)
@@ -342,7 +400,8 @@ const SettingsTab = () => {
               Each agent accumulates transcripts during its loop window and clears them after processing.
             </p>
           </div>
-
+          )}
+          
           {/* Local Mode: Model Management Buttons */}
           {transcriptionMode === 'local' && (
             <div className="flex items-center space-x-4">
@@ -373,11 +432,14 @@ const SettingsTab = () => {
             </div>
           )}
 
-          {/* Test Button - Works for both modes */}
+          {/* Test Button - Works for all modes */}
           <div className="flex items-center space-x-4">
             <button
               onClick={isTestRunning ? handleStopTest : handleStartTest}
-              disabled={transcriptionMode === 'local' && modelState?.status !== 'loaded'}
+              disabled={
+                (transcriptionMode === 'local' && modelState?.status !== 'loaded') ||
+                (transcriptionMode === 'self-hosted' && !selfHostedUrl.trim())
+              }
               className={`px-4 py-2 rounded-md text-white flex items-center transition-all disabled:bg-gray-400 disabled:cursor-not-allowed ${
                 isTestRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
               }`}
@@ -389,6 +451,17 @@ const SettingsTab = () => {
               <span className="text-sm text-green-600 flex items-center">
                 <CheckCircle2 className="h-4 w-4 mr-1" />
                 Cloud Ready
+              </span>
+            )}
+            {transcriptionMode === 'self-hosted' && selfHostedUrl.trim() && (
+              <span className="text-sm text-green-600 flex items-center">
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Server Configured
+              </span>
+            )}
+            {transcriptionMode === 'self-hosted' && !selfHostedUrl.trim() && (
+              <span className="text-sm text-amber-600 flex items-center">
+                Enter server URL to enable
               </span>
             )}
           </div>

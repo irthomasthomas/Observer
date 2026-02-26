@@ -1,22 +1,22 @@
 import { TranscriptionRouter } from './TranscriptionRouter';
 import { AudioStreamType } from '../streamManager';
-import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
 import { TranscriptionStateManager } from './TranscriptionStateManager';
 import { TranscriptionSubscriber } from './TranscriptionSubscriber';
 
-const CLOUD_API_URL = 'https://api.observer-ai.com/v1/audio/transcriptions';
+const CLOUD_WS_URL = 'wss://api.observer-ai.com/v1/audio/transcriptions/stream';
 
-declare interface MediaRecorderErrorEvent extends Event {
-  readonly error: DOMException;
-}
-
+/**
+ * Cloud transcription service using WebSocket for real-time streaming.
+ * Connects to Observer API which forwards to Google Speech-to-Text (latest_long model).
+ * Auto-reconnects every ~5 minutes when Google's stream limit is reached.
+ */
 export class CloudTranscriptionService {
+  private ws: WebSocket | null = null;
+  private mediaRecorder: MediaRecorder | null = null;
   private isRunning = false;
   private currentStream: MediaStream | null = null;
   private streamType: AudioStreamType = 'microphone';
-  private chunkCounter = 0;
-  private chunkDurationMs = 15000;
 
   // Subscriber management - services push to all subscribers
   private subscribers = new Set<TranscriptionSubscriber>();
@@ -30,32 +30,173 @@ export class CloudTranscriptionService {
     this.isRunning = true;
     this.currentStream = stream;
     this.streamType = streamType || 'microphone';
-    this.chunkCounter = 0;
 
-    const settings = SensorSettings.getWhisperSettings();
-    this.chunkDurationMs = settings.chunkDurationMs;
+    Logger.info('CloudTranscriptionService', `Starting cloud transcription for ${this.streamType}`);
 
-    Logger.info('CloudTranscriptionService', `Starting cloud transcription for ${this.streamType} with ${this.chunkDurationMs}ms chunks`);
+    await this.connect();
+  }
 
-    this.transcribeLoop();
+  private async connect(): Promise<void> {
+    if (!this.currentStream) {
+      Logger.error('CloudTranscriptionService', 'No stream available');
+      return;
+    }
+
+    try {
+      const token = await TranscriptionRouter.getToken();
+
+      const ws = new WebSocket(CLOUD_WS_URL);
+      this.ws = ws;
+
+      ws.onopen = () => {
+        Logger.info('CloudTranscriptionService', 'WebSocket connected');
+
+        // Send authentication message
+        if (this.ws === ws && token) {
+          ws.send(JSON.stringify({ token }));
+        }
+
+        // Start streaming audio with fresh MediaRecorder
+        this.startMediaRecorder();
+
+        // Notify state manager
+        TranscriptionStateManager.chunkRecordingStarted(this.streamType, 0);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const { text, is_final, reconnect } = data;
+
+          // Server signals Google's 5-min limit reached - reconnect seamlessly
+          if (reconnect) {
+            Logger.info('CloudTranscriptionService', 'Server requested reconnect (5-min limit)');
+            this.reconnect();
+            return;
+          }
+
+          if (text) {
+            if (is_final) {
+              // Final result: commit to all subscribers
+              this.commitToSubscribers(text);
+              Logger.debug('CloudTranscriptionService', `Final: ${text.slice(0, 50)}...`);
+
+              // Notify state manager for UI updates
+              TranscriptionStateManager.chunkTranscriptionEnded(this.streamType, text, 0);
+            } else {
+              // Interim result: replace interim slot in all subscribers
+              this.setInterimToSubscribers(text);
+
+              // Notify state manager for UI updates
+              TranscriptionStateManager.setInterimText(this.streamType, text);
+            }
+          }
+        } catch (error) {
+          Logger.error('CloudTranscriptionService', `Failed to parse message: ${error}`);
+        }
+      };
+
+      ws.onerror = () => {
+        Logger.error('CloudTranscriptionService', 'WebSocket error');
+      };
+
+      ws.onclose = (e) => {
+        Logger.info('CloudTranscriptionService', `WebSocket closed: code=${e.code}`);
+        // Only cleanup if this is still the active WebSocket (not replaced by reconnect)
+        if (this.ws === ws) {
+          this.stopMediaRecorder();
+          this.ws = null;
+        }
+      };
+
+    } catch (error) {
+      Logger.error('CloudTranscriptionService', `Failed to connect: ${error}`);
+      this.stopMediaRecorder();
+    }
+  }
+
+  /**
+   * Seamlessly reconnect when Google's 5-minute streaming limit is reached.
+   * Stops current MediaRecorder, closes WebSocket, and reconnects with fresh headers.
+   */
+  private reconnect(): void {
+    if (!this.isRunning || !this.currentStream) return;
+
+    Logger.info('CloudTranscriptionService', 'Reconnecting...');
+
+    // Stop current MediaRecorder
+    this.stopMediaRecorder();
+
+    // Close old WebSocket (onclose won't interfere because we clear this.ws first)
+    const oldWs = this.ws;
+    this.ws = null;
+    if (oldWs) {
+      oldWs.close();
+    }
+
+    // Reconnect immediately with fresh MediaRecorder (new WebM headers)
+    this.connect();
+  }
+
+  private startMediaRecorder(): void {
+    if (!this.currentStream || this.currentStream.getAudioTracks().length === 0) {
+      Logger.error('CloudTranscriptionService', 'No active audio stream');
+      return;
+    }
+
+    try {
+      this.mediaRecorder = new MediaRecorder(this.currentStream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+    } catch (e) {
+      Logger.warn('CloudTranscriptionService', 'opus not supported, using default');
+      this.mediaRecorder = new MediaRecorder(this.currentStream);
+    }
+
+    this.mediaRecorder.ondataavailable = async (e) => {
+      if (e.data.size > 0 && this.ws?.readyState === WebSocket.OPEN) {
+        const arrayBuffer = await e.data.arrayBuffer();
+        this.ws.send(arrayBuffer);
+      }
+    };
+
+    this.mediaRecorder.onerror = (e) => {
+      Logger.error('CloudTranscriptionService', `MediaRecorder error: ${e}`);
+    };
+
+    // Stream chunks continuously
+    this.mediaRecorder.start(200);
+    Logger.debug('CloudTranscriptionService', 'Streaming audio (200ms chunks)');
+  }
+
+  private stopMediaRecorder(): void {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+    }
+    this.mediaRecorder = null;
   }
 
   public stop(): void {
     if (!this.isRunning) return;
 
-    Logger.info('CloudTranscriptionService', 'Stopping cloud transcription service');
+    Logger.info('CloudTranscriptionService', 'Stopping');
     this.isRunning = false;
+
+    this.stopMediaRecorder();
+
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+
     this.currentStream = null;
 
-    // Note: We don't clear subscribers here - they are managed by StreamManager
-    // and may persist across service restarts
-
-    // Notify state manager that stream stopped
+    // Notify state manager
     TranscriptionStateManager.streamStopped(this.streamType);
   }
 
   public isReady(): boolean {
-    return true; // Cloud service is always ready
+    return true;
   }
 
   // --- Subscriber Management ---
@@ -70,138 +211,15 @@ export class CloudTranscriptionService {
     Logger.debug('CloudTranscriptionService', `Removed subscriber ${subscriber.id}, total: ${this.subscribers.size}`);
   }
 
-  /**
-   * Push transcribed text to all registered subscribers
-   */
-  private pushToSubscribers(text: string): void {
+  private setInterimToSubscribers(text: string): void {
     for (const subscriber of this.subscribers) {
-      subscriber.appendText(text);
+      subscriber.setInterimText(text);
     }
   }
 
-  private async transcribeLoop(): Promise<void> {
-    while (this.isRunning) {
-      try {
-        const currentChunkId = ++this.chunkCounter;
-
-        if (!this.currentStream) {
-          Logger.error('CloudTranscriptionService', 'No stream available');
-          break;
-        }
-
-        // Notify state manager: recording started (UI state only)
-        TranscriptionStateManager.chunkRecordingStarted(
-          this.streamType,
-          this.chunkDurationMs
-        );
-
-        const audioBlob = await this.recordChunk(this.currentStream, this.chunkDurationMs);
-
-        if (!this.isRunning) break;
-
-        Logger.debug('CloudTranscriptionService', `Sending chunk ${currentChunkId} to cloud`);
-
-        // Notify state manager: transcription started
-        TranscriptionStateManager.chunkTranscriptionStarted(this.streamType);
-
-        this.transcribeChunkAsync(audioBlob, currentChunkId);
-
-      } catch (error) {
-        if (this.isRunning) {
-          Logger.error('CloudTranscriptionService', `Error in transcription loop: ${error}`);
-        }
-      }
+  private commitToSubscribers(text: string): void {
+    for (const subscriber of this.subscribers) {
+      subscriber.commitText(text);
     }
-  }
-
-  private async transcribeChunkAsync(audioBlob: Blob, chunkId: number): Promise<void> {
-    try {
-      const formData = new FormData();
-
-      // Determine file extension based on mime type
-      const mimeType = audioBlob.type || 'audio/webm';
-      const extension = mimeType.includes('webm') ? 'webm' :
-                       mimeType.includes('mp4') ? 'mp4' :
-                       mimeType.includes('ogg') ? 'ogg' : 'webm';
-
-      formData.append('file', audioBlob, `chunk_${chunkId}.${extension}`);
-      formData.append('duration_ms', String(this.chunkDurationMs));
-
-      // Get auth token
-      const token = await TranscriptionRouter.getToken();
-      const headers: HeadersInit = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(CLOUD_API_URL, {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Cloud API error (${response.status}): ${errorText}`);
-      }
-
-      const result = await response.json();
-
-      if (result?.text && this.isRunning) {
-        // Push to all registered subscribers (agent-specific accumulators)
-        this.pushToSubscribers(result.text);
-
-        // Notify state manager for UI updates (maintains its own rolling window)
-        TranscriptionStateManager.chunkTranscriptionEnded(
-          this.streamType,
-          result.text,
-          chunkId
-        );
-      }
-    } catch (error) {
-      if (this.isRunning) {
-        Logger.error('CloudTranscriptionService', `Cloud transcription failed for chunk ${chunkId}: ${error}`);
-      }
-    }
-  }
-
-  private recordChunk(stream: MediaStream, durationMs: number): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      if (!stream || stream.getAudioTracks().length === 0) {
-        return reject(new Error('No active audio stream to record'));
-      }
-
-      const mediaRecorder = new MediaRecorder(stream);
-      const chunks: BlobPart[] = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        if (chunks.length > 0) {
-          resolve(new Blob(chunks, { type: mediaRecorder.mimeType }));
-        } else {
-          Logger.warn('CloudTranscriptionService', 'No audio data recorded for chunk');
-          resolve(new Blob([]));
-        }
-      };
-
-      mediaRecorder.onerror = (e: Event) => {
-        const errorEvent = e as MediaRecorderErrorEvent;
-        Logger.error('CloudTranscriptionService', `MediaRecorder error: ${errorEvent.error.name} - ${errorEvent.error.message}`);
-        reject(errorEvent.error);
-      };
-
-      mediaRecorder.start();
-
-      setTimeout(() => {
-        if (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused') {
-          mediaRecorder.stop();
-        }
-      }, durationMs);
-    });
   }
 }

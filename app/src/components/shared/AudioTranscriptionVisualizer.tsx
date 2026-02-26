@@ -26,10 +26,11 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
   const animationFrameId = useRef<number>();
   const state = useTranscriptionState(streamType);
 
-  // Progress bar animation - disable transition during reset to snap to 0%
+  // Progress bar animation for chunk-based transcription (local/self-hosted)
   const [progressWidth, setProgressWidth] = useState<string>('0%');
   const [isResetting, setIsResetting] = useState(false);
 
+  // Only animate progress bar when chunking (recordingStartedAt is set)
   useEffect(() => {
     if (!state.recordingStartedAt) {
       setProgressWidth('0%');
@@ -95,24 +96,46 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
     };
   }, [stream]);
 
-  // Get last N words for display
-  const lastWords = useMemo(() => {
-    if (!state.fullTranscript) return '';
-    const words = state.fullTranscript.split(/\s+/).filter(w => w.length > 0);
-    return words.slice(-25).join(' ');
-  }, [state.fullTranscript]);
+  // Get last N words for display (committed + interim)
+  const { committedWords, interimWords } = useMemo(() => {
+    const fullText = state.fullTranscript || '';
+    const interimText = state.interimText || '';
+
+    // Combine for word count, but track where interim starts
+    const allWords = (fullText + (interimText ? ' ' + interimText : ''))
+      .split(/\s+/)
+      .filter(w => w.length > 0);
+
+    // Take last 25 words
+    const lastWords = allWords.slice(-25);
+
+    // Figure out how many are from interim
+    const interimWordCount = interimText.split(/\s+/).filter(w => w.length > 0).length;
+    const committedInWindow = Math.max(0, lastWords.length - interimWordCount);
+
+    return {
+      committedWords: lastWords.slice(0, committedInWindow).join(' '),
+      interimWords: lastWords.slice(committedInWindow).join(' '),
+    };
+  }, [state.fullTranscript, state.interimText]);
 
   // Determine current status for display
+  // Cloud streaming uses interimText, chunk-based uses recordingStartedAt
   const statusInfo = useMemo(() => {
-    if (state.isTranscribing) {
-      return { label: 'Transcribing', color: 'text-orange-400' };
+    // Cloud streaming mode (has interim text updates)
+    if (state.interimText) {
+      return { label: 'Streaming', color: 'text-cyan-400' };
     }
+    // Chunk-based mode (local/self-hosted)
     if (state.recordingStartedAt) {
+      if (state.isTranscribing) {
+        return { label: 'Transcribing', color: 'text-orange-400' };
+      }
       return { label: 'Recording', color: 'text-green-400' };
     }
     // Stream is active but no transcription instance
     return { label: 'Active, not used', color: 'text-gray-500' };
-  }, [state.isTranscribing, state.recordingStartedAt]);
+  }, [state.isTranscribing, state.interimText, state.recordingStartedAt]);
 
   return (
     <div
@@ -132,21 +155,23 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
       {/* Waveform */}
       <canvas ref={canvasRef} className="w-full h-10 rounded" />
 
-      {/* Progress bar */}
-      <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-green-500"
-          style={{
-            width: progressWidth,
-            transition: state.recordingStartedAt && !isResetting
-              ? `width ${state.chunkDurationMs}ms linear`
-              : 'none',
-          }}
-        />
-      </div>
+      {/* Progress bar - only for chunk-based transcription (local/self-hosted) */}
+      {state.recordingStartedAt && (
+        <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-green-500"
+            style={{
+              width: progressWidth,
+              transition: !isResetting
+                ? `width ${state.chunkDurationMs}ms linear`
+                : 'none',
+            }}
+          />
+        </div>
+      )}
 
       {/* Transcription text with loading indicator */}
-      {(lastWords || state.isTranscribing) && (
+      {(committedWords || interimWords || state.isTranscribing) && (
         <div className="relative overflow-hidden h-5">
           <div className="absolute inset-0 flex items-center">
             {/* Gradient fade on left */}
@@ -155,11 +180,13 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
             {/* Text content */}
             <div className="absolute top-0 bottom-0 right-1 left-8 flex items-center justify-end overflow-hidden gap-1">
               <div
-                className="text-xs text-gray-300 whitespace-nowrap overflow-hidden"
+                className="text-xs whitespace-nowrap overflow-hidden"
                 style={{ direction: 'rtl' }}
               >
                 <span style={{ direction: 'ltr', unicodeBidi: 'embed' }}>
-                  {lastWords}
+                  <span className="text-gray-300">{committedWords}</span>
+                  {committedWords && interimWords && ' '}
+                  <span className="text-gray-400 italic">{interimWords}</span>
                 </span>
               </div>
               {state.isTranscribing && (

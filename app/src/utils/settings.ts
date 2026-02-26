@@ -15,6 +15,7 @@ class SettingsManager {
     // --- WHISPER SETTINGS KEYS ---
     private readonly WHISPER_SETTINGS_KEY = 'observer-ai:settings:whisperSettings';
     private readonly TRANSCRIPTION_MODE_KEY = 'observer-ai:settings:transcriptionMode';
+    private readonly SELF_HOSTED_WHISPER_URL_KEY = 'observer-ai:settings:selfHostedWhisperUrl';
 
     // --- SENSIBLE DEFAULTS ---
     private readonly DEFAULTS = {
@@ -152,10 +153,10 @@ class SettingsManager {
         this.setWhisperSettings(settings);
     }
 
-    // Transcription Mode (cloud vs local)
+    // Transcription Mode (cloud vs self-hosted vs local)
     public getTranscriptionMode(): TranscriptionMode {
         const stored = localStorage.getItem(this.TRANSCRIPTION_MODE_KEY);
-        if (stored === 'cloud' || stored === 'local') {
+        if (stored === 'cloud' || stored === 'self-hosted' || stored === 'local') {
             return stored;
         }
         return this.DEFAULTS.transcriptionMode;
@@ -163,6 +164,15 @@ class SettingsManager {
 
     public setTranscriptionMode(mode: TranscriptionMode): void {
         localStorage.setItem(this.TRANSCRIPTION_MODE_KEY, mode);
+    }
+
+    // Self-Hosted Whisper URL
+    public getSelfHostedWhisperUrl(): string {
+        return localStorage.getItem(this.SELF_HOSTED_WHISPER_URL_KEY) ?? '';
+    }
+
+    public setSelfHostedWhisperUrl(url: string): void {
+        localStorage.setItem(this.SELF_HOSTED_WHISPER_URL_KEY, url);
     }
 }
 

@@ -13,11 +13,17 @@ export interface TranscriptionSubscriber {
   /** The audio stream type this subscriber is listening to */
   readonly streamType: AudioStreamType;
 
-  /** Get accumulated transcript since last clear */
+  /** Get accumulated transcript since last clear (committed + interim) */
   getTranscript(): string;
 
-  /** Append new transcribed text (called by transcription services) */
+  /** Append new transcribed text (for non-streaming callers) */
   appendText(text: string): void;
+
+  /** Set interim text (replaces previous interim, for streaming services) */
+  setInterimText(text: string): void;
+
+  /** Commit final text (clears interim, adds to committed chunks) */
+  commitText(text: string): void;
 
   /** Clear accumulated transcript (call at end of agent loop) */
   clear(): void;
@@ -38,7 +44,8 @@ export class TranscriptionSubscriberImpl implements TranscriptionSubscriber {
   public readonly streamType: AudioStreamType;
   public onUpdate?: (transcript: string) => void;
 
-  private accumulatedText: string[] = [];
+  private committedChunks: string[] = [];
+  private interimText: string = '';
   private isDestroyed = false;
 
   constructor(agentId: string, streamType: AudioStreamType) {
@@ -52,7 +59,11 @@ export class TranscriptionSubscriberImpl implements TranscriptionSubscriber {
       Logger.warn('TranscriptionSubscriber', `Attempted to get transcript from destroyed subscriber ${this.id}`);
       return '';
     }
-    return this.accumulatedText.join(' ');
+    const committed = this.committedChunks.join(' ');
+    if (this.interimText) {
+      return committed ? `${committed} ${this.interimText}` : this.interimText;
+    }
+    return committed;
   }
 
   public appendText(text: string): void {
@@ -62,10 +73,34 @@ export class TranscriptionSubscriberImpl implements TranscriptionSubscriber {
     }
 
     if (text && text.trim()) {
-      this.accumulatedText.push(text.trim());
-      Logger.debug('TranscriptionSubscriber', `Subscriber ${this.id} received text (${text.length} chars), total chunks: ${this.accumulatedText.length}`);
+      this.committedChunks.push(text.trim());
+      Logger.debug('TranscriptionSubscriber', `Subscriber ${this.id} received text (${text.length} chars), total chunks: ${this.committedChunks.length}`);
 
-      // Notify listener if registered
+      if (this.onUpdate) {
+        this.onUpdate(this.getTranscript());
+      }
+    }
+  }
+
+  public setInterimText(text: string): void {
+    if (this.isDestroyed) return;
+
+    this.interimText = text?.trim() || '';
+    Logger.debug('TranscriptionSubscriber', `Subscriber ${this.id} interim: "${this.interimText.slice(0, 30)}..."`);
+
+    if (this.onUpdate) {
+      this.onUpdate(this.getTranscript());
+    }
+  }
+
+  public commitText(text: string): void {
+    if (this.isDestroyed) return;
+
+    this.interimText = '';
+    if (text && text.trim()) {
+      this.committedChunks.push(text.trim());
+      Logger.debug('TranscriptionSubscriber', `Subscriber ${this.id} committed: "${text.trim().slice(0, 30)}...", total: ${this.committedChunks.length}`);
+
       if (this.onUpdate) {
         this.onUpdate(this.getTranscript());
       }
@@ -75,8 +110,9 @@ export class TranscriptionSubscriberImpl implements TranscriptionSubscriber {
   public clear(): void {
     if (this.isDestroyed) return;
 
-    const previousLength = this.accumulatedText.length;
-    this.accumulatedText = [];
+    const previousLength = this.committedChunks.length;
+    this.committedChunks = [];
+    this.interimText = '';
     Logger.debug('TranscriptionSubscriber', `Subscriber ${this.id} cleared (had ${previousLength} chunks)`);
   }
 
@@ -84,7 +120,8 @@ export class TranscriptionSubscriberImpl implements TranscriptionSubscriber {
     if (this.isDestroyed) return;
 
     this.isDestroyed = true;
-    this.accumulatedText = [];
+    this.committedChunks = [];
+    this.interimText = '';
     this.onUpdate = undefined;
     Logger.debug('TranscriptionSubscriber', `Subscriber ${this.id} destroyed`);
   }

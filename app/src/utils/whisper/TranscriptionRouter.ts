@@ -1,6 +1,7 @@
 import { TranscriptionMode } from './types';
 import { WhisperTranscriptionService } from './WhisperTranscriptionService';
 import { CloudTranscriptionService } from './CloudTranscriptionService';
+import { SelfHostedTranscriptionService } from './SelfHostedTranscriptionService';
 import { WhisperModelManager } from './WhisperModelManager';
 import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
@@ -84,35 +85,54 @@ export class TranscriptionRouter {
    * Used by StreamManager to create provider instances for each audio stream.
    */
   public createProvider(): TranscriptionProvider {
-    if (this.mode === 'cloud') {
-      Logger.debug('TranscriptionRouter', 'Creating cloud transcription provider');
-      return new CloudTranscriptionService();
-    } else {
-      Logger.debug('TranscriptionRouter', 'Creating local transcription provider');
-      return new WhisperTranscriptionService();
+    switch (this.mode) {
+      case 'cloud':
+        Logger.debug('TranscriptionRouter', 'Creating cloud transcription provider');
+        return new CloudTranscriptionService();
+      case 'self-hosted':
+        Logger.debug('TranscriptionRouter', 'Creating self-hosted transcription provider');
+        return new SelfHostedTranscriptionService();
+      case 'local':
+        Logger.debug('TranscriptionRouter', 'Creating local transcription provider');
+        return new WhisperTranscriptionService();
     }
   }
 
   /**
    * Ensures the transcription system is ready.
    * For cloud mode, always ready. For local mode, loads the model if needed.
+   * For self-hosted mode, checks URL is configured.
    */
   public async ensureReady(): Promise<void> {
-    if (this.mode === 'local') {
-      const modelManager = WhisperModelManager.getInstance();
-      if (!modelManager.isReady()) {
-        Logger.info('TranscriptionRouter', 'Local model not loaded, loading automatically...');
-        await modelManager.loadModel();
-      }
+    switch (this.mode) {
+      case 'cloud':
+        // Cloud mode is always ready
+        break;
+      case 'self-hosted':
+        const url = SensorSettings.getSelfHostedWhisperUrl();
+        if (!url || url.trim().length === 0) {
+          throw new Error('Self-hosted Whisper URL is not configured');
+        }
+        break;
+      case 'local':
+        const modelManager = WhisperModelManager.getInstance();
+        if (!modelManager.isReady()) {
+          Logger.info('TranscriptionRouter', 'Local model not loaded, loading automatically...');
+          await modelManager.loadModel();
+        }
+        break;
     }
-    // Cloud mode is always ready
   }
 
   public isReady(): boolean {
-    if (this.mode === 'cloud') {
-      return true;
-    } else {
-      return WhisperModelManager.getInstance().isReady();
+    switch (this.mode) {
+      case 'cloud':
+        return true;
+      case 'self-hosted':
+        const url = SensorSettings.getSelfHostedWhisperUrl();
+        return !!url && url.trim().length > 0;
+      case 'local':
+        return WhisperModelManager.getInstance().isReady();
     }
   }
 }
