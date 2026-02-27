@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { isMobile } from '@utils/platform';
-import { authenticate } from '@inkibra/tauri-plugin-auth';
+import { authenticate } from 'tauri-plugin-web-auth-api';
 
 const AUTH0_AUDIENCE = 'https://api.observer-ai.com';
 const CALLBACK_SCHEME = 'observerai';
@@ -54,18 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         scope: 'openid profile email offline_access',
       },
       openUrl: async (url) => {
-        console.log('[AuthContext] Opening ASWebAuthenticationSession...');
+        console.log('[AuthContext] Opening web auth session...');
         const result = await authenticate({
-          authUrl: url,
+          url: url,
           callbackScheme: CALLBACK_SCHEME,
         });
 
-        if (!result.success || !result.token) {
-          throw new Error(result.error || 'Authentication cancelled');
-        }
-
         console.log('[AuthContext] Mobile auth completed, handling callback...');
-        await auth0.handleRedirectCallback(result.token);
+        await auth0.handleRedirectCallback(result.callbackUrl);
       },
     });
   }, [isMobileDevice, auth0]);

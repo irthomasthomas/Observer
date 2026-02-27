@@ -27,6 +27,10 @@ app/plugins/**/.tauri/
 # Tauri Android generated API files
 app/mobile/plugins/**/android/.tauri/
 
+**/app-signed.apk
+**/app-signed.apk.idsig
+**/debug.keystore
+
 # Generated certs
 observer-ollama/certs/
 

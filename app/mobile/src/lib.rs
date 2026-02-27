@@ -161,7 +161,7 @@ pub fn run() {
 
     eprintln!("📦 ServerState created, spawning frame server...");
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_screen_capture::init())
         .plugin(tauri_plugin_pip::init())
         .plugin(tauri_plugin_notification::init())
@@ -170,11 +170,16 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_edge_to_edge::init())
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_auth::init())
-        .plugin(tauri_plugin_ios_keyboard::init())
+        .plugin(tauri_plugin_web_auth::init())
         .plugin(tauri_plugin_iap::init())
-        .plugin(tauri_plugin_opener::init())
-        .setup(move |app| {
+        .plugin(tauri_plugin_opener::init());
+
+    #[cfg(target_os = "ios")]
+    {
+        builder = builder.plugin(tauri_plugin_ios_keyboard::init());
+    }
+
+    builder.setup(move |app| {
             // Load persisted ollama_url from settings.json
             let config_path = app.path().app_data_dir()
                 .ok()
