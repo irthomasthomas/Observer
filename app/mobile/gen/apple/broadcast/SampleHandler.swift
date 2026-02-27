@@ -67,33 +67,37 @@ class DebugLog {
 @objc(SampleHandler)
 class SampleHandler: RPBroadcastSampleHandler {
 
-    private let videoServerURL = URL(string: "http://127.0.0.1:3838/frames")!
-    private let session: URLSession
     private var audioRingInitialized = false
+    private var videoFrameInitialized = false
 
     override init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 2.0
-        self.session = URLSession(configuration: config)
         super.init()
 
         // Log initialization
         DebugLog.shared.log("SampleHandler init")
         if let error = DebugLog.shared.getInitError() {
-            NSLog("❌ SampleHandler: DebugLog init error: \(error)")
+            NSLog("SampleHandler: DebugLog init error: \(error)")
         }
     }
 
     override func broadcastStarted(withSetupInfo setupInfo: [String : NSObject]?) {
-        DebugLog.shared.log("🎥 Broadcast started")
+        DebugLog.shared.log("Broadcast started")
         DebugLog.shared.log("Setup info: \(String(describing: setupInfo))")
+
+        // Initialize video frame buffer for shared memory video
+        videoFrameInitialized = VideoFrameBuffer.shared.initialize()
+        if videoFrameInitialized {
+            DebugLog.shared.log("VideoFrameBuffer initialized")
+        } else {
+            DebugLog.shared.log("VideoFrameBuffer failed to initialize")
+        }
 
         // Initialize audio ring buffer for shared memory audio
         audioRingInitialized = AudioRingBuffer.shared.initialize()
         if audioRingInitialized {
-            DebugLog.shared.log("✅ AudioRingBuffer initialized")
+            DebugLog.shared.log("AudioRingBuffer initialized")
         } else {
-            DebugLog.shared.log("❌ AudioRingBuffer failed to initialize")
+            DebugLog.shared.log("AudioRingBuffer failed to initialize")
         }
     }
 
@@ -111,35 +115,28 @@ class SampleHandler: RPBroadcastSampleHandler {
     private func handleVideoBuffer(_ sampleBuffer: CMSampleBuffer) {
         DebugLog.shared.logFrame()
 
+        // Skip if video frame buffer not initialized
+        guard videoFrameInitialized else { return }
+
         // Get pixel buffer
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            DebugLog.shared.log("❌ No pixel buffer")
+            DebugLog.shared.log("No pixel buffer")
             return
         }
 
-        // Convert to raw bytes - let Rust handle the rest
+        // Get frame dimensions
+        let width = UInt32(CVPixelBufferGetWidth(pixelBuffer))
+        let height = UInt32(CVPixelBufferGetHeight(pixelBuffer))
+
+        // Convert to JPEG
         guard let imageData = pixelBufferToData(pixelBuffer) else {
-            DebugLog.shared.log("❌ Failed to convert pixel buffer")
+            DebugLog.shared.log("Failed to convert pixel buffer")
             return
         }
 
-        // POST to Rust (fire and forget)
-        Task {
-            var request = URLRequest(url: videoServerURL)
-            request.httpMethod = "POST"
-            request.httpBody = imageData
-            request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-
-            do {
-                let (_, response) = try await session.data(for: request)
-                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-                    DebugLog.shared.log("❌ Video POST status: \(httpResponse.statusCode)")
-                }
-            } catch {
-                // Only log first few errors to avoid spam
-                DebugLog.shared.log("❌ Video POST error: \(error.localizedDescription)")
-            }
-        }
+        // Write to shared memory buffer
+        let timestamp = Date().timeIntervalSince1970
+        VideoFrameBuffer.shared.write(jpegData: imageData, width: width, height: height, timestamp: timestamp)
     }
 
     private func handleAudioBuffer(_ sampleBuffer: CMSampleBuffer) {
@@ -251,12 +248,18 @@ class SampleHandler: RPBroadcastSampleHandler {
     }
 
     override func broadcastFinished() {
-        DebugLog.shared.log("🎥 Broadcast finished")
+        DebugLog.shared.log("Broadcast finished")
+
+        // Cleanup video frame buffer
+        if videoFrameInitialized {
+            VideoFrameBuffer.shared.cleanup()
+            DebugLog.shared.log("VideoFrameBuffer cleaned up")
+        }
 
         // Cleanup audio ring buffer
         if audioRingInitialized {
             AudioRingBuffer.shared.cleanup()
-            DebugLog.shared.log("🔊 AudioRingBuffer cleaned up")
+            DebugLog.shared.log("AudioRingBuffer cleaned up")
         }
     }
 }

@@ -9,6 +9,9 @@ use server::{AudioData, FrameData, ServerState, start_server};
 #[cfg(target_os = "ios")]
 mod audio_ring;
 
+#[cfg(target_os = "ios")]
+mod video_frame;
+
 pub struct AppSettings {
     pub ollama_url: Mutex<Option<String>>,
 }
@@ -98,16 +101,34 @@ async fn get_broadcast_status(
 }
 
 /// Start capture stream with channel-based frame delivery
-/// Frames from the broadcast extension will be pushed through the channel
+/// On iOS: Uses shared memory buffer (written by broadcast extension)
+/// On other platforms: Uses HTTP endpoint
 #[tauri::command]
 async fn start_capture_stream_cmd(
     state: State<'_, ServerState>,
     on_frame: Channel<FrameData>,
+    #[allow(unused_variables)] app_group_path: Option<String>,
 ) -> Result<(), String> {
-    eprintln!("🎬 Starting capture stream with channel");
+    eprintln!("Starting capture stream with channel");
 
-    // Store the channel so HTTP handler can push frames to it
-    state.set_frame_channel(Some(on_frame)).await;
+    // Store the channel
+    state.set_frame_channel(Some(on_frame.clone())).await;
+
+    // On iOS, start the video frame reader
+    #[cfg(target_os = "ios")]
+    {
+        // Set App Group path if provided
+        if let Some(path) = app_group_path {
+            eprintln!("Setting App Group path for video: {}", path);
+            video_frame::set_app_group_path(std::path::PathBuf::from(path));
+        }
+
+        eprintln!("Starting iOS video frame reader");
+        let reader_state = std::sync::Arc::new(video_frame::VideoFrameReaderState::new(
+            state.frame_channel.clone()
+        ));
+        video_frame::start_video_frame_reader(reader_state);
+    }
 
     Ok(())
 }
@@ -117,7 +138,13 @@ async fn start_capture_stream_cmd(
 async fn stop_capture_stream_cmd(
     state: State<'_, ServerState>,
 ) -> Result<(), String> {
-    eprintln!("🛑 Stopping capture stream channel");
+    eprintln!("Stopping capture stream channel");
+
+    // On iOS, stop the video frame reader
+    #[cfg(target_os = "ios")]
+    {
+        video_frame::stop_video_frame_reader();
+    }
 
     // Clear the channel
     state.set_frame_channel(None).await;

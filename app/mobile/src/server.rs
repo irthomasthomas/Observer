@@ -124,6 +124,8 @@ fn now() -> f64 {
 }
 
 /// Handle incoming frame data from broadcast extension
+/// Note: iOS now uses App Groups shared memory (video_frame.rs) instead of HTTP.
+/// This endpoint is kept for backward compatibility and potential fallback.
 async fn handle_frame(
     State(state): State<AppState>,
     body: Bytes,

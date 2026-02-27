@@ -382,9 +382,18 @@ class TauriStreamCapture {
         onFrame: frameChannel,
       });
     } else {
-      // iOS: Register channel then trigger ReplayKit picker
+      // iOS: Get App Group path, register channel then trigger ReplayKit picker
+      let appGroupPath: string | null = null;
+      try {
+        appGroupPath = await invoke<string>('plugin:screen-capture|get_app_group_path_cmd');
+        Logger.info("TAURI_STREAM", `iOS App Group path for video: ${appGroupPath}`);
+      } catch (e) {
+        Logger.warn("TAURI_STREAM", `Could not get App Group path: ${e}`);
+      }
+
       await invoke('start_capture_stream_cmd', {
         onFrame: frameChannel,
+        appGroupPath: appGroupPath,
       });
       await invoke<boolean>('plugin:screen-capture|start_capture_cmd');
     }
@@ -826,7 +835,7 @@ class TauriStreamCapture {
         });
       } else {
         // Mobile (iOS): First set up the channels, then trigger ReplayKit picker
-        // Get App Group path for shared memory audio
+        // Get App Group path for shared memory video and audio
         let appGroupPath: string | null = null;
         try {
           appGroupPath = await invoke<string>('plugin:screen-capture|get_app_group_path_cmd');
@@ -835,12 +844,13 @@ class TauriStreamCapture {
           Logger.warn("TAURI_STREAM", `Could not get App Group path: ${e}`);
         }
 
-        // The channels receive frames via HTTP, audio via shared memory ring buffer
+        // Video: Register frame channel with App Group path for shared memory buffer
         await invoke('start_capture_stream_cmd', {
           onFrame: frameChannel,
+          appGroupPath: appGroupPath,
         });
 
-        // Register audio channel on iOS with App Group path for ring buffer
+        // Audio: Register audio channel with App Group path for ring buffer
         await invoke('start_audio_stream_cmd', {
           onAudio: audioChannel,
           appGroupPath: appGroupPath,
