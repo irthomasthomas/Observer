@@ -14,5 +14,8 @@ permissions = [
     "allow-get-capture-targets-cmd",
     "allow-start-capture-stream-cmd",
     "allow-start-video-stream-cmd",
-    "allow-start-audio-stream-cmd"
+    "allow-start-audio-stream-cmd",
+    "allow-get-app-group-path-cmd",
+    "allow-read-broadcast-debug-log-cmd",
+    "allow-list-app-group-files-cmd"
 ]

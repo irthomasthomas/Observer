@@ -14,6 +14,9 @@ Default permissions for screen capture plugin
 - `allow-start-capture-stream-cmd`
 - `allow-start-video-stream-cmd`
 - `allow-start-audio-stream-cmd`
+- `allow-get-app-group-path-cmd`
+- `allow-read-broadcast-debug-log-cmd`
+- `allow-list-app-group-files-cmd`
 
 ## Permission Table
 
@@ -46,6 +49,32 @@ Enables the android command without any pre-configured scope.
 <td>
 
 Denies the android command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:allow-get-app-group-path-cmd`
+
+</td>
+<td>
+
+Enables the get_app_group_path_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-get-app-group-path-cmd`
+
+</td>
+<td>
+
+Denies the get_app_group_path_cmd command without any pre-configured scope.
 
 </td>
 </tr>
@@ -150,6 +179,58 @@ Enables the ios command without any pre-configured scope.
 <td>
 
 Denies the ios command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:allow-list-app-group-files-cmd`
+
+</td>
+<td>
+
+Enables the list_app_group_files_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-list-app-group-files-cmd`
+
+</td>
+<td>
+
+Denies the list_app_group_files_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:allow-read-broadcast-debug-log-cmd`
+
+</td>
+<td>
+
+Enables the read_broadcast_debug_log_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-read-broadcast-debug-log-cmd`
+
+</td>
+<td>
+
+Denies the read_broadcast_debug_log_cmd command without any pre-configured scope.
 
 </td>
 </tr>

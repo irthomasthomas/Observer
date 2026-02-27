@@ -1,6 +1,6 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
-    Runtime,
+    Manager, Runtime,
 };
 
 mod error;
@@ -39,6 +39,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             stop_audio_cmd,
             #[cfg(any(target_os = "android", target_os = "ios"))]
             get_frame_cmd,
+            #[cfg(target_os = "ios")]
+            get_app_group_path_cmd,
+            #[cfg(target_os = "ios")]
+            read_broadcast_debug_log_cmd,
+            #[cfg(target_os = "ios")]
+            list_app_group_files_cmd,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             get_capture_targets_cmd,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -81,6 +87,38 @@ async fn get_frame_cmd<R: Runtime>(
 ) -> Result<String> {
     let screen_capture = app.state::<mobile::ScreenCapture<R>>();
     screen_capture.get_frame()
+}
+
+// ==================== iOS-only debug commands ====================
+
+/// Get the App Group container path (for debugging shared memory setup)
+#[cfg(target_os = "ios")]
+#[tauri::command]
+async fn get_app_group_path_cmd<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<String> {
+    let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+    screen_capture.get_app_group_path()
+}
+
+/// Read the broadcast extension debug log
+#[cfg(target_os = "ios")]
+#[tauri::command]
+async fn read_broadcast_debug_log_cmd<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<String> {
+    let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+    screen_capture.read_broadcast_debug_log()
+}
+
+/// List files in the App Group container (for debugging)
+#[cfg(target_os = "ios")]
+#[tauri::command]
+async fn list_app_group_files_cmd<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<serde_json::Value> {
+    let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+    screen_capture.list_app_group_files()
 }
 
 // ==================== Cross-platform commands ====================

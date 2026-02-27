@@ -66,4 +66,28 @@ impl<R: Runtime> ScreenCapture<R> {
             .run_mobile_plugin("getFrame", ())
             .map_err(Into::into)
     }
+
+    /// Get the App Group container path (iOS only)
+    pub fn get_app_group_path(&self) -> Result<String> {
+        log::info!("[ScreenCapture] Getting App Group path");
+        self.0
+            .run_mobile_plugin("getAppGroupPath", ())
+            .map_err(Into::into)
+    }
+
+    /// Read the broadcast extension debug log (iOS only)
+    pub fn read_broadcast_debug_log(&self) -> Result<String> {
+        log::info!("[ScreenCapture] Reading broadcast debug log");
+        self.0
+            .run_mobile_plugin("readBroadcastDebugLog", ())
+            .map_err(Into::into)
+    }
+
+    /// List files in the App Group container (iOS only, for debugging)
+    pub fn list_app_group_files(&self) -> Result<serde_json::Value> {
+        log::info!("[ScreenCapture] Listing App Group files");
+        self.0
+            .run_mobile_plugin("listAppGroupFiles", ())
+            .map_err(Into::into)
+    }
 }

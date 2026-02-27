@@ -4,22 +4,97 @@ import CoreGraphics
 import ImageIO
 import AudioToolbox
 
+/// Simple file-based debug logger for broadcast extension
+/// Writes to App Group container so main app can read it
+class DebugLog {
+    static let shared = DebugLog()
+
+    private let appGroupID = "group.com.observer.ai"
+    private var logURL: URL?
+    private var frameCount = 0
+    private var audioCount = 0
+    private var initError: String?
+
+    private init() {
+        // Try to get App Group container
+        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
+            logURL = containerURL.appendingPathComponent("broadcast_debug.log")
+            // Clear previous log and write initial message
+            let initMessage = "[\(Date())] DebugLog initialized at \(logURL!.path)\n"
+            try? initMessage.write(to: logURL!, atomically: true, encoding: .utf8)
+        } else {
+            initError = "Failed to get App Group container for \(appGroupID)"
+            NSLog("❌ DebugLog: \(initError!)")
+        }
+    }
+
+    func log(_ message: String) {
+        NSLog("📺 Broadcast: \(message)")  // Always log to system log
+
+        guard let url = logURL else { return }
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let line = "[\(timestamp)] \(message)\n"
+
+        // Simple append
+        if let data = line.data(using: .utf8) {
+            if let handle = try? FileHandle(forWritingTo: url) {
+                handle.seekToEndOfFile()
+                handle.write(data)
+                handle.closeFile()
+            }
+        }
+    }
+
+    func logFrame() {
+        frameCount += 1
+        if frameCount == 1 || frameCount % 100 == 0 {
+            log("Video frames: \(frameCount)")
+        }
+    }
+
+    func logAudio() {
+        audioCount += 1
+        if audioCount == 1 || audioCount % 100 == 0 {
+            log("Audio chunks: \(audioCount)")
+        }
+    }
+
+    func getInitError() -> String? {
+        return initError
+    }
+}
+
 @objc(SampleHandler)
 class SampleHandler: RPBroadcastSampleHandler {
 
     private let videoServerURL = URL(string: "http://127.0.0.1:3838/frames")!
-    private let audioServerURL = URL(string: "http://127.0.0.1:3838/audio")!
     private let session: URLSession
+    private var audioRingInitialized = false
 
     override init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 2.0
         self.session = URLSession(configuration: config)
         super.init()
+
+        // Log initialization
+        DebugLog.shared.log("SampleHandler init")
+        if let error = DebugLog.shared.getInitError() {
+            NSLog("❌ SampleHandler: DebugLog init error: \(error)")
+        }
     }
 
     override func broadcastStarted(withSetupInfo setupInfo: [String : NSObject]?) {
-        NSLog("🎥 Broadcast started")
+        DebugLog.shared.log("🎥 Broadcast started")
+        DebugLog.shared.log("Setup info: \(String(describing: setupInfo))")
+
+        // Initialize audio ring buffer for shared memory audio
+        audioRingInitialized = AudioRingBuffer.shared.initialize()
+        if audioRingInitialized {
+            DebugLog.shared.log("✅ AudioRingBuffer initialized")
+        } else {
+            DebugLog.shared.log("❌ AudioRingBuffer failed to initialize")
+        }
     }
 
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, with sampleBufferType: RPSampleBufferType) {
@@ -34,11 +109,19 @@ class SampleHandler: RPBroadcastSampleHandler {
     }
 
     private func handleVideoBuffer(_ sampleBuffer: CMSampleBuffer) {
+        DebugLog.shared.logFrame()
+
         // Get pixel buffer
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            DebugLog.shared.log("❌ No pixel buffer")
+            return
+        }
 
         // Convert to raw bytes - let Rust handle the rest
-        guard let imageData = pixelBufferToData(pixelBuffer) else { return }
+        guard let imageData = pixelBufferToData(pixelBuffer) else {
+            DebugLog.shared.log("❌ Failed to convert pixel buffer")
+            return
+        }
 
         // POST to Rust (fire and forget)
         Task {
@@ -47,37 +130,42 @@ class SampleHandler: RPBroadcastSampleHandler {
             request.httpBody = imageData
             request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
 
-            _ = try? await session.data(for: request)
+            do {
+                let (_, response) = try await session.data(for: request)
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                    DebugLog.shared.log("❌ Video POST status: \(httpResponse.statusCode)")
+                }
+            } catch {
+                // Only log first few errors to avoid spam
+                DebugLog.shared.log("❌ Video POST error: \(error.localizedDescription)")
+            }
         }
     }
 
     private func handleAudioBuffer(_ sampleBuffer: CMSampleBuffer) {
-        // Extract audio data and format
-        guard let audioData = audioBufferToData(sampleBuffer) else { return }
+        DebugLog.shared.logAudio()
+
+        // Skip if ring buffer not initialized
+        guard audioRingInitialized else { return }
+
+        // Extract audio samples as floats
+        guard let samples = audioBufferToFloats(sampleBuffer) else {
+            DebugLog.shared.log("❌ Failed to extract audio samples")
+            return
+        }
 
         // Get audio format description
         guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
         guard let streamDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription) else { return }
 
         let sampleRate = UInt32(streamDescription.pointee.mSampleRate)
-        let channels = UInt16(streamDescription.pointee.mChannelsPerFrame)
         let timestamp = Date().timeIntervalSince1970
 
-        // POST to Rust (fire and forget)
-        Task {
-            var request = URLRequest(url: audioServerURL)
-            request.httpMethod = "POST"
-            request.httpBody = audioData
-            request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-            request.setValue(String(sampleRate), forHTTPHeaderField: "X-Sample-Rate")
-            request.setValue(String(channels), forHTTPHeaderField: "X-Channels")
-            request.setValue(String(timestamp), forHTTPHeaderField: "X-Timestamp")
-
-            _ = try? await session.data(for: request)
-        }
+        // Write to shared memory ring buffer
+        AudioRingBuffer.shared.write(samples: samples, sampleRate: sampleRate, timestamp: timestamp)
     }
 
-    private func audioBufferToData(_ sampleBuffer: CMSampleBuffer) -> Data? {
+    private func audioBufferToFloats(_ sampleBuffer: CMSampleBuffer) -> [Float]? {
         var audioBufferList = AudioBufferList()
         var blockBuffer: CMBlockBuffer?
 
@@ -137,8 +225,7 @@ class SampleHandler: RPBroadcastSampleHandler {
             }
         }
 
-        // Convert float array to Data (little-endian)
-        return floatData.withUnsafeBytes { Data($0) }
+        return floatData
     }
 
     private func pixelBufferToData(_ pixelBuffer: CVPixelBuffer) -> Data? {
@@ -164,6 +251,12 @@ class SampleHandler: RPBroadcastSampleHandler {
     }
 
     override func broadcastFinished() {
-        NSLog("🎥 Broadcast finished")
+        DebugLog.shared.log("🎥 Broadcast finished")
+
+        // Cleanup audio ring buffer
+        if audioRingInitialized {
+            AudioRingBuffer.shared.cleanup()
+            DebugLog.shared.log("🔊 AudioRingBuffer cleaned up")
+        }
     }
 }

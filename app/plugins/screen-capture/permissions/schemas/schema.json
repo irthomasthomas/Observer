@@ -307,6 +307,18 @@
           "markdownDescription": "Denies the android command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_app_group_path_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-app-group-path-cmd",
+          "markdownDescription": "Enables the get_app_group_path_cmd command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_app_group_path_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-app-group-path-cmd",
+          "markdownDescription": "Denies the get_app_group_path_cmd command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_broadcast_status command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-broadcast-status",
@@ -353,6 +365,30 @@
           "type": "string",
           "const": "deny-ios",
           "markdownDescription": "Denies the ios command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the list_app_group_files_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-list-app-group-files-cmd",
+          "markdownDescription": "Enables the list_app_group_files_cmd command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_app_group_files_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-list-app-group-files-cmd",
+          "markdownDescription": "Denies the list_app_group_files_cmd command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the read_broadcast_debug_log_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-read-broadcast-debug-log-cmd",
+          "markdownDescription": "Enables the read_broadcast_debug_log_cmd command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the read_broadcast_debug_log_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-read-broadcast-debug-log-cmd",
+          "markdownDescription": "Denies the read_broadcast_debug_log_cmd command without any pre-configured scope."
         },
         {
           "description": "Enables the start_audio_stream_cmd command without any pre-configured scope.",
@@ -439,10 +475,10 @@
           "markdownDescription": "Denies the stop_video_cmd command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for screen capture plugin\n#### This default permission set includes:\n\n- `allow-start-capture-cmd`\n- `allow-stop-capture-cmd`\n- `allow-stop-video-cmd`\n- `allow-stop-audio-cmd`\n- `allow-get-frame-cmd`\n- `allow-get-broadcast-status`\n- `allow-get-capture-targets-cmd`\n- `allow-start-capture-stream-cmd`\n- `allow-start-video-stream-cmd`\n- `allow-start-audio-stream-cmd`",
+          "description": "Default permissions for screen capture plugin\n#### This default permission set includes:\n\n- `allow-start-capture-cmd`\n- `allow-stop-capture-cmd`\n- `allow-stop-video-cmd`\n- `allow-stop-audio-cmd`\n- `allow-get-frame-cmd`\n- `allow-get-broadcast-status`\n- `allow-get-capture-targets-cmd`\n- `allow-start-capture-stream-cmd`\n- `allow-start-video-stream-cmd`\n- `allow-start-audio-stream-cmd`\n- `allow-get-app-group-path-cmd`\n- `allow-read-broadcast-debug-log-cmd`\n- `allow-list-app-group-files-cmd`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for screen capture plugin\n#### This default permission set includes:\n\n- `allow-start-capture-cmd`\n- `allow-stop-capture-cmd`\n- `allow-stop-video-cmd`\n- `allow-stop-audio-cmd`\n- `allow-get-frame-cmd`\n- `allow-get-broadcast-status`\n- `allow-get-capture-targets-cmd`\n- `allow-start-capture-stream-cmd`\n- `allow-start-video-stream-cmd`\n- `allow-start-audio-stream-cmd`"
+          "markdownDescription": "Default permissions for screen capture plugin\n#### This default permission set includes:\n\n- `allow-start-capture-cmd`\n- `allow-stop-capture-cmd`\n- `allow-stop-video-cmd`\n- `allow-stop-audio-cmd`\n- `allow-get-frame-cmd`\n- `allow-get-broadcast-status`\n- `allow-get-capture-targets-cmd`\n- `allow-start-capture-stream-cmd`\n- `allow-start-video-stream-cmd`\n- `allow-start-audio-stream-cmd`\n- `allow-get-app-group-path-cmd`\n- `allow-read-broadcast-debug-log-cmd`\n- `allow-list-app-group-files-cmd`"
         }
       ]
     }

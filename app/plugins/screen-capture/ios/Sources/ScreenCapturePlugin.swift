@@ -5,9 +5,64 @@ import Tauri
 @objc public class ScreenCapturePlugin: Plugin {
     private var broadcastPicker: RPSystemBroadcastPickerView?
     private var pickerWindow: UIWindow?
+    private let appGroupID = "group.com.observer.ai"
 
     override init() {
         super.init()
+    }
+
+    /// Get the App Group container URL
+    private func getAppGroupURL() -> URL? {
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
+    }
+
+    /// Get the App Group container path as a string (for passing to Rust)
+    @objc public func getAppGroupPath(_ invoke: Invoke) throws {
+        if let url = getAppGroupURL() {
+            invoke.resolve(url.path)
+        } else {
+            invoke.reject("Failed to get App Group container URL for \(appGroupID)")
+        }
+    }
+
+    /// Read the broadcast extension debug log
+    @objc public func readBroadcastDebugLog(_ invoke: Invoke) throws {
+        guard let containerURL = getAppGroupURL() else {
+            invoke.reject("Failed to get App Group container")
+            return
+        }
+
+        let logURL = containerURL.appendingPathComponent("broadcast_debug.log")
+
+        if FileManager.default.fileExists(atPath: logURL.path) {
+            do {
+                let content = try String(contentsOf: logURL, encoding: .utf8)
+                invoke.resolve(content)
+            } catch {
+                invoke.reject("Failed to read log: \(error.localizedDescription)")
+            }
+        } else {
+            invoke.resolve("No debug log found at \(logURL.path)")
+        }
+    }
+
+    /// List all files in the App Group container (for debugging)
+    @objc public func listAppGroupFiles(_ invoke: Invoke) throws {
+        guard let containerURL = getAppGroupURL() else {
+            invoke.reject("Failed to get App Group container")
+            return
+        }
+
+        do {
+            let files = try FileManager.default.contentsOfDirectory(atPath: containerURL.path)
+            let result: [String: Any] = [
+                "path": containerURL.path,
+                "files": files
+            ]
+            invoke.resolve(result)
+        } catch {
+            invoke.reject("Failed to list files: \(error.localizedDescription)")
+        }
     }
 
     @objc public func startCapture(_ invoke: Invoke) throws {

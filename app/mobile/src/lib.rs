@@ -6,6 +6,9 @@ use base64::Engine;
 mod server;
 use server::{AudioData, FrameData, ServerState, start_server};
 
+#[cfg(target_os = "ios")]
+mod audio_ring;
+
 pub struct AppSettings {
     pub ollama_url: Mutex<Option<String>>,
 }
@@ -122,17 +125,83 @@ async fn stop_capture_stream_cmd(
     Ok(())
 }
 
+/// Read broadcast extension debug log from App Group container
+#[tauri::command]
+async fn read_broadcast_debug_log() -> Result<String, String> {
+    #[cfg(target_os = "ios")]
+    {
+        // Scan App Group containers for the debug log
+        let shared_containers = std::path::PathBuf::from("/private/var/mobile/Containers/Shared/AppGroup");
+        if shared_containers.exists() {
+            if let Ok(entries) = std::fs::read_dir(&shared_containers) {
+                for entry in entries.flatten() {
+                    let log_path = entry.path().join("broadcast_debug.log");
+                    if log_path.exists() {
+                        match std::fs::read_to_string(&log_path) {
+                            Ok(content) => return Ok(content),
+                            Err(e) => return Err(format!("Failed to read log: {}", e)),
+                        }
+                    }
+                }
+            }
+        }
+        Ok("No broadcast_debug.log found in App Group containers".to_string())
+    }
+
+    #[cfg(not(target_os = "ios"))]
+    {
+        Ok("Debug log only available on iOS".to_string())
+    }
+}
+
+/// Set the App Group container path (called from iOS to enable shared memory audio)
+#[tauri::command]
+async fn set_app_group_path_cmd(path: String) -> Result<(), String> {
+    eprintln!("📁 Setting App Group path: {}", path);
+
+    #[cfg(target_os = "ios")]
+    {
+        audio_ring::set_app_group_path(std::path::PathBuf::from(path));
+    }
+
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = path; // Silence unused variable warning
+        eprintln!("📁 App Group path ignored on non-iOS");
+    }
+
+    Ok(())
+}
+
 /// Start audio stream with channel-based audio delivery
-/// Audio from the broadcast extension will be pushed through the channel
+/// On iOS: Uses shared memory ring buffer (written by broadcast extension)
+/// On other platforms: Uses HTTP endpoint
 #[tauri::command]
 async fn start_audio_stream_cmd(
     state: State<'_, ServerState>,
     on_audio: Channel<AudioData>,
+    #[allow(unused_variables)] app_group_path: Option<String>,
 ) -> Result<(), String> {
     eprintln!("🎵 Starting audio stream with channel");
 
-    // Store the channel so HTTP handler can push audio to it
-    state.set_audio_channel(Some(on_audio)).await;
+    // Store the channel
+    state.set_audio_channel(Some(on_audio.clone())).await;
+
+    // On iOS, start the ring buffer reader
+    #[cfg(target_os = "ios")]
+    {
+        // Set App Group path if provided
+        if let Some(path) = app_group_path {
+            eprintln!("🎵 Setting App Group path: {}", path);
+            audio_ring::set_app_group_path(std::path::PathBuf::from(path));
+        }
+
+        eprintln!("🎵 Starting iOS audio ring buffer reader");
+        let reader_state = std::sync::Arc::new(audio_ring::AudioRingReaderState::new(
+            state.audio_channel.clone()
+        ));
+        audio_ring::start_audio_ring_reader(reader_state);
+    }
 
     Ok(())
 }
@@ -143,6 +212,12 @@ async fn stop_audio_stream_cmd(
     state: State<'_, ServerState>,
 ) -> Result<(), String> {
     eprintln!("🔇 Stopping audio stream channel");
+
+    // On iOS, stop the ring buffer reader
+    #[cfg(target_os = "ios")]
+    {
+        audio_ring::stop_audio_ring_reader();
+    }
 
     // Clear the channel
     state.set_audio_channel(None).await;
@@ -227,7 +302,9 @@ pub fn run() {
             start_capture_stream_cmd,
             stop_capture_stream_cmd,
             start_audio_stream_cmd,
-            stop_audio_stream_cmd
+            stop_audio_stream_cmd,
+            set_app_group_path_cmd,
+            read_broadcast_debug_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
