@@ -273,8 +273,8 @@ const SettingsTab = () => {
           audioUrl = URL.createObjectURL(blob);
         }
 
-        // Add to history (newest first)
-        if (testId && currentTranscript) {
+        // Add to history (newest first) - include empty transcripts too
+        if (testId) {
           setTranscriptionHistory(prev => [{
             id: testId,
             transcript: currentTranscript,
@@ -286,8 +286,8 @@ const SettingsTab = () => {
       };
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
-    } else if (testId && currentTranscript) {
-      // No recording, but still save transcript
+    } else if (testId) {
+      // No recording, but still save transcript (even if empty)
       setTranscriptionHistory(prev => [{
         id: testId,
         transcript: currentTranscript,
