@@ -129,7 +129,7 @@ class VideoFrameBuffer {
 
         // Write JPEG data to buffer section
         let dataStart = data.advanced(by: headerSize)
-        jpegData.withUnsafeBytes { srcBuffer in
+        _ = jpegData.withUnsafeBytes { srcBuffer in
             memcpy(dataStart, srcBuffer.baseAddress!, Int(frameSize))
         }
 

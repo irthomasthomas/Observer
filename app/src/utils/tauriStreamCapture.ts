@@ -448,8 +448,9 @@ class TauriStreamCapture {
     let audioDestination: MediaStreamAudioDestinationNode | null = null;
     let audioChunkCount = 0;
     let isActive = true;
+    let configuredSampleRate = 0;
 
-    // Create AudioWorklet for mono PCM playback using efficient ring buffer
+    // AudioWorklet code for mono PCM playback using efficient ring buffer
     const workletCode = `
       class PCMPlayerProcessor extends AudioWorkletProcessor {
         constructor() {
@@ -497,10 +498,12 @@ class TauriStreamCapture {
       registerProcessor('pcm-player-processor', PCMPlayerProcessor);
     `;
 
+    // Initialize AudioContext with 48000Hz (Rust resamples iOS 44100Hz to match desktop)
+    const defaultSampleRate = 48000;
     const blob = new Blob([workletCode], { type: 'application/javascript' });
     const workletUrl = URL.createObjectURL(blob);
 
-    audioContext = new AudioContext({ sampleRate: 48000 });
+    audioContext = new AudioContext({ sampleRate: defaultSampleRate });
     await audioContext.audioWorklet.addModule(workletUrl);
     URL.revokeObjectURL(workletUrl);
 
@@ -511,8 +514,9 @@ class TauriStreamCapture {
     audioDestination = audioContext.createMediaStreamDestination();
     workletNode.connect(audioDestination);
     audioStream = audioDestination.stream;
+    configuredSampleRate = defaultSampleRate;
 
-    Logger.info("TAURI_STREAM", `Audio MediaStream initialized (48000Hz, mono)`);
+    Logger.info("TAURI_STREAM", `Audio MediaStream initialized (${defaultSampleRate}Hz, mono)`);
 
     const audioChannel = new Channel<AudioData>();
 
@@ -524,6 +528,9 @@ class TauriStreamCapture {
 
       if (audioChunkCount === 1) {
         Logger.info("TAURI_STREAM", `First audio chunk received (${audioData.sampleRate}Hz, mono)`);
+        if (audioData.sampleRate !== configuredSampleRate) {
+          Logger.warn("TAURI_STREAM", `Sample rate mismatch: source=${audioData.sampleRate}Hz, context=${configuredSampleRate}Hz`);
+        }
       }
       if (audioChunkCount % 500 === 0) {
         Logger.debug("TAURI_STREAM", `Received ${audioChunkCount} audio chunks`);
@@ -665,74 +672,74 @@ class TauriStreamCapture {
     let audioChunkCount = 0;
 
     // Set up audio processing to convert PCM to MediaStream
-    // Create upfront with default settings (48kHz mono)
     let audioContext: AudioContext | null = null;
     let workletNode: AudioWorkletNode | null = null;
     let screenAudioStream: MediaStream | null = null;
     let audioInitialized = false;
     let audioDestination: MediaStreamAudioDestinationNode | null = null;
+    let configuredSampleRate = 0;
 
-    // Initialize audio stream upfront so MediaStream is available immediately
-    const initializeAudioStreamUpfront = async () => {
-      try {
-        // Create AudioWorklet for mono PCM playback using efficient ring buffer
-        const workletCode = `
-          class PCMPlayerProcessor extends AudioWorkletProcessor {
-            constructor() {
-              super();
-              // Ring buffer: ~1.3 seconds at 48kHz (power of 2 for fast modulo)
-              this.bufferSize = 65536;
-              this.bufferMask = this.bufferSize - 1;
-              this.buffer = new Float32Array(this.bufferSize);
-              this.writeIndex = 0;
-              this.readIndex = 0;
+    // AudioWorklet code for mono PCM playback
+    const workletCode = `
+      class PCMPlayerProcessor extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          // Ring buffer: ~1.3 seconds at 48kHz (power of 2 for fast modulo)
+          this.bufferSize = 65536;
+          this.bufferMask = this.bufferSize - 1;
+          this.buffer = new Float32Array(this.bufferSize);
+          this.writeIndex = 0;
+          this.readIndex = 0;
 
-              this.port.onmessage = (e) => {
-                const samples = e.data;
-                const len = samples.length;
-                for (let i = 0; i < len; i++) {
-                  this.buffer[(this.writeIndex + i) & this.bufferMask] = samples[i];
-                }
-                this.writeIndex = (this.writeIndex + len) & this.bufferMask;
-              };
+          this.port.onmessage = (e) => {
+            const samples = e.data;
+            const len = samples.length;
+            for (let i = 0; i < len; i++) {
+              this.buffer[(this.writeIndex + i) & this.bufferMask] = samples[i];
             }
+            this.writeIndex = (this.writeIndex + len) & this.bufferMask;
+          };
+        }
 
-            process(inputs, outputs, parameters) {
-              const output = outputs[0];
-              const frameSize = output[0].length;
-              const available = (this.writeIndex - this.readIndex) & this.bufferMask;
+        process(inputs, outputs, parameters) {
+          const output = outputs[0];
+          const frameSize = output[0].length;
+          const available = (this.writeIndex - this.readIndex) & this.bufferMask;
 
-              if (available >= frameSize) {
-                // Output mono to all channels (typically L and R)
-                for (let i = 0; i < frameSize; i++) {
-                  const sample = this.buffer[(this.readIndex + i) & this.bufferMask];
-                  for (let ch = 0; ch < output.length; ch++) {
-                    output[ch][i] = sample;
-                  }
-                }
-                this.readIndex = (this.readIndex + frameSize) & this.bufferMask;
-              } else {
-                // Underrun: silence
-                for (let ch = 0; ch < output.length; ch++) {
-                  output[ch].fill(0);
-                }
+          if (available >= frameSize) {
+            // Output mono to all channels (typically L and R)
+            for (let i = 0; i < frameSize; i++) {
+              const sample = this.buffer[(this.readIndex + i) & this.bufferMask];
+              for (let ch = 0; ch < output.length; ch++) {
+                output[ch][i] = sample;
               }
-              return true;
+            }
+            this.readIndex = (this.readIndex + frameSize) & this.bufferMask;
+          } else {
+            // Underrun: silence
+            for (let ch = 0; ch < output.length; ch++) {
+              output[ch].fill(0);
             }
           }
-          registerProcessor('pcm-player-processor', PCMPlayerProcessor);
-        `;
+          return true;
+        }
+      }
+      registerProcessor('pcm-player-processor', PCMPlayerProcessor);
+    `;
 
+    // Initialize AudioContext with 48000Hz (Rust resamples iOS 44100Hz to match desktop)
+    const initializeAudio = async () => {
+      try {
+        const defaultSampleRate = 48000;
         const blob = new Blob([workletCode], { type: 'application/javascript' });
         const workletUrl = URL.createObjectURL(blob);
 
-        // Use 48kHz mono
-        audioContext = new AudioContext({ sampleRate: 48000 });
+        audioContext = new AudioContext({ sampleRate: defaultSampleRate });
         await audioContext.audioWorklet.addModule(workletUrl);
         URL.revokeObjectURL(workletUrl);
 
         workletNode = new AudioWorkletNode(audioContext, 'pcm-player-processor', {
-          outputChannelCount: [2], // Stereo
+          outputChannelCount: [2],
         });
 
         audioDestination = audioContext.createMediaStreamDestination();
@@ -740,15 +747,15 @@ class TauriStreamCapture {
         screenAudioStream = audioDestination.stream;
 
         audioInitialized = true;
-        Logger.info("TAURI_STREAM", `Audio MediaStream initialized (48000Hz, mono)`);
+        configuredSampleRate = defaultSampleRate;
+        Logger.info("TAURI_STREAM", `Audio MediaStream initialized (${defaultSampleRate}Hz, mono)`);
       } catch (error) {
         Logger.error("TAURI_STREAM", `Failed to initialize audio stream: ${error}`);
       }
     };
 
-    // Initialize audio stream immediately (don't wait for first chunk)
-    // Works on both desktop and iOS
-    await initializeAudioStreamUpfront();
+    // Initialize audio upfront
+    await initializeAudio();
 
     frameChannel.onmessage = (frameData: FrameData) => {
       if (!isActive) return;
@@ -800,6 +807,9 @@ class TauriStreamCapture {
 
       if (audioChunkCount === 1) {
         Logger.info("TAURI_STREAM", `First audio chunk received via channel (${audioData.sampleRate}Hz, mono)`);
+        if (audioData.sampleRate !== configuredSampleRate) {
+          Logger.warn("TAURI_STREAM", `Sample rate mismatch: source=${audioData.sampleRate}Hz, context=${configuredSampleRate}Hz`);
+        }
       }
       if (audioChunkCount % 500 === 0) {
         Logger.debug("TAURI_STREAM", `Received ${audioChunkCount} audio chunks via channel`);

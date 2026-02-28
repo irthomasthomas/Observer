@@ -3,11 +3,13 @@
 // Memory layout (must match Swift AudioRingBuffer):
 // - Header (64 bytes):
 //   - write_pos: u64      (current write offset in ring buffer)
-//   - sample_rate: u32    (e.g., 48000)
+//   - sample_rate: u32    (e.g., 44100 on iOS)
 //   - timestamp: f64      (last write time)
 //   - sequence: u64       (chunk counter for detecting new data)
 //   - reserved: 36 bytes
-// - Ring buffer: 256KB of f32 samples (~65536 samples = ~1.3s at 48kHz)
+// - Ring buffer: 256KB of f32 samples (~65536 samples = ~1.5s at 44.1kHz)
+//
+// Audio is passed through at native sample rate - frontend handles resampling via AudioContext.
 
 use base64::Engine;
 use memmap2::MmapMut;
@@ -33,7 +35,7 @@ static READER_STATE: Lazy<Mutex<Option<Arc<AudioRingReaderState>>>> = Lazy::new(
 
 /// Set the App Group container path (called from Swift/iOS side)
 pub fn set_app_group_path(path: PathBuf) {
-    eprintln!("AudioRingReader: App Group path set to {:?}", path);
+    log::info!("[AudioRingReader] App Group path set to {:?}", path);
     if let Ok(mut guard) = APP_GROUP_PATH.lock() {
         *guard = Some(path);
     }
@@ -89,8 +91,8 @@ impl AudioRingReader {
                     for entry in entries.flatten() {
                         let candidate = entry.path().join("audio_ring.bin");
                         if candidate.exists() {
-                            eprintln!(
-                                "AudioRingReader: Found ring buffer at {:?}",
+                            log::info!(
+                                "[AudioRingReader] Found ring buffer at {:?}",
                                 entry.path()
                             );
                             return Some(entry.path());
@@ -98,7 +100,7 @@ impl AudioRingReader {
                     }
                 }
             }
-            eprintln!("AudioRingReader: App Group container not found");
+            log::info!("[AudioRingReader] App Group container not found");
             None
         }
 
@@ -122,7 +124,7 @@ impl AudioRingReader {
         })?;
 
         let file_path = container_path.join("audio_ring.bin");
-        eprintln!("AudioRingReader: Opening ring buffer at {:?}", file_path);
+        log::info!("[AudioRingReader] Opening ring buffer at {:?}", file_path);
 
         // Open the file (it should already exist, created by Swift)
         let file = OpenOptions::new()
@@ -161,8 +163,8 @@ impl AudioRingReader {
             );
             self.read_pos = write_pos;
             self.last_sequence = sequence;
-            eprintln!(
-                "AudioRingReader: Initialized at write_pos={}, sequence={}",
+            log::info!(
+                "[AudioRingReader] Initialized at write_pos={}, sequence={}",
                 write_pos, sequence
             );
         }
@@ -226,17 +228,21 @@ impl AudioRingReader {
         }
 
         // Read samples from ring buffer
+        // IMPORTANT: Handle wrap-around correctly - a sample's 4 bytes might straddle the boundary
         let ring_start = HEADER_SIZE;
-        let ring_mask = (RING_BUFFER_SIZE - 1) as u64;
 
         let mut samples = Vec::with_capacity(samples_to_read);
-        let sample_size = std::mem::size_of::<f32>();
 
         for i in 0..samples_to_read {
-            let byte_offset = ((self.read_pos + (i * sample_size) as u64) & ring_mask) as usize;
-            let sample_bytes: [u8; 4] = mmap[ring_start + byte_offset..ring_start + byte_offset + 4]
-                .try_into()
-                .unwrap();
+            let byte_pos = self.read_pos + (i * 4) as u64;
+            let mut sample_bytes = [0u8; 4];
+
+            // Read each byte individually with wrap-around
+            for j in 0..4 {
+                let ring_offset = ((byte_pos + j as u64) % RING_BUFFER_SIZE as u64) as usize;
+                sample_bytes[j] = mmap[ring_start + ring_offset];
+            }
+
             let sample = f32::from_le_bytes(sample_bytes);
             samples.push(sample);
         }
@@ -247,15 +253,21 @@ impl AudioRingReader {
         self.chunk_count += 1;
 
         if self.chunk_count == 1 {
-            eprintln!(
-                "AudioRingReader: First audio chunk read ({} samples, {}Hz)",
-                samples.len(),
-                sample_rate
+            // Validate samples look like audio (should be in -1.0 to 1.0 range)
+            let min = samples.iter().cloned().fold(f32::INFINITY, f32::min);
+            let max = samples.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+            let has_signal = samples.iter().any(|&s| s.abs() > 0.001);
+            log::info!(
+                "[AudioRingReader] First chunk: {} samples, {}Hz, range=[{:.4}, {:.4}], has_signal={}",
+                samples.len(), sample_rate, min, max, has_signal
             );
+            if min < -1.5 || max > 1.5 {
+                log::warn!("[AudioRingReader] WARNING: Sample values outside normal range! Data may be corrupted.");
+            }
         }
         if self.chunk_count % 500 == 0 {
-            eprintln!(
-                "AudioRingReader: Read {} audio chunks so far",
+            log::info!(
+                "[AudioRingReader] Read {} audio chunks so far",
                 self.chunk_count
             );
         }
@@ -289,7 +301,7 @@ pub fn start_audio_ring_reader(state: Arc<AudioRingReaderState>) {
     if let Ok(mut guard) = READER_STATE.lock() {
         if let Some(existing) = guard.as_ref() {
             if existing.running.load(Ordering::SeqCst) {
-                eprintln!("AudioRingReader: Already running");
+                log::info!("[AudioRingReader] Already running");
                 return;
             }
         }
@@ -297,12 +309,12 @@ pub fn start_audio_ring_reader(state: Arc<AudioRingReaderState>) {
     }
 
     if state.running.swap(true, Ordering::SeqCst) {
-        eprintln!("AudioRingReader: Already running");
+        log::info!("[AudioRingReader] Already running");
         return;
     }
 
     tokio::spawn(async move {
-        eprintln!("AudioRingReader: Starting background task");
+        log::info!("[AudioRingReader] Starting background task");
 
         let mut reader = AudioRingReader::new();
 
@@ -311,7 +323,7 @@ pub fn start_audio_ring_reader(state: Arc<AudioRingReaderState>) {
         loop {
             match reader.initialize() {
                 Ok(()) => {
-                    eprintln!("AudioRingReader: Successfully initialized");
+                    log::info!("[AudioRingReader] Successfully initialized");
                     break;
                 }
                 Err(e) => {
@@ -319,14 +331,14 @@ pub fn start_audio_ring_reader(state: Arc<AudioRingReaderState>) {
                         // Retry for up to 30 seconds
                         retry_count += 1;
                         if retry_count == 1 {
-                            eprintln!(
-                                "AudioRingReader: Waiting for ring buffer file to be created..."
+                            log::info!(
+                                "[AudioRingReader] Waiting for ring buffer file to be created..."
                             );
                         }
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         continue;
                     }
-                    eprintln!("AudioRingReader: Failed to initialize after 30s: {}", e);
+                    log::info!("[AudioRingReader] Failed to initialize after 30s: {}", e);
                     state.running.store(false, Ordering::SeqCst);
                     return;
                 }
@@ -344,24 +356,30 @@ pub fn start_audio_ring_reader(state: Arc<AudioRingReaderState>) {
                 // Check if there's a channel to send to
                 let channel_guard = state.audio_channel.read().await;
                 if let Some(channel) = channel_guard.as_ref() {
+                    // Convert f32 samples to bytes (little-endian)
+                    // Frontend handles resampling via AudioContext
+                    let bytes: Vec<u8> = samples
+                        .iter()
+                        .flat_map(|&sample| sample.to_le_bytes())
+                        .collect();
+
                     let audio_data = AudioData {
-                        samples: base64::prelude::BASE64_STANDARD
-                            .encode(bytemuck::cast_slice(&samples)),
+                        samples: base64::prelude::BASE64_STANDARD.encode(&bytes),
                         timestamp,
                         sample_rate,
-                        channels: 1, // Ring buffer stores mono audio
+                        channels: 1,
                         chunk_count: reader.chunk_count(),
                     };
 
                     if let Err(e) = channel.send(audio_data) {
-                        eprintln!("AudioRingReader: Failed to send audio: {:?}", e);
+                        log::info!("[AudioRingReader] Failed to send audio: {:?}", e);
                     }
                 }
             }
         }
 
-        eprintln!(
-            "AudioRingReader: Stopped after {} chunks",
+        log::info!(
+            "[AudioRingReader] Stopped after {} chunks",
             reader.chunk_count()
         );
     });
@@ -372,7 +390,7 @@ pub fn stop_audio_ring_reader() {
     if let Ok(guard) = READER_STATE.lock() {
         if let Some(state) = guard.as_ref() {
             state.running.store(false, Ordering::SeqCst);
-            eprintln!("AudioRingReader: Stop requested");
+            log::info!("[AudioRingReader] Stop requested");
         }
     }
 }

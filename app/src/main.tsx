@@ -11,7 +11,10 @@ import OverlayWindow from './desktop/OverlayWindow'; // The overlay window
 import ScreenSelectorWindow from './desktop/ScreenSelectorWindow'; // Screen/window selector
 
 // Import platform detection utilities
-import { isDesktop } from './utils/platform';
+import { isDesktop, initTauriLogForwarding } from './utils/platform';
+
+// Initialize Tauri log forwarding (fire and forget)
+initTauriLogForwarding();
 
 // Decide which component to render at the root level
 function getRootComponent() {

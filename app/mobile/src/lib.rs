@@ -274,7 +274,10 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_web_auth::init())
         .plugin(tauri_plugin_iap::init())
-        .plugin(tauri_plugin_opener::init());
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_log::Builder::default()
+            .level(log::LevelFilter::Debug)
+            .build());
 
     #[cfg(target_os = "ios")]
     {

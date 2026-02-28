@@ -1,5 +1,6 @@
 // Platform detection utilities for Observer
 import { platform as getPlatform } from '@tauri-apps/plugin-os';
+import { Logger, LogLevel } from './logging';
 
 /**
  * Check if the app is running in Tauri
@@ -159,4 +160,37 @@ export const logPlatformInfo = (): void => {
     hasNativeScreenCapture: hasNativeScreenCapture(),
     hasWebScreenCapture: hasWebScreenCapture(),
   });
+};
+
+/**
+ * Initialize Tauri log forwarding to the frontend Logger.
+ * This captures Rust logs (log::info!, log::debug!, etc.) and forwards them
+ * to the TypeScript Logger service.
+ *
+ * Call this once at app startup.
+ */
+export const initTauriLogForwarding = async (): Promise<(() => void) | null> => {
+  if (!isTauri()) {
+    return null;
+  }
+
+  try {
+    const { attachLogger } = await import('@tauri-apps/plugin-log');
+
+    const detach = await attachLogger(({ level, message }) => {
+      // Map Tauri log levels to our LogLevel enum
+      const logLevel = level <= 1 ? LogLevel.ERROR
+        : level === 2 ? LogLevel.WARNING
+        : level === 3 ? LogLevel.INFO
+        : LogLevel.DEBUG;
+
+      Logger.log(logLevel, 'rust', message);
+    });
+
+    Logger.info('platform', 'Tauri log forwarding initialized');
+    return detach;
+  } catch (err) {
+    console.warn('[Platform] Failed to initialize Tauri log forwarding:', err);
+    return null;
+  }
 };

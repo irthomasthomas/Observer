@@ -162,6 +162,8 @@ class SampleHandler: RPBroadcastSampleHandler {
         AudioRingBuffer.shared.write(samples: samples, sampleRate: sampleRate, timestamp: timestamp)
     }
 
+    private var audioFormatLogged = false
+
     private func audioBufferToFloats(_ sampleBuffer: CMSampleBuffer) -> [Float]? {
         var audioBufferList = AudioBufferList()
         var blockBuffer: CMBlockBuffer?
@@ -190,33 +192,121 @@ class SampleHandler: RPBroadcastSampleHandler {
 
         let sourceFormat = streamDescription.pointee.mFormatFlags
         let bytesPerSample = Int(streamDescription.pointee.mBitsPerChannel / 8)
-        let numSamples = dataSize / bytesPerSample
+        let channelCount = Int(streamDescription.pointee.mChannelsPerFrame)
+        let sampleRate = streamDescription.pointee.mSampleRate
+        let bytesPerFrame = Int(streamDescription.pointee.mBytesPerFrame)
+        let framesPerPacket = streamDescription.pointee.mFramesPerPacket
+        let isFloat = (sourceFormat & kAudioFormatFlagIsFloat) != 0
+        let isInterleaved = (sourceFormat & kAudioFormatFlagIsNonInterleaved) == 0
 
-        // Convert to f32 PCM
-        var floatData = [Float](repeating: 0, count: numSamples)
+        // Log format once for debugging
+        if !audioFormatLogged {
+            audioFormatLogged = true
+            DebugLog.shared.log("🎵 Audio Format Debug:")
+            DebugLog.shared.log("   - Sample Rate: \(sampleRate) Hz")
+            DebugLog.shared.log("   - Channels: \(channelCount)")
+            DebugLog.shared.log("   - Bits/Channel: \(streamDescription.pointee.mBitsPerChannel)")
+            DebugLog.shared.log("   - Bytes/Sample: \(bytesPerSample)")
+            DebugLog.shared.log("   - Bytes/Frame: \(bytesPerFrame)")
+            DebugLog.shared.log("   - Frames/Packet: \(framesPerPacket)")
+            DebugLog.shared.log("   - Is Float: \(isFloat)")
+            DebugLog.shared.log("   - Is Interleaved: \(isInterleaved)")
+            DebugLog.shared.log("   - Data size: \(dataSize) bytes")
+            DebugLog.shared.log("   - Format flags: 0x\(String(sourceFormat, radix: 16))")
+
+            // Calculate frames for this first chunk
+            let firstNumFrames = dataSize / bytesPerFrame
+            DebugLog.shared.log("   - Frames per chunk: \(firstNumFrames)")
+            DebugLog.shared.log("   - Output: \(firstNumFrames) mono f32 samples (\(firstNumFrames * 4) bytes)")
+            if channelCount == 2 {
+                DebugLog.shared.log("   ✅ Stereo-to-mono downmix enabled")
+            }
+        }
+
+        // Calculate number of FRAMES (a frame contains samples for all channels)
+        let numFrames = dataSize / bytesPerFrame
+
+        // Output is MONO - one float per frame (downmix stereo if needed)
+        var floatData = [Float](repeating: 0, count: numFrames)
 
         // Check if source is already float
-        if (sourceFormat & kAudioFormatFlagIsFloat) != 0 {
-            // Already float, just copy
-            if bytesPerSample == 4 {
-                mData.withMemoryRebound(to: Float.self, capacity: numSamples) { ptr in
-                    floatData = Array(UnsafeBufferPointer(start: ptr, count: numSamples))
+        if isFloat {
+            if channelCount == 1 {
+                // Mono float - direct copy
+                mData.withMemoryRebound(to: Float.self, capacity: numFrames) { ptr in
+                    floatData = Array(UnsafeBufferPointer(start: ptr, count: numFrames))
+                }
+            } else if channelCount == 2 && isInterleaved {
+                // Stereo float interleaved - downmix to mono
+                mData.withMemoryRebound(to: Float.self, capacity: numFrames * 2) { ptr in
+                    for i in 0..<numFrames {
+                        let left = ptr[i * 2]
+                        let right = ptr[i * 2 + 1]
+                        floatData[i] = (left + right) * 0.5
+                    }
                 }
             }
         } else {
-            // Convert from integer to float
+            // Integer format - convert to float
+            // Check endianness from format flags
+            let isBigEndian = (sourceFormat & kAudioFormatFlagIsBigEndian) != 0
+
             if bytesPerSample == 2 {
-                // Int16 to Float
-                mData.withMemoryRebound(to: Int16.self, capacity: numSamples) { ptr in
-                    for i in 0..<numSamples {
-                        floatData[i] = Float(ptr[i]) / Float(Int16.max)
+                // Int16 format
+                if channelCount == 1 {
+                    // Mono Int16
+                    mData.withMemoryRebound(to: Int16.self, capacity: numFrames) { ptr in
+                        for i in 0..<numFrames {
+                            var sample = ptr[i]
+                            if isBigEndian {
+                                sample = Int16(bigEndian: sample)
+                            }
+                            floatData[i] = Float(sample) / Float(Int16.max)
+                        }
+                    }
+                } else if channelCount == 2 && isInterleaved {
+                    // Stereo Int16 interleaved - downmix to mono
+                    mData.withMemoryRebound(to: Int16.self, capacity: numFrames * 2) { ptr in
+                        for i in 0..<numFrames {
+                            var leftRaw = ptr[i * 2]
+                            var rightRaw = ptr[i * 2 + 1]
+                            if isBigEndian {
+                                leftRaw = Int16(bigEndian: leftRaw)
+                                rightRaw = Int16(bigEndian: rightRaw)
+                            }
+                            let left = Float(leftRaw) / Float(Int16.max)
+                            let right = Float(rightRaw) / Float(Int16.max)
+                            floatData[i] = (left + right) * 0.5
+                        }
                     }
                 }
             } else if bytesPerSample == 4 {
-                // Int32 to Float
-                mData.withMemoryRebound(to: Int32.self, capacity: numSamples) { ptr in
-                    for i in 0..<numSamples {
-                        floatData[i] = Float(ptr[i]) / Float(Int32.max)
+                // Int32 format
+                if channelCount == 1 {
+                    // Mono Int32
+                    mData.withMemoryRebound(to: Int32.self, capacity: numFrames) { ptr in
+                        for i in 0..<numFrames {
+                            var sample = ptr[i]
+                            if isBigEndian {
+                                sample = Int32(bigEndian: sample)
+                            }
+                            floatData[i] = Float(sample) / Float(Int32.max)
+                        }
+                    }
+                } else if channelCount == 2 && isInterleaved {
+                    // Stereo Int32 interleaved - downmix to mono
+                    mData.withMemoryRebound(to: Int32.self, capacity: numFrames * 2) { ptr in
+                        for i in 0..<numFrames {
+                            var leftRaw = ptr[i * 2]
+                            var rightRaw = ptr[i * 2 + 1]
+                            if isBigEndian {
+                                leftRaw = Int32(bigEndian: leftRaw)
+                                rightRaw = Int32(bigEndian: rightRaw)
+                            }
+                            let left = Float(leftRaw) / Float(Int32.max)
+                            let right = Float(rightRaw) / Float(Int32.max)
+                            floatData[i] = (left + right) * 0.5
+                        }
                     }
                 }
             }
