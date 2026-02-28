@@ -1,6 +1,6 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
-    Runtime,
+    Manager, Runtime,
 };
 
 mod error;
