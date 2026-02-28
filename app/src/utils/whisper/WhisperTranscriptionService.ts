@@ -19,6 +19,9 @@ export class WhisperTranscriptionService {
   // Subscriber management - services push to all subscribers
   private subscribers = new Set<TranscriptionSubscriber>();
 
+  // Cleanup function for interim result listener
+  private unsubscribeInterimResults: (() => void) | null = null;
+
   public async start(stream: MediaStream, streamType?: AudioStreamType): Promise<void> {
     if (this.isRunning) {
       Logger.warn('WhisperTranscriptionService', 'Service already running');
@@ -39,6 +42,14 @@ export class WhisperTranscriptionService {
     const settings = SensorSettings.getWhisperSettings();
     this.chunkDurationMs = settings.chunkDurationMs;
 
+    // Subscribe to interim results from the model manager
+    this.unsubscribeInterimResults = modelManager.onInterimResult((text, _chunkId) => {
+      if (this.isRunning) {
+        this.setInterimToSubscribers(text);
+        TranscriptionStateManager.setInterimText(this.streamType, text);
+      }
+    });
+
     Logger.info('WhisperTranscriptionService', `Starting transcription for ${this.streamType} with ${this.chunkDurationMs}ms chunks`);
 
     this.transcribeLoop();
@@ -50,6 +61,12 @@ export class WhisperTranscriptionService {
     Logger.info('WhisperTranscriptionService', 'Stopping transcription service');
     this.isRunning = false;
     this.currentStream = null;
+
+    // Unsubscribe from interim results
+    if (this.unsubscribeInterimResults) {
+      this.unsubscribeInterimResults();
+      this.unsubscribeInterimResults = null;
+    }
 
     // Note: We don't clear subscribers here - they are managed by StreamManager
     // and may persist across service restarts
@@ -71,11 +88,20 @@ export class WhisperTranscriptionService {
   }
 
   /**
-   * Push transcribed text to all registered subscribers
+   * Set interim text on all registered subscribers (replaces previous interim)
    */
-  private pushToSubscribers(text: string): void {
+  private setInterimToSubscribers(text: string): void {
     for (const subscriber of this.subscribers) {
-      subscriber.appendText(text);
+      subscriber.setInterimText(text);
+    }
+  }
+
+  /**
+   * Commit final text to all registered subscribers (clears interim, adds to committed)
+   */
+  private commitToSubscribers(text: string): void {
+    for (const subscriber of this.subscribers) {
+      subscriber.commitText(text);
     }
   }
 
@@ -121,8 +147,8 @@ export class WhisperTranscriptionService {
         .transcribe(await audioBlob.arrayBuffer(), chunkId);
 
       if (result?.text && this.isRunning) {
-        // Push to all registered subscribers (agent-specific accumulators)
-        this.pushToSubscribers(result.text);
+        // Commit final text to all registered subscribers (clears interim, adds to committed)
+        this.commitToSubscribers(result.text);
 
         // Notify state manager for UI updates (maintains its own rolling window)
         TranscriptionStateManager.chunkTranscriptionEnded(

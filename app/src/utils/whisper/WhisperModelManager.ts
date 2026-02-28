@@ -19,6 +19,7 @@ export class WhisperModelManager {
   private currentConfig: WhisperModelConfig | null = null;
   private stateChangeListeners: Array<(state: WhisperModelState) => void> = [];
   private pendingTranscriptions = new Map<number, PendingTranscription>();
+  private interimResultListeners: Array<(text: string, chunkId: number) => void> = [];
 
   private constructor() {}
 
@@ -38,6 +39,17 @@ export class WhisperModelManager {
     return () => {
       this.stateChangeListeners = this.stateChangeListeners.filter(l => l !== listener);
     };
+  }
+
+  public onInterimResult(listener: (text: string, chunkId: number) => void): () => void {
+    this.interimResultListeners.push(listener);
+    return () => {
+      this.interimResultListeners = this.interimResultListeners.filter(l => l !== listener);
+    };
+  }
+
+  private notifyInterimResult(text: string, chunkId: number): void {
+    this.interimResultListeners.forEach(listener => listener(text, chunkId));
   }
 
   private setState(updates: Partial<WhisperModelState>): void {
@@ -189,6 +201,10 @@ export class WhisperModelManager {
         });
         break;
 
+      case 'transcription-interim':
+        this.handleInterimResult(data);
+        break;
+
       case 'transcription-complete':
         this.handleTranscriptionComplete(data);
         break;
@@ -200,6 +216,12 @@ export class WhisperModelManager {
       default:
         Logger.warn('WhisperModelManager', `Unknown worker message type: ${type}`);
     }
+  }
+
+  private handleInterimResult(data: { text: string; chunkId: number }): void {
+    const { text, chunkId } = data;
+    Logger.debug('WhisperModelManager', `Interim result for chunk ${chunkId}: "${text.slice(0, 50)}..."`);
+    this.notifyInterimResult(text, chunkId);
   }
 
   private handleProgressMessage(progress: ProgressItem): void {

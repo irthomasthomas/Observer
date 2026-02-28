@@ -2,6 +2,9 @@ import { WhisperModelConfig } from './types';
 
 const TASK = 'automatic-speech-recognition';
 
+// WhisperTextStreamer will be loaded dynamically with transformers module
+let WhisperTextStreamer: any = null;
+
 class WhisperPipelineFactory {
   static task = TASK;
   static model: string | null = null;
@@ -20,6 +23,8 @@ class WhisperPipelineFactory {
       // Dynamic import - only loads when actually needed!
       this.transformersModule = await import('@huggingface/transformers');
       this.transformersModule.env.allowLocalModels = false;
+      // Load WhisperTextStreamer for streaming interim results
+      WhisperTextStreamer = this.transformersModule.WhisperTextStreamer;
     }
     return this.transformersModule;
   }
@@ -79,10 +84,10 @@ self.onmessage = async (event) => {
 
       case 'transcribe':
         const { audio, chunkId } = data;
-        
+
         const instance = await WhisperPipelineFactory.getInstance();
         const currentConfig = WhisperPipelineFactory.config;
-        
+
         if (!instance || !currentConfig) {
           throw new Error('Pipeline not initialized');
         }
@@ -90,24 +95,45 @@ self.onmessage = async (event) => {
         // Build transcription options - only for multilingual models
         const isEnglishOnlyModel = currentConfig.modelId.endsWith('.en');
         const transcribeOptions: any = {};
-        
+
         if (!isEnglishOnlyModel) {
           // Only add parameters for multilingual models
           if (currentConfig.task) {
             transcribeOptions.task = currentConfig.task;
           }
-          
+
           if (currentConfig.language && currentConfig.language !== 'auto') {
             transcribeOptions.language = currentConfig.language;
           }
-          
+
           // Set default chunking for different model types
           const isDistilWhisper = currentConfig.modelId.startsWith('distil-whisper/');
           transcribeOptions.chunk_length_s = isDistilWhisper ? 20 : 30;
           transcribeOptions.stride_length_s = isDistilWhisper ? 3 : 5;
         }
 
-        const output = Object.keys(transcribeOptions).length > 0 
+        // Create streamer for interim results if WhisperTextStreamer is available
+        if (WhisperTextStreamer && instance.tokenizer) {
+          let lastInterimText = '';
+          const streamer = new WhisperTextStreamer(instance.tokenizer, {
+            skip_prompt: true,
+            skip_special_tokens: true,
+            callback_function: (text: string) => {
+              // Only send if text has changed to reduce message spam
+              const trimmedText = text.trim();
+              if (trimmedText && trimmedText !== lastInterimText) {
+                lastInterimText = trimmedText;
+                self.postMessage({
+                  type: 'transcription-interim',
+                  data: { text: trimmedText, chunkId }
+                });
+              }
+            }
+          });
+          transcribeOptions.streamer = streamer;
+        }
+
+        const output = Object.keys(transcribeOptions).length > 0
           ? await instance(audio, transcribeOptions)
           : await instance(audio);
         const newText = (output.text as string).trim();
