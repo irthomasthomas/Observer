@@ -255,8 +255,10 @@ const SettingsTab = () => {
   };
 
   const handleStopTest = () => {
-    // Capture current transcript before stopping
-    const currentTranscript = transcriptionState.fullTranscript || '';
+    // Capture current transcript before stopping (committed + interim)
+    const committed = transcriptionState.fullTranscript || '';
+    const interim = transcriptionState.interimText || '';
+    const currentTranscript = committed + (committed && interim ? ' ' : '') + interim;
     const testId = currentTestIdRef.current;
     const testSource = audioTestSource;
 
@@ -719,7 +721,13 @@ const SettingsTab = () => {
                         </span>
                       </div>
                       <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-                        {transcriptionState.fullTranscript || (
+                        {(transcriptionState.fullTranscript || transcriptionState.interimText) ? (
+                          <>
+                            <span>{transcriptionState.fullTranscript}</span>
+                            {transcriptionState.fullTranscript && transcriptionState.interimText && ' '}
+                            <span className="text-gray-500 italic">{transcriptionState.interimText}</span>
+                          </>
+                        ) : (
                           <span className="text-gray-400 italic">
                             {audioTestSource === 'microphone' ? 'Speak into your microphone...' : 'Play some audio on your device...'}
                           </span>
