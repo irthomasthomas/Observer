@@ -11,6 +11,8 @@ website/src-tauri/Cargo.lock
 website/node_modules
 website/.pnp
 
+api/
+
 app/mobile/public
 app/mobile/AppStore.md
 
