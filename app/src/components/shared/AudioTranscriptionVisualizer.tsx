@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AudioStreamType } from '@utils/streamManager';
 import { useTranscriptionState } from '@hooks/useTranscriptionState';
@@ -25,33 +25,6 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameId = useRef<number>();
   const state = useTranscriptionState(streamType);
-
-  // Progress bar animation for chunk-based transcription (local/self-hosted)
-  const [progressWidth, setProgressWidth] = useState<string>('0%');
-  const [isResetting, setIsResetting] = useState(false);
-
-  // Only animate progress bar when chunking (recordingStartedAt is set)
-  useEffect(() => {
-    if (!state.recordingStartedAt) {
-      setProgressWidth('0%');
-      setIsResetting(false);
-      return;
-    }
-
-    // Disable transition and snap to 0%
-    setIsResetting(true);
-    setProgressWidth('0%');
-
-    // Double RAF ensures browser has painted 0% before we re-enable transition and animate to 100%
-    const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setIsResetting(false);
-        setProgressWidth('100%');
-      });
-    });
-
-    return () => cancelAnimationFrame(raf);
-  }, [state.recordingStartedAt]);
 
   // Audio visualization
   useEffect(() => {
@@ -154,21 +127,6 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
 
       {/* Waveform */}
       <canvas ref={canvasRef} className="w-full h-10 rounded" />
-
-      {/* Progress bar - only for chunk-based transcription (local/self-hosted) */}
-      {state.recordingStartedAt && (
-        <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-green-500"
-            style={{
-              width: progressWidth,
-              transition: !isResetting
-                ? `width ${state.chunkDurationMs}ms linear`
-                : 'none',
-            }}
-          />
-        </div>
-      )}
 
       {/* Transcription text with loading indicator */}
       {(committedWords || interimWords || state.isTranscribing) && (
