@@ -144,8 +144,9 @@ class VideoFrameBuffer {
         sequence += 1
         data.storeBytes(of: sequence, toByteOffset: sequenceOffset, as: UInt64.self)
 
-        // Flush to disk so reader can see it
-        msync(data, totalSize, MS_SYNC)
+        // Flush to disk so reader can see it (non-blocking)
+        // MS_ASYNC schedules flush but returns immediately - much lower latency
+        msync(data, totalSize, MS_ASYNC)
     }
 
     /// Clean up resources

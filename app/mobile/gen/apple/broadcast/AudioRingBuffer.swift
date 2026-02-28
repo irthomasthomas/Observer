@@ -5,11 +5,11 @@ import Foundation
 /// Memory layout:
 /// - Header (64 bytes):
 ///   - write_pos: UInt64 (current write offset in ring buffer)
-///   - sample_rate: UInt32 (e.g., 48000)
+///   - sample_rate: UInt32 (e.g., 44100 on iOS)
 ///   - timestamp: Float64 (last write time)
 ///   - sequence: UInt64 (chunk counter for detecting new data)
 ///   - reserved: 36 bytes
-/// - Ring buffer: 256KB of f32 samples (~65536 samples = ~1.3s at 48kHz)
+/// - Ring buffer: 256KB of f32 samples (~65536 samples = ~1.5s at 44.1kHz)
 class AudioRingBuffer {
     static let shared = AudioRingBuffer()
 
@@ -161,8 +161,9 @@ class AudioRingBuffer {
         sequence += 1
         data.storeBytes(of: sequence, toByteOffset: sequenceOffset, as: UInt64.self)
 
-        // Flush to disk so reader can see it
-        msync(data, totalSize, MS_SYNC)
+        // Flush to disk so reader can see it (non-blocking)
+        // MS_ASYNC schedules flush but returns immediately - much lower latency
+        msync(data, totalSize, MS_ASYNC)
     }
 
     /// Clean up resources

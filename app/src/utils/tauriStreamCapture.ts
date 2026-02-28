@@ -1,6 +1,6 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { isTauri, isDesktop } from './platform';
+import { isTauri, isDesktop, isIOS } from './platform';
 import { Logger } from '@utils/logging';
 
 export interface BroadcastStatus {
@@ -450,7 +450,7 @@ class TauriStreamCapture {
     let isActive = true;
     let configuredSampleRate = 0;
 
-    // AudioWorklet code for mono PCM playback using efficient ring buffer
+    // AudioWorklet code for mono PCM playback using efficient ring buffer with prebuffering
     const workletCode = `
       class PCMPlayerProcessor extends AudioWorkletProcessor {
         constructor() {
@@ -461,6 +461,12 @@ class TauriStreamCapture {
           this.buffer = new Float32Array(this.bufferSize);
           this.writeIndex = 0;
           this.readIndex = 0;
+
+          // Prebuffer: wait for ~100ms of audio before starting playback
+          // This absorbs jitter from network/IPC delays
+          this.prebufferSamples = 4800; // ~100ms at 48kHz, ~109ms at 44.1kHz
+          this.prebuffering = true;
+          this.underrunCount = 0;
 
           this.port.onmessage = (e) => {
             const samples = e.data;
@@ -477,6 +483,19 @@ class TauriStreamCapture {
           const frameSize = output[0].length;
           const available = (this.writeIndex - this.readIndex) & this.bufferMask;
 
+          // Prebuffering phase: wait until we have enough audio buffered
+          if (this.prebuffering) {
+            if (available >= this.prebufferSamples) {
+              this.prebuffering = false;
+            } else {
+              // Output silence while prebuffering
+              for (let ch = 0; ch < output.length; ch++) {
+                output[ch].fill(0);
+              }
+              return true;
+            }
+          }
+
           if (available >= frameSize) {
             // Output mono to all channels (typically L and R)
             for (let i = 0; i < frameSize; i++) {
@@ -487,7 +506,9 @@ class TauriStreamCapture {
             }
             this.readIndex = (this.readIndex + frameSize) & this.bufferMask;
           } else {
-            // Underrun: silence
+            // Underrun: output silence and re-enter prebuffering mode
+            this.underrunCount++;
+            this.prebuffering = true;
             for (let ch = 0; ch < output.length; ch++) {
               output[ch].fill(0);
             }
@@ -498,8 +519,8 @@ class TauriStreamCapture {
       registerProcessor('pcm-player-processor', PCMPlayerProcessor);
     `;
 
-    // Initialize AudioContext with 48000Hz (Rust resamples iOS 44100Hz to match desktop)
-    const defaultSampleRate = 48000;
+    // Use platform-native sample rate: iOS=44100Hz, desktop=48000Hz
+    const defaultSampleRate = isIOS() ? 44100 : 48000;
     const blob = new Blob([workletCode], { type: 'application/javascript' });
     const workletUrl = URL.createObjectURL(blob);
 
@@ -679,7 +700,7 @@ class TauriStreamCapture {
     let audioDestination: MediaStreamAudioDestinationNode | null = null;
     let configuredSampleRate = 0;
 
-    // AudioWorklet code for mono PCM playback
+    // AudioWorklet code for mono PCM playback with prebuffering
     const workletCode = `
       class PCMPlayerProcessor extends AudioWorkletProcessor {
         constructor() {
@@ -690,6 +711,12 @@ class TauriStreamCapture {
           this.buffer = new Float32Array(this.bufferSize);
           this.writeIndex = 0;
           this.readIndex = 0;
+
+          // Prebuffer: wait for ~100ms of audio before starting playback
+          // This absorbs jitter from network/IPC delays
+          this.prebufferSamples = 4800; // ~100ms at 48kHz, ~109ms at 44.1kHz
+          this.prebuffering = true;
+          this.underrunCount = 0;
 
           this.port.onmessage = (e) => {
             const samples = e.data;
@@ -706,6 +733,19 @@ class TauriStreamCapture {
           const frameSize = output[0].length;
           const available = (this.writeIndex - this.readIndex) & this.bufferMask;
 
+          // Prebuffering phase: wait until we have enough audio buffered
+          if (this.prebuffering) {
+            if (available >= this.prebufferSamples) {
+              this.prebuffering = false;
+            } else {
+              // Output silence while prebuffering
+              for (let ch = 0; ch < output.length; ch++) {
+                output[ch].fill(0);
+              }
+              return true;
+            }
+          }
+
           if (available >= frameSize) {
             // Output mono to all channels (typically L and R)
             for (let i = 0; i < frameSize; i++) {
@@ -716,7 +756,9 @@ class TauriStreamCapture {
             }
             this.readIndex = (this.readIndex + frameSize) & this.bufferMask;
           } else {
-            // Underrun: silence
+            // Underrun: output silence and re-enter prebuffering mode
+            this.underrunCount++;
+            this.prebuffering = true;
             for (let ch = 0; ch < output.length; ch++) {
               output[ch].fill(0);
             }
@@ -730,7 +772,7 @@ class TauriStreamCapture {
     // Initialize AudioContext with 48000Hz (Rust resamples iOS 44100Hz to match desktop)
     const initializeAudio = async () => {
       try {
-        const defaultSampleRate = 48000;
+        const defaultSampleRate = isIOS() ? 44100 : 48000;
         const blob = new Blob([workletCode], { type: 'application/javascript' });
         const workletUrl = URL.createObjectURL(blob);
 

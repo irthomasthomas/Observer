@@ -345,8 +345,8 @@ pub fn start_audio_ring_reader(state: Arc<AudioRingReaderState>) {
             }
         }
 
-        // Poll for new audio data at ~10ms interval
-        let mut poll_interval = interval(Duration::from_millis(10));
+        // Poll for new audio data at ~5ms interval (lower latency, reduces audio cuts)
+        let mut poll_interval = interval(Duration::from_millis(5));
 
         while state.running.load(Ordering::SeqCst) {
             poll_interval.tick().await;

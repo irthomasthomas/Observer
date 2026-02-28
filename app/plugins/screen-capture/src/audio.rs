@@ -1,10 +1,11 @@
 //! Cross-platform system audio capture using platform-specific native APIs.
 //!
-//! This module captures desktop/system audio (loopback) using platform-native implementations:
-//! - macOS: ScreenCaptureKit API (requires screen recording permission)
+//! This module is for Windows and Linux only.
+//! macOS audio capture is handled by the unified ScreenCaptureKit module in macos.rs.
+//!
+//! Platform implementations:
 //! - Windows: WASAPI loopback API
-//! - Linux: Not yet supported
-//! - iOS/Android: Not yet supported
+//! - Linux: Not yet supported (would use PulseAudio/PipeWire)
 
 #[allow(unused_imports)]
 use crate::error::{Error, Result};
@@ -49,238 +50,6 @@ fn get_audio_state() -> Arc<AudioCaptureState> {
     AUDIO_STATE
         .get_or_init(|| Arc::new(AudioCaptureState::new()))
         .clone()
-}
-
-// ==================== macOS ScreenCaptureKit Implementation ====================
-
-#[cfg(target_os = "macos")]
-mod macos_audio {
-    use super::*;
-    use screencapturekit::prelude::*;
-    use std::sync::Mutex;
-
-    static AUDIO_CAPTURE: std::sync::OnceLock<Mutex<Option<AudioCapture>>> =
-        std::sync::OnceLock::new();
-
-    fn get_audio_capture() -> &'static Mutex<Option<AudioCapture>> {
-        AUDIO_CAPTURE.get_or_init(|| Mutex::new(None))
-    }
-
-    struct AudioCapture {
-        stream: SCStream,
-        _chunk_count: Arc<std::sync::atomic::AtomicU64>,
-    }
-
-    impl Drop for AudioCapture {
-        fn drop(&mut self) {
-            log::info!("[AudioCapture] Dropping macOS audio capture stream");
-            // Stream is automatically stopped when dropped
-        }
-    }
-
-    pub fn start_capture(on_audio: Channel<AudioData>) -> Result<()> {
-        let state = get_audio_state();
-
-        // Check if already active
-        if state.is_active.load(Ordering::SeqCst) {
-            log::warn!("[AudioCapture] Audio capture already active, stopping first...");
-            stop_capture()?;
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-
-        log::info!("[AudioCapture] Starting macOS ScreenCaptureKit audio capture");
-        log::info!("[AudioCapture] ⚠️  IMPORTANT: Requires 'Screen Recording' permission");
-        log::info!("[AudioCapture] ⚠️  Go to System Settings → Privacy & Security → Screen Recording");
-
-        // Get shareable content to access display/audio
-        log::info!("[AudioCapture] Getting shareable content...");
-        let content = SCShareableContent::get().map_err(|e| {
-            log::error!("[AudioCapture] Failed to get shareable content: {:?}", e);
-            Error::AudioDevice(format!("Failed to get shareable content: {:?}", e))
-        })?;
-        log::info!(
-            "[AudioCapture] Found {} displays, {} windows",
-            content.displays().len(),
-            content.windows().len()
-        );
-
-        // Create a content filter to capture system audio
-        // We need to capture from a display to get the system audio
-        let displays = content.displays();
-        let display = displays
-            .first()
-            .ok_or_else(|| Error::AudioDevice("No displays found".to_string()))?;
-
-        log::info!(
-            "[AudioCapture] Using display: {:?}",
-            display.display_id()
-        );
-
-        // Create content filter for display capture (which includes audio)
-        let filter = SCContentFilter::create().with_display(display).build();
-
-        // Configure stream for audio capture
-        // Note: Even for audio-only, we need valid video dimensions
-        // ScreenCaptureKit captures video+audio together, then we just ignore the video
-        let config = SCStreamConfiguration::new()
-            .with_captures_audio(true)
-            .with_excludes_current_process_audio(false) // Capture all system audio including this process
-            .with_sample_rate(48000) // 48kHz
-            .with_channel_count(1) // Mono - let ScreenCaptureKit mix for us
-            // Use small but valid video dimensions (we'll ignore the video frames)
-            .with_width(100)
-            .with_height(100)
-            .with_pixel_format(PixelFormat::YCbCr_420v);
-
-        // Create stream output handler
-        let chunk_count = Arc::new(std::sync::atomic::AtomicU64::new(0));
-        let chunk_count_clone = chunk_count.clone();
-        let on_audio_clone = on_audio.clone();
-
-        // Create the stream
-        log::info!("[AudioCapture] Creating SCStream...");
-        let mut stream = SCStream::new(&filter, &config);
-
-        log::info!("[AudioCapture] Adding audio output handler...");
-        // Add the audio output handler as a closure
-        stream.add_output_handler(
-            Box::new(move |sample: CMSampleBuffer, of_type: SCStreamOutputType| {
-                match of_type {
-                    SCStreamOutputType::Audio => {
-                        let count = chunk_count_clone.fetch_add(1, Ordering::SeqCst) + 1;
-
-                        if count == 1 {
-                            log::info!("[AudioCapture] First audio sample received");
-                        }
-
-                        if count % 500 == 0 {
-                            log::debug!("[AudioCapture] Received {} audio samples", count);
-                        }
-
-                        // Extract audio data from CMSampleBuffer
-                        match sample.audio_buffer_list() {
-                            Some(audio_buffer_list) => {
-                                // With channel_count(1), we get mono audio in a single buffer
-                                let Some(audio_buffer) = audio_buffer_list.buffer(0) else {
-                                    return;
-                                };
-
-                                let data_bytes = audio_buffer.data();
-                                if data_bytes.is_empty() {
-                                    return;
-                                }
-
-                                // Convert bytes to f32 samples (ScreenCaptureKit provides f32 PCM)
-                                let mono_samples = unsafe {
-                                    std::slice::from_raw_parts(
-                                        data_bytes.as_ptr() as *const f32,
-                                        data_bytes.len() / 4,
-                                    )
-                                };
-
-                                // Convert f32 samples to bytes (little-endian)
-                                let bytes: Vec<u8> = mono_samples
-                                    .iter()
-                                    .flat_map(|&sample| sample.to_le_bytes())
-                                    .collect();
-
-                                    // Get timestamp
-                                    let timestamp = std::time::SystemTime::now()
-                                        .duration_since(std::time::UNIX_EPOCH)
-                                        .unwrap_or_default()
-                                        .as_secs_f64();
-
-                                    // Create AudioData payload
-                                    let audio_payload = AudioData {
-                                        samples: STANDARD.encode(&bytes),
-                                        timestamp,
-                                        sample_rate: 48000, // We configured 48kHz
-                                        chunk_count: count,
-                                    };
-
-                                    if count == 1 {
-                                        log::info!(
-                                            "[AudioCapture] First audio chunk sent ({} mono samples, {} bytes)",
-                                            mono_samples.len(),
-                                            bytes.len()
-                                        );
-                                    }
-
-                                // Send through channel
-                                if let Err(e) = on_audio_clone.send(audio_payload) {
-                                    log::error!("[AudioCapture] Failed to send audio data: {:?}", e);
-                                }
-                            }
-                            None => {
-                                if count < 5 {
-                                    log::warn!("[AudioCapture] No audio buffer list available");
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }),
-            SCStreamOutputType::Audio,
-        );
-
-        // Start capture
-        log::info!("[AudioCapture] Starting capture...");
-        stream.start_capture().map_err(|e| {
-            log::error!("[AudioCapture] Failed to start capture: {:?}", e);
-            log::error!("[AudioCapture] This may be due to:");
-            log::error!("[AudioCapture]   - Screen Recording permission not fully granted");
-            log::error!("[AudioCapture]   - Kitty terminal needs Screen Recording permission");
-            log::error!("[AudioCapture]   - Invalid stream configuration");
-            log::error!("[AudioCapture]   - Display not accessible");
-            Error::AudioDevice(format!("Failed to start capture: {:?}", e))
-        })?;
-
-        log::info!("[AudioCapture] Capture started successfully");
-
-        // Store the capture
-        let capture = AudioCapture {
-            stream,
-            _chunk_count: chunk_count,
-        };
-
-        {
-            let mut capture_holder = get_audio_capture().lock().unwrap();
-            *capture_holder = Some(capture);
-        }
-
-        // Mark as active
-        state.is_active.store(true, Ordering::SeqCst);
-
-        log::info!("[AudioCapture] macOS ScreenCaptureKit audio capture started (48kHz, mono)");
-        Ok(())
-    }
-
-    pub fn stop_capture() -> Result<()> {
-        let state = get_audio_state();
-
-        if !state.is_active.load(Ordering::SeqCst) {
-            log::info!("[AudioCapture] Audio capture not active");
-            return Ok(());
-        }
-
-        log::info!("[AudioCapture] Stopping macOS audio capture...");
-
-        // Mark as inactive first
-        state.is_active.store(false, Ordering::SeqCst);
-
-        // Stop the stream
-        let mut capture_holder = get_audio_capture().lock().unwrap();
-        if let Some(capture) = capture_holder.take() {
-            if let Err(e) = capture.stream.stop_capture() {
-                log::warn!("[AudioCapture] Error stopping stream: {:?}", e);
-            }
-            drop(capture);
-        }
-
-        log::info!("[AudioCapture] macOS audio capture stopped");
-        Ok(())
-    }
 }
 
 // ==================== Windows WASAPI Implementation ====================
@@ -561,22 +330,14 @@ mod windows_audio {
 
 // ==================== Platform-Specific Public API ====================
 
-/// Start system audio capture and stream data through the channel (desktop only)
-#[cfg(target_os = "macos")]
-pub fn start_audio_stream(on_audio: Channel<AudioData>) -> Result<()> {
-    macos_audio::start_capture(on_audio)
-}
-
+/// Start system audio capture (Windows)
 #[cfg(target_os = "windows")]
 pub fn start_audio_stream(on_audio: Channel<AudioData>) -> Result<()> {
     windows_audio::start_capture(on_audio)
 }
 
-#[cfg(all(
-    not(any(target_os = "android", target_os = "ios")),
-    not(target_os = "macos"),
-    not(target_os = "windows")
-))]
+/// Start system audio capture (Linux - not supported)
+#[cfg(target_os = "linux")]
 pub fn start_audio_stream(_on_audio: Channel<AudioData>) -> Result<()> {
     log::error!("[AudioCapture] System audio capture not supported on Linux");
     Err(Error::AudioDevice(
@@ -585,41 +346,18 @@ pub fn start_audio_stream(_on_audio: Channel<AudioData>) -> Result<()> {
     ))
 }
 
-/// Start audio capture (mobile stub)
-#[cfg(any(target_os = "android", target_os = "ios"))]
-pub fn start_audio_stream(_on_audio: Channel<AudioData>) -> Result<()> {
-    log::warn!("[AudioCapture] System audio capture not supported on mobile platforms");
-    Err(Error::AudioNotAvailable)
-}
-
-/// Stop audio capture
-#[cfg(target_os = "macos")]
-pub fn stop_audio() -> Result<()> {
-    macos_audio::stop_capture()
-}
-
+/// Stop audio capture (Windows)
 #[cfg(target_os = "windows")]
 pub fn stop_audio() -> Result<()> {
     windows_audio::stop_capture()
 }
 
-#[cfg(all(
-    not(any(target_os = "android", target_os = "ios")),
-    not(target_os = "macos"),
-    not(target_os = "windows")
-))]
+/// Stop audio capture (Linux)
+#[cfg(target_os = "linux")]
 pub fn stop_audio() -> Result<()> {
     let state = get_audio_state();
     state.is_active.store(false, Ordering::SeqCst);
     log::info!("[AudioCapture] Audio capture stopped (Linux - not implemented)");
-    Ok(())
-}
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-pub fn stop_audio() -> Result<()> {
-    let state = get_audio_state();
-    state.is_active.store(false, Ordering::SeqCst);
-    log::info!("[AudioCapture] Audio capture stopped (mobile - not implemented)");
     Ok(())
 }
 

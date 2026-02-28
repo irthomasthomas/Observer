@@ -1,18 +1,23 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
-    Manager, Runtime,
+    Runtime,
 };
 
 mod error;
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+// Audio module - only needed for Windows/Linux (macOS uses unified desktop module)
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    not(target_os = "macos")
+))]
 pub mod audio;
+
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod targets;
 
 // Platform-specific desktop implementations
-// macOS uses ScreenCaptureKit for better performance
-// Windows/Linux use xcap for cross-platform support
+// macOS uses unified ScreenCaptureKit for BOTH video and audio
+// Windows/Linux use xcap for video + WASAPI/ALSA for audio
 #[cfg(all(target_os = "macos", not(any(target_os = "android", target_os = "ios"))))]
 #[path = "macos.rs"]
 pub mod desktop;
@@ -134,11 +139,20 @@ async fn stop_capture_cmd<R: Runtime>(
         return screen_capture.stop_capture();
     }
 
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    // macOS: unified module handles both video and audio
+    #[cfg(target_os = "macos")]
     {
-        // Stop audio capture first
+        let _ = desktop::stop_audio();
+        return desktop::stop_capture().await;
+    }
+
+    // Windows/Linux: separate audio module
+    #[cfg(all(
+        not(any(target_os = "android", target_os = "ios")),
+        not(target_os = "macos")
+    ))]
+    {
         let _ = audio::stop_audio();
-        // Then stop video capture
         return desktop::stop_capture().await;
     }
 }
@@ -165,7 +179,17 @@ async fn stop_video_cmd<R: Runtime>(
 async fn stop_audio_cmd<R: Runtime>(
     #[allow(unused_variables)] _app: tauri::AppHandle<R>,
 ) -> Result<()> {
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    // macOS: unified module handles audio
+    #[cfg(target_os = "macos")]
+    {
+        return desktop::stop_audio();
+    }
+
+    // Windows/Linux: separate audio module
+    #[cfg(all(
+        not(any(target_os = "android", target_os = "ios")),
+        not(target_os = "macos")
+    ))]
     {
         return audio::stop_audio();
     }
@@ -195,7 +219,29 @@ async fn get_capture_targets_cmd<R: Runtime>(
 /// Frames are pushed to frontend via channel instead of polling
 /// Audio capture is also started and streamed via separate channel
 /// NOTE: For independent control, use start_video_stream_cmd and start_audio_stream_cmd instead
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn start_capture_stream_cmd<R: Runtime>(
+    _app: tauri::AppHandle<R>,
+    target_id: Option<String>,
+    on_frame: tauri::ipc::Channel<desktop::FrameData>,
+    on_audio: tauri::ipc::Channel<desktop::AudioData>,
+) -> Result<()> {
+    // macOS: unified module handles both - start video first, then audio
+    desktop::start_capture_stream(target_id, on_frame)?;
+
+    if let Err(e) = desktop::start_audio_stream(on_audio) {
+        log::warn!("[ScreenCapture] Audio capture failed to start: {:?}", e);
+    }
+
+    Ok(())
+}
+
+/// Start capture with channel-based streaming (Windows/Linux)
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    not(target_os = "macos")
+))]
 #[tauri::command]
 fn start_capture_stream_cmd<R: Runtime>(
     _app: tauri::AppHandle<R>,
@@ -209,7 +255,6 @@ fn start_capture_stream_cmd<R: Runtime>(
     // Start audio capture
     if let Err(e) = audio::start_audio_stream(on_audio) {
         log::warn!("[ScreenCapture] Audio capture failed to start: {:?}", e);
-        // Continue with video-only capture - don't fail the whole command
     }
 
     Ok(())
@@ -227,9 +272,23 @@ fn start_video_stream_cmd<R: Runtime>(
     desktop::start_capture_stream(target_id, on_frame)
 }
 
-/// Start audio-only capture with channel-based streaming (desktop only)
-/// System audio is captured via ScreenCaptureKit and pushed to frontend via channel
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+/// Start audio-only capture with channel-based streaming (macOS)
+/// System audio is captured via unified ScreenCaptureKit module
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn start_audio_stream_cmd<R: Runtime>(
+    _app: tauri::AppHandle<R>,
+    on_audio: tauri::ipc::Channel<desktop::AudioData>,
+) -> Result<()> {
+    desktop::start_audio_stream(on_audio)
+}
+
+/// Start audio-only capture with channel-based streaming (Windows/Linux)
+/// System audio is captured via WASAPI/ALSA
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    not(target_os = "macos")
+))]
 #[tauri::command]
 fn start_audio_stream_cmd<R: Runtime>(
     _app: tauri::AppHandle<R>,
