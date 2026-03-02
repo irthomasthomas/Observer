@@ -30,9 +30,11 @@ xcap = "0.8.2"  # Cross-platform window/monitor enumeration and capture for Wind
 [target.'cfg(target_os = "macos")'.dependencies]
 screencapturekit = "1.5.0"  # macOS ScreenCaptureKit for video and audio capture
 xcap = "0.8.2"  # Still used for target enumeration (can be replaced with SCShareableContent later)
+rubato = "0.15"  # Audio resampling for PCM pipeline (48kHz -> 16kHz)
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.22.0"  # Windows WASAPI for system audio loopback
+rubato = "0.15"  # Audio resampling for PCM pipeline (48kHz -> 16kHz)
 
 [build-dependencies]
 tauri-plugin = { version = "2.0", features = ["build"] }

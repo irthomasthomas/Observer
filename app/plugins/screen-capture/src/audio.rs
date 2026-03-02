@@ -8,6 +8,8 @@
 //! - Linux: Not yet supported (would use PulseAudio/PipeWire)
 
 #[allow(unused_imports)]
+use crate::audio_pipeline::{SharedResampler, TARGET_SAMPLE_RATE};
+#[allow(unused_imports)]
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Serialize;
@@ -187,6 +189,14 @@ mod windows_audio {
         let channels = wave_format.get_nchannels() as u16;
         let bits_per_sample = wave_format.get_bitspersample();
 
+        // Create resampler for 16kHz output (transcription standard)
+        let resampler = SharedResampler::new(sample_rate);
+        log::info!(
+            "[AudioCapture] Audio pipeline: {}Hz -> {}Hz resampling enabled",
+            sample_rate,
+            TARGET_SAMPLE_RATE
+        );
+
         // Capture loop
         while !stop_signal.load(Ordering::SeqCst) {
             // Sleep a bit to avoid busy waiting
@@ -259,8 +269,19 @@ mod windows_audio {
                 f32_samples
             };
 
-            // Convert mono f32 samples to bytes
-            let bytes: Vec<u8> = mono_samples
+            // Resample from native rate to 16kHz for transcription
+            let resampled = match resampler.resample(&mono_samples) {
+                Ok(samples) => samples,
+                Err(e) => {
+                    if count % 100 == 1 {
+                        log::warn!("[AudioCapture] Resampling failed, using original: {}", e);
+                    }
+                    mono_samples.clone()
+                }
+            };
+
+            // Convert resampled f32 samples to bytes
+            let bytes: Vec<u8> = resampled
                 .iter()
                 .flat_map(|&sample| sample.to_le_bytes())
                 .collect();
@@ -271,19 +292,21 @@ mod windows_audio {
                 .unwrap_or_default()
                 .as_secs_f64();
 
-            // Create AudioData payload
+            // Create AudioData payload with 16kHz sample rate
             let audio_payload = AudioData {
                 samples: STANDARD.encode(&bytes),
                 timestamp,
-                sample_rate,
+                sample_rate: TARGET_SAMPLE_RATE,
                 chunk_count: count,
             };
 
             if count == 1 {
                 log::info!(
-                    "[AudioCapture] First audio chunk sent ({} mono samples, {} bytes)",
+                    "[AudioCapture] First audio chunk sent ({} @ {}Hz -> {} @ {}Hz)",
                     mono_samples.len(),
-                    bytes.len()
+                    sample_rate,
+                    resampled.len(),
+                    TARGET_SAMPLE_RATE
                 );
             }
 

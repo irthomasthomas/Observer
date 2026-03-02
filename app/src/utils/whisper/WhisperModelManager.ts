@@ -165,7 +165,7 @@ export class WhisperModelManager {
       audioContext.decodeAudioData(audioBuffer.slice(0))
         .then(decodedAudio => {
           const rawAudio = decodedAudio.getChannelData(0);
-          
+
           if (this.worker) {
             this.worker.postMessage({
               type: 'transcribe',
@@ -182,6 +182,53 @@ export class WhisperModelManager {
           this.pendingTranscriptions.delete(chunkId);
           reject(new Error(`Audio processing error: ${error.message}`));
         });
+    });
+  }
+
+  /**
+   * Transcribe PCM audio directly (unified pipeline).
+   * Accepts Float32Array at 16kHz mono - no decoding needed.
+   *
+   * @param audio - Float32Array of PCM samples at 16kHz mono
+   * @param chunkId - Unique chunk identifier
+   * @returns Transcription result
+   */
+  public async transcribePCM(audio: Float32Array, chunkId: number): Promise<{ text: string }> {
+    if (this.state.status !== 'loaded' || !this.worker) {
+      throw new Error('Model not loaded. Please load model first.');
+    }
+
+    if (audio.length === 0) {
+      return { text: '' };
+    }
+
+    return new Promise((resolve, reject) => {
+      this.pendingTranscriptions.set(chunkId, {
+        resolve,
+        reject,
+        timestamp: Date.now()
+      });
+
+      const timeout = setTimeout(() => {
+        if (this.pendingTranscriptions.has(chunkId)) {
+          this.pendingTranscriptions.delete(chunkId);
+          reject(new Error(`Transcription timeout for chunk ${chunkId}`));
+        }
+      }, 80000);
+
+      // Clone the audio buffer to transfer ownership
+      const audioClone = new Float32Array(audio);
+
+      if (this.worker) {
+        this.worker.postMessage({
+          type: 'transcribe',
+          data: { audio: audioClone, chunkId }
+        }, [audioClone.buffer]);
+      } else {
+        clearTimeout(timeout);
+        this.pendingTranscriptions.delete(chunkId);
+        reject(new Error('Worker not available'));
+      }
     });
   }
 

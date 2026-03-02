@@ -1,7 +1,11 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { isTauri, isDesktop, isIOS } from './platform';
+import { isTauri, isDesktop } from './platform';
 import { Logger } from '@utils/logging';
+import { decodeBase64PCM, PCM_SAMPLE_RATE } from './audio/pcmUtils';
+
+/** Callback type for receiving PCM samples from unified pipeline */
+export type PCMCallback = (samples: Float32Array, streamType: 'screenAudio' | 'microphone') => void;
 
 export interface BroadcastStatus {
   isActive: boolean;
@@ -119,6 +123,9 @@ class TauriStreamCapture {
   // Active stream results (for cleanup)
   private videoStreamResult: VideoStreamResult | null = null;
   private audioStreamResult: AudioStreamResult | null = null;
+
+  // PCM callback for unified transcription pipeline
+  private pcmCallback: PCMCallback | null = null;
 
   /**
    * Acquire a master stream (Tauri implementation)
@@ -269,6 +276,22 @@ class TauriStreamCapture {
    */
   setPipOverlayDrawer(drawer: PipOverlayDrawer | null): void {
     this.pipOverlayDrawer = drawer;
+  }
+
+  /**
+   * Set PCM callback for unified transcription pipeline.
+   * When set, decoded PCM samples (Float32Array @ 16kHz) are passed to this callback
+   * instead of just being used for playback.
+   *
+   * @param callback - Function to receive PCM samples, or null to disable
+   */
+  setPCMCallback(callback: PCMCallback | null): void {
+    this.pcmCallback = callback;
+    if (callback) {
+      Logger.info("TauriCapture", "PCM callback set for unified transcription pipeline");
+    } else {
+      Logger.info("TauriCapture", "PCM callback cleared");
+    }
   }
 
   /**
@@ -451,11 +474,12 @@ class TauriStreamCapture {
     let configuredSampleRate = 0;
 
     // AudioWorklet code for mono PCM playback using efficient ring buffer with prebuffering
+    // NOTE: This worklet runs at 16kHz to match the unified PCM pipeline
     const workletCode = `
       class PCMPlayerProcessor extends AudioWorkletProcessor {
         constructor() {
           super();
-          // Ring buffer: ~1.3 seconds at 48kHz (power of 2 for fast modulo)
+          // Ring buffer: ~4 seconds at 16kHz (power of 2 for fast modulo)
           this.bufferSize = 65536;
           this.bufferMask = this.bufferSize - 1;
           this.buffer = new Float32Array(this.bufferSize);
@@ -464,7 +488,7 @@ class TauriStreamCapture {
 
           // Prebuffer: wait for ~100ms of audio before starting playback
           // This absorbs jitter from network/IPC delays
-          this.prebufferSamples = 4800; // ~100ms at 48kHz, ~109ms at 44.1kHz
+          this.prebufferSamples = 1600; // ~100ms at 16kHz (unified PCM pipeline rate)
           this.prebuffering = true;
           this.underrunCount = 0;
 
@@ -519,12 +543,13 @@ class TauriStreamCapture {
       registerProcessor('pcm-player-processor', PCMPlayerProcessor);
     `;
 
-    // Use platform-native sample rate: iOS=44100Hz, desktop=48000Hz
-    const defaultSampleRate = isIOS() ? 44100 : 48000;
+    // Use 16kHz sample rate to match resampled audio from Rust backend
+    // The unified PCM pipeline resamples all audio to 16kHz for transcription
+    const targetSampleRate = PCM_SAMPLE_RATE; // 16kHz
     const blob = new Blob([workletCode], { type: 'application/javascript' });
     const workletUrl = URL.createObjectURL(blob);
 
-    audioContext = new AudioContext({ sampleRate: defaultSampleRate });
+    audioContext = new AudioContext({ sampleRate: targetSampleRate });
     await audioContext.audioWorklet.addModule(workletUrl);
     URL.revokeObjectURL(workletUrl);
 
@@ -535,9 +560,9 @@ class TauriStreamCapture {
     audioDestination = audioContext.createMediaStreamDestination();
     workletNode.connect(audioDestination);
     audioStream = audioDestination.stream;
-    configuredSampleRate = defaultSampleRate;
+    configuredSampleRate = targetSampleRate;
 
-    Logger.info("TAURI_STREAM", `Audio MediaStream initialized (${defaultSampleRate}Hz, mono)`);
+    Logger.info("TAURI_STREAM", `Audio MediaStream initialized (${targetSampleRate}Hz, mono) - matches unified PCM pipeline`);
 
     const audioChannel = new Channel<AudioData>();
 
@@ -549,7 +574,10 @@ class TauriStreamCapture {
 
       if (audioChunkCount === 1) {
         Logger.info("TAURI_STREAM", `First audio chunk received (${audioData.sampleRate}Hz, mono)`);
-        if (audioData.sampleRate !== configuredSampleRate) {
+        // Audio is now pre-resampled to 16kHz in Rust for transcription
+        if (audioData.sampleRate === PCM_SAMPLE_RATE) {
+          Logger.info("TAURI_STREAM", "Audio at 16kHz - unified PCM pipeline active");
+        } else if (audioData.sampleRate !== configuredSampleRate) {
           Logger.warn("TAURI_STREAM", `Sample rate mismatch: source=${audioData.sampleRate}Hz, context=${configuredSampleRate}Hz`);
         }
       }
@@ -557,20 +585,21 @@ class TauriStreamCapture {
         Logger.debug("TAURI_STREAM", `Received ${audioChunkCount} audio chunks`);
       }
 
-      if (workletNode) {
-        try {
-          // Decode base64 to bytes
-          const binaryString = atob(audioData.samples);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          // Send mono samples directly to worklet
-          const samples = new Float32Array(bytes.buffer);
-          workletNode.port.postMessage(samples);
-        } catch (error) {
-          Logger.error("TAURI_STREAM", `Failed to decode audio chunk: ${error}`);
+      try {
+        // Decode base64 PCM to Float32Array
+        const samples = decodeBase64PCM(audioData.samples);
+
+        // Call PCM callback for transcription pipeline (if set)
+        if (this.pcmCallback) {
+          this.pcmCallback(samples, 'screenAudio');
         }
+
+        // Send to worklet for playback
+        if (workletNode) {
+          workletNode.port.postMessage(samples);
+        }
+      } catch (error) {
+        Logger.error("TAURI_STREAM", `Failed to decode audio chunk: ${error}`);
       }
     };
 
@@ -701,11 +730,12 @@ class TauriStreamCapture {
     let configuredSampleRate = 0;
 
     // AudioWorklet code for mono PCM playback with prebuffering
+    // NOTE: This worklet runs at 16kHz to match the unified PCM pipeline
     const workletCode = `
       class PCMPlayerProcessor extends AudioWorkletProcessor {
         constructor() {
           super();
-          // Ring buffer: ~1.3 seconds at 48kHz (power of 2 for fast modulo)
+          // Ring buffer: ~4 seconds at 16kHz (power of 2 for fast modulo)
           this.bufferSize = 65536;
           this.bufferMask = this.bufferSize - 1;
           this.buffer = new Float32Array(this.bufferSize);
@@ -714,7 +744,7 @@ class TauriStreamCapture {
 
           // Prebuffer: wait for ~100ms of audio before starting playback
           // This absorbs jitter from network/IPC delays
-          this.prebufferSamples = 4800; // ~100ms at 48kHz, ~109ms at 44.1kHz
+          this.prebufferSamples = 1600; // ~100ms at 16kHz (unified PCM pipeline rate)
           this.prebuffering = true;
           this.underrunCount = 0;
 
@@ -769,14 +799,15 @@ class TauriStreamCapture {
       registerProcessor('pcm-player-processor', PCMPlayerProcessor);
     `;
 
-    // Initialize AudioContext with 48000Hz (Rust resamples iOS 44100Hz to match desktop)
+    // Initialize AudioContext with 16kHz to match unified PCM pipeline
+    // (Rust resamples all audio to 16kHz for transcription)
     const initializeAudio = async () => {
       try {
-        const defaultSampleRate = isIOS() ? 44100 : 48000;
+        const targetSampleRate = PCM_SAMPLE_RATE; // 16kHz - matches unified pipeline
         const blob = new Blob([workletCode], { type: 'application/javascript' });
         const workletUrl = URL.createObjectURL(blob);
 
-        audioContext = new AudioContext({ sampleRate: defaultSampleRate });
+        audioContext = new AudioContext({ sampleRate: targetSampleRate });
         await audioContext.audioWorklet.addModule(workletUrl);
         URL.revokeObjectURL(workletUrl);
 
@@ -789,8 +820,8 @@ class TauriStreamCapture {
         screenAudioStream = audioDestination.stream;
 
         audioInitialized = true;
-        configuredSampleRate = defaultSampleRate;
-        Logger.info("TAURI_STREAM", `Audio MediaStream initialized (${defaultSampleRate}Hz, mono)`);
+        configuredSampleRate = targetSampleRate;
+        Logger.info("TAURI_STREAM", `Audio MediaStream initialized (${targetSampleRate}Hz, mono) - matches unified PCM pipeline`);
       } catch (error) {
         Logger.error("TAURI_STREAM", `Failed to initialize audio stream: ${error}`);
       }
@@ -849,7 +880,10 @@ class TauriStreamCapture {
 
       if (audioChunkCount === 1) {
         Logger.info("TAURI_STREAM", `First audio chunk received via channel (${audioData.sampleRate}Hz, mono)`);
-        if (audioData.sampleRate !== configuredSampleRate) {
+        // Audio is now pre-resampled to 16kHz in Rust for transcription
+        if (audioData.sampleRate === PCM_SAMPLE_RATE) {
+          Logger.info("TAURI_STREAM", "Audio at 16kHz - unified PCM pipeline active");
+        } else if (audioData.sampleRate !== configuredSampleRate) {
           Logger.warn("TAURI_STREAM", `Sample rate mismatch: source=${audioData.sampleRate}Hz, context=${configuredSampleRate}Hz`);
         }
       }
@@ -857,22 +891,21 @@ class TauriStreamCapture {
         Logger.debug("TAURI_STREAM", `Received ${audioChunkCount} audio chunks via channel`);
       }
 
-      // Decode base64 PCM and send to worklet
-      if (audioInitialized && workletNode) {
-        try {
-          // Decode base64 to bytes
-          const binaryString = atob(audioData.samples);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
+      try {
+        // Decode base64 PCM to Float32Array
+        const samples = decodeBase64PCM(audioData.samples);
 
-          // Send mono samples directly to worklet
-          const samples = new Float32Array(bytes.buffer);
-          workletNode.port.postMessage(samples);
-        } catch (error) {
-          Logger.error("TAURI_STREAM", `Failed to decode audio chunk: ${error}`);
+        // Call PCM callback for transcription pipeline (if set)
+        if (this.pcmCallback) {
+          this.pcmCallback(samples, 'screenAudio');
         }
+
+        // Send to worklet for playback
+        if (audioInitialized && workletNode) {
+          workletNode.port.postMessage(samples);
+        }
+      } catch (error) {
+        Logger.error("TAURI_STREAM", `Failed to decode audio chunk: ${error}`);
       }
     };
 

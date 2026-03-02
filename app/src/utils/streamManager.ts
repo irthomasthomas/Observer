@@ -1,9 +1,11 @@
 import { Logger } from './logging';
-import { TranscriptionRouter, TranscriptionProvider } from './whisper/TranscriptionRouter';
+import { TranscriptionRouter } from './whisper/TranscriptionRouter';
 import { TranscriptionSubscriber, TranscriptionSubscriberImpl } from './whisper/TranscriptionSubscriber';
+import { UnifiedTranscriptionService } from './whisper/UnifiedTranscriptionService';
 import { isWeb } from './platform';
 import { browserStreamCapture } from './browserStreamCapture';
-import { tauriStreamCapture } from './tauriStreamCapture';
+import { tauriStreamCapture, PCMCallback } from './tauriStreamCapture';
+import { PCMAudioCapture, createPCMAudioCapture } from './audio/PCMAudioCapture';
 
 // --- Core Type Definitions ---
 export type AudioStreamType = 'screenAudio' | 'microphone' | 'allAudio';
@@ -41,7 +43,6 @@ class Manager {
   private userSets = new Map<PseudoStreamType, Set<string>>();
   private listeners = new Set<StreamListener>();
   private pendingMasterStreams = new Map<MasterStreamType, Promise<void>>();
-  private transcriptionServices = new Map<AudioStreamType, TranscriptionProvider>();
 
   // Subscriber management for agent-owned transcripts
   // Key format: `${agentId}:${streamType}`
@@ -49,6 +50,11 @@ class Manager {
 
   private audioContext: AudioContext | null = null;
   private sourceNodes = new Map<string, MediaStreamAudioSourceNode>();
+
+  // Unified PCM pipeline state
+  private unifiedServices = new Map<AudioStreamType, UnifiedTranscriptionService>();
+  private browserPCMCaptures = new Map<AudioStreamType, PCMAudioCapture>();
+  private tauriPCMCallbackActive = false;
 
   // PiP overlay status for mobile
   private pipOverlayStatus: {
@@ -143,7 +149,7 @@ class Manager {
       this.subscribers.set(key, subscriber);
 
       // Register with transcription service to receive pushes
-      const service = this.transcriptionServices.get(type);
+      const service = this.unifiedServices.get(type);
       if (service) {
         service.addSubscriber(subscriber);
         Logger.debug("StreamManager", `Registered subscriber ${key} with transcription service for ${type}`);
@@ -182,7 +188,7 @@ class Manager {
     for (const [key, subscriber] of this.subscribers) {
       if (key.startsWith(`${agentId}:`)) {
         // Remove from transcription service
-        const service = this.transcriptionServices.get(subscriber.streamType);
+        const service = this.unifiedServices.get(subscriber.streamType);
         if (service) {
           service.removeSubscriber(subscriber);
         }
@@ -461,29 +467,86 @@ class Manager {
   }
 
   private async startTranscriptionForStream(type: AudioStreamType, stream: MediaStream): Promise<void> {
-    if (this.transcriptionServices.has(type)) return;
-    Logger.info("StreamManager", `Starting transcription service for '${type}'.`);
+    if (this.unifiedServices.has(type)) return;
+    Logger.info("StreamManager", `Starting unified transcription service for '${type}'.`);
+
     const router = TranscriptionRouter.getInstance();
     await router.ensureReady();
-    const newService = router.createProvider();
-    await newService.start(stream, type);
-    this.transcriptionServices.set(type, newService);
+
+    // Use unified PCM pipeline
+    await this.startUnifiedTranscription(type, stream);
 
     // Register any existing subscribers for this stream type with the new service
-    for (const [key, subscriber] of this.subscribers) {
-      if (subscriber.streamType === type) {
-        newService.addSubscriber(subscriber);
-        Logger.debug("StreamManager", `Registered existing subscriber ${key} with new transcription service for ${type}`);
+    const service = this.unifiedServices.get(type);
+    if (service) {
+      for (const [key, subscriber] of this.subscribers) {
+        if (subscriber.streamType === type) {
+          service.addSubscriber(subscriber);
+          Logger.debug("StreamManager", `Registered existing subscriber ${key} with transcription service for ${type}`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Start unified transcription using PCM pipeline
+   */
+  private async startUnifiedTranscription(type: AudioStreamType, stream: MediaStream): Promise<void> {
+    if (this.unifiedServices.has(type)) return;
+
+    Logger.info("StreamManager", `Starting unified PCM transcription for '${type}'`);
+
+    const router = TranscriptionRouter.getInstance();
+    const unifiedService = router.createUnifiedProvider();
+    await unifiedService.start(type);
+    this.unifiedServices.set(type, unifiedService);
+
+    if (isWeb()) {
+      // Browser: Use PCMAudioCapture to extract PCM from MediaStream
+      const pcmCapture = createPCMAudioCapture();
+      await pcmCapture.start(stream, (samples) => {
+        unifiedService.feedPCM(samples);
+      });
+      this.browserPCMCaptures.set(type, pcmCapture);
+      Logger.info("StreamManager", `Browser PCM capture started for '${type}'`);
+    } else {
+      // Tauri: Set up PCM callback on tauriStreamCapture
+      // The callback will receive samples at 16kHz from the Rust resampler
+      if (!this.tauriPCMCallbackActive) {
+        const pcmCallback: PCMCallback = (samples, streamType) => {
+          // Route samples to the appropriate unified service
+          const service = this.unifiedServices.get(streamType);
+          if (service) {
+            service.feedPCM(samples);
+          }
+        };
+        tauriStreamCapture.setPCMCallback(pcmCallback);
+        this.tauriPCMCallbackActive = true;
+        Logger.info("StreamManager", "Tauri PCM callback set for unified pipeline");
       }
     }
   }
 
   private stopTranscriptionForStream(type: AudioStreamType): void {
-    const service = this.transcriptionServices.get(type);
-    if (service) {
-      Logger.info("StreamManager", `Stopping transcription service for '${type}'.`);
-      service.stop();
-      this.transcriptionServices.delete(type);
+    // Stop unified service
+    const unifiedService = this.unifiedServices.get(type);
+    if (unifiedService) {
+      Logger.info("StreamManager", `Stopping unified transcription service for '${type}'.`);
+      unifiedService.stop();
+      this.unifiedServices.delete(type);
+    }
+
+    // Stop browser PCM capture
+    const pcmCapture = this.browserPCMCaptures.get(type);
+    if (pcmCapture) {
+      pcmCapture.stop();
+      this.browserPCMCaptures.delete(type);
+    }
+
+    // Clear Tauri PCM callback if no more unified services
+    if (!isWeb() && this.unifiedServices.size === 0 && this.tauriPCMCallbackActive) {
+      tauriStreamCapture.setPCMCallback(null);
+      this.tauriPCMCallbackActive = false;
     }
   }
 

@@ -7,6 +7,19 @@ import { TranscriptionSubscriber } from './TranscriptionSubscriber';
 const CLOUD_WS_URL = 'wss://api.observer-ai.com/v1/audio/transcriptions/stream';
 
 /**
+ * @deprecated Use UnifiedTranscriptionService instead.
+ *
+ * This service uses MediaRecorder to capture audio as WebM, which requires
+ * encoding overhead. The unified pipeline (UnifiedTranscriptionService)
+ * streams raw PCM samples directly as Int16, eliminating encoding steps.
+ *
+ * To enable the unified pipeline:
+ *   localStorage.setItem('unified_pcm_pipeline', 'true')
+ *
+ * This service will be removed in a future version.
+ *
+ * ---
+ *
  * Cloud transcription service using WebSocket for real-time streaming.
  * Connects to Observer API which forwards to Google Speech-to-Text (latest_long model).
  * Auto-reconnects every ~5 minutes when Google's stream limit is reached.

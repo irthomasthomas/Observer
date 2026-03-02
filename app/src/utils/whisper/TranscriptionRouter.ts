@@ -2,6 +2,7 @@ import { TranscriptionMode } from './types';
 import { WhisperTranscriptionService } from './WhisperTranscriptionService';
 import { CloudTranscriptionService } from './CloudTranscriptionService';
 import { SelfHostedTranscriptionService } from './SelfHostedTranscriptionService';
+import { UnifiedTranscriptionService } from './UnifiedTranscriptionService';
 import { WhisperModelManager } from './WhisperModelManager';
 import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
@@ -83,17 +84,38 @@ export class TranscriptionRouter {
   /**
    * Factory method to create a transcription provider based on current mode.
    * Used by StreamManager to create provider instances for each audio stream.
+   *
+   * Returns UnifiedTranscriptionService which uses direct PCM input from the
+   * unified audio pipeline (all audio is resampled to 16kHz in Rust/native layer).
    */
   public createProvider(): TranscriptionProvider {
+    Logger.info('TranscriptionRouter', `Creating unified transcription provider (mode: ${this.mode})`);
+    return new UnifiedTranscriptionService(this.mode);
+  }
+
+  /**
+   * Create a unified transcription service directly (for PCM pipeline consumers).
+   * Use this when you have direct PCM input instead of MediaStream.
+   */
+  public createUnifiedProvider(): UnifiedTranscriptionService {
+    Logger.info('TranscriptionRouter', `Creating unified transcription provider (mode: ${this.mode})`);
+    return new UnifiedTranscriptionService(this.mode);
+  }
+
+  /**
+   * @deprecated Legacy providers are deprecated. Use createProvider() which returns UnifiedTranscriptionService.
+   *
+   * Create a legacy MediaStream-based provider (for backward compatibility only).
+   * These services use MediaRecorder which has encoding/decoding overhead.
+   */
+  public createLegacyProvider(): TranscriptionProvider {
+    Logger.warn('TranscriptionRouter', `Creating LEGACY transcription provider (mode: ${this.mode}) - consider migrating to unified pipeline`);
     switch (this.mode) {
       case 'cloud':
-        Logger.debug('TranscriptionRouter', 'Creating cloud transcription provider');
         return new CloudTranscriptionService();
       case 'self-hosted':
-        Logger.debug('TranscriptionRouter', 'Creating self-hosted transcription provider');
         return new SelfHostedTranscriptionService();
       case 'local':
-        Logger.debug('TranscriptionRouter', 'Creating local transcription provider');
         return new WhisperTranscriptionService();
     }
   }

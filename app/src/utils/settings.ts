@@ -92,7 +92,7 @@ class SettingsManager {
         const newSettings: WhisperSettings = {
             modelId,
             quantized: oldSettings.quantized || true,
-            chunkDurationMs: oldSettings.chunkDurationMs || 15000,
+            chunkDurationMs: oldSettings.chunkDurationMs || 5000,
         };
 
         // Add task/language for multilingual models

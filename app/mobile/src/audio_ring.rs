@@ -9,7 +9,7 @@
 //   - reserved: 36 bytes
 // - Ring buffer: 256KB of f32 samples (~65536 samples = ~1.5s at 44.1kHz)
 //
-// Audio is passed through at native sample rate - frontend handles resampling via AudioContext.
+// Audio is resampled from 44.1kHz to 16kHz for transcription compatibility.
 
 use base64::Engine;
 use memmap2::MmapMut;
@@ -27,11 +27,145 @@ use crate::server::AudioData;
 
 use once_cell::sync::Lazy;
 
+#[cfg(target_os = "ios")]
+use rubato::{FftFixedIn, Resampler};
+
+/// Target sample rate for transcription (Whisper standard)
+const TARGET_SAMPLE_RATE: u32 = 16000;
+
+/// iOS source sample rate (fixed by CoreAudio)
+const IOS_SOURCE_SAMPLE_RATE: u32 = 44100;
+
 /// Static storage for App Group container path (set by Swift on iOS)
 static APP_GROUP_PATH: Lazy<Mutex<Option<PathBuf>>> = Lazy::new(|| Mutex::new(None));
 
 /// Global reader state for stopping the background task
 static READER_STATE: Lazy<Mutex<Option<Arc<AudioRingReaderState>>>> = Lazy::new(|| Mutex::new(None));
+
+// ============================================================================
+// FFT-based Audio Resampler (44.1kHz -> 16kHz)
+// ============================================================================
+
+/// Audio resampler using rubato FFT for high-quality 44.1kHz -> 16kHz conversion
+#[cfg(target_os = "ios")]
+struct AudioResampler {
+    resampler: FftFixedIn<f32>,
+    ratio: f64,
+}
+
+#[cfg(target_os = "ios")]
+impl AudioResampler {
+    /// Create a new FFT-based resampler for iOS audio (44.1kHz -> 16kHz)
+    fn new() -> Result<Self, String> {
+        // Chunk size for FFT processing - 1024 is typical for audio
+        let chunk_size = 1024;
+
+        let resampler = FftFixedIn::<f32>::new(
+            IOS_SOURCE_SAMPLE_RATE as usize,  // 44100
+            TARGET_SAMPLE_RATE as usize,       // 16000
+            chunk_size,
+            2,  // Sub-chunks for interpolation quality
+            1,  // Mono channel
+        ).map_err(|e| format!("Failed to create iOS resampler: {}", e))?;
+
+        let ratio = TARGET_SAMPLE_RATE as f64 / IOS_SOURCE_SAMPLE_RATE as f64;
+
+        log::info!(
+            "[AudioResampler] Created FFT resampler: {}Hz -> {}Hz (ratio: {:.4})",
+            IOS_SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE, ratio
+        );
+
+        Ok(Self { resampler, ratio })
+    }
+
+    /// Resample f32 audio from 44.1kHz to 16kHz
+    ///
+    /// Input: f32 samples at 44.1kHz mono (range -1.0 to 1.0)
+    /// Output: f32 samples at 16kHz mono (range -1.0 to 1.0)
+    fn resample(&mut self, input: &[f32]) -> Result<Vec<f32>, String> {
+        if input.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let chunk_size = self.resampler.input_frames_max();
+        let estimated_output = (input.len() as f64 * self.ratio).ceil() as usize + chunk_size;
+        let mut output = Vec::with_capacity(estimated_output);
+
+        // Process in fixed-size chunks (required by FftFixedIn)
+        let mut pos = 0;
+        while pos < input.len() {
+            let end = (pos + chunk_size).min(input.len());
+            let chunk = &input[pos..end];
+
+            // Pad last chunk if smaller than chunk_size
+            let input_slice: Vec<f32> = if chunk.len() < chunk_size {
+                chunk.iter()
+                    .cloned()
+                    .chain(std::iter::repeat(0.0).take(chunk_size - chunk.len()))
+                    .collect()
+            } else {
+                chunk.to_vec()
+            };
+
+            // rubato expects Vec<Vec<f32>> for multi-channel, we use mono
+            let input_channels = vec![input_slice];
+
+            match self.resampler.process(&input_channels, None) {
+                Ok(resampled) => {
+                    if !resampled.is_empty() && !resampled[0].is_empty() {
+                        // For partial last chunk, only take proportional output
+                        if chunk.len() < chunk_size {
+                            let expected = (chunk.len() as f64 * self.ratio).ceil() as usize;
+                            let actual = expected.min(resampled[0].len());
+                            output.extend_from_slice(&resampled[0][..actual]);
+                        } else {
+                            output.extend_from_slice(&resampled[0]);
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::warn!("[AudioResampler] FFT resample error: {}", e);
+                    break;
+                }
+            }
+
+            pos = end;
+        }
+
+        Ok(output)
+    }
+}
+
+/// Thread-safe wrapper for AudioResampler with lazy initialization
+#[cfg(target_os = "ios")]
+struct SharedResampler {
+    inner: Mutex<Option<AudioResampler>>,
+}
+
+#[cfg(target_os = "ios")]
+impl SharedResampler {
+    fn new() -> Self {
+        Self {
+            inner: Mutex::new(None),
+        }
+    }
+
+    /// Resample audio, initializing the resampler on first use
+    fn resample(&self, input: &[f32]) -> Result<Vec<f32>, String> {
+        let mut guard = self.inner.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+
+        // Lazy initialization
+        if guard.is_none() {
+            *guard = Some(AudioResampler::new()?);
+        }
+
+        guard.as_mut().unwrap().resample(input)
+    }
+}
+
+/// Global shared resampler instance for iOS
+#[cfg(target_os = "ios")]
+static SHARED_RESAMPLER: Lazy<SharedResampler> = Lazy::new(|| SharedResampler::new());
 
 /// Set the App Group container path (called from Swift/iOS side)
 pub fn set_app_group_path(path: PathBuf) {
@@ -52,6 +186,35 @@ const WRITE_POS_OFFSET: usize = 0; // u64: 8 bytes
 const SAMPLE_RATE_OFFSET: usize = 8; // u32: 4 bytes
 const TIMESTAMP_OFFSET: usize = 12; // f64: 8 bytes
 const SEQUENCE_OFFSET: usize = 20; // u64: 8 bytes
+
+/// Simple linear interpolation resampler for iOS audio (44.1kHz -> 16kHz)
+fn resample_linear(input: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
+    if source_rate == target_rate || input.is_empty() {
+        return input.to_vec();
+    }
+
+    let ratio = source_rate as f64 / target_rate as f64;
+    let output_len = (input.len() as f64 / ratio).ceil() as usize;
+    let mut output = Vec::with_capacity(output_len);
+
+    for i in 0..output_len {
+        let src_pos = i as f64 * ratio;
+        let src_idx = src_pos.floor() as usize;
+        let frac = src_pos - src_idx as f64;
+
+        let sample = if src_idx + 1 < input.len() {
+            input[src_idx] * (1.0 - frac as f32) + input[src_idx + 1] * frac as f32
+        } else if src_idx < input.len() {
+            input[src_idx]
+        } else {
+            0.0
+        };
+
+        output.push(sample);
+    }
+
+    output
+}
 
 /// Audio ring buffer reader for iOS shared memory
 pub struct AudioRingReader {
@@ -356,19 +519,33 @@ pub fn start_audio_ring_reader(state: Arc<AudioRingReaderState>) {
                 // Check if there's a channel to send to
                 let channel_guard = state.audio_channel.read().await;
                 if let Some(channel) = channel_guard.as_ref() {
-                    // Convert f32 samples to bytes (little-endian)
-                    // Frontend handles resampling via AudioContext
-                    let bytes: Vec<u8> = samples
+                    // Resample from native rate (44.1kHz) to 16kHz for transcription
+                    let resampled = resample_linear(&samples, sample_rate, TARGET_SAMPLE_RATE);
+
+                    // Convert resampled f32 samples to bytes (little-endian)
+                    let bytes: Vec<u8> = resampled
                         .iter()
                         .flat_map(|&sample| sample.to_le_bytes())
                         .collect();
 
+                    // Log first chunk with resampling info
+                    let chunk_count = reader.chunk_count();
+                    if chunk_count == 1 {
+                        log::info!(
+                            "[AudioRingReader] First chunk resampled: {} @ {}Hz -> {} @ {}Hz",
+                            samples.len(),
+                            sample_rate,
+                            resampled.len(),
+                            TARGET_SAMPLE_RATE
+                        );
+                    }
+
                     let audio_data = AudioData {
                         samples: base64::prelude::BASE64_STANDARD.encode(&bytes),
                         timestamp,
-                        sample_rate,
+                        sample_rate: TARGET_SAMPLE_RATE,  // Report 16kHz (resampled rate)
                         channels: 1,
-                        chunk_count: reader.chunk_count(),
+                        chunk_count,
                     };
 
                     if let Err(e) = channel.send(audio_data) {

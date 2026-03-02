@@ -9,6 +9,19 @@ declare interface MediaRecorderErrorEvent extends Event {
 }
 
 /**
+ * @deprecated Use UnifiedTranscriptionService instead.
+ *
+ * This service uses MediaRecorder to capture audio as WebM, which requires
+ * encoding/decoding overhead. The unified pipeline (UnifiedTranscriptionService)
+ * creates WAV directly from PCM samples, eliminating encoding steps.
+ *
+ * To enable the unified pipeline:
+ *   localStorage.setItem('unified_pcm_pipeline', 'true')
+ *
+ * This service will be removed in a future version.
+ *
+ * ---
+ *
  * REST client for OpenAI-compatible whisper servers (chunked approach).
  * Compatible with faster-whisper, whisper.cpp, speaches, etc.
  */

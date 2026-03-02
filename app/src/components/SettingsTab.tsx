@@ -3,15 +3,14 @@ import { Settings, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2,
 import { SensorSettings } from '../utils/settings';
 import { StreamManager } from '../utils/streamManager';
 
-// New Whisper imports
+// Whisper imports
 import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
-import { WhisperTranscriptionService } from '../utils/whisper/WhisperTranscriptionService';
-import { CloudTranscriptionService } from '../utils/whisper/CloudTranscriptionService';
-import { SelfHostedTranscriptionService } from '../utils/whisper/SelfHostedTranscriptionService';
+import { UnifiedTranscriptionService } from '../utils/whisper/UnifiedTranscriptionService';
 import { TranscriptionRouter } from '../utils/whisper/TranscriptionRouter';
 import { WhisperModelState, TranscriptionMode } from '../utils/whisper/types';
 import { useTranscriptionState } from '../hooks/useTranscriptionState';
 import { SUGGESTED_MODELS, LANGUAGE_NAMES } from '../config/whisper-models';
+import { PCMAudioCapture, createPCMAudioCapture } from '../utils/audio/PCMAudioCapture';
 
 import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
 
@@ -59,7 +58,8 @@ const SettingsTab = () => {
   const [whisperSettings, setWhisperSettings] = useState(SensorSettings.getWhisperSettings());
   const [modelState, setModelState] = useState<WhisperModelState | null>(null);
   const [isTestRunning, setIsTestRunning] = useState(false);
-  const [transcriptionService, setTranscriptionService] = useState<WhisperTranscriptionService | CloudTranscriptionService | SelfHostedTranscriptionService | null>(null);
+  const [transcriptionService, setTranscriptionService] = useState<UnifiedTranscriptionService | null>(null);
+  const [pcmCapture, setPcmCapture] = useState<PCMAudioCapture | null>(null);
   const [transcriptionMode, setTranscriptionModeState] = useState<TranscriptionMode>(
     TranscriptionRouter.getInstance().getMode()
   );
@@ -215,7 +215,7 @@ const SettingsTab = () => {
         throw new Error(`Failed to acquire ${audioTestSource} stream`);
       }
 
-      // Set up MediaRecorder for recording
+      // Set up MediaRecorder for recording (for playback in history)
       try {
         const recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
         recorder.ondataavailable = (e) => {
@@ -229,23 +229,18 @@ const SettingsTab = () => {
         console.warn('MediaRecorder not supported, playback will not be available:', recorderError);
       }
 
-      // Create the appropriate transcription service based on mode
-      let newService: CloudTranscriptionService | SelfHostedTranscriptionService | WhisperTranscriptionService;
-      switch (transcriptionMode) {
-        case 'cloud':
-          newService = new CloudTranscriptionService();
-          break;
-        case 'self-hosted':
-          newService = new SelfHostedTranscriptionService();
-          break;
-        case 'local':
-          newService = new WhisperTranscriptionService();
-          break;
-      }
+      // Create unified transcription service
+      const newService = new UnifiedTranscriptionService(transcriptionMode);
+      await newService.start(streamType);
 
-      // Start transcription with the selected stream
-      await newService.start(audioStream, streamType);
+      // Create PCM capture to feed the unified service
+      const capture = createPCMAudioCapture();
+      await capture.start(audioStream, (samples) => {
+        newService.feedPCM(samples);
+      });
+
       setTranscriptionService(newService);
+      setPcmCapture(capture);
       setIsTestRunning(true);
     } catch (error) {
       console.error('Failed to start transcription test:', error);
@@ -261,6 +256,10 @@ const SettingsTab = () => {
     const currentTranscript = committed + (committed && interim ? ' ' : '') + interim;
     const testId = currentTestIdRef.current;
     const testSource = audioTestSource;
+
+    // Stop PCM capture
+    pcmCapture?.stop();
+    setPcmCapture(null);
 
     // Stop transcription service
     transcriptionService?.stop();

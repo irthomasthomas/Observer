@@ -9,12 +9,24 @@ declare interface MediaRecorderErrorEvent extends Event {
   readonly error: DOMException;
 }
 
+/**
+ * @deprecated Use UnifiedTranscriptionService instead.
+ *
+ * This service uses MediaRecorder to capture audio, which requires
+ * encoding/decoding overhead. The unified pipeline (UnifiedTranscriptionService)
+ * accepts raw PCM samples directly, eliminating these conversion steps.
+ *
+ * To enable the unified pipeline:
+ *   localStorage.setItem('unified_pcm_pipeline', 'true')
+ *
+ * This service will be removed in a future version.
+ */
 export class WhisperTranscriptionService {
   private isRunning = false;
   private currentStream: MediaStream | null = null;
   private streamType: AudioStreamType = 'microphone';
   private chunkCounter = 0;
-  private chunkDurationMs = 15000;
+  private chunkDurationMs = 5000;
 
   // Subscriber management - services push to all subscribers
   private subscribers = new Set<TranscriptionSubscriber>();

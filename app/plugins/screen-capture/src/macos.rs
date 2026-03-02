@@ -7,6 +7,7 @@
 //! This fixes the "stream output NOT found" errors that occurred when
 //! running separate video and audio SCStreams.
 
+use crate::audio_pipeline::{SharedResampler, TARGET_SAMPLE_RATE};
 use crate::error::{Error, Result};
 use crate::targets::{self, CaptureTarget, TargetKind};
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -83,6 +84,8 @@ struct UnifiedCaptureState {
     video_channel: RwLock<Option<Channel<FrameData>>>,
     /// Audio channel (set when audio is requested)
     audio_channel: RwLock<Option<Channel<AudioData>>>,
+    /// Audio resampler for 16kHz transcription output
+    audio_resampler: SharedResampler,
 }
 
 static CAPTURE_STATE: std::sync::OnceLock<Arc<UnifiedCaptureState>> = std::sync::OnceLock::new();
@@ -102,6 +105,8 @@ fn get_capture_state() -> Arc<UnifiedCaptureState> {
                 active_stream: Mutex::new(None),
                 video_channel: RwLock::new(None),
                 audio_channel: RwLock::new(None),
+                // Resample from native 48kHz to 16kHz for transcription
+                audio_resampler: SharedResampler::new(AUDIO_SAMPLE_RATE),
             })
         })
         .clone()
@@ -586,7 +591,18 @@ fn ensure_capture_running(
                 )
             };
 
-            let bytes: Vec<u8> = mono_samples
+            // Resample from native rate (48kHz) to 16kHz for transcription
+            let resampled = match state_for_audio.audio_resampler.resample(mono_samples) {
+                Ok(samples) => samples,
+                Err(e) => {
+                    if count % 100 == 1 {
+                        log::warn!("[ScreenCapture] Resampling failed, using original: {}", e);
+                    }
+                    mono_samples.to_vec()
+                }
+            };
+
+            let bytes: Vec<u8> = resampled
                 .iter()
                 .flat_map(|&sample| sample.to_le_bytes())
                 .collect();
@@ -596,18 +612,21 @@ fn ensure_capture_running(
                 .unwrap_or_default()
                 .as_secs_f64();
 
+            // Send at 16kHz (resampled rate) for transcription
             let audio_payload = AudioData {
                 samples: STANDARD.encode(&bytes),
                 timestamp,
-                sample_rate: AUDIO_SAMPLE_RATE,
+                sample_rate: TARGET_SAMPLE_RATE,
                 chunk_count: count,
             };
 
             if count == 1 {
                 log::info!(
-                    "[ScreenCapture] First audio chunk sent ({} samples, {} bytes)",
+                    "[ScreenCapture] First audio chunk sent ({} samples @ {}Hz -> {} samples @ {}Hz)",
                     mono_samples.len(),
-                    bytes.len()
+                    AUDIO_SAMPLE_RATE,
+                    resampled.len(),
+                    TARGET_SAMPLE_RATE
                 );
             }
 

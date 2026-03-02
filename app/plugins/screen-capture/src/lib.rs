@@ -5,6 +5,10 @@ use tauri::{
 
 mod error;
 
+// Audio pipeline module - shared resampling utilities for all desktop platforms
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod audio_pipeline;
+
 // Audio module - only needed for Windows/Linux (macOS uses unified desktop module)
 #[cfg(all(
     not(any(target_os = "android", target_os = "ios")),

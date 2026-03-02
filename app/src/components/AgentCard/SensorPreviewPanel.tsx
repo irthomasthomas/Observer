@@ -11,6 +11,7 @@ import { agentHasScreenSensor, agentHasCameraSensor, agentHasSensor } from './ag
 import TranscriptionModal from '@components/AgentCard/TranscriptionModal';
 import AudioTranscriptionVisualizer from '@components/shared/AudioTranscriptionVisualizer';
 import { useTranscriptionState } from '@hooks/useTranscriptionState';
+import { Logger } from '@utils/logging';
 
 // --- Crop Overlay Component ---
 
@@ -441,6 +442,8 @@ const VideoStream: React.FC<{
   // PiP state (mobile only)
   const [isPipActive, setIsPipActive] = useState(false);
   const showPipButton = isMobile() && isPipSupported();
+
+  Logger.info("PiP", `is Pip supported? ${isPipSupported}`);
 
   // Load existing crop config
   useEffect(() => {

@@ -91,3 +91,38 @@ export type PendingTranscription = {
   reject: (error: Error) => void;
   timestamp: number;
 };
+
+// ========== Unified PCM Pipeline Types ==========
+
+/** PCM audio chunk at 16kHz mono */
+export interface PCMAudioChunk {
+  /** Float32 samples at 16kHz mono */
+  samples: Float32Array;
+  /** Unix timestamp in seconds */
+  timestamp: number;
+  /** Chunk sequence number */
+  chunkId: number;
+}
+
+/** Configuration for unified transcription service */
+export interface UnifiedTranscriptionConfig {
+  /** Transcription mode: local, cloud, or self-hosted */
+  mode: TranscriptionMode;
+  /** Buffer duration for local mode (ms) - default 5000 */
+  localBufferMs?: number;
+  /** Buffer duration for self-hosted mode (ms) - default 5000 */
+  selfHostedBufferMs?: number;
+  /** Streaming interval for cloud mode (ms) - default 100 */
+  cloudStreamIntervalMs?: number;
+  /** Voice activity detection threshold */
+  vadThreshold?: number;
+}
+
+/** Default unified transcription configuration */
+export const DEFAULT_UNIFIED_CONFIG: UnifiedTranscriptionConfig = {
+  mode: 'local',
+  localBufferMs: 5000,
+  selfHostedBufferMs: 5000,
+  cloudStreamIntervalMs: 100,
+  vadThreshold: 0.01,
+};
