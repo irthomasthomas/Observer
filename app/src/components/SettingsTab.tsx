@@ -5,12 +5,10 @@ import { StreamManager } from '../utils/streamManager';
 
 // Whisper imports
 import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
-import { UnifiedTranscriptionService } from '../utils/whisper/UnifiedTranscriptionService';
 import { TranscriptionRouter } from '../utils/whisper/TranscriptionRouter';
 import { WhisperModelState, TranscriptionMode } from '../utils/whisper/types';
 import { useTranscriptionState } from '../hooks/useTranscriptionState';
 import { SUGGESTED_MODELS, LANGUAGE_NAMES } from '../config/whisper-models';
-import { PCMAudioCapture, createPCMAudioCapture } from '../utils/audio/PCMAudioCapture';
 
 import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
 
@@ -58,8 +56,6 @@ const SettingsTab = () => {
   const [whisperSettings, setWhisperSettings] = useState(SensorSettings.getWhisperSettings());
   const [modelState, setModelState] = useState<WhisperModelState | null>(null);
   const [isTestRunning, setIsTestRunning] = useState(false);
-  const [transcriptionService, setTranscriptionService] = useState<UnifiedTranscriptionService | null>(null);
-  const [pcmCapture, setPcmCapture] = useState<PCMAudioCapture | null>(null);
   const [transcriptionMode, setTranscriptionModeState] = useState<TranscriptionMode>(
     TranscriptionRouter.getInstance().getMode()
   );
@@ -86,6 +82,26 @@ const SettingsTab = () => {
   // Use transcription state from manager - maps audioTestSource to stream type
   const transcriptionStreamType = audioTestSource === 'microphone' ? 'microphone' : 'screenAudio';
   const transcriptionState = useTranscriptionState(transcriptionStreamType);
+
+  // Deduplicate committed vs interim (same logic as AudioTranscriptionVisualizer)
+  const { committedText, interimText } = React.useMemo(() => {
+    const fullText = transcriptionState.fullTranscript || '';
+    const interim = transcriptionState.interimText || '';
+
+    // Combine for word count, but track where interim starts
+    const allWords = (fullText + (interim ? ' ' + interim : ''))
+      .split(/\s+/)
+      .filter(w => w.length > 0);
+
+    // Figure out how many are from interim
+    const interimWordCount = interim.split(/\s+/).filter(w => w.length > 0).length;
+    const committedWordCount = Math.max(0, allWords.length - interimWordCount);
+
+    return {
+      committedText: allWords.slice(0, committedWordCount).join(' '),
+      interimText: allWords.slice(committedWordCount).join(' '),
+    };
+  }, [transcriptionState.fullTranscript, transcriptionState.interimText]);
 
   // Model manager instance
   const modelManager = WhisperModelManager.getInstance();
@@ -194,21 +210,16 @@ const SettingsTab = () => {
       await StreamManager.requestStreamsForAgent(TEST_AGENT_ID, requiredStreams);
       const streams = StreamManager.getCurrentState();
 
-      // Get the audio stream based on source selection
+      // Get the audio stream for MediaRecorder (for playback)
       let audioStream: MediaStream | null = null;
-      let streamType: 'microphone' | 'screenAudio' = 'microphone';
 
       if (audioTestSource === 'microphone') {
         audioStream = streams.microphoneStream;
-        streamType = 'microphone';
       } else if (audioTestSource === 'screenAudio') {
         audioStream = streams.screenAudioStream;
-        streamType = 'screenAudio';
       } else if (audioTestSource === 'allAudio') {
-        // For allAudio, combine both streams or use screenAudio for recording
-        // Transcription will handle both, but we record screenAudio for playback
+        // For allAudio, use screenAudio for recording (or fallback to mic)
         audioStream = streams.screenAudioStream || streams.microphoneStream;
-        streamType = streams.screenAudioStream ? 'screenAudio' : 'microphone';
       }
 
       if (!audioStream) {
@@ -229,18 +240,8 @@ const SettingsTab = () => {
         console.warn('MediaRecorder not supported, playback will not be available:', recorderError);
       }
 
-      // Create unified transcription service
-      const newService = new UnifiedTranscriptionService(transcriptionMode);
-      await newService.start(streamType);
-
-      // Create PCM capture to feed the unified service
-      const capture = createPCMAudioCapture();
-      await capture.start(audioStream, (samples) => {
-        newService.feedPCM(samples);
-      });
-
-      setTranscriptionService(newService);
-      setPcmCapture(capture);
+      // Transcription is already set up by StreamManager.requestStreamsForAgent()
+      // via TranscriptionRouter.acquireService() - no need to create our own
       setIsTestRunning(true);
     } catch (error) {
       console.error('Failed to start transcription test:', error);
@@ -250,20 +251,10 @@ const SettingsTab = () => {
   };
 
   const handleStopTest = () => {
-    // Capture current transcript before stopping (committed + interim)
-    const committed = transcriptionState.fullTranscript || '';
-    const interim = transcriptionState.interimText || '';
-    const currentTranscript = committed + (committed && interim ? ' ' : '') + interim;
+    // Capture current transcript before stopping (using deduplicated values)
+    const currentTranscript = committedText + (committedText && interimText ? ' ' : '') + interimText;
     const testId = currentTestIdRef.current;
     const testSource = audioTestSource;
-
-    // Stop PCM capture
-    pcmCapture?.stop();
-    setPcmCapture(null);
-
-    // Stop transcription service
-    transcriptionService?.stop();
-    setTranscriptionService(null);
 
     // Stop MediaRecorder and save to history
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -720,11 +711,11 @@ const SettingsTab = () => {
                         </span>
                       </div>
                       <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-                        {(transcriptionState.fullTranscript || transcriptionState.interimText) ? (
+                        {(committedText || interimText) ? (
                           <>
-                            <span>{transcriptionState.fullTranscript}</span>
-                            {transcriptionState.fullTranscript && transcriptionState.interimText && ' '}
-                            <span className="text-gray-500 italic">{transcriptionState.interimText}</span>
+                            <span>{committedText}</span>
+                            {committedText && interimText && ' '}
+                            <span className="text-gray-500 italic">{interimText}</span>
                           </>
                         ) : (
                           <span className="text-gray-400 italic">

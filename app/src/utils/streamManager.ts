@@ -51,8 +51,7 @@ class Manager {
   private audioContext: AudioContext | null = null;
   private sourceNodes = new Map<string, MediaStreamAudioSourceNode>();
 
-  // Unified PCM pipeline state
-  private unifiedServices = new Map<AudioStreamType, UnifiedTranscriptionService>();
+  // PCM capture state (services are managed by TranscriptionRouter)
   private browserPCMCaptures = new Map<AudioStreamType, PCMAudioCapture>();
   private tauriPCMCallbackActive = false;
 
@@ -149,7 +148,8 @@ class Manager {
       this.subscribers.set(key, subscriber);
 
       // Register with transcription service to receive pushes
-      const service = this.unifiedServices.get(type);
+      const router = TranscriptionRouter.getInstance();
+      const service = router.getActiveService(type);
       if (service) {
         service.addSubscriber(subscriber);
         Logger.debug("StreamManager", `Registered subscriber ${key} with transcription service for ${type}`);
@@ -185,10 +185,11 @@ class Manager {
   public destroySubscribersForAgent(agentId: string): void {
     const keysToDelete: string[] = [];
 
+    const router = TranscriptionRouter.getInstance();
     for (const [key, subscriber] of this.subscribers) {
       if (key.startsWith(`${agentId}:`)) {
         // Remove from transcription service
-        const service = this.unifiedServices.get(subscriber.streamType);
+        const service = router.getActiveService(subscriber.streamType);
         if (service) {
           service.removeSubscriber(subscriber);
         }
@@ -467,45 +468,35 @@ class Manager {
   }
 
   private async startTranscriptionForStream(type: AudioStreamType, stream: MediaStream): Promise<void> {
-    if (this.unifiedServices.has(type)) return;
-    Logger.info("StreamManager", `Starting unified transcription service for '${type}'.`);
-
     const router = TranscriptionRouter.getInstance();
-    await router.ensureReady();
 
-    // Use unified PCM pipeline
-    await this.startUnifiedTranscription(type, stream);
+    // Router handles singleton logic - returns existing or creates new
+    const service = await router.acquireService(type);
 
-    // Register any existing subscribers for this stream type with the new service
-    const service = this.unifiedServices.get(type);
-    if (service) {
-      for (const [key, subscriber] of this.subscribers) {
-        if (subscriber.streamType === type) {
-          service.addSubscriber(subscriber);
-          Logger.debug("StreamManager", `Registered existing subscriber ${key} with transcription service for ${type}`);
-        }
+    // Set up PCM capture to feed samples to the service
+    await this.startPCMCapture(type, stream, service);
+
+    // Register any existing subscribers for this stream type
+    for (const [key, subscriber] of this.subscribers) {
+      if (subscriber.streamType === type) {
+        service.addSubscriber(subscriber);
+        Logger.debug("StreamManager", `Registered existing subscriber ${key} with transcription service for ${type}`);
       }
     }
   }
 
   /**
-   * Start unified transcription using PCM pipeline
+   * Start PCM capture to feed samples to the transcription service
    */
-  private async startUnifiedTranscription(type: AudioStreamType, stream: MediaStream): Promise<void> {
-    if (this.unifiedServices.has(type)) return;
-
-    Logger.info("StreamManager", `Starting unified PCM transcription for '${type}'`);
-
-    const router = TranscriptionRouter.getInstance();
-    const unifiedService = router.createUnifiedProvider();
-    await unifiedService.start(type);
-    this.unifiedServices.set(type, unifiedService);
+  private async startPCMCapture(type: AudioStreamType, stream: MediaStream, service: UnifiedTranscriptionService): Promise<void> {
+    // Skip if already capturing for this type
+    if (this.browserPCMCaptures.has(type)) return;
 
     if (isWeb()) {
       // Browser: Use PCMAudioCapture to extract PCM from MediaStream
       const pcmCapture = createPCMAudioCapture();
       await pcmCapture.start(stream, (samples) => {
-        unifiedService.feedPCM(samples);
+        service.feedPCM(samples);
       });
       this.browserPCMCaptures.set(type, pcmCapture);
       Logger.info("StreamManager", `Browser PCM capture started for '${type}'`);
@@ -514,10 +505,10 @@ class Manager {
       // The callback will receive samples at 16kHz from the Rust resampler
       if (!this.tauriPCMCallbackActive) {
         const pcmCallback: PCMCallback = (samples, streamType) => {
-          // Route samples to the appropriate unified service
-          const service = this.unifiedServices.get(streamType);
-          if (service) {
-            service.feedPCM(samples);
+          // Route samples to the appropriate service via router
+          const activeService = TranscriptionRouter.getInstance().getActiveService(streamType);
+          if (activeService) {
+            activeService.feedPCM(samples);
           }
         };
         tauriStreamCapture.setPCMCallback(pcmCallback);
@@ -528,14 +519,6 @@ class Manager {
   }
 
   private stopTranscriptionForStream(type: AudioStreamType): void {
-    // Stop unified service
-    const unifiedService = this.unifiedServices.get(type);
-    if (unifiedService) {
-      Logger.info("StreamManager", `Stopping unified transcription service for '${type}'.`);
-      unifiedService.stop();
-      this.unifiedServices.delete(type);
-    }
-
     // Stop browser PCM capture
     const pcmCapture = this.browserPCMCaptures.get(type);
     if (pcmCapture) {
@@ -543,8 +526,12 @@ class Manager {
       this.browserPCMCaptures.delete(type);
     }
 
-    // Clear Tauri PCM callback if no more unified services
-    if (!isWeb() && this.unifiedServices.size === 0 && this.tauriPCMCallbackActive) {
+    // Release service (router handles refcount and stopping)
+    const router = TranscriptionRouter.getInstance();
+    router.releaseService(type);
+
+    // Clear Tauri PCM callback if no more PCM captures active
+    if (!isWeb() && this.browserPCMCaptures.size === 0 && this.tauriPCMCallbackActive) {
       tauriStreamCapture.setPCMCallback(null);
       this.tauriPCMCallbackActive = false;
     }
