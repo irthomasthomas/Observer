@@ -309,7 +309,7 @@ pub fn start_video_frame_reader(state: Arc<VideoFrameReaderState>) {
                 let channel_guard = state.frame_channel.read().await;
                 if let Some(channel) = channel_guard.as_ref() {
                     let frame_data = FrameData {
-                        frame: base64::prelude::BASE64_STANDARD.encode(&jpeg_data),
+                        frame: jpeg_data,  // Raw JPEG bytes, no base64
                         timestamp,
                         width,
                         height,

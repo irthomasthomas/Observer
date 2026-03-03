@@ -1,6 +1,5 @@
 use crate::error::Result;
 use crate::targets::{self, CaptureTarget, TargetKind};
-use base64::{engine::general_purpose::STANDARD, Engine};
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
 use image::RgbaImage;
@@ -19,8 +18,9 @@ use xcap::{Monitor, Window};
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FrameData {
-    /// Base64-encoded JPEG frame
-    pub frame: String,
+    /// Raw JPEG bytes (sent as Uint8Array to frontend)
+    #[serde(with = "serde_bytes")]
+    pub frame: Vec<u8>,
     /// Unix timestamp in seconds
     pub timestamp: f64,
     /// Frame dimensions
@@ -360,7 +360,7 @@ fn process_frame_for_channel(image: &RgbaImage, frame_count: u64) -> Option<Fram
         .as_secs_f64();
 
     Some(FrameData {
-        frame: STANDARD.encode(&jpeg_bytes),
+        frame: jpeg_bytes,
         timestamp,
         width: final_width,
         height: final_height,

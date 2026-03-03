@@ -31,7 +31,7 @@ export interface CaptureTarget {
 
 /** Frame data received from Rust via Channel */
 export interface FrameData {
-  frame: string;      // Base64-encoded JPEG
+  frame: Uint8Array;  // Raw JPEG bytes
   timestamp: number;  // Unix timestamp
   width: number;
   height: number;
@@ -106,7 +106,8 @@ export interface TauriCaptureStreams {
 
 class TauriStreamCapture {
   private capturing = false;
-  private latestBase64Frame: string | null = null;
+  private latestFrameBytes: Uint8Array | null = null;
+  private latestBase64Frame: string | null = null; // Cached base64 conversion
   private latestAudioData: AudioData | null = null;
   private pipOverlayDrawer: PipOverlayDrawer | null = null;
 
@@ -318,9 +319,22 @@ class TauriStreamCapture {
 
   /**
    * Get the latest base64 frame directly (for pre-processor).
-   * Avoids re-encoding from canvas.
+   * Computes base64 lazily from raw bytes when needed.
    */
   getLatestBase64Frame(): string | null {
+    if (!this.latestFrameBytes) {
+      return null;
+    }
+    // Compute base64 lazily (only when AI needs it)
+    if (!this.latestBase64Frame) {
+      // Convert Uint8Array to base64
+      let binary = '';
+      const bytes = this.latestFrameBytes;
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      this.latestBase64Frame = btoa(binary);
+    }
     return this.latestBase64Frame;
   }
 
@@ -382,19 +396,56 @@ class TauriStreamCapture {
     const cachedImage = new Image();
 
     const frameChannel = new Channel<FrameData>();
+    let previousObjectUrl: string | null = null;
 
     frameChannel.onmessage = (frameData: FrameData) => {
       if (!isActive) return;
 
       frameCount++;
-      this.latestBase64Frame = frameData.frame;
 
       if (frameCount === 1) {
-        Logger.info("TAURI_STREAM", `First video frame received`);
+        Logger.info("TAURI_STREAM", `First video frame received (${frameData.frame.length} bytes, type: ${typeof frameData.frame}, isArray: ${Array.isArray(frameData.frame)}, constructor: ${frameData.frame?.constructor?.name})`);
       }
       if (frameCount % 100 === 0) {
         Logger.debug("TAURI_STREAM", `Received ${frameCount} video frames`);
       }
+
+      // Revoke previous object URL to prevent memory leak
+      if (previousObjectUrl) {
+        URL.revokeObjectURL(previousObjectUrl);
+      }
+
+      // Ensure we have a proper Uint8Array for Blob creation
+      // Tauri channels may send as ArrayBuffer or plain array depending on serde config
+      const rawFrame = frameData.frame as unknown;
+      let frameBytes: Uint8Array;
+      if (rawFrame instanceof Uint8Array) {
+        frameBytes = rawFrame;
+      } else if (rawFrame instanceof ArrayBuffer) {
+        frameBytes = new Uint8Array(rawFrame);
+      } else if (Array.isArray(rawFrame)) {
+        frameBytes = new Uint8Array(rawFrame);
+      } else {
+        // Fallback: try to use as-is (might be ArrayBufferView)
+        frameBytes = new Uint8Array(rawFrame as ArrayBufferLike);
+      }
+
+      // Create blob and object URL from raw JPEG bytes
+      const blob = new Blob([frameBytes], { type: 'image/jpeg' });
+      const objectUrl = URL.createObjectURL(blob);
+      previousObjectUrl = objectUrl;
+
+      // Store converted bytes for getLatestFrame() - base64 computed lazily when needed
+      this.latestFrameBytes = frameBytes;
+      this.latestBase64Frame = null; // Clear cached base64, will be recomputed on demand
+
+      if (frameCount === 1) {
+        Logger.info("TAURI_STREAM", `Created blob URL: ${objectUrl}, blob size: ${blob.size}`);
+      }
+
+      cachedImage.onerror = (e) => {
+        Logger.error("TAURI_STREAM", `Image load error: ${e}`);
+      };
 
       cachedImage.onload = () => {
         if (!isActive) return;
@@ -416,7 +467,7 @@ class TauriStreamCapture {
         }
       };
 
-      cachedImage.src = 'data:image/jpeg;base64,' + frameData.frame;
+      cachedImage.src = objectUrl;
     };
 
     // Start video-only capture
@@ -452,7 +503,12 @@ class TauriStreamCapture {
       stop: async () => {
         isActive = false;
         this.capturing = false;
+        this.latestFrameBytes = null;
         this.latestBase64Frame = null;
+        if (previousObjectUrl) {
+          URL.revokeObjectURL(previousObjectUrl);
+          previousObjectUrl = null;
+        }
 
         if (isDesktop()) {
           await invoke('plugin:screen-capture|stop_video_cmd');
@@ -471,7 +527,7 @@ class TauriStreamCapture {
 
         Logger.info("TAURI_STREAM", `Video stream stopped after ${frameCount} frames`);
       },
-      getLatestFrame: () => this.latestBase64Frame,
+      getLatestFrame: () => this.getLatestBase64Frame(),
     };
   }
 
@@ -742,6 +798,7 @@ class TauriStreamCapture {
     const frameChannel = new Channel<FrameData>();
     const audioChannel = new Channel<AudioData>();
     let audioChunkCount = 0;
+    let previousObjectUrl: string | null = null;
 
     // Set up audio processing to convert PCM to MediaStream
     let audioContext: AudioContext | null = null;
@@ -856,16 +913,51 @@ class TauriStreamCapture {
       if (!isActive) return;
 
       frameCount++;
-      this.latestBase64Frame = frameData.frame;
 
       if (frameCount === 1) {
-        Logger.info("TAURI_STREAM", `First frame received via channel`);
+        Logger.info("TAURI_STREAM", `First frame received via channel (${frameData.frame.length} bytes, type: ${typeof frameData.frame}, constructor: ${frameData.frame?.constructor?.name})`);
       }
       if (frameCount % 100 === 0) {
         Logger.debug("TAURI_STREAM", `Received ${frameCount} frames via channel`);
       }
 
-      // Decode and draw frame
+      // Revoke previous object URL to prevent memory leak
+      if (previousObjectUrl) {
+        URL.revokeObjectURL(previousObjectUrl);
+      }
+
+      // Ensure we have a proper Uint8Array for Blob creation
+      // Tauri channels may send as ArrayBuffer or plain array depending on serde config
+      const rawFrame = frameData.frame as unknown;
+      let frameBytes: Uint8Array;
+      if (rawFrame instanceof Uint8Array) {
+        frameBytes = rawFrame;
+      } else if (rawFrame instanceof ArrayBuffer) {
+        frameBytes = new Uint8Array(rawFrame);
+      } else if (Array.isArray(rawFrame)) {
+        frameBytes = new Uint8Array(rawFrame);
+      } else {
+        // Fallback: try to use as-is (might be ArrayBufferView)
+        frameBytes = new Uint8Array(rawFrame as ArrayBufferLike);
+      }
+
+      // Store converted bytes for getLatestFrame() - base64 computed lazily when needed
+      this.latestFrameBytes = frameBytes;
+      this.latestBase64Frame = null; // Clear cached base64, will be recomputed on demand
+
+      // Create blob and object URL from raw JPEG bytes
+      const blob = new Blob([frameBytes], { type: 'image/jpeg' });
+      const objectUrl = URL.createObjectURL(blob);
+      previousObjectUrl = objectUrl;
+
+      if (frameCount === 1) {
+        Logger.info("TAURI_STREAM", `Created blob URL: ${objectUrl}, blob size: ${blob.size}`);
+      }
+
+      cachedImage.onerror = (e) => {
+        Logger.error("TAURI_STREAM", `Image load error: ${e}`);
+      };
+
       cachedImage.onload = () => {
         if (!isActive) return;
 
@@ -891,7 +983,7 @@ class TauriStreamCapture {
         }
       };
 
-      cachedImage.src = 'data:image/jpeg;base64,' + frameData.frame;
+      cachedImage.src = objectUrl;
     };
 
     audioChannel.onmessage = (audioData: AudioData) => {
@@ -982,8 +1074,13 @@ class TauriStreamCapture {
       stop: async () => {
         isActive = false;
         this.capturing = false;
+        this.latestFrameBytes = null;
         this.latestBase64Frame = null;
         this.latestAudioData = null;
+        if (previousObjectUrl) {
+          URL.revokeObjectURL(previousObjectUrl);
+          previousObjectUrl = null;
+        }
 
         if (isDesktop()) {
           // Desktop: Stop the xcap capture (also stops audio)
@@ -1020,7 +1117,7 @@ class TauriStreamCapture {
 
         Logger.info("TAURI_STREAM", `Capture stream stopped after ${frameCount} frames, ${audioChunkCount} audio chunks`);
       },
-      getLatestFrame: () => this.latestBase64Frame,
+      getLatestFrame: () => this.getLatestBase64Frame(),
       getLatestAudio: () => this.latestAudioData,
     };
   }
@@ -1122,6 +1219,7 @@ class TauriStreamCapture {
         await invoke('plugin:screen-capture|stop_capture_cmd');
       }
       this.capturing = false;
+      this.latestFrameBytes = null;
       this.latestBase64Frame = null;
     } catch (error) {
       throw error;

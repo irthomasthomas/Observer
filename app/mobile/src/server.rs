@@ -25,8 +25,9 @@ use crate::AppSettings;
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FrameData {
-    /// Base64-encoded JPEG frame
-    pub frame: String,
+    /// Raw JPEG bytes (sent as Uint8Array to frontend)
+    #[serde(with = "serde_bytes")]
+    pub frame: Vec<u8>,
     /// Unix timestamp in seconds
     pub timestamp: f64,
     /// Frame dimensions (0 for iOS since we don't know without decoding)
@@ -146,7 +147,7 @@ async fn handle_frame(
         let channel_guard = state.server_state.frame_channel.read().await;
         if let Some(channel) = channel_guard.as_ref() {
             let frame_data = FrameData {
-                frame: base64::prelude::BASE64_STANDARD.encode(&frame_bytes),
+                frame: frame_bytes.clone(),  // Raw JPEG bytes, no base64
                 timestamp,
                 width: 0,  // Unknown without decoding JPEG
                 height: 0,

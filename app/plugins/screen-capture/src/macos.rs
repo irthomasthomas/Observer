@@ -29,8 +29,9 @@ use tauri::{plugin::PluginApi, AppHandle, Runtime};
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FrameData {
-    /// Base64-encoded JPEG frame
-    pub frame: String,
+    /// Raw JPEG bytes (sent as Uint8Array to frontend)
+    #[serde(with = "serde_bytes")]
+    pub frame: Vec<u8>,
     /// Unix timestamp in seconds
     pub timestamp: f64,
     /// Frame dimensions
@@ -752,7 +753,7 @@ fn process_frame(image: &RgbaImage, state: &Arc<UnifiedCaptureState>) -> Option<
         .as_secs_f64();
 
     Some(FrameData {
-        frame: STANDARD.encode(&jpeg_bytes),
+        frame: jpeg_bytes,
         timestamp,
         width: final_width,
         height: final_height,
