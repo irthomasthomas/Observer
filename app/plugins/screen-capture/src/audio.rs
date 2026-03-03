@@ -197,6 +197,14 @@ mod windows_audio {
             TARGET_SAMPLE_RATE
         );
 
+        // The rubato FftFixedIn resampler requires exactly 1024 input samples per call.
+        // WASAPI polling at 10ms delivers only ~480 samples at 48kHz — less than one full
+        // chunk. Zero-padding every single call injects a 100Hz periodic artifact into the
+        // FFT output, which is heard as robotic voice. We accumulate samples here and only
+        // resample when we have at least one complete 1024-sample chunk.
+        const RESAMPLE_CHUNK_SIZE: usize = 1024;
+        let mut sample_accumulator: Vec<f32> = Vec::with_capacity(RESAMPLE_CHUNK_SIZE * 4);
+
         // Capture loop
         while !stop_signal.load(Ordering::SeqCst) {
             // Sleep a bit to avoid busy waiting
@@ -230,8 +238,6 @@ mod windows_audio {
                 continue;
             }
 
-            let count = chunk_count.fetch_add(1, Ordering::SeqCst) + 1;
-
             // Convert audio data to f32 based on bit depth
             let f32_samples: Vec<f32> = match bits_per_sample {
                 32 => {
@@ -255,28 +261,45 @@ mod windows_audio {
                 }
             };
 
-            // Mix to mono if stereo: (L + R) / 2
-            let mono_samples: Vec<f32> = if channels == 2 {
+            // Mix down to mono by averaging all channels
+            let ch = channels as usize;
+            let mono_samples: Vec<f32> = if ch > 1 {
                 f32_samples
-                    .chunks(2)
-                    .map(|pair| {
-                        let left = pair[0];
-                        let right = pair.get(1).copied().unwrap_or(left);
-                        (left + right) * 0.5
-                    })
+                    .chunks(ch)
+                    .map(|frame| frame.iter().sum::<f32>() / ch as f32)
                     .collect()
             } else {
                 f32_samples
             };
 
-            // Resample from native rate to 16kHz for transcription
-            let resampled = match resampler.resample(&mono_samples) {
+            // Accumulate samples before resampling.
+            // WASAPI polling at 10ms delivers ~480 samples at 48kHz, but rubato's
+            // FftFixedIn requires exactly 1024 samples per call. Feeding it smaller
+            // zero-padded chunks on every single poll injects a 100Hz periodic
+            // spectral artifact (the "robotic voice"). We buffer here and only
+            // resample once we have at least one full 1024-sample chunk.
+            sample_accumulator.extend_from_slice(&mono_samples);
+
+            if sample_accumulator.len() < RESAMPLE_CHUNK_SIZE {
+                continue;
+            }
+
+            // Process only complete chunks; keep the remainder for the next iteration
+            let complete_len =
+                (sample_accumulator.len() / RESAMPLE_CHUNK_SIZE) * RESAMPLE_CHUNK_SIZE;
+            let to_resample: Vec<f32> = sample_accumulator[..complete_len].to_vec();
+            sample_accumulator.drain(..complete_len);
+
+            let count = chunk_count.fetch_add(1, Ordering::SeqCst) + 1;
+
+            // Resample from native rate to 16kHz for transcription (no zero-padding)
+            let resampled = match resampler.resample(&to_resample) {
                 Ok(samples) => samples,
                 Err(e) => {
                     if count % 100 == 1 {
                         log::warn!("[AudioCapture] Resampling failed, using original: {}", e);
                     }
-                    mono_samples.clone()
+                    to_resample.clone()
                 }
             };
 
@@ -302,8 +325,8 @@ mod windows_audio {
 
             if count == 1 {
                 log::info!(
-                    "[AudioCapture] First audio chunk sent ({} @ {}Hz -> {} @ {}Hz)",
-                    mono_samples.len(),
+                    "[AudioCapture] First audio batch sent ({} accumulated samples @ {}Hz -> {} @ {}Hz)",
+                    to_resample.len(),
                     sample_rate,
                     resampled.len(),
                     TARGET_SAMPLE_RATE
@@ -311,7 +334,7 @@ mod windows_audio {
             }
 
             if count % 500 == 0 {
-                log::debug!("[AudioCapture] Sent {} audio chunks", count);
+                log::debug!("[AudioCapture] Sent {} audio batches", count);
             }
 
             // Send through channel
