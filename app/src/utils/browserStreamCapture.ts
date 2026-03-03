@@ -93,7 +93,29 @@ class BrowserStreamCapture {
         if (this.streams.masterCameraStream) return;
 
         Logger.info("BrowserCapture", "Requesting camera access");
-        const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+        // Try to use preferred camera device, fallback to default
+        const preferredDeviceId = localStorage.getItem('observer_preferred_camera_device');
+        let cameraConstraints: MediaStreamConstraints = { video: true };
+
+        if (preferredDeviceId) {
+          cameraConstraints = { video: { deviceId: { exact: preferredDeviceId } } };
+          Logger.debug("BrowserCapture", `Requesting camera with deviceId: ${preferredDeviceId}`);
+        }
+
+        let cameraStream: MediaStream;
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia(cameraConstraints);
+        } catch (error) {
+          // If preferred device fails, try default camera
+          if (preferredDeviceId) {
+            Logger.warn("BrowserCapture", `Preferred camera device failed, falling back to default.`, error);
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          } else {
+            throw error;
+          }
+        }
+
         this.streams.masterCameraStream = cameraStream;
         this.streams.cameraStream = cameraStream;
 

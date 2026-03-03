@@ -169,7 +169,29 @@ class TauriStreamCapture {
         if (this.streams.cameraStream) return;
 
         Logger.info("TauriCapture", "Starting camera capture");
-        const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+        // Try to use preferred camera device, fallback to default
+        const preferredCameraId = localStorage.getItem('observer_preferred_camera_device');
+        let cameraConstraints: MediaStreamConstraints = { video: true };
+
+        if (preferredCameraId) {
+          cameraConstraints = { video: { deviceId: { exact: preferredCameraId } } };
+          Logger.debug("TauriCapture", `Requesting camera with deviceId: ${preferredCameraId}`);
+        }
+
+        let cameraStream: MediaStream;
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia(cameraConstraints);
+        } catch (error) {
+          // If preferred device fails, try default camera
+          if (preferredCameraId) {
+            Logger.warn("TauriCapture", `Preferred camera device failed, falling back to default.`, error);
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          } else {
+            throw error;
+          }
+        }
+
         this.streams.cameraStream = cameraStream;
         break;
 
