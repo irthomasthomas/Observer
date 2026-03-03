@@ -109,6 +109,8 @@ class Manager {
         await this.startTranscriptionForStream('screenAudio', this.screenAudioStream);
         this.getOrCreateSubscriber(agentId, 'screenAudio');
       }
+      // Notify listeners after subscribers are created so hooks can detect them
+      this.notifyListeners();
       // --- END ---
 
       requiredStreams.forEach(type => this.userSets.get(type)?.add(agentId));
@@ -504,16 +506,12 @@ class Manager {
     // Skip if already capturing for this type
     if (this.browserPCMCaptures.has(type)) return;
 
-    if (isWeb()) {
-      // Browser: Use PCMAudioCapture to extract PCM from MediaStream
-      const pcmCapture = createPCMAudioCapture();
-      await pcmCapture.start(stream, (samples) => {
-        service.feedPCM(samples);
-      });
-      this.browserPCMCaptures.set(type, pcmCapture);
-      Logger.info("StreamManager", `Browser PCM capture started for '${type}'`);
-    } else {
-      // Tauri: Set up PCM callback on tauriStreamCapture
+    // screenAudio in Tauri comes from Rust via channel - use Tauri PCM callback
+    // microphone uses standard MediaStream (getUserMedia) - use PCMAudioCapture
+    const useTauriCallback = !isWeb() && type === 'screenAudio';
+
+    if (useTauriCallback) {
+      // Tauri screenAudio: Set up PCM callback on tauriStreamCapture
       // The callback will receive samples at 16kHz from the Rust resampler
       if (!this.tauriPCMCallbackActive) {
         const pcmCallback: PCMCallback = (samples, streamType) => {
@@ -527,26 +525,34 @@ class Manager {
         this.tauriPCMCallbackActive = true;
         Logger.info("StreamManager", "Tauri PCM callback set for unified pipeline");
       }
+    } else {
+      // Standard MediaStream (browser, or Tauri microphone): Use PCMAudioCapture
+      const pcmCapture = createPCMAudioCapture();
+      await pcmCapture.start(stream, (samples) => {
+        service.feedPCM(samples);
+      });
+      this.browserPCMCaptures.set(type, pcmCapture);
+      Logger.info("StreamManager", `PCM capture started for '${type}'`);
     }
   }
 
   private stopTranscriptionForStream(type: AudioStreamType): void {
-    // Stop browser PCM capture
+    // Stop PCMAudioCapture if used for this type (microphone, allAudio, or browser mode)
     const pcmCapture = this.browserPCMCaptures.get(type);
     if (pcmCapture) {
       pcmCapture.stop();
       this.browserPCMCaptures.delete(type);
     }
 
-    // Release service (router handles refcount and stopping)
-    const router = TranscriptionRouter.getInstance();
-    router.releaseService(type);
-
-    // Clear Tauri PCM callback if no more PCM captures active
-    if (!isWeb() && this.browserPCMCaptures.size === 0 && this.tauriPCMCallbackActive) {
+    // Clear Tauri PCM callback if stopping screenAudio (the only type that uses it)
+    if (!isWeb() && type === 'screenAudio' && this.tauriPCMCallbackActive) {
       tauriStreamCapture.setPCMCallback(null);
       this.tauriPCMCallbackActive = false;
     }
+
+    // Release service (router handles refcount and stopping)
+    const router = TranscriptionRouter.getInstance();
+    router.releaseService(type);
   }
 
   private notifyListeners(): void {
