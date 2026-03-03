@@ -39,6 +39,9 @@ export async function executeJavaScript(
       images: preprocessResult?.images || [],
       screen: preprocessResult?.imageSources?.screen ? [preprocessResult.imageSources.screen] : [],
       camera: preprocessResult?.imageSources?.camera ? [preprocessResult.imageSources.camera] : [],
+      microphone: preprocessResult?.microphone || "",
+      screenAudio: preprocessResult?.screenAudio || "",
+      allAudio: preprocessResult?.allAudio || "",
       imemory: currentAgentImageMemory,
       getMemory: async (targetId = agentId) => {
         try {

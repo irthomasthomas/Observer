@@ -16,6 +16,9 @@ export interface PreProcessorResult {
     camera?: string;       // Single base64 from $CAMERA
     imemory?: string[];    // Array from $IMEMORY@agentid
   };
+  microphone?: string;
+  screenAudio?: string;
+  allAudio?: string;
 }
 
 // Map of processor functions
@@ -139,7 +142,7 @@ const processors: Record<string, { regex: RegExp, handler: ProcessorFunction }> 
     }
   },
 
-  '$MICROPHONE': {
+  'MICROPHONE': {
     regex: /\$MICROPHONE/g,
     handler: async (agentId: string, _prompt: string, _match: RegExpExecArray, iterationId?: string) => {
       try {
@@ -270,7 +273,10 @@ export async function preProcess(agentId: string, systemPrompt: string, iteratio
   const result: PreProcessorResult = {
     modifiedPrompt,
     images: [],
-    imageSources: {}
+    imageSources: {},
+    microphone: "",
+    screenAudio: "",
+    allAudio: ""
   };
   
   try {
@@ -329,7 +335,16 @@ export async function preProcess(agentId: string, systemPrompt: string, iteratio
             result.imageSources!.imemory = processorResult.images;
           }
         }
-        
+
+           
+        if (key === 'MICROPHONE'){
+          result.microphone = processorResult.replacementText;
+        } else if (key === 'SCREEN_AUDIO') {
+          result.screenAudio = processorResult.replacementText;
+        } else if (key === 'ALL_AUDIO'){
+          result.allAudio = processorResult.replacementText;
+        }
+
         // Safety break for empty placeholder matches to prevent infinite loops
         // if somehow regex.lastIndex isn't advanced by the above.
         if (matchIndex === processor.regex.lastIndex && placeholder.length === 0) {
