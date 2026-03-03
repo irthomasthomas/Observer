@@ -7,7 +7,7 @@ import { StreamManager } from '../utils/streamManager';
 import { WhisperModelManager } from '../utils/whisper/WhisperModelManager';
 import { TranscriptionRouter } from '../utils/whisper/TranscriptionRouter';
 import { WhisperModelState, TranscriptionMode } from '../utils/whisper/types';
-import { useTranscriptionState } from '../hooks/useTranscriptionState';
+import { useSubscriberText } from '../hooks/useTranscriptionState';
 import { SUGGESTED_MODELS, LANGUAGE_NAMES } from '../config/whisper-models';
 
 import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
@@ -79,29 +79,9 @@ const SettingsTab = () => {
   const currentTestIdRef = useRef<string | null>(null);
   const TEST_AGENT_ID = 'settings-audio-test';
 
-  // Use transcription state from manager - maps audioTestSource to stream type
+  // Use subscriber text hook - shows what this test agent is subscribed to
   const transcriptionStreamType = audioTestSource === 'microphone' ? 'microphone' : 'screenAudio';
-  const transcriptionState = useTranscriptionState(transcriptionStreamType);
-
-  // Deduplicate committed vs interim (same logic as AudioTranscriptionVisualizer)
-  const { committedText, interimText } = React.useMemo(() => {
-    const fullText = transcriptionState.fullTranscript || '';
-    const interim = transcriptionState.interimText || '';
-
-    // Combine for word count, but track where interim starts
-    const allWords = (fullText + (interim ? ' ' + interim : ''))
-      .split(/\s+/)
-      .filter(w => w.length > 0);
-
-    // Figure out how many are from interim
-    const interimWordCount = interim.split(/\s+/).filter(w => w.length > 0).length;
-    const committedWordCount = Math.max(0, allWords.length - interimWordCount);
-
-    return {
-      committedText: allWords.slice(0, committedWordCount).join(' '),
-      interimText: allWords.slice(committedWordCount).join(' '),
-    };
-  }, [transcriptionState.fullTranscript, transcriptionState.interimText]);
+  const { committedText, interimText } = useSubscriberText(TEST_AGENT_ID, transcriptionStreamType);
 
   // Model manager instance
   const modelManager = WhisperModelManager.getInstance();

@@ -16,6 +16,12 @@ export interface TranscriptionSubscriber {
   /** Get accumulated transcript since last clear (committed + interim) */
   getTranscript(): string;
 
+  /** Get only committed (final) text */
+  getCommittedText(): string;
+
+  /** Get only interim (partial) text */
+  getInterimText(): string;
+
   /** Append new transcribed text (for non-streaming callers) */
   appendText(text: string): void;
 
@@ -64,6 +70,16 @@ export class TranscriptionSubscriberImpl implements TranscriptionSubscriber {
       return committed ? `${committed} ${this.interimText}` : this.interimText;
     }
     return committed;
+  }
+
+  public getCommittedText(): string {
+    if (this.isDestroyed) return '';
+    return this.committedChunks.join(' ');
+  }
+
+  public getInterimText(): string {
+    if (this.isDestroyed) return '';
+    return this.interimText;
   }
 
   public appendText(text: string): void {

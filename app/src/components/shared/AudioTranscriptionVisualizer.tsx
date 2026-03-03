@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AudioStreamType } from '@utils/streamManager';
-import { useTranscriptionState } from '@hooks/useTranscriptionState';
+import { useTranscriptionState, useSubscriberText } from '@hooks/useTranscriptionState';
 
 interface AudioTranscriptionVisualizerProps {
   stream: MediaStream;
   streamType: AudioStreamType;
+  agentId: string;
   title: string;
   icon: React.ReactNode;
   onClick?: () => void;
@@ -13,18 +14,25 @@ interface AudioTranscriptionVisualizerProps {
 
 /**
  * Shared audio visualization component with transcription progress.
- * Used by SensorPreviewPanel and SharingPermissionsModal.
+ * Shows transcription text for the specified agent's subscriber.
+ * Used by SensorPreviewPanel, SharingPermissionsModal, and SettingsTab.
  */
 const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> = ({
   stream,
   streamType,
+  agentId,
   title,
   icon,
   onClick,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameId = useRef<number>();
-  const state = useTranscriptionState(streamType);
+
+  // Global transcription state (for status like isTranscribing)
+  const globalState = useTranscriptionState(streamType);
+
+  // Subscriber-specific text (what this agent sees)
+  const { committedText, interimText } = useSubscriberText(agentId, streamType);
 
   // Audio visualization
   useEffect(() => {
@@ -71,11 +79,8 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
 
   // Get last N words for display (committed + interim)
   const { committedWords, interimWords } = useMemo(() => {
-    const fullText = state.fullTranscript || '';
-    const interimText = state.interimText || '';
-
     // Combine for word count, but track where interim starts
-    const allWords = (fullText + (interimText ? ' ' + interimText : ''))
+    const allWords = (committedText + (interimText ? ' ' + interimText : ''))
       .split(/\s+/)
       .filter(w => w.length > 0);
 
@@ -90,25 +95,25 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
       committedWords: lastWords.slice(0, committedInWindow).join(' '),
       interimWords: lastWords.slice(committedInWindow).join(' '),
     };
-  }, [state.fullTranscript, state.interimText]);
+  }, [committedText, interimText]);
 
   // Determine current status for display
   // Cloud streaming uses interimText, chunk-based uses recordingStartedAt
   const statusInfo = useMemo(() => {
     // Cloud streaming mode (has interim text updates)
-    if (state.interimText) {
+    if (interimText) {
       return { label: 'Streaming', color: 'text-cyan-400' };
     }
     // Chunk-based mode (local/self-hosted)
-    if (state.recordingStartedAt) {
-      if (state.isTranscribing) {
+    if (globalState.recordingStartedAt) {
+      if (globalState.isTranscribing) {
         return { label: 'Transcribing', color: 'text-orange-400' };
       }
       return { label: 'Recording', color: 'text-green-400' };
     }
     // Stream is active but no transcription instance
     return { label: 'Active, not used', color: 'text-gray-500' };
-  }, [state.isTranscribing, state.interimText, state.recordingStartedAt]);
+  }, [globalState.isTranscribing, interimText, globalState.recordingStartedAt]);
 
   return (
     <div
@@ -129,7 +134,7 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
       <canvas ref={canvasRef} className="w-full h-10 rounded" />
 
       {/* Transcription text with loading indicator */}
-      {(committedWords || interimWords || state.isTranscribing) && (
+      {(committedWords || interimWords || globalState.isTranscribing) && (
         <div className="relative overflow-hidden h-5">
           <div className="absolute inset-0 flex items-center">
             {/* Gradient fade on left */}
@@ -147,7 +152,7 @@ const AudioTranscriptionVisualizer: React.FC<AudioTranscriptionVisualizerProps> 
                   <span className="text-gray-400 italic">{interimWords}</span>
                 </span>
               </div>
-              {state.isTranscribing && (
+              {globalState.isTranscribing && (
                 <Loader2 className="w-3 h-3 text-orange-400 animate-spin flex-shrink-0" />
               )}
             </div>

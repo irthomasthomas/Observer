@@ -377,6 +377,7 @@ const SharingPermissionsModal: React.FC<SharingPermissionsModalProps> = ({ isOpe
                   <AudioTranscriptionVisualizer
                     stream={streams.screenAudioStream}
                     streamType="screenAudio"
+                    agentId={AGENT_ID}
                     title="System Audio"
                     icon={<Volume2 className="w-4 h-4" />}
                   />
@@ -389,6 +390,7 @@ const SharingPermissionsModal: React.FC<SharingPermissionsModalProps> = ({ isOpe
                   <AudioTranscriptionVisualizer
                     stream={streams.microphoneStream}
                     streamType="microphone"
+                    agentId={AGENT_ID}
                     title="Microphone"
                     icon={<Mic className="w-4 h-4" />}
                   />

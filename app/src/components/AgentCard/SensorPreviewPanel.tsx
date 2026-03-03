@@ -400,7 +400,8 @@ const AudioWaveformWithModal: React.FC<{
   title: string;
   icon: React.ReactNode;
   type: AudioStreamType;
-}> = ({ stream, title, icon, type }) => {
+  agentId: string;
+}> = ({ stream, title, icon, type, agentId }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const state = useTranscriptionState(type);
 
@@ -409,6 +410,7 @@ const AudioWaveformWithModal: React.FC<{
       <AudioTranscriptionVisualizer
         stream={stream}
         streamType={type}
+        agentId={agentId}
         title={title}
         icon={icon}
         onClick={() => setIsModalOpen(true)}
@@ -992,7 +994,7 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
       <div className="grid grid-cols-1 gap-2">
         {/* Active audio streams */}
         {audioStreamsToDisplay.map(({ type, stream, title, icon }) => (
-          <AudioWaveformWithModal key={type} stream={stream} title={title} icon={icon} type={type} />
+          <AudioWaveformWithModal key={type} stream={stream} title={title} icon={icon} type={type} agentId={agentId} />
         ))}
 
         {/* Placeholders for inactive audio sensors */}

@@ -95,18 +95,21 @@ class Manager {
         }
       }
 
-      // --- ADDED: Centralized Transcription & Mixer Logic ---
-      // This block ensures services are only started for the streams the agent explicitly requested.
+      // --- Centralized Transcription & Mixer Logic ---
+      // Start transcription services and auto-subscribe the agent to each stream type.
+      // This ensures the agent receives all transcribed text from the moment streams are acquired.
       if (requiredStreams.includes('allAudio')) {
         await this.initializeAudioMixer();
       }
       if (requiredStreams.includes('microphone') && this.microphoneStream) {
         await this.startTranscriptionForStream('microphone', this.microphoneStream);
+        this.getOrCreateSubscriber(agentId, 'microphone');
       }
       if (requiredStreams.includes('screenAudio') && this.screenAudioStream) {
         await this.startTranscriptionForStream('screenAudio', this.screenAudioStream);
+        this.getOrCreateSubscriber(agentId, 'screenAudio');
       }
-      // --- END ADDED ---
+      // --- END ---
 
       requiredStreams.forEach(type => this.userSets.get(type)?.add(agentId));
 
@@ -159,6 +162,15 @@ class Manager {
     }
 
     return this.subscribers.get(key)!;
+  }
+
+  /**
+   * Get an existing subscriber for an agent and stream type.
+   * Returns undefined if no subscriber exists.
+   */
+  public getSubscriber(agentId: string, type: AudioStreamType): TranscriptionSubscriber | undefined {
+    const key = this.subscriberKey(agentId, type);
+    return this.subscribers.get(key);
   }
 
   /**
