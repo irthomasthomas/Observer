@@ -32,6 +32,10 @@ pub mod desktop;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 mod mobile;
 
+// Android JNI module for channel-based capture
+#[cfg(target_os = "android")]
+pub mod android;
+
 pub use error::{Error, Result};
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -61,7 +65,16 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             start_video_stream_cmd,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            start_audio_stream_cmd
+            start_audio_stream_cmd,
+            // Android channel-based streaming commands
+            #[cfg(target_os = "android")]
+            start_video_stream_cmd,
+            #[cfg(target_os = "android")]
+            start_audio_stream_cmd,
+            #[cfg(target_os = "android")]
+            stop_video_stream_cmd,
+            #[cfg(target_os = "android")]
+            stop_audio_stream_cmd
         ])
         .setup(|app, api| {
             #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -299,4 +312,96 @@ fn start_audio_stream_cmd<R: Runtime>(
     on_audio: tauri::ipc::Channel<audio::AudioData>,
 ) -> Result<()> {
     audio::start_audio_stream(on_audio)
+}
+
+// ==================== Android channel-based streaming commands ====================
+
+/// Start video streaming on Android with channel-based delivery
+/// Stores the channel for JNI callbacks and triggers Kotlin to start capture
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn start_video_stream_cmd<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    on_frame: tauri::ipc::Channel<android::FrameData>,
+) -> Result<()> {
+    log::info!("[ScreenCapture] Android: Starting video stream");
+
+    // Store the channel for JNI callbacks
+    android::set_frame_channel(on_frame);
+
+    // Trigger Kotlin to start capture (it will call nativeOnFrame via JNI)
+    let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+    match screen_capture.start_video_stream() {
+        Ok(_) => {
+            log::info!("[ScreenCapture] Android: Video stream started");
+            Ok(())
+        }
+        Err(e) => {
+            // Clear channel on failure
+            android::clear_frame_channel();
+            log::error!("[ScreenCapture] Android: Failed to start video stream: {:?}", e);
+            Err(e)
+        }
+    }
+}
+
+/// Start audio streaming on Android with channel-based delivery
+/// Stores the channel for JNI callbacks and triggers Kotlin to start audio capture
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn start_audio_stream_cmd<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    on_audio: tauri::ipc::Channel<android::AudioData>,
+) -> Result<()> {
+    log::info!("[ScreenCapture] Android: Starting audio stream");
+
+    // Store the channel for JNI callbacks
+    android::set_audio_channel(on_audio);
+
+    // Trigger Kotlin to start audio capture (it will call nativeOnAudio via JNI)
+    let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+    match screen_capture.start_audio_stream() {
+        Ok(_) => {
+            log::info!("[ScreenCapture] Android: Audio stream started");
+            Ok(())
+        }
+        Err(e) => {
+            // Clear channel on failure
+            android::clear_audio_channel();
+            log::error!("[ScreenCapture] Android: Failed to start audio stream: {:?}", e);
+            Err(e)
+        }
+    }
+}
+
+/// Stop video streaming on Android
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn stop_video_stream_cmd<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
+    log::info!("[ScreenCapture] Android: Stopping video stream");
+
+    // Clear the channel first
+    android::clear_frame_channel();
+
+    // Tell Kotlin to stop capture
+    let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+    screen_capture.stop_video_stream()
+}
+
+/// Stop audio streaming on Android
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn stop_audio_stream_cmd<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
+    log::info!("[ScreenCapture] Android: Stopping audio stream");
+
+    // Clear the channel first
+    android::clear_audio_channel();
+
+    // Tell Kotlin to stop audio capture
+    let screen_capture = app.state::<mobile::ScreenCapture<R>>();
+    screen_capture.stop_audio_stream()
 }

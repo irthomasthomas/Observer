@@ -368,6 +368,32 @@ Denies the stop_audio_cmd command without any pre-configured scope.
 <tr>
 <td>
 
+`screen-capture:allow-stop-audio-stream-cmd`
+
+</td>
+<td>
+
+Enables the stop_audio_stream_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-stop-audio-stream-cmd`
+
+</td>
+<td>
+
+Denies the stop_audio_stream_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `screen-capture:allow-stop-capture-cmd`
 
 </td>
@@ -413,6 +439,32 @@ Enables the stop_video_cmd command without any pre-configured scope.
 <td>
 
 Denies the stop_video_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:allow-stop-video-stream-cmd`
+
+</td>
+<td>
+
+Enables the stop_video_stream_cmd command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`screen-capture:deny-stop-video-stream-cmd`
+
+</td>
+<td>
+
+Denies the stop_video_stream_cmd command without any pre-configured scope.
 
 </td>
 </tr>

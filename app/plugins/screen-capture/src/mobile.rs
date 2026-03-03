@@ -90,4 +90,44 @@ impl<R: Runtime> ScreenCapture<R> {
             .run_mobile_plugin("listAppGroupFiles", ())
             .map_err(Into::into)
     }
+
+    // ==================== Android channel-based streaming ====================
+
+    /// Start video streaming (Android only)
+    /// This triggers MediaProjection capture with JNI callbacks
+    #[cfg(target_os = "android")]
+    pub fn start_video_stream(&self) -> Result<()> {
+        log::info!("[ScreenCapture] Starting Android video stream");
+        self.0
+            .run_mobile_plugin("startVideoStream", ())
+            .map_err(Into::into)
+    }
+
+    /// Start audio streaming (Android only)
+    /// This triggers AudioPlaybackCapture with JNI callbacks
+    #[cfg(target_os = "android")]
+    pub fn start_audio_stream(&self) -> Result<()> {
+        log::info!("[ScreenCapture] Starting Android audio stream");
+        self.0
+            .run_mobile_plugin("startAudioStream", ())
+            .map_err(Into::into)
+    }
+
+    /// Stop video streaming (Android only)
+    #[cfg(target_os = "android")]
+    pub fn stop_video_stream(&self) -> Result<()> {
+        log::info!("[ScreenCapture] Stopping Android video stream");
+        self.0
+            .run_mobile_plugin("stopVideoStream", ())
+            .map_err(Into::into)
+    }
+
+    /// Stop audio streaming (Android only)
+    #[cfg(target_os = "android")]
+    pub fn stop_audio_stream(&self) -> Result<()> {
+        log::info!("[ScreenCapture] Stopping Android audio stream");
+        self.0
+            .run_mobile_plugin("stopAudioStream", ())
+            .map_err(Into::into)
+    }
 }

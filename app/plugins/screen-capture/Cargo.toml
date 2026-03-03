@@ -37,5 +37,13 @@ rubato = "0.15"  # Audio resampling for PCM pipeline (48kHz -> 16kHz)
 wasapi = "0.22.0"  # Windows WASAPI for system audio loopback
 rubato = "0.15"  # Audio resampling for PCM pipeline (48kHz -> 16kHz)
 
+# Android-specific dependencies
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"  # JNI bindings for receiving data from Kotlin
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+base64 = "0.21.0"
+rubato = "0.15"  # Audio resampling for PCM pipeline (48kHz -> 16kHz)
+parking_lot = "0.12"
+
 [build-dependencies]
 tauri-plugin = { version = "2.0", features = ["build"] }

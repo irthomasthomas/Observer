@@ -5280,6 +5280,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
  "image",
+ "jni",
  "log",
  "parking_lot",
  "rubato",

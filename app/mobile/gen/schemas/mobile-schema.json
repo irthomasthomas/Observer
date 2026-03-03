@@ -2835,24 +2835,6 @@
           "markdownDescription": "Denies the restore_purchases command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`",
-          "type": "string",
-          "const": "ios-keyboard:default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`"
-        },
-        {
-          "description": "Enables the ping command without any pre-configured scope.",
-          "type": "string",
-          "const": "ios-keyboard:allow-ping",
-          "markdownDescription": "Enables the ping command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the ping command without any pre-configured scope.",
-          "type": "string",
-          "const": "ios-keyboard:deny-ping",
-          "markdownDescription": "Denies the ping command without any pre-configured scope."
-        },
-        {
           "description": "Allows the log command\n#### This default permission set includes:\n\n- `allow-log`",
           "type": "string",
           "const": "log:default",
@@ -3357,6 +3339,12 @@
           "markdownDescription": "Enables the stop_audio_cmd command without any pre-configured scope."
         },
         {
+          "description": "Enables the stop_audio_stream_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "screen-capture:allow-stop-audio-stream-cmd",
+          "markdownDescription": "Enables the stop_audio_stream_cmd command without any pre-configured scope."
+        },
+        {
           "description": "Enables the stop_capture_cmd command without any pre-configured scope.",
           "type": "string",
           "const": "screen-capture:allow-stop-capture-cmd",
@@ -3367,6 +3355,12 @@
           "type": "string",
           "const": "screen-capture:allow-stop-video-cmd",
           "markdownDescription": "Enables the stop_video_cmd command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the stop_video_stream_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "screen-capture:allow-stop-video-stream-cmd",
+          "markdownDescription": "Enables the stop_video_stream_cmd command without any pre-configured scope."
         },
         {
           "description": "Denies the android command without any pre-configured scope.",
@@ -3447,6 +3441,12 @@
           "markdownDescription": "Denies the stop_audio_cmd command without any pre-configured scope."
         },
         {
+          "description": "Denies the stop_audio_stream_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "screen-capture:deny-stop-audio-stream-cmd",
+          "markdownDescription": "Denies the stop_audio_stream_cmd command without any pre-configured scope."
+        },
+        {
           "description": "Denies the stop_capture_cmd command without any pre-configured scope.",
           "type": "string",
           "const": "screen-capture:deny-stop-capture-cmd",
@@ -3457,6 +3457,12 @@
           "type": "string",
           "const": "screen-capture:deny-stop-video-cmd",
           "markdownDescription": "Denies the stop_video_cmd command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stop_video_stream_cmd command without any pre-configured scope.",
+          "type": "string",
+          "const": "screen-capture:deny-stop-video-stream-cmd",
+          "markdownDescription": "Denies the stop_video_stream_cmd command without any pre-configured scope."
         },
         {
           "description": "This permission set configures which\nshell functionality is exposed by default.\n\n#### Granted Permissions\n\nIt allows to use the `open` functionality with a reasonable\nscope pre-configured. It will allow opening `http(s)://`,\n`tel:` and `mailto:` links.\n\n#### This default permission set includes:\n\n- `allow-open`",

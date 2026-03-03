@@ -1,7 +1,10 @@
 use tauri::{
     plugin::{Builder as PluginBuilder, TauriPlugin},
-    Manager, Runtime,
+    Runtime,
 };
+
+#[cfg(target_os = "ios")]
+use tauri::Manager;
 
 #[cfg(target_os = "ios")]
 mod mobile;
@@ -13,11 +16,11 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             start_pip_cmd,
             stop_pip_cmd
         ])
-        .setup(|app, api| {
+        .setup(|_app, _api| {
             #[cfg(target_os = "ios")]
             {
-                let pip = mobile::init(app, api)?;
-                app.manage(pip);
+                let pip = mobile::init(_app, _api)?;
+                _app.manage(pip);
             }
             Ok(())
         })
@@ -26,11 +29,11 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
 #[tauri::command]
 async fn start_pip_cmd<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    _app: tauri::AppHandle<R>,
 ) -> Result<(), String> {
     #[cfg(target_os = "ios")]
     {
-        let pip = app.state::<mobile::PiP<R>>();
+        let pip = _app.state::<mobile::PiP<R>>();
         pip.start().map_err(|e| e.to_string())
     }
 
@@ -40,11 +43,11 @@ async fn start_pip_cmd<R: Runtime>(
 
 #[tauri::command]
 async fn stop_pip_cmd<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    _app: tauri::AppHandle<R>,
 ) -> Result<(), String> {
     #[cfg(target_os = "ios")]
     {
-        let pip = app.state::<mobile::PiP<R>>();
+        let pip = _app.state::<mobile::PiP<R>>();
         pip.stop().map_err(|e| e.to_string())
     }
 

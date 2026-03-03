@@ -9,6 +9,9 @@ const COMMANDS: &[&str] = &[
     "start_capture_stream_cmd",
     "start_video_stream_cmd",
     "start_audio_stream_cmd",
+    // Android channel-based streaming commands
+    "stop_video_stream_cmd",
+    "stop_audio_stream_cmd",
 ];
 
 fn main() {

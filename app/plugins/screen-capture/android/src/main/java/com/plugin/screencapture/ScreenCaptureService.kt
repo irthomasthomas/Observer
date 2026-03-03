@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -22,14 +21,6 @@ import android.os.IBinder
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 
 private const val TAG = "ScreenCaptureService"
 private const val NOTIFICATION_CHANNEL_ID = "screen_capture_channel"
@@ -39,15 +30,27 @@ class ScreenCaptureService : Service() {
 
     companion object {
         const val ACTION_START = "com.plugin.screencapture.ACTION_START"
+        const val ACTION_START_STREAMING = "com.plugin.screencapture.ACTION_START_STREAMING"
         const val ACTION_STOP = "com.plugin.screencapture.ACTION_STOP"
-        const val EXTRA_RESULT_CODE = "result_code"
-        const val EXTRA_DATA = "data"
 
-        private const val FRAMES_URL = "http://127.0.0.1:8080/frames"
-        private const val BROADCAST_START_URL = "http://127.0.0.1:8080/broadcast/start"
-        private const val BROADCAST_STOP_URL = "http://127.0.0.1:8080/broadcast/stop"
-        private const val JPEG_QUALITY = 60 // Match iOS quality (0.6)
+        // Expose MediaProjection for audio capture (same process)
+        @Volatile
+        var currentMediaProjection: MediaProjection? = null
+            private set
+
+        init {
+            // Load the native library for JNI
+            try {
+                System.loadLibrary("app_lib")
+                Log.d(TAG, "Native library loaded successfully")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "Failed to load native library: ${e.message}")
+            }
+        }
     }
+
+    // JNI native method - sends raw RGBA bytes to Rust for processing
+    private external fun nativeOnFrame(rgba: ByteArray, width: Int, height: Int, stride: Int)
 
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
@@ -59,11 +62,13 @@ class ScreenCaptureService : Service() {
 
     private lateinit var handlerThread: HandlerThread
     private lateinit var handler: Handler
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var isCapturing = false
     private var lastFrameTime = 0L
     private val minFrameInterval = 33L // ~30 fps max
+
+    // Whether to use JNI callbacks (true) or legacy HTTP (false)
+    private var useJniMode = false
 
     override fun onCreate() {
         super.onCreate()
@@ -97,8 +102,7 @@ class ScreenCaptureService : Service() {
         Log.d(TAG, "onStartCommand: action=${intent?.action}")
 
         // On Android 14+, we MUST call startForeground immediately
-        // Call it first before any other operations
-        if (intent?.action == ACTION_START) {
+        if (intent?.action == ACTION_START || intent?.action == ACTION_START_STREAMING) {
             try {
                 startForegroundWithNotification()
             } catch (e: Exception) {
@@ -110,24 +114,13 @@ class ScreenCaptureService : Service() {
 
         when (intent?.action) {
             ACTION_START -> {
-                try {
-                    // Read from companion object (same process, more reliable than Intent extras)
-                    val resultCode = ScreenCapturePlugin.mediaProjectionResultCode
-                    val data = ScreenCapturePlugin.mediaProjectionData
-                    val isReady = ScreenCapturePlugin.isDataReady
-
-                    Log.d(TAG, "Reading from companion: isReady=$isReady, resultCode=$resultCode, data=$data")
-
-                    if (isReady && resultCode != android.app.Activity.RESULT_CANCELED && data != null) {
-                        startCapture(resultCode, data)
-                    } else {
-                        Log.e(TAG, "Invalid result code or data: isReady=$isReady, resultCode=$resultCode, data=$data")
-                        stopSelf()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in onStartCommand: ${e.message}", e)
-                    stopSelf()
-                }
+                useJniMode = false
+                startCaptureFromPlugin()
+            }
+            ACTION_START_STREAMING -> {
+                useJniMode = ScreenCapturePlugin.useJniVideoCallback
+                Log.d(TAG, "Starting in streaming mode (JNI: $useJniMode)")
+                startCaptureFromPlugin()
             }
             ACTION_STOP -> {
                 stopCapture()
@@ -136,6 +129,26 @@ class ScreenCaptureService : Service() {
         }
 
         return START_NOT_STICKY
+    }
+
+    private fun startCaptureFromPlugin() {
+        try {
+            val resultCode = ScreenCapturePlugin.mediaProjectionResultCode
+            val data = ScreenCapturePlugin.mediaProjectionData
+            val isReady = ScreenCapturePlugin.isDataReady
+
+            Log.d(TAG, "Reading from companion: isReady=$isReady, resultCode=$resultCode, data=$data")
+
+            if (isReady && resultCode != android.app.Activity.RESULT_CANCELED && data != null) {
+                startCapture(resultCode, data)
+            } else {
+                Log.e(TAG, "Invalid result code or data")
+                stopSelf()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting capture: ${e.message}", e)
+            stopSelf()
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -201,7 +214,7 @@ class ScreenCaptureService : Service() {
     }
 
     private fun startCapture(resultCode: Int, data: Intent) {
-        Log.d(TAG, "Starting capture with resultCode: $resultCode")
+        Log.d(TAG, "Starting capture with resultCode: $resultCode, JNI mode: $useJniMode")
 
         try {
             val mediaProjectionManager = getSystemService(
@@ -215,6 +228,9 @@ class ScreenCaptureService : Service() {
                 stopSelf()
                 return
             }
+
+            // Expose for audio capture
+            currentMediaProjection = mediaProjection
 
             // Register callback for projection stop
             mediaProjection?.registerCallback(mediaProjectionCallback, handler)
@@ -243,10 +259,7 @@ class ScreenCaptureService : Service() {
 
             isCapturing = true
 
-            // Notify server that broadcast started
-            notifyBroadcastStart()
-
-            Log.d(TAG, "Screen capture started successfully")
+            Log.d(TAG, "Screen capture started successfully (JNI: $useJniMode)")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error starting capture: ${e.message}", e)
@@ -278,10 +291,11 @@ class ScreenCaptureService : Service() {
             image = reader.acquireLatestImage()
             if (image == null) return@OnImageAvailableListener
 
-            val jpeg = convertToJpeg(image)
-            if (jpeg != null) {
-                postFrameToServer(jpeg)
+            if (useJniMode) {
+                // JNI mode: Pass raw RGBA bytes to Rust for processing
+                processFrameJni(image)
             }
+            // Legacy HTTP mode is no longer supported - just skip
 
         } catch (e: Exception) {
             Log.e(TAG, "Error processing frame: ${e.message}")
@@ -290,105 +304,28 @@ class ScreenCaptureService : Service() {
         }
     }
 
-    private fun convertToJpeg(image: Image): ByteArray? {
+    private fun processFrameJni(image: Image) {
         try {
-            val planes = image.planes
-            val buffer = planes[0].buffer
-            val pixelStride = planes[0].pixelStride
-            val rowStride = planes[0].rowStride
-            val rowPadding = rowStride - pixelStride * screenWidth
+            val plane = image.planes[0]
+            val buffer = plane.buffer
+            val rowStride = plane.rowStride
 
-            // Create bitmap with padding
-            val bitmapWidth = screenWidth + rowPadding / pixelStride
-            val bitmap = Bitmap.createBitmap(
-                bitmapWidth,
-                screenHeight,
-                Bitmap.Config.ARGB_8888
-            )
-            bitmap.copyPixelsFromBuffer(buffer)
+            // Copy buffer to byte array
+            val bytes = ByteArray(buffer.remaining())
+            buffer.get(bytes)
 
-            // Crop to actual screen size if there's padding
-            val croppedBitmap = if (rowPadding > 0) {
-                Bitmap.createBitmap(bitmap, 0, 0, screenWidth, screenHeight).also {
-                    bitmap.recycle()
-                }
-            } else {
-                bitmap
-            }
-
-            // Compress to JPEG
-            val outputStream = ByteArrayOutputStream()
-            croppedBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, outputStream)
-            croppedBitmap.recycle()
-
-            return outputStream.toByteArray()
+            // Pass raw RGBA bytes to Rust via JNI
+            // Rust will handle: stride removal, resize, JPEG encode, base64, channel send
+            nativeOnFrame(bytes, image.width, image.height, rowStride)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error converting to JPEG: ${e.message}", e)
-            return null
-        }
-    }
-
-    private fun postFrameToServer(jpeg: ByteArray) {
-        serviceScope.launch {
-            try {
-                val url = URL(FRAMES_URL)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/octet-stream")
-                connection.connectTimeout = 2000
-                connection.readTimeout = 2000
-
-                connection.outputStream.use { it.write(jpeg) }
-                connection.responseCode // Trigger request
-                connection.disconnect()
-
-            } catch (e: Exception) {
-                // Fire-and-forget, ignore errors (matches iOS behavior)
-                Log.v(TAG, "Frame post error (ignored): ${e.message}")
-            }
-        }
-    }
-
-    private fun notifyBroadcastStart() {
-        serviceScope.launch {
-            try {
-                val url = URL(BROADCAST_START_URL)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.connectTimeout = 2000
-                connection.responseCode
-                connection.disconnect()
-                Log.d(TAG, "Notified server: broadcast started")
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to notify broadcast start: ${e.message}")
-            }
-        }
-    }
-
-    private fun notifyBroadcastStop() {
-        serviceScope.launch {
-            try {
-                val url = URL(BROADCAST_STOP_URL)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.connectTimeout = 2000
-                connection.responseCode
-                connection.disconnect()
-                Log.d(TAG, "Notified server: broadcast stopped")
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to notify broadcast stop: ${e.message}")
-            }
+            Log.e(TAG, "Error in JNI frame processing: ${e.message}", e)
         }
     }
 
     private fun stopCapture() {
         Log.d(TAG, "Stopping capture")
         isCapturing = false
-
-        // Notify server
-        notifyBroadcastStop()
 
         try {
             virtualDisplay?.release()
@@ -400,6 +337,7 @@ class ScreenCaptureService : Service() {
             mediaProjection?.unregisterCallback(mediaProjectionCallback)
             mediaProjection?.stop()
             mediaProjection = null
+            currentMediaProjection = null
 
             Log.d(TAG, "Capture stopped and resources released")
 
@@ -411,7 +349,6 @@ class ScreenCaptureService : Service() {
     override fun onDestroy() {
         Log.d(TAG, "Service destroyed")
         stopCapture()
-        serviceScope.cancel()
         handlerThread.quitSafely()
         super.onDestroy()
     }
