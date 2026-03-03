@@ -198,6 +198,9 @@ The "Code" tab receives the following variables as context before running:
 * `imemory` - The agent's current image in memory
 * `images` - All images sent to the model 
 * `prompt` - The model's prompt
+* `microphone` - Trascription from the microphone in this loop
+* `screenAudio` - Transcription from screen audio in this loop
+* `allAudio` - Transcription from microphone and screen audio mixed in this loop
 
 JavaScript agents run in the browser sandbox, making them ideal for passive monitoring and notifications:
 
