@@ -17,17 +17,14 @@ export const isTauri = (): boolean => {
  */
 export const isMobile = (): boolean => {
   if (!isTauri()) {
-    console.log('[PLATFORM] Not Tauri, isMobile = false');
     return false;
   }
 
   try {
     // Use the official Tauri OS plugin
     const platform = getPlatform();
-    console.log('[PLATFORM] Platform detected:', platform);
     return platform === 'android' || platform === 'ios';
   } catch (err) {
-    console.warn('[PLATFORM] getPlatform() failed:', err);
     return false;
   }
 };
