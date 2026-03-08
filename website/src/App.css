@@ -1,94 +1,28 @@
+/* Observer Landing Page Styles */
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Smooth transitions for interactive elements */
+a, button {
+  transition: all 0.2s ease-out;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap');
-
-.card {
-  padding: 2em;
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-tertiary);
+  border-radius: 4px;
 }
 
-.read-the-docs {
-  color: #888;
-}
-
-/* New header styles */
-header nav {
-  max-width: 1400px;
-  width: 100%;
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-}
-
-/* Logo section - moved left and made smaller */
-header nav .flex.items-center.space-x-2 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: -0.5rem; /* Move closer to left edge */
-}
-
-header nav .flex.items-center.space-x-2 img {
-  width: 1.7rem !important; /* ~15% smaller than original 2rem (w-8 = 2rem) */
-  height: 1.7rem !important;
-}
-
-/* Right navigation section */
-header nav .flex.items-center.space-x-4 {
-  display: flex;
-  align-items: center;
-  gap: 2.5rem;
-  margin-right: -0.5rem; /* Move closer to right edge */
-}
-
-header nav a {
-  font-weight: 500;
-}
-
-/* GitHub button styling */
-header nav a[href*="github"] {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: background-color 0.2s;
-  margin-left: 0.5rem; /* Add a bit more separation from other nav items */
-}
-
-header nav a[href*="github"]:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }

@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   ScanText, Monitor, Mic, Brain, Volume2, Camera, Clipboard,
   BrainCircuit, Cpu, Layers, Eye,
   Bell, Mail, MessageSquare, Terminal, Save, Clapperboard, Tag, Blend,
-  ArrowDown, RotateCcw, Clock, Users, Image,
+  ChevronDown, Users, Image, Repeat,
 } from 'lucide-react';
 
-// --- DATA (No changes) ---
-const featureDescriptions = {
+// --- DATA ---
+const featureDescriptions: Record<string, string> = {
   OCR: "Captures screen content as text for the model to read.",
   SCREEN: "Takes a screenshot as an image for multimodal vision models.",
   CAMERA: "Captures a frame from your camera for vision models.",
@@ -26,319 +26,424 @@ const featureDescriptions = {
   'MEMORY STORAGE': "Store and retrieve text memories and images. Agents can access their own or other agents' memories for contextual awareness.",
 };
 
+// --- TOOLTIP ---
+const Tooltip = ({ content, position, onClose }: {
+  content: string;
+  position: DOMRect;
+  onClose: () => void;
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
 
-// --- NEW: Custom Hook to detect screen size ---
-const useMediaQuery = (query) => {
-  const [matches, setMatches] = useState(false);
   useEffect(() => {
-    // Ensure window is defined (for SSR compatibility)
-    if (typeof window !== 'undefined') {
-      const media = window.matchMedia(query);
-      if (media.matches !== matches) {
-        setMatches(media.matches);
-      }
-      const listener = () => setMatches(media.matches);
-      media.addEventListener('change', listener);
-      return () => media.removeEventListener('change', listener);
-    }
-  }, [matches, query]);
-  return matches;
-};
-
-
-// --- POPOVER COMPONENT (No changes) ---
-const Popover = ({ content, position, onClose, popoverKey }) => {
-  const popoverRef = useRef(null);
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
-        if (!event.target.closest('[data-chip-key]')) onClose();
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        if (!(e.target as Element).closest('[data-chip]')) onClose();
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, [onClose]);
-  if (!position) return null;
+
   return (
-    <div ref={popoverRef} className="fixed z-50 w-64 p-3 bg-white text-gray-800 rounded-lg shadow-2xl animate-fade-in-up" style={{ left: `${position.left + position.width / 2}px`, top: `${position.top}px`, transform: 'translateX(-50%) translateY(-100%) translateY(-10px)' }} key={popoverKey}>
-      <p className="text-sm">{content}</p>
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-[-8px] w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-white" />
+    <div
+      ref={ref}
+      className="fixed z-50 w-64 p-3 bg-gray-800 text-white rounded-xl shadow-2xl border border-white/10"
+      style={{
+        left: `${position.left + position.width / 2}px`,
+        top: `${position.top - 8}px`,
+        transform: 'translateX(-50%) translateY(-100%)'
+      }}
+    >
+      <p className="text-sm leading-relaxed">{content}</p>
+      <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-gray-800" />
     </div>
   );
 };
 
-// --- FEATURE CHIP (No changes) ---
-const FeatureChip = ({ icon: Icon, label, onChipClick }) => (
-  <button onClick={(e) => onChipClick(e, label)} data-chip-key={label} className="flex cursor-pointer items-center gap-2 rounded-lg bg-gray-900/60 px-3 py-1.5 transition-all duration-200 hover:bg-gray-800/80 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500">
-    <Icon className="h-4 w-4 flex-shrink-0" />
-    <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">{label}</span>
+// --- CHIP ---
+const Chip = ({ icon: Icon, icons, label, onClick, isActive }: {
+  icon: React.ElementType;
+  icons?: React.ElementType[];
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+  isActive: boolean;
+}) => (
+  <button
+    onClick={onClick}
+    data-chip
+    className={`
+      group flex items-center gap-2 px-3 py-1.5 rounded-lg
+      bg-white/5 border border-white/10
+      hover:bg-white/10 hover:border-white/20 hover:scale-105
+      active:scale-100
+      transition-all duration-200
+      ${isActive ? 'bg-white/15 border-white/30 scale-105' : ''}
+    `}
+  >
+    {icons ? (
+      <div className="flex items-center gap-0.5">
+        {icons.map((I, idx) => (
+          <I key={idx} className="h-3.5 w-3.5 text-gray-400 group-hover:text-white transition-colors" />
+        ))}
+      </div>
+    ) : (
+      <Icon className="h-4 w-4 text-gray-400 group-hover:text-white transition-colors" />
+    )}
+    <span className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors uppercase tracking-wide">
+      {label}
+    </span>
   </button>
 );
 
-// --- CATEGORY CHIP (For tools with multiple icons) ---
-const CategoryChip = ({ icons, label, onChipClick }) => (
-  <button onClick={(e) => onChipClick(e, label)} data-chip-key={label} className="flex cursor-pointer items-center gap-2 rounded-lg bg-gray-900/60 px-3 py-1.5 transition-all duration-200 hover:bg-gray-800/80 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500">
-    <div className="flex items-center gap-1">
-      {icons.map((Icon, index) => (
-        <Icon key={index} className="h-3.5 w-3.5 flex-shrink-0 opacity-90" />
-      ))}
-    </div>
-    <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">{label}</span>
-  </button>
-);
-
-
-// --- DESKTOP NODE: For the rotating diagram ---
-const DiagramNode = ({ title, color, children, rotationAngle = 0, index = 0 }) => {
-  const nodeAngle = rotationAngle + (index * 120);
-  return (
-    <div className="absolute inset-0 transition-transform duration-200 ease-out" style={{ transform: `rotate(${nodeAngle}deg)` }}>
-      <div className="absolute top-1/2 left-1/2 transform transition-transform duration-200 ease-out" style={{ transform: `translate(-50%, -23rem) rotate(${-nodeAngle}deg)` }}>
-        <div className="relative w-72 p-5 rounded-2xl bg-gray-900/60 border border-white/10 backdrop-blur-md">
-          <div className={`absolute -inset-px rounded-2xl opacity-30 blur-xl bg-${color}-500`} />
-          <div className="relative">
-            <h3 className="text-lg font-bold mb-4 text-white">{title}</h3>
-            {children}
-          </div>
-        </div>
+// --- NODE CARD ---
+const NodeCard = ({
+  number,
+  title,
+  subtitle,
+  borderColor,
+  numberColor,
+  children
+}: {
+  number: string;
+  title: string;
+  subtitle: string;
+  borderColor: string;
+  numberColor: string;
+  children: React.ReactNode;
+}) => (
+  <div className={`relative w-72 p-5 rounded-2xl bg-gray-900/80 border ${borderColor} backdrop-blur-md`}>
+    <div className="flex items-start gap-3 mb-4">
+      <span className={`text-3xl font-bold ${numberColor} opacity-40`}>{number}</span>
+      <div>
+        <h3 className="text-lg font-bold text-white">{title}</h3>
+        <p className="text-sm text-gray-500">{subtitle}</p>
       </div>
     </div>
-  );
-};
-
-// --- MOBILE NODE: A static version for vertical layout ---
-const StaticNode = ({ title, color, children }) => (
-  <div className="relative w-full max-w-md p-5 rounded-2xl bg-gray-900/60 border border-white/10 backdrop-blur-md">
-    <div className={`absolute -inset-px rounded-2xl opacity-30 blur-xl bg-${color}-500`} />
-    <div className="relative">
-      <h3 className="text-lg font-bold mb-4 text-white">{title}</h3>
-      {children}
-    </div>
+    {children}
   </div>
 );
 
-
-// --- HELPER FUNCTION: Calculate dynamic arrow paths based on rotation ---
-const calculateArrowPaths = (rotationAngle) => {
-  const radius = 78; // Slightly smaller than node circle (85) for visual flow
-  const svgCenter = 100; // SVG viewBox center
-
-  // Calculate actual node angles (accounting for rotation)
-  const node1Angle = rotationAngle; // Sensors
-  const node2Angle = rotationAngle + 120; // Models
-  const node3Angle = rotationAngle + 240; // Tools
-
-  // Helper: Convert polar to Cartesian coordinates
-  const polarToCartesian = (angle, r = radius) => {
-    const rad = (angle - 90) * Math.PI / 180; // -90 to start from top
-    return {
-      x: svgCenter + r * Math.cos(rad),
-      y: svgCenter + r * Math.sin(rad)
-    };
-  };
-
-  // Helper: Create arc path (arrows span ~50° out of 120° between nodes)
-  const createArcPath = (startAngle, endAngle) => {
-    const start = polarToCartesian(startAngle);
-    const end = polarToCartesian(endAngle);
-    const largeArcFlag = (endAngle - startAngle) > 180 ? 1 : 0;
-    return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
-  };
-
-  // Arrow 1 -> 2: 0.8x size - Start 35° after node1, end 45° before node2
-  const arrow1to2 = createArcPath(node1Angle + 40, node2Angle - 50);
-
-  // Arrow 2 -> 3: 0.8x size - Start 35° after node2, end 45° before node3
-  const arrow2to3 = createArcPath(node2Angle + 40, node3Angle - 50);
-
-  // Arrow 3 -> 1: 0.8x size - Start 35° after node3, end 45° before node1
-  const arrow3to1 = createArcPath(node3Angle + 40, node1Angle + 360 - 50);
-
-  // Clock icon position: midpoint of arrow 3->1
-  const clockAngle = (node3Angle + 45 + node1Angle + 360 - 50) / 2;
-  const clockPos = polarToCartesian(clockAngle, radius);
-
-  return {
-    arrow1to2,
-    arrow2to3,
-    arrow3to1,
-    clockPos
-  };
-};
-
-// --- MAIN DIAGRAM COMPONENT with RESPONSIVE LOGIC ---
-export const AgentDiagram = () => {
-  const diagramRef = useRef(null);
-  const [rotationAngle, setRotationAngle] = useState(195);
-  const [activePopover, setActivePopover] = useState(null);
-  const isDesktop = useMediaQuery('(min-width: 768px)');
+// --- DESKTOP DIAGRAM ---
+const DesktopDiagram = ({ onChipClick, activeChip }: {
+  onChipClick: (e: React.MouseEvent, label: string) => void;
+  activeChip: string | null;
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
+  const lastAngleRef = useRef<number>(195);
 
   useEffect(() => {
-    // Only set up the complex scroll listener on desktop
-    if (!isDesktop) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    const handleScroll = () => {
-      if (!diagramRef.current) return;
-      const rect = diagramRef.current.getBoundingClientRect();
+    container.style.setProperty('--rotation', `${lastAngleRef.current}deg`);
+
+    let ticking = false;
+
+    const updateRotation = () => {
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
       const lockZoneStart = viewportHeight * 0.3;
       const lockZoneEnd = viewportHeight * 0.7;
       const diagramCenterY = rect.top + rect.height / 2;
       const targetLockAngle = 340;
 
+      let newAngle: number;
       if (diagramCenterY > lockZoneStart && diagramCenterY < lockZoneEnd) {
-        setRotationAngle(targetLockAngle);
+        newAngle = targetLockAngle;
       } else {
-        let scrollDrivenOffset = (diagramCenterY <= lockZoneStart)
+        const scrollDrivenOffset = (diagramCenterY <= lockZoneStart)
           ? diagramCenterY - lockZoneStart
           : diagramCenterY - lockZoneEnd;
-        const angleFromScroll = scrollDrivenOffset * -0.2;
-        setRotationAngle(targetLockAngle + angleFromScroll);
+        newAngle = targetLockAngle + scrollDrivenOffset * -0.2;
+      }
+
+      if (Math.abs(newAngle - lastAngleRef.current) > 0.1) {
+        lastAngleRef.current = newAngle;
+        container.style.setProperty('--rotation', `${newAngle}deg`);
+      }
+
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        rafRef.current = requestAnimationFrame(updateRotation);
+        ticking = true;
       }
     };
 
-    handleScroll();
+    updateRotation();
+
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isDesktop]); // Re-run if the screen size crosses the breakpoint
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
-  const handleChipClick = (event, key) => {
-    event.stopPropagation();
-    if (activePopover && activePopover.key === key) {
-      setActivePopover(null);
-    } else {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setActivePopover({ key, content: featureDescriptions[key] || "No description available.", position: rect });
-    }
-  };
-
-  const handleClosePopover = () => setActivePopover(null);
-
-  const renderChips = (chips) => (
+  const renderChips = (chips: { icon: React.ElementType; label: string; icons?: React.ElementType[] }[]) => (
     <div className="flex flex-wrap justify-center gap-2">
-      {chips.map(([Icon, label]) => <FeatureChip key={label} icon={Icon} label={label} onChipClick={handleChipClick} />)}
+      {chips.map((chip) => (
+        <Chip
+          key={chip.label}
+          icon={chip.icon}
+          icons={chip.icons}
+          label={chip.label}
+          onClick={(e) => onChipClick(e, chip.label)}
+          isActive={activeChip === chip.label}
+        />
+      ))}
     </div>
   );
 
-  // Calculate dynamic arrow paths based on current rotation
-  const arrowPaths = calculateArrowPaths(rotationAngle);
-
   return (
-    <div className="container mx-auto px-6 py-24">
-      {activePopover && <Popover {...activePopover} onClose={handleClosePopover} />}
-      <div className="text-center mb-16 md:mb-24">
-        <h2 className="text-4xl font-bold text-white mb-4">How Agents Work</h2>
-        <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-          Observer agents follow a simple, powerful loop: see with sensors, think with models, and act with tools.
-        </p>
+    <div
+      ref={containerRef}
+      className="relative h-[52rem] flex items-center justify-center"
+      style={{ '--rotation': '195deg' } as React.CSSProperties}
+    >
+      {/* Rotating circle */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <svg className="w-full h-full max-w-2xl max-h-2xl" viewBox="0 0 200 200" fill="none">
+          <g style={{ transform: 'rotate(var(--rotation))', transformOrigin: '100px 100px' }}>
+            <circle
+              cx="100" cy="100" r="85"
+              stroke="url(#gradient-circle)"
+              strokeWidth="1.5"
+              strokeDasharray="6 8"
+              className="animate-dash-flow"
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+          <defs>
+            <linearGradient id="gradient-circle" gradientTransform="rotate(90)">
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="50%" stopColor="#a855f7" />
+              <stop offset="100%" stopColor="#10b981" />
+            </linearGradient>
+          </defs>
+        </svg>
       </div>
 
-      {isDesktop ? (
-        // -- DESKTOP LAYOUT --
-        <div ref={diagramRef} className="relative h-[52rem] flex items-center justify-center">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-full h-full max-w-2xl max-h-2xl" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 200">
-              <circle cx="100" cy="100" r="85" stroke="url(#gradient-circle)" strokeWidth="1" strokeDasharray="8 6" className="animate-dash-flow opacity-30" vectorEffect="non-scaling-stroke" />
-
-              {/* Arrow 1 -> 2 - Dynamic */}
-              <path d={arrowPaths.arrow1to2} stroke="#6b7280" strokeWidth="2" fill="none" markerEnd="url(#arrowhead-grey)" className="opacity-60 transition-all duration-200 ease-out" />
-
-              {/* Arrow 2 -> 3 - Dynamic */}
-              <path d={arrowPaths.arrow2to3} stroke="#6b7280" strokeWidth="2" fill="none" markerEnd="url(#arrowhead-grey)" className="opacity-60 transition-all duration-200 ease-out" />
-
-              {/* Arrow 3 -> 1 with Loop indicator - Dynamic */}
-              <path d={arrowPaths.arrow3to1} stroke="#6b7280" strokeWidth="2" fill="none" markerEnd="url(#arrowhead-grey)" className="opacity-60 transition-all duration-200 ease-out" />
-
-              {/* Clock icon for loop indicator - Dynamic Position */}
-              <g transform={`translate(${arrowPaths.clockPos.x}, ${arrowPaths.clockPos.y})`} className="transition-all duration-200 ease-out">
-                <circle cx="0" cy="0" r="6" fill="#6b7280" className="opacity-80" />
-                <circle cx="0" cy="0" r="4.5" stroke="white" strokeWidth="1" fill="none" />
-                <path d="M 0,-2 L 0,0 L 1.8,1.8" stroke="white" strokeWidth="1" fill="none" strokeLinecap="round" />
-              </g>
-
-              <defs>
-                <linearGradient id="gradient-circle" gradientTransform="rotate(90)">
-                  <stop offset="0%" stopColor="#3b82f6" /><stop offset="50%" stopColor="#a855f7" /><stop offset="100%" stopColor="#10b981" />
-                </linearGradient>
-
-                {/* Arrowheads - grey */}
-                <marker id="arrowhead-grey" markerWidth="12" markerHeight="12" refX="2" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-                  <path d="M0,0 L0,12 L12,6 z" fill="#6b7280" />
-                </marker>
-              </defs>
-            </svg>
-          </div>
-          <div className="absolute w-80 h-80 flex items-center justify-center animate-float">
-            <div className="absolute inset-0 bg-gray-800 rounded-full opacity-50 blur-xl" />
-            <img src="/eye-logo-white.svg" alt="Observer AI Logo" className="relative w-40 h-40 opacity-90" />
-          </div>
-          <DiagramNode title="1. See with Sensors" color="blue" index={0} rotationAngle={rotationAngle}>
-            {renderChips([[ScanText, 'OCR'],[Monitor, 'SCREEN'],[Camera, 'CAMERA'],[Clipboard, 'CLIPBOARD'],[Mic, 'MICROPHONE'],[Volume2, 'AUDIO'],[Blend, 'ALL AUDIO'],[Brain, 'MEMORY']])}
-          </DiagramNode>
-          <DiagramNode title="2. Think with Models" color="purple" index={1} rotationAngle={rotationAngle}>
-            <div className="space-y-3">
-              {renderChips([[Cpu, 'LOCAL'],[Eye, 'VISION'],[BrainCircuit, 'LLMS'],[Layers, 'MODELS']])}
-              <div className="text-center p-2 pt-3 rounded-lg bg-gray-900/50">
-                <span className="font-bold text-sm text-gray-200">ollama, vLLM, llama.cpp, LMStudio...</span>
-                <span className="text-xs text-gray-400 mt-1 block">Supports any OpenAI compatible endpoint</span>
-              </div>
-            </div>
-          </DiagramNode>
-          <DiagramNode title="3. Act with Tools" color="emerald" index={2} rotationAngle={rotationAngle}>
-            <div className="flex flex-wrap justify-center gap-2">
-              <CategoryChip icons={[Mail, MessageSquare, Bell]} label="MESSAGING" onChipClick={handleChipClick} />
-              <CategoryChip icons={[Clapperboard, Tag]} label="RECORDING" onChipClick={handleChipClick} />
-              <CategoryChip icons={[Users, Terminal]} label="INTERACTION" onChipClick={handleChipClick} />
-              <CategoryChip icons={[Save, Image]} label="MEMORY STORAGE" onChipClick={handleChipClick} />
-            </div>
-          </DiagramNode>
+      {/* Center logo */}
+      <div className="absolute w-72 h-72 flex items-center justify-center">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-emerald-500/10 rounded-full blur-3xl" />
+        <div className="relative w-32 h-32 flex items-center justify-center">
+          <div className="absolute inset-0 bg-gray-800/80 rounded-full" />
+          <img src="/eye-logo-white.svg" alt="Observer AI Logo" className="relative w-20 h-20 opacity-90" />
         </div>
-      ) : (
-        // -- MOBILE LAYOUT --
-        <div className="flex flex-col items-center gap-8">
-          <StaticNode title="1. See with Sensors" color="blue">
-            {renderChips([[ScanText, 'OCR'],[Monitor, 'SCREEN'],[Camera, 'CAMERA'],[Clipboard, 'CLIPBOARD'],[Mic, 'MICROPHONE'],[Volume2, 'AUDIO'],[Blend, 'ALL AUDIO'],[Brain, 'MEMORY']])}
-          </StaticNode>
+      </div>
 
-          {/* Arrow 1 -> 2 */}
-          <div className="flex items-center justify-center">
-            <ArrowDown className="h-8 w-8 text-blue-500 animate-bounce" />
-          </div>
-
-          <StaticNode title="2. Think with Models" color="purple">
-            <div className="space-y-3">
-              {renderChips([[Cpu, 'LOCAL'],[Eye, 'VISION'],[BrainCircuit, 'LLMS'],[Layers, 'MODELS']])}
-              <div className="text-center p-2 pt-3 rounded-lg bg-gray-900/50">
-                <span className="font-bold text-sm text-gray-200">ollama, vLLM, llama.cpp, LMStudio...</span>
-                <span className="text-xs text-gray-400 mt-1 block">Supports any OpenAI compatible endpoint</span>
-              </div>
-            </div>
-          </StaticNode>
-
-          {/* Arrow 2 -> 3 */}
-          <div className="flex items-center justify-center">
-            <ArrowDown className="h-8 w-8 text-purple-500 animate-bounce" />
-          </div>
-
-          <StaticNode title="3. Act with Tools" color="emerald">
-            <div className="flex flex-wrap justify-center gap-2">
-              <CategoryChip icons={[Mail, MessageSquare, Bell]} label="MESSAGING" onChipClick={handleChipClick} />
-              <CategoryChip icons={[Clapperboard, Tag]} label="RECORDING" onChipClick={handleChipClick} />
-              <CategoryChip icons={[Users, Terminal]} label="INTERACTION" onChipClick={handleChipClick} />
-              <CategoryChip icons={[Save, Image]} label="MEMORY STORAGE" onChipClick={handleChipClick} />
-            </div>
-          </StaticNode>
-
-          {/* Arrow 3 -> 1 (Loop back) */}
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30">
-              <RotateCcw className="h-6 w-6 text-emerald-400" />
-              <span className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">Loop</span>
-            </div>
+      {/* Rotating nodes */}
+      <div className="absolute inset-0 will-change-transform" style={{ transform: 'rotate(var(--rotation))' }}>
+        {/* Node 1: Sensors (0°) */}
+        <div className="absolute inset-0" style={{ transform: 'rotate(0deg)' }}>
+          <div
+            className="absolute top-1/2 left-1/2 will-change-transform"
+            style={{ transform: 'translate(-50%, -22rem) rotate(calc(-1 * var(--rotation)))' }}
+          >
+            <NodeCard number="01" title="See" subtitle="with Sensors" borderColor="border-blue-500/40" numberColor="text-blue-400">
+              {renderChips([
+                { icon: ScanText, label: 'OCR' },
+                { icon: Monitor, label: 'SCREEN' },
+                { icon: Camera, label: 'CAMERA' },
+                { icon: Clipboard, label: 'CLIPBOARD' },
+                { icon: Mic, label: 'MICROPHONE' },
+                { icon: Volume2, label: 'AUDIO' },
+                { icon: Blend, label: 'ALL AUDIO' },
+                { icon: Brain, label: 'MEMORY' },
+              ])}
+            </NodeCard>
           </div>
         </div>
-      )}
+
+        {/* Node 2: Models (120°) */}
+        <div className="absolute inset-0" style={{ transform: 'rotate(120deg)' }}>
+          <div
+            className="absolute top-1/2 left-1/2 will-change-transform"
+            style={{ transform: 'translate(-50%, -22rem) rotate(calc(-120deg - var(--rotation)))' }}
+          >
+            <NodeCard number="02" title="Think" subtitle="with Models" borderColor="border-purple-500/40" numberColor="text-purple-400">
+              {renderChips([
+                { icon: Cpu, label: 'LOCAL' },
+                { icon: Eye, label: 'VISION' },
+                { icon: Layers, label: 'MODELS' },
+              ])}
+              <div className="mt-3 p-2.5 rounded-xl bg-white/5 border border-white/10 text-center">
+                <p className="text-sm font-medium text-gray-300">ollama, vLLM, llama.cpp...</p>
+                <p className="text-xs text-gray-500 mt-0.5">Any OpenAI-compatible endpoint</p>
+              </div>
+            </NodeCard>
+          </div>
+        </div>
+
+        {/* Node 3: Tools (240°) */}
+        <div className="absolute inset-0" style={{ transform: 'rotate(240deg)' }}>
+          <div
+            className="absolute top-1/2 left-1/2 will-change-transform"
+            style={{ transform: 'translate(-50%, -22rem) rotate(calc(-240deg - var(--rotation)))' }}
+          >
+            <NodeCard number="03" title="Act" subtitle="with Tools" borderColor="border-emerald-500/40" numberColor="text-emerald-400">
+              {renderChips([
+                { icon: Mail, label: 'MESSAGING', icons: [Mail, MessageSquare, Bell] },
+                { icon: Clapperboard, label: 'RECORDING', icons: [Clapperboard, Tag] },
+                { icon: Users, label: 'INTERACTION', icons: [Users, Terminal] },
+                { icon: Save, label: 'MEMORY STORAGE', icons: [Save, Image] },
+              ])}
+            </NodeCard>
+          </div>
+        </div>
+      </div>
     </div>
+  );
+};
+
+// --- MOBILE LAYOUT ---
+const MobileLayout = ({ onChipClick, activeChip }: {
+  onChipClick: (e: React.MouseEvent, label: string) => void;
+  activeChip: string | null;
+}) => {
+  const renderChips = (chips: { icon: React.ElementType; label: string; icons?: React.ElementType[] }[]) => (
+    <div className="flex flex-wrap justify-center gap-2">
+      {chips.map((chip) => (
+        <Chip
+          key={chip.label}
+          icon={chip.icon}
+          icons={chip.icons}
+          label={chip.label}
+          onClick={(e) => onChipClick(e, chip.label)}
+          isActive={activeChip === chip.label}
+        />
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col items-center gap-6">
+      <NodeCard number="01" title="See" subtitle="with Sensors" borderColor="border-blue-500/40" numberColor="text-blue-400">
+        {renderChips([
+          { icon: ScanText, label: 'OCR' },
+          { icon: Monitor, label: 'SCREEN' },
+          { icon: Camera, label: 'CAMERA' },
+          { icon: Clipboard, label: 'CLIPBOARD' },
+          { icon: Mic, label: 'MICROPHONE' },
+          { icon: Volume2, label: 'AUDIO' },
+          { icon: Blend, label: 'ALL AUDIO' },
+          { icon: Brain, label: 'MEMORY' },
+        ])}
+      </NodeCard>
+
+      <ChevronDown className="h-6 w-6 text-blue-400/50" />
+
+      <NodeCard number="02" title="Think" subtitle="with Models" borderColor="border-purple-500/40" numberColor="text-purple-400">
+        {renderChips([
+          { icon: Cpu, label: 'LOCAL' },
+          { icon: Eye, label: 'VISION' },
+          { icon: BrainCircuit, label: 'LLMS' },
+          { icon: Layers, label: 'MODELS' },
+        ])}
+        <div className="mt-3 p-2.5 rounded-xl bg-white/5 border border-white/10 text-center">
+          <p className="text-sm font-medium text-gray-300">ollama, vLLM, llama.cpp...</p>
+          <p className="text-xs text-gray-500 mt-0.5">Any OpenAI-compatible endpoint</p>
+        </div>
+      </NodeCard>
+
+      <ChevronDown className="h-6 w-6 text-purple-400/50" />
+
+      <NodeCard number="03" title="Act" subtitle="with Tools" borderColor="border-emerald-500/40" numberColor="text-emerald-400">
+        {renderChips([
+          { icon: Mail, label: 'MESSAGING', icons: [Mail, MessageSquare, Bell] },
+          { icon: Clapperboard, label: 'RECORDING', icons: [Clapperboard, Tag] },
+          { icon: Users, label: 'INTERACTION', icons: [Users, Terminal] },
+          { icon: Save, label: 'MEMORY STORAGE', icons: [Save, Image] },
+        ])}
+      </NodeCard>
+
+      <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+        <Repeat className="h-4 w-4 text-emerald-400" />
+        <span className="text-sm text-emerald-400">Continuous loop</span>
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN COMPONENT ---
+export const AgentDiagram = () => {
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [activeChip, setActiveChip] = useState<string | null>(null);
+  const [tooltipData, setTooltipData] = useState<{ label: string; position: DOMRect } | null>(null);
+
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 768);
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
+  const handleChipClick = useCallback((e: React.MouseEvent, label: string) => {
+    e.stopPropagation();
+    if (activeChip === label) {
+      setActiveChip(null);
+      setTooltipData(null);
+    } else {
+      setActiveChip(label);
+      setTooltipData({
+        label,
+        position: (e.currentTarget as HTMLElement).getBoundingClientRect()
+      });
+    }
+  }, [activeChip]);
+
+  const handleCloseTooltip = useCallback(() => {
+    setActiveChip(null);
+    setTooltipData(null);
+  }, []);
+
+  return (
+    <section className="py-24 md:py-32">
+      <div className="container mx-auto px-6">
+        {/* Header */}
+        <div className="text-center mb-16 md:mb-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            How Agents Work
+          </h2>
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+            A continuous loop of perception, reasoning, and action.
+          </p>
+        </div>
+
+        {/* Tooltip */}
+        {tooltipData && (
+          <Tooltip
+            content={featureDescriptions[tooltipData.label] || "No description available."}
+            position={tooltipData.position}
+            onClose={handleCloseTooltip}
+          />
+        )}
+
+        {/* Diagram */}
+        {isDesktop ? (
+          <DesktopDiagram onChipClick={handleChipClick} activeChip={activeChip} />
+        ) : (
+          <MobileLayout onChipClick={handleChipClick} activeChip={activeChip} />
+        )}
+
+        {/* Loop indicator - desktop only */}
+        {isDesktop && (
+          <div className="flex justify-center -mt-16">
+            <div className="flex items-center gap-3 px-5 py-3 rounded-full bg-white/5 border border-white/10">
+              <Repeat className="h-5 w-5 text-gray-400" />
+              <span className="text-sm text-gray-400">
+                Runs continuously at your configured interval
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 };
 
