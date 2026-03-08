@@ -253,8 +253,8 @@ const LandingPage = () => {
             <span className="text-xl font-bold font-golos hidden md:inline">Observer AI</span>
           </div>
           <div className="flex items-center space-x-7 md:space-x-9 -mr-2">
-            <a href="#downloads" className="text-gray-400 hover:text-white transition hidden md:inline">Download</a>
-            <a href="#agents" className="text-gray-400 hover:text-white transition hidden md:inline">Agents</a>
+            <button onClick={() => document.getElementById('downloads')?.scrollIntoView({ behavior: 'smooth' })} className="text-gray-400 hover:text-white transition hidden md:inline">Download</button>
+            <button onClick={() => document.getElementById('agents')?.scrollIntoView({ behavior: 'smooth' })} className="text-gray-400 hover:text-white transition hidden md:inline">Agents</button>
             <a href="https://discord.gg/wnBb7ZQDUC" className="text-gray-400 hover:text-white transition hidden md:inline">Community</a>
             <a href="https://github.com/Roy3838/Observer" className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition">
               <Github className="w-5 h-5" />
