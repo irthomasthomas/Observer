@@ -445,7 +445,7 @@ const VideoStream: React.FC<{
   const [isPipActive, setIsPipActive] = useState(false);
   const showPipButton = isMobile() && isPipSupported();
 
-  Logger.info("PiP", `is Pip supported? ${isPipSupported}`);
+  Logger.debug("PiP", `is Pip supported? ${isPipSupported}`); // This is running every frame smh
 
   // Load existing crop config
   useEffect(() => {
