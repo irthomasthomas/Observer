@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Github, ArrowRight, ExternalLink,
   ScanText, Monitor, Mic, Brain, Volume2, Camera, Clipboard,
@@ -495,8 +496,8 @@ const LandingPage = () => {
               <span className="text-gray-500 text-sm">Observer AI</span>
             </div>
             <div className="flex items-center space-x-8 text-sm text-gray-500">
-              <a href="#/privacy" className="hover:text-white transition">Privacy</a>
-              <a href="#/terms" className="hover:text-white transition">Terms</a>
+              <Link to="/privacy" className="hover:text-white transition">Privacy</Link>
+              <Link to="/terms" className="hover:text-white transition">Terms</Link>
               <a href="https://github.com/Roy3838/Observer" className="hover:text-white transition">GitHub</a>
               <a href="https://discord.gg/wnBb7ZQDUC" className="hover:text-white transition">Discord</a>
             </div>
