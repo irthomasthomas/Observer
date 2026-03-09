@@ -1,11 +1,4 @@
 fn main() {
-    // Expose the target triple to the compiled code so install_cli.rs can
-    // locate the correctly-named sidecar binary at runtime.
-    println!(
-        "cargo:rustc-env=TARGET={}",
-        std::env::var("TARGET").unwrap()
-    );
-
     tauri_build::build();
 
     // Platform-specific build steps

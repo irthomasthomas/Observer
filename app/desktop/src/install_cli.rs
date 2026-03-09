@@ -3,9 +3,6 @@ use std::path::PathBuf;
 // Version of the bundled CLI — matches the app release version
 const BUNDLED_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// Target triple emitted by build.rs so we can find the right sidecar filename
-const TARGET_TRIPLE: &str = env!("TARGET");
-
 pub fn try_install_cli() {
     if let Err(e) = install_cli_inner() {
         log::warn!("observe CLI install skipped (non-fatal): {}", e);
@@ -69,10 +66,11 @@ fn bundled_binary_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
         .ok_or("could not get exe directory")?
         .to_path_buf();
 
+    // Tauri bundles the sidecar without the target triple suffix in the final app
     #[cfg(target_os = "windows")]
-    let name = format!("observe-{}.exe", TARGET_TRIPLE);
+    let name = "observe.exe";
     #[cfg(not(target_os = "windows"))]
-    let name = format!("observe-{}", TARGET_TRIPLE);
+    let name = "observe";
 
     Ok(exe_dir.join(name))
 }
