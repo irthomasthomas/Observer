@@ -4,6 +4,7 @@
 
 mod commands;
 mod controls;
+mod install_cli;
 mod notifications;
 mod overlay;
 mod shortcuts;
@@ -586,11 +587,16 @@ pub fn run() {
             {
                 shortcuts::register_shortcuts_on_startup(app)?;
             }
-            
+
             #[cfg(not(desktop))]
             {
                 log::info!("Global shortcuts not available on this platform");
             }
+
+            // Silently install/update the bundled observe CLI in the background
+            std::thread::spawn(|| {
+                install_cli::try_install_cli();
+            });
 
             Ok(())
         })

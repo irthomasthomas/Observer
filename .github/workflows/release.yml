@@ -22,10 +22,14 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - os: macos-latest # Apple Silicon (ARM64)
-          - os: macos-15-intel     # Intel (x86_64) New instance
-          - os: ubuntu-latest  # Linux (x86_64)
-          - os: windows-latest # Windows (x86_64)
+          - os: macos-latest       # Apple Silicon (ARM64)
+            target: aarch64-apple-darwin
+          - os: macos-15-intel     # Intel (x86_64)
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest      # Linux (x86_64)
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest     # Windows (x86_64)
+            target: x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.platform.os }}
     steps:
@@ -81,7 +85,21 @@ jobs:
         run: pnpm build
         working-directory: ./app
 
-      # 7. Build the Tauri application and create a GitHub release
+      # 7. Build the observe CLI and stage it as a named sidecar for Tauri
+      - name: Build observe CLI
+        run: cargo build --release --manifest-path cli/Cargo.toml
+
+      - name: Stage observe CLI sidecar
+        shell: bash
+        run: |
+          mkdir -p app/desktop/binaries
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp cli/target/release/observe.exe "app/desktop/binaries/observe-${{ matrix.platform.target }}.exe"
+          else
+            cp cli/target/release/observe "app/desktop/binaries/observe-${{ matrix.platform.target }}"
+          fi
+
+      # 8. Build the Tauri application and create a GitHub release
       - name: Build and release Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
