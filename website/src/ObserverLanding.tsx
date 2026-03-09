@@ -161,15 +161,16 @@ const ObserverLanding = () => {
               opacity: textOpacity,
             }}
           >
-            <span
+            <h1
               className="text-white font-golos font-bold tracking-tight whitespace-nowrap"
               style={{
                 fontSize: `${finalTextSize}px`,
                 lineHeight: 1,
               }}
             >
-              bserver
-            </span>
+              <span className="sr-only">Observer AI</span>
+              <span aria-hidden="true">bserver</span>
+            </h1>
           </div>
         </div>
 
