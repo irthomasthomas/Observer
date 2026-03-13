@@ -76,6 +76,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const [currentModel, setCurrentModel] = useState(agent.model_name);
   const [skipReason, setSkipReason] = useState<'same_inputs' | 'network_error' | null>(null);
   const initialModelRef = useRef(agent.model_name);
+  const loopStartTimeRef = useRef(0);
+  const loopDurationRef = useRef(0);
+  const [isOverrun, setIsOverrun] = useState(false);
 
   const showStartingState = useMemo(() => isStarting || isCheckingModel, [isStarting, isCheckingModel]);
   const isLive = useMemo(() => (isRunning || showStartingState) && !hasQuotaError, [isRunning, showStartingState, hasQuotaError]);
@@ -151,7 +154,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
           if (reason === 'network_error') {
             setLastResponse(`Network error - iteration skipped: ${log.details?.content?.error || 'Connection failed'}`);
           } else {
-            setLastResponse('No significant change detected - iteration skipped to save resources.');
+            setLastResponse('No significant change detected - reused model call to save resources.');
           }
           setResponseKey(key => key + 1);
         }
@@ -171,8 +174,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
   // Set up event listener immediately on mount - separate from state changes
   useEffect(() => {
     let progressTimer: NodeJS.Timeout | null = null;
-    let startTime = 0;
-    let duration = 0;
 
     const handleIterationStart = (event: CustomEvent) => {
       if (event.detail.agentId !== agent.id) return;
@@ -182,16 +183,17 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
       console.log('Event fired!! for agent: ', agent.id);
 
-      // Capture fixed reference values
-      startTime = event.detail.iterationStartTime;
-      duration = event.detail.intervalMs;
+      // Store in refs so other effects can access/update
+      loopStartTimeRef.current = event.detail.iterationStartTime;
+      loopDurationRef.current = event.detail.intervalMs;
       setLoopProgress(0);
-      setLoopDurationMs(duration);
+      setLoopDurationMs(event.detail.intervalMs);
+      setIsOverrun(false); // Reset overrun flag when new iteration starts
 
-      // Simple progress timer using fixed references
+      // Simple progress timer using refs (can be reset by updating refs)
       progressTimer = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(100, (elapsed / duration) * 100);
+        const elapsed = Date.now() - loopStartTimeRef.current;
+        const progress = Math.min(100, (elapsed / loopDurationRef.current) * 100);
         setLoopProgress(progress);
         setLastProgressUpdate(Date.now());
       }, 50);
@@ -204,6 +206,21 @@ const AgentCard: React.FC<AgentCardProps> = ({
       window.removeEventListener('agentIterationStart' as any, handleIterationStart);
     };
   }, []); // Empty deps - runs once on mount
+
+  // Detect when timer expires while model is still working -> set overrun flag
+  // This happens when isExecuting=true in main_loop (CAPTURING/THINKING/RESPONDING states)
+  useEffect(() => {
+    if (loopProgress >= 100 && loopDurationRef.current > 0) {
+      const modelStillWorking = liveStatus === 'CAPTURING' || liveStatus === 'THINKING' || liveStatus === 'RESPONDING';
+
+      if (modelStillWorking || isOverrun) {
+        // Timer expired but model hasn't finished - mark as overrun and reset timer
+        setIsOverrun(true);
+        loopStartTimeRef.current = Date.now();
+        setLoopProgress(0);
+      }
+    }
+  }, [loopProgress, liveStatus, isOverrun]);
 
   // Listen for stream start to transition from THINKING to RESPONDING
   useEffect(() => {
@@ -337,9 +354,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
               }}
             />
           ) : (Date.now() - lastProgressUpdate < 5000) ? (
-            // Green loop progress bar (fills from 0% to 100%)
+            // Loop progress bar (green normally, orange when overrun)
             <div
-              className="h-full bg-green-500"
+              className={`h-full ${isOverrun ? 'bg-orange-400' : 'bg-green-500'}`}
               style={{
                 width: `${loopProgress}%`,
                 transition: 'width 0.1s linear'
@@ -391,6 +408,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               loopDurationMs={loopDurationMs}
               sleepDurationMs={sleepDurationMs}
               skipReason={skipReason}
+              isOverrun={isOverrun}
             />
           ) : (
             // FIX: Pass the 'code' prop down to StaticAgentView

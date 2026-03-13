@@ -48,7 +48,7 @@ interface ChangeDetectionData {
 
 const PieTimer: React.FC<{
   progress: number;      // 0-100
-  color: 'green' | 'blue';
+  color: 'green' | 'blue' | 'orange';
   totalDurationMs?: number;
   isFilling?: boolean;   // true = filling (WAITING), false = draining (SLEEPING)
   size?: number;         // default: 20
@@ -58,8 +58,8 @@ const PieTimer: React.FC<{
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (progress / 100) * circumference;
 
-  const strokeColor = color === 'green' ? 'stroke-green-500' : 'stroke-blue-500';
-  const textColor = color === 'green' ? 'fill-green-600' : 'fill-blue-600';
+  const strokeColor = color === 'green' ? 'stroke-green-500' : color === 'orange' ? 'stroke-orange-400' : 'stroke-blue-500';
+  const textColor = color === 'green' ? 'fill-green-600' : color === 'orange' ? 'fill-orange-500' : 'fill-blue-600';
 
   // Calculate remaining seconds and format as MM:SS
   let timeDisplay = '';
@@ -156,7 +156,8 @@ const StateTicker: React.FC<{
   loopDurationMs?: number;
   sleepDurationMs?: number;
   skipReason?: 'same_inputs' | 'network_error' | null;
-}> = ({ status, changeDetectionData, onSettingsClick, onWake, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, skipReason }) => {
+  isOverrun?: boolean;
+}> = ({ status, changeDetectionData, onSettingsClick, onWake, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, skipReason, isOverrun }) => {
   const statusInfo = useMemo(() => {
     switch (status) {
       case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
@@ -166,7 +167,7 @@ const StateTicker: React.FC<{
       case 'SLEEPING': return { icon: null, text: 'Sleeping...', color: 'text-blue-600' }; // Icon handled separately
       case 'SKIPPED': return skipReason === 'network_error'
         ? { icon: <Clock className="w-5 h-5" />, text: 'Skipped due to Network Error, Waiting...', color: 'text-red-500' }
-        : { icon: <Clock className="w-5 h-5" />, text: 'Skipped Model Call, Waiting...', color: 'text-orange-500' };
+        : { icon: <Clock className="w-5 h-5" />, text: 'Reused Model Call, Waiting...', color: 'text-gray-500' };
       case 'WAITING': return { icon: <Clock className="w-5 h-5" />, text: 'Waiting for next cycle...', color: 'text-gray-500' };
       default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };
     }
@@ -177,13 +178,13 @@ const StateTicker: React.FC<{
         {status === 'SLEEPING' ? <SleepIcon onWake={onWake} /> : statusInfo.icon}
       </div>
       <span className="font-medium text-sm">{statusInfo.text}</span>
-      {/* Pie timer for WAITING and SLEEPING states */}
-      {(status === 'WAITING' || status === 'SLEEPING') && (loopProgress || sleepProgress) && (
+      {/* Pie timer for WAITING, SLEEPING, or overrun states */}
+      {(status === 'WAITING' || status === 'SLEEPING' || isOverrun) && (loopProgress || sleepProgress) && (
         <PieTimer
           progress={status === 'SLEEPING' ? (sleepProgress || 0) : (loopProgress || 0)}
-          color={status === 'SLEEPING' ? 'blue' : 'green'}
+          color={status === 'SLEEPING' ? 'blue' : isOverrun ? 'orange' : 'green'}
           totalDurationMs={status === 'SLEEPING' ? sleepDurationMs : loopDurationMs}
-          isFilling={status === 'WAITING'}
+          isFilling={status !== 'SLEEPING'}
           size={20}
         />
       )}
@@ -341,6 +342,7 @@ interface ActiveAgentViewProps {
     loopDurationMs?: number;
     sleepDurationMs?: number;
     skipReason?: 'same_inputs' | 'network_error' | null;
+    isOverrun?: boolean;
 }
 
 const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
@@ -354,7 +356,8 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     sleepProgress,
     loopDurationMs,
     sleepDurationMs,
-    skipReason
+    skipReason,
+    isOverrun
 }) => {
     const [streamingResponse, setStreamingResponse] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
@@ -446,7 +449,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
         let timerSeconds: number | undefined;
         let progress: number | undefined;
 
-        if (liveStatus === 'WAITING' && loopProgress !== undefined && loopDurationMs) {
+        if ((liveStatus === 'WAITING' || isOverrun) && loopProgress !== undefined && loopDurationMs) {
             timerSeconds = Math.ceil((loopDurationMs * (100 - loopProgress)) / 100 / 1000);
             progress = loopProgress;
         } else if (liveStatus === 'SLEEPING' && sleepProgress !== undefined && sleepDurationMs) {
@@ -461,7 +464,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
         });
 
         return () => StreamManager.setPipOverlayStatus(null);
-    }, [liveStatus, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs]);
+    }, [liveStatus, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, isOverrun]);
 
     return (
         <>
@@ -488,6 +491,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                     loopDurationMs={loopDurationMs}
                     sleepDurationMs={sleepDurationMs}
                     skipReason={skipReason}
+                    isOverrun={isOverrun}
                 />
                 <LastResponse
                     response={isStreaming ? streamingResponse : lastResponse}
