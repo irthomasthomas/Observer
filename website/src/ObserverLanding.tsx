@@ -146,7 +146,7 @@ const ObserverLanding = () => {
             style={{
               width: `${eyeSize}px`,
               height: `${eyeSize}px`,
-              transform: `translateX(${eyeTranslateX}px)`,
+              transform: `translateX(${eyeTranslateX + scrollProgress * 20}px)`,
             }}
           >
             <EyeLogo mousePosition={mousePosition} size={eyeSize} />
@@ -157,7 +157,7 @@ const ObserverLanding = () => {
             className="absolute flex items-center"
             style={{
               left: '50%',
-              transform: `translateX(${eyeTranslateX + 40 - 4}px)`,
+              transform: `translateX(${eyeTranslateX + 40 - 4 + scrollProgress * 24}px)`,
               opacity: textOpacity,
             }}
           >

@@ -46,6 +46,22 @@ export function pauseAgentLoop(agentId: string, durationMs: number): void {
   }
 }
 
+/**
+ * Wake agent from sleep early
+ */
+export function wakeAgentLoop(agentId: string): void {
+  const loop = activeLoops[agentId];
+  if (loop?.isRunning && loop.sleepUntil) {
+    loop.sleepUntil = null;
+
+    // Dispatch sleep end event
+    Logger.info(agentId, `Agent woken up early`, {
+      logType: 'agent-sleep-end',
+      content: { agentId, wokeEarly: true }
+    });
+  }
+}
+
 export async function startAgentLoop(agentId: string, getToken?: TokenProvider, skipWhitelistCheck = false): Promise<void> {
   if (activeLoops[agentId]?.isRunning) {
     Logger.warn(agentId, `Agent is already running`);
@@ -186,6 +202,9 @@ export async function stopAgentLoop(agentId: string): Promise<void> {
   const loop = activeLoops[agentId];
   if (loop?.isRunning) {
     if (loop.intervalId !== null) window.clearInterval(loop.intervalId);
+
+    // Clear any active sleep state
+    wakeAgentLoop(agentId);
 
     // --- SUBSCRIBER CLEANUP ---
     // Destroy all transcription subscribers for this agent

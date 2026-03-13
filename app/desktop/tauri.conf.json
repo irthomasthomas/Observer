@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Observer",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "identifier": "com.observer.ai",
   "build": {
     "frontendDist": "../dist",
@@ -37,6 +37,9 @@
     ],
     "resources": [
       "../dist"
+    ],
+    "externalBin": [
+      "binaries/observe"
     ],
     "macOS": {
       "entitlements": "./Entitlements.plist"

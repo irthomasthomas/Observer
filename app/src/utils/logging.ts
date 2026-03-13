@@ -313,6 +313,17 @@ class LoggingService {
             })
           );
           break;
+
+        case 'agent-sleep-end':
+          window.dispatchEvent(
+            new CustomEvent('agentSleepEnd', {
+              detail: {
+                agentId: entry.source,
+                wokeEarly: entry.details.content?.wokeEarly
+              }
+            })
+          );
+          break;
       }
     } catch (error) {
       console.error('Error dispatching window event from logger:', error);
