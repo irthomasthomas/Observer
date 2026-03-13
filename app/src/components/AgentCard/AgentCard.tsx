@@ -223,15 +223,23 @@ const AgentCard: React.FC<AgentCardProps> = ({
   useEffect(() => {
     let sleepProgressTimer: NodeJS.Timeout | null = null;
 
-    const handleSleepStart = (event: CustomEvent) => {
-      if (event.detail.agentId !== agent.id) return;
-
-      // OPTION 1: Last Sleep Wins - Clear any existing timer before starting a new one
-      // This matches backend behavior where pauseAgentLoop() overwrites sleepUntil
+    const clearSleepState = () => {
       if (sleepProgressTimer) {
         clearInterval(sleepProgressTimer);
         sleepProgressTimer = null;
       }
+      setSleepProgress(0);
+      setIsSleeping(false);
+      setSleepDurationMs(0);
+      setLiveStatus('WAITING');
+    };
+
+    const handleSleepStart = (event: CustomEvent) => {
+      if (event.detail.agentId !== agent.id) return;
+
+      // Clear any existing timer before starting a new one
+      // This matches backend behavior where pauseAgentLoop() overwrites sleepUntil
+      clearSleepState();
 
       const durationMs = event.detail.durationMs;
       const sleepEnd = Date.now() + durationMs;
@@ -247,10 +255,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
         if (remaining <= 0) {
           // Sleep finished - clear state and transition back to WAITING
-          setSleepProgress(0);
-          setIsSleeping(false);
-          setLiveStatus('WAITING'); // Explicitly set status to avoid showing "Sleeping... 0"
-          clearInterval(sleepProgressTimer!);
+          clearSleepState();
         } else {
           // Calculate remaining percentage (drains from 100% to 0%)
           const progress = Math.max(0, (remaining / durationMs) * 100);
@@ -259,11 +264,18 @@ const AgentCard: React.FC<AgentCardProps> = ({
       }, 50); // Update every 50ms for smooth animation
     };
 
+    const handleSleepEnd = (event: CustomEvent) => {
+      if (event.detail.agentId !== agent.id) return;
+      clearSleepState();
+    };
+
     window.addEventListener('agentSleepStart' as any, handleSleepStart);
+    window.addEventListener('agentSleepEnd' as any, handleSleepEnd);
 
     return () => {
       if (sleepProgressTimer) clearInterval(sleepProgressTimer);
       window.removeEventListener('agentSleepStart' as any, handleSleepStart);
+      window.removeEventListener('agentSleepEnd' as any, handleSleepEnd);
     };
   }, [agent.id]);
 

@@ -1,6 +1,7 @@
 // components/AgentCard/ActiveAgentView.tsx
 import React, { useMemo, useEffect, useState } from 'react';
-import { Clock, Power, Activity, Eye, Moon } from 'lucide-react';
+import { Clock, Power, Activity, Eye, Moon, Sun } from 'lucide-react';
+import { wakeAgentLoop } from '@utils/main_loop';
 import { StreamState, StreamManager } from '@utils/streamManager';
 import { CompleteAgent } from '@utils/agent_database';
 import { IterationStore, ToolCall } from '@utils/IterationStore';
@@ -125,23 +126,44 @@ const PieTimer: React.FC<{
   );
 };
 
+const SleepIcon: React.FC<{ onWake?: () => void }> = ({ onWake }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={onWake}
+      className="p-0.5 rounded hover:bg-blue-100 transition-colors cursor-pointer"
+      title="Agent is sleeping to avoid spamming notifications. Click to wake up early."
+    >
+      {isHovered ? (
+        <Sun className="w-5 h-5 text-yellow-500" />
+      ) : (
+        <Moon className="w-5 h-5" />
+      )}
+    </button>
+  );
+};
+
 const StateTicker: React.FC<{
   status: AgentLiveStatus;
   changeDetectionData?: ChangeDetectionData | null;
   onSettingsClick?: (threshold: 'text' | 'dhash' | 'pixel' | 'suspicious') => void;
+  onWake?: () => void;
   loopProgress?: number;
   sleepProgress?: number;
   loopDurationMs?: number;
   sleepDurationMs?: number;
   skipReason?: 'same_inputs' | 'network_error' | null;
-}> = ({ status, changeDetectionData, onSettingsClick, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, skipReason }) => {
+}> = ({ status, changeDetectionData, onSettingsClick, onWake, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, skipReason }) => {
   const statusInfo = useMemo(() => {
     switch (status) {
       case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
       case 'CAPTURING': return { icon: <Eye className="w-5 h-5 animate-subtle-pulse" />, text: 'Capturing Inputs...', color: 'text-cyan-600' };
       case 'THINKING': return { icon: <Activity className="w-5 h-5" />, text: 'Model is thinking...', color: 'text-purple-600' };
       case 'RESPONDING': return { icon: <Activity className="w-5 h-5 animate-pulse" />, text: 'Model is responding...', color: 'text-blue-600' };
-      case 'SLEEPING': return { icon: <Moon className="w-5 h-5" />, text: 'Sleeping...', color: 'text-blue-600' };
+      case 'SLEEPING': return { icon: null, text: 'Sleeping...', color: 'text-blue-600' }; // Icon handled separately
       case 'SKIPPED': return skipReason === 'network_error'
         ? { icon: <Clock className="w-5 h-5" />, text: 'Skipped due to Network Error, Waiting...', color: 'text-red-500' }
         : { icon: <Clock className="w-5 h-5" />, text: 'Skipped Model Call, Waiting...', color: 'text-orange-500' };
@@ -151,7 +173,9 @@ const StateTicker: React.FC<{
   }, [status, skipReason]);
   return (
     <div className={`flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 ${statusInfo.color}`}>
-      <div className="flex-shrink-0">{statusInfo.icon}</div>
+      <div className="flex-shrink-0">
+        {status === 'SLEEPING' ? <SleepIcon onWake={onWake} /> : statusInfo.icon}
+      </div>
       <span className="font-medium text-sm">{statusInfo.text}</span>
       {/* Pie timer for WAITING and SLEEPING states */}
       {(status === 'WAITING' || status === 'SLEEPING') && (loopProgress || sleepProgress) && (
@@ -458,6 +482,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
                         setFocusedThreshold(threshold);
                         setIsSettingsModalOpen(true);
                     }}
+                    onWake={() => wakeAgentLoop(agentId)}
                     loopProgress={loopProgress}
                     sleepProgress={sleepProgress}
                     loopDurationMs={loopDurationMs}
