@@ -1,43 +1,20 @@
 // components/AgentCard/IterationStoreDebug.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Database, CheckCircle, XCircle, Camera, Monitor, Mic, Clipboard, Save } from 'lucide-react';
-import { IterationStore, IterationData, SensorData, AgentSession } from '../../utils/IterationStore';
+import { IterationStore, IterationData, SensorData } from '../../utils/IterationStore';
+import { useAllIterationData } from '../../hooks/useIterations';
 
 interface IterationStoreDebugProps {
   agentId: string;
 }
 
 const IterationStoreDebug: React.FC<IterationStoreDebugProps> = ({ agentId }) => {
-  const [currentIterations, setCurrentIterations] = useState<IterationData[]>([]);
-  const [historicalSessions, setHistoricalSessions] = useState<AgentSession[]>([]);
+  // Use polling hooks instead of manual subscription
+  const { iterations: currentIterations, historicalSessions } = useAllIterationData(agentId);
+
   const [expandedIterations, setExpandedIterations] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    // Initial load
-    const loadData = async () => {
-      try {
-        const currentData = IterationStore.getIterationsForAgent(agentId) || [];
-        const historicalData = await IterationStore.getHistoricalSessions(agentId) || [];
-        setCurrentIterations(currentData);
-        setHistoricalSessions(historicalData);
-      } catch (error) {
-        console.error('Error loading iterations:', error);
-        setCurrentIterations([]);
-        setHistoricalSessions([]);
-      }
-    };
-    
-    loadData();
-
-    // Subscribe to updates
-    const unsubscribe = IterationStore.subscribe(async () => {
-      await loadData();
-    });
-
-    return unsubscribe;
-  }, [agentId]);
 
   const toggleIteration = (iterationId: string) => {
     setExpandedIterations(prev => ({

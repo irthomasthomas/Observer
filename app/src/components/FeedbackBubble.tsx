@@ -4,7 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ThumbsUp, ThumbsDown, Send, FileText, X, AlertCircle } from 'lucide-react';
 import { generateFeedbackReportMarkdown } from '../utils/feedbackReporter';
 import { sendEmail } from '../utils/handlers/utils';
-import { IterationStore, IterationData } from '../utils/IterationStore';
+import { IterationData } from '../utils/IterationStore';
+import { useIterations, useHistoricalSessions } from '../hooks/useIterations';
 
 // The component's contract: it requires the real authentication state and a function to get the token.
 interface FeedbackBubbleProps {
@@ -23,8 +24,25 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId, getToken, isAu
   const [previewData, setPreviewData] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [latestIteration, setLatestIteration] = useState<IterationData | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
+
+  // Use polling hooks for iteration data
+  const currentIterations = useIterations(agentId, 1000); // Poll every 1s (feedback isn't time-critical)
+  const historicalSessions = useHistoricalSessions(agentId);
+
+  // Derive latest iteration from current or historical data
+  const latestIteration: IterationData | null = (() => {
+    if (currentIterations.length > 0) {
+      return currentIterations[currentIterations.length - 1];
+    }
+    if (historicalSessions.length > 0) {
+      const mostRecentSession = historicalSessions[0];
+      if (mostRecentSession.iterations.length > 0) {
+        return mostRecentSession.iterations[mostRecentSession.iterations.length - 1];
+      }
+    }
+    return null;
+  })();
 
 
   const handleSentimentClick = (newSentiment: 'like' | 'dislike') => {
@@ -96,43 +114,6 @@ const FeedbackBubble: React.FC<FeedbackBubbleProps> = ({ agentId, getToken, isAu
       setIsSubmitting(false);
     }
   };
-
-  // Effect to get the latest iteration data
-  useEffect(() => {
-    const updateLatestIteration = async () => {
-      // First check current session iterations
-      const currentIterations = IterationStore.getIterationsForAgent(agentId);
-      
-      if (currentIterations.length > 0) {
-        // Use the latest from current session
-        const latest = currentIterations[currentIterations.length - 1];
-        setLatestIteration(latest);
-      } else {
-        // No current session iterations, check historical sessions
-        const historicalSessions = await IterationStore.getHistoricalSessions(agentId);
-        if (historicalSessions.length > 0) {
-          // Get the latest iteration from the most recent session
-          const mostRecentSession = historicalSessions[0]; // Already sorted by most recent
-          const latestIteration = mostRecentSession.iterations.length > 0 
-            ? mostRecentSession.iterations[mostRecentSession.iterations.length - 1]
-            : null;
-          setLatestIteration(latestIteration);
-        } else {
-          setLatestIteration(null);
-        }
-      }
-    };
-
-    // Get initial data
-    updateLatestIteration();
-
-    // Subscribe to iteration updates
-    const unsubscribe = IterationStore.subscribe(() => {
-      updateLatestIteration();
-    });
-
-    return unsubscribe;
-  }, [agentId]);
 
   // Effect to close the bubble when clicking outside of it.
   useEffect(() => {

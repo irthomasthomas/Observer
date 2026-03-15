@@ -6,7 +6,8 @@ import {
   ScanText,
   ArrowRight, Clock, Download, ChevronDown, Images, Trash2
 } from 'lucide-react';
-import { IterationStore, IterationData, SensorData, AgentSession } from '@utils/IterationStore';
+import { IterationStore, IterationData, SensorData } from '@utils/IterationStore';
+import { useAllIterationData } from '@hooks/useIterations';
 import { exportData, ExportFormat } from '@utils/exportUtils';
 import ToolStatus from '@components/AgentCard/ToolStatus';
 
@@ -106,8 +107,9 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   maxEntries = 50,
   maxHeight = '400px',
 }) => {
-  const [currentIterations, setCurrentIterations] = useState<IterationData[]>([]);
-  const [historicalSessions, setHistoricalSessions] = useState<AgentSession[]>([]);
+  // Use polling hooks instead of manual subscription
+  const { iterations: currentIterations, historicalSessions } = useAllIterationData(agentId);
+
   const [, setLoadedImages] = useState<Set<string>>(new Set());
   const [selectedIteration, setSelectedIteration] = useState<IterationData | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -117,30 +119,6 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
   const [exportSessionId, setExportSessionId] = useState<string>('');
   const [includeImages, setIncludeImages] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
-
-  useEffect(() => {
-    // Get initial data
-    const loadData = async () => {
-      const initialIterations = IterationStore.getIterationsForAgent(agentId);
-      const historicalData = await IterationStore.getHistoricalSessions(agentId);
-      
-      setCurrentIterations(initialIterations);
-      setHistoricalSessions(historicalData);
-    };
-    
-    loadData();
-
-    // Subscribe to updates
-    const unsubscribe = IterationStore.subscribe(async () => {
-      const updatedIterations = IterationStore.getIterationsForAgent(agentId);
-      const updatedHistorical = await IterationStore.getHistoricalSessions(agentId);
-      
-      setCurrentIterations(updatedIterations);
-      setHistoricalSessions(updatedHistorical);
-    });
-
-    return unsubscribe;
-  }, [agentId]);
 
   // Render sensor previews
   const renderSensorPreviews = (sensors: SensorData[], modelImages?: string[], iterationId?: string) => {
@@ -327,12 +305,7 @@ const AgentLogViewer: React.FC<AgentLogViewerProps> = ({
     setIsClearing(true);
     try {
       await IterationStore.clearAllHistory(agentId);
-      // Refresh data after clearing
-      const updatedIterations = IterationStore.getIterationsForAgent(agentId);
-      const updatedHistorical = await IterationStore.getHistoricalSessions(agentId);
-
-      setCurrentIterations(updatedIterations);
-      setHistoricalSessions(updatedHistorical);
+      // Polling will automatically pick up the cleared state
     } catch (error) {
       console.error('Failed to clear all history:', error);
     } finally {
