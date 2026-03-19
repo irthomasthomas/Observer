@@ -21,6 +21,7 @@ import { AudioStreamType } from '../streamManager';
 import { SensorSettings } from '../settings';
 import { Logger } from '../logging';
 import { PCMBuffer, float32ToInt16, createWavBlob, PCM_SAMPLE_RATE } from '../audio/pcmUtils';
+import { platformFetch } from '../platform';
 
 /** Cloud WebSocket URL */
 const CLOUD_WS_URL = 'wss://api.observer-ai.com/v1/audio/transcriptions/stream';
@@ -423,7 +424,7 @@ export class UnifiedTranscriptionService {
       formData.append('file', wavBlob, `chunk_${chunkId}.wav`);
       formData.append('model', 'whisper-1');
 
-      const response = await fetch(`${normalizedUrl}/v1/audio/transcriptions`, {
+      const response = await platformFetch(`${normalizedUrl}/v1/audio/transcriptions`, {
         method: 'POST',
         body: formData,
       });

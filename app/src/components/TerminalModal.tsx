@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '@components/EditAgent/Modal';
 import { Download, CheckCircle, AlertTriangle, X, StopCircle } from 'lucide-react';
 import pullModelManager, { PullState } from '@utils/pullModelManager';
+import { platformFetch } from '@utils/platform';
 
 interface TerminalModalProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ const TerminalModal: React.FC<TerminalModalProps> = ({ isOpen, onClose, onPullCo
       // First-time user path: check localhost:3838
       const checkLocalhost = async () => {
         try {
-          const response = await fetch('http://localhost:3838/api/tags', {
+          const response = await platformFetch('http://localhost:3838/api/tags', {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });

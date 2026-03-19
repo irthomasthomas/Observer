@@ -11,13 +11,13 @@ import OverlayWindow from './desktop/OverlayWindow'; // The overlay window
 import ScreenSelectorWindow from './desktop/ScreenSelectorWindow'; // Screen/window selector
 
 // Import platform detection utilities
-import { isDesktop, initTauriLogForwarding, patchFetchForDesktop } from './utils/platform';
+import { isDesktop, initTauriLogForwarding, initPlatformFetch } from './utils/platform';
 
 // Initialize Tauri log forwarding (fire and forget)
 initTauriLogForwarding();
 
-// Patch fetch for desktop to fix Windows WebView2 localhost restrictions
-patchFetchForDesktop();
+// Pre-load Tauri HTTP plugin for desktop localhost requests
+initPlatformFetch();
 
 // Decide which component to render at the root level
 function getRootComponent() {

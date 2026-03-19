@@ -4,6 +4,7 @@ import { Logger } from '../logging';
 import { getAgentMemory as fetchAgentMemory, updateAgentMemory as saveAgentMemory, getAgentImageMemory as fetchAgentImageMemory, updateAgentImageMemory as saveAgentImageMemory, appendAgentImageMemory as addAgentImageMemory } from '../agent_database';
 import { recordingManager } from '../recordingManager';
 import { pauseAgentLoop } from '../main_loop';
+import { platformFetch } from '../platform';
 
 /**
  * Utility functions for handlers
@@ -676,7 +677,7 @@ export async function sendGotify(message: string, serverUrl: string, appToken: s
  * @returns A promise that resolves to `true` if the user clicks "Yes", and `false` otherwise.
  */
 export async function ask(appUrl: string, title: string, question: string): Promise<boolean> {
-  const response = await fetch(`${appUrl}/ask`, {
+  const response = await platformFetch(`${appUrl}/ask`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, question }),
@@ -697,7 +698,7 @@ export async function ask(appUrl: string, title: string, question: string): Prom
  * @param message The message to display.
  */
 export async function message(appUrl: string, title: string, message: string): Promise<void> {
-  const response = await fetch(`${appUrl}/message`, {
+  const response = await platformFetch(`${appUrl}/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, message }),
@@ -716,7 +717,7 @@ export async function message(appUrl: string, title: string, message: string): P
  * @param body The main content of the notification.
  */
 export async function system_notify(appUrl: string, title: string, body: string): Promise<void> {
-  const response = await fetch(`${appUrl}/notification`, {
+  const response = await platformFetch(`${appUrl}/notification`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, body }),
@@ -734,7 +735,7 @@ export async function system_notify(appUrl: string, title: string, body: string)
  * @param message The message to display in the overlay (supports basic markdown).
  */
 export async function overlay(appUrl: string, message: string): Promise<void> {
-  const response = await fetch(`${appUrl}/overlay`, {
+  const response = await platformFetch(`${appUrl}/overlay`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message }),
@@ -763,7 +764,7 @@ export async function sleep(ms: number = 2000, agentId?: string): Promise<void> 
  * @param button The mouse button to click ('left' or 'right'). Defaults to 'left'.
  */
 export async function click(appUrl: string, button: 'left' | 'right' = 'left'): Promise<void> {
-  const response = await fetch(`${appUrl}/click`, {
+  const response = await platformFetch(`${appUrl}/click`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ button }),

@@ -138,6 +138,7 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
         </div>
 
         {/* Local Server Section */}
+        {isTauri() && (
         <div className="p-3 border rounded-md bg-gray-50 mb-4">
             <div className="flex justify-between items-center">
                 <label className="font-medium text-gray-700">Local Server</label>
@@ -156,9 +157,7 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
                   </button>
                 </div>
             </div>
-
             {/* Tauri-only: Editable inference URL */}
-            {isTauri() && (
               <div className="mt-3">
                 <label className="text-xs text-gray-600 mb-1 block">Inference Server URL</label>
                 <div className="flex space-x-2">
@@ -180,13 +179,13 @@ const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = ({
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Set your Ollama or compatible server address</p>
               </div>
-            )}
-
+            
             {/* Browser-only: Show localhost address */}
             {!isTauri() && (
               <p className="text-xs text-gray-500 mt-1">http://localhost:3838</p>
             )}
         </div>
+        )}
 
         {/* Custom Servers Section - only show when NOT in Tauri */}
         {!isTauri() && (

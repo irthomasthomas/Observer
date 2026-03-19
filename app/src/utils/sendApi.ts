@@ -1,6 +1,7 @@
 // src/utils/sendApi.ts
 import { PreProcessorResult } from './pre-processor';
 import { listModels } from './inferenceServer';
+import { platformFetch } from './platform';
 
 /**
  * Decrements the quota counter stored in localStorage and dispatches an event.
@@ -131,7 +132,7 @@ export async function fetchResponse(
       stream: enableStreaming
     });
 
-    const response = await fetch(url, {
+    const response = await platformFetch(url, {
       method: 'POST',
       headers,
       body: requestBody,

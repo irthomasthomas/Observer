@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { platformFetch } from '@utils/platform';
 import {
   ExternalLink, Loader, CheckCircle2, Power,
   Download, Settings, RotateCw, Check, AlertTriangle, Keyboard,
@@ -141,7 +142,7 @@ function LauncherShell() {
       const browserCheckPromise = new Promise<string[]>(async (resolve, reject) => {
         try {
           const fetchPromises = urlsToTest.map(url =>
-            fetch(`${url}/v1/models`, {
+            platformFetch(`${url}/v1/models`, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               signal: AbortSignal.timeout(2500),

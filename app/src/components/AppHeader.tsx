@@ -15,7 +15,7 @@ import {
   type CustomServer
 } from '@utils/inferenceServer';
 import { Logger } from '@utils/logging';
-import { isTauri } from '@utils/platform';
+import { isTauri, platformFetch } from '@utils/platform';
 import SharingPermissionsModal from './SharingPermissionsModal';
 import ConnectionSettingsModal from './ConnectionSettingsModal';
 import AccountModal from './AccountModal';
@@ -259,7 +259,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const checkForEmptyOllamaModels = async () => {
     try {
       // Check if this is an Ollama server by checking the /api/tags endpoint
-      const response = await fetch(`${LOCAL_SERVER_ADDRESS}/api/tags`, {
+      const response = await platformFetch(`${LOCAL_SERVER_ADDRESS}/api/tags`, {
         signal: AbortSignal.timeout(1000)
       });
 
