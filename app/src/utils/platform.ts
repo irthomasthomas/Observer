@@ -221,6 +221,12 @@ export const patchFetchForDesktop = async (): Promise<void> => {
           ? input.href
           : input.url;
 
+      // Skip Tauri's internal IPC calls - these must use original fetch
+      // to avoid infinite recursion (tauriFetch uses fetch internally)
+      if (url.includes('ipc.localhost') || url.includes('tauri.localhost')) {
+        return originalFetch(input, init);
+      }
+
       // Use Tauri HTTP plugin for localhost/127.0.0.1 requests
       // This bypasses WebView2's Private Network Access restrictions on Windows
       if (url.includes('localhost') || url.includes('127.0.0.1')) {
