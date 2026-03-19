@@ -191,3 +191,49 @@ export const initTauriLogForwarding = async (): Promise<(() => void) | null> => 
     return null;
   }
 };
+
+/**
+ * Patch window.fetch on desktop to use Tauri's HTTP plugin for localhost requests.
+ *
+ * This fixes an issue on Windows where WebView2 blocks fetch requests from
+ * the tauri.localhost origin to http://localhost:* due to Private Network Access
+ * security restrictions. The Tauri HTTP plugin uses native Rust HTTP (reqwest)
+ * which bypasses WebView2's restrictions entirely.
+ *
+ * This patch only affects localhost/127.0.0.1 requests - external API calls
+ * continue to use the browser's native fetch.
+ *
+ * Call this once at app startup, before any fetch requests are made.
+ */
+export const patchFetchForDesktop = async (): Promise<void> => {
+  if (!isDesktop()) {
+    return;
+  }
+
+  try {
+    const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
+    const originalFetch = window.fetch.bind(window);
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+
+      // Use Tauri HTTP plugin for localhost/127.0.0.1 requests
+      // This bypasses WebView2's Private Network Access restrictions on Windows
+      if (url.includes('localhost') || url.includes('127.0.0.1')) {
+        Logger.debug('platform', `Using Tauri HTTP for: ${url}`);
+        return tauriFetch(input as any, init as any);
+      }
+
+      // Use original browser fetch for external requests
+      return originalFetch(input, init);
+    };
+
+    Logger.info('platform', 'Desktop fetch patched for localhost requests');
+  } catch (err) {
+    console.warn('[Platform] Failed to patch fetch for desktop:', err);
+  }
+};
