@@ -652,7 +652,8 @@ export async function sendGotify(message: string, serverUrl: string, appToken: s
   }
 
   // 3. Perform the fetch request directly to the user's Gotify server
-  const response = await fetch(endpoint, {
+  // Using platformFetch since Gotify could be self-hosted on localhost
+  const response = await platformFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

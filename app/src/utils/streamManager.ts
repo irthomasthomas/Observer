@@ -6,6 +6,7 @@ import { isWeb } from './platform';
 import { browserStreamCapture } from './browserStreamCapture';
 import { tauriStreamCapture, PCMCallback } from './tauriStreamCapture';
 import { PCMAudioCapture, createPCMAudioCapture } from './audio/PCMAudioCapture';
+import { getAgentCrop } from './screenCapture';
 
 // --- Core Type Definitions ---
 export type AudioStreamType = 'screenAudio' | 'microphone' | 'allAudio';
@@ -34,7 +35,11 @@ class Manager {
   private screenAudioStream: MediaStream | null = null;
   private microphoneStream: MediaStream | null = null;
   private allAudioStream: MediaStream | null = null;
-  
+
+  // Persistent video elements for capture (always playing)
+  private cameraVideoElement: HTMLVideoElement | null = null;
+  private screenVideoElement: HTMLVideoElement | null = null;
+
   // --- Internal Management State ---
   private masterDisplayStream: MediaStream | null = null;
   private masterCameraStream: MediaStream | null = null;
@@ -295,6 +300,66 @@ class Manager {
     }
   }
 
+  // --- Frame Capture API ---
+
+  /**
+   * Create a persistent video element that stays attached to a stream.
+   * The video element is always playing, eliminating race conditions on frame capture.
+   */
+  private createPersistentVideoElement(stream: MediaStream): HTMLVideoElement {
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    video.play().catch(e => Logger.warn("StreamManager", `Video play failed: ${e}`));
+    return video;
+  }
+
+  /**
+   * Capture a frame from a video stream. Returns base64 PNG or null.
+   * Uses persistent video elements - instant and deterministic.
+   */
+  public captureFrame(
+    streamType: 'camera' | 'screen',
+    agentId?: string
+  ): string | null {
+    const video = streamType === 'camera'
+      ? this.cameraVideoElement
+      : this.screenVideoElement;
+
+    if (!video || video.readyState < 2 || video.videoWidth === 0) {
+      Logger.warn("StreamManager", `Cannot capture ${streamType}: video not ready`);
+      return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    const crop = agentId ? getAgentCrop(agentId, streamType) : null;
+
+    if (crop) {
+      canvas.width = crop.width;
+      canvas.height = crop.height;
+    } else {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Draw with crop support
+    if (crop) {
+      const safeX = Math.min(crop.x, video.videoWidth - 1);
+      const safeY = Math.min(crop.y, video.videoHeight - 1);
+      const safeWidth = Math.min(crop.width, video.videoWidth - safeX);
+      const safeHeight = Math.min(crop.height, video.videoHeight - safeY);
+      ctx.drawImage(video, safeX, safeY, safeWidth, safeHeight, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.drawImage(video, 0, 0);
+    }
+
+    return canvas.toDataURL('image/png').split(',')[1];
+  }
+
   // --- Private Implementation ---
 
   private ensureMasterStream(type: MasterStreamType, captureImpl: typeof browserStreamCapture | typeof tauriStreamCapture): Promise<void> {
@@ -357,6 +422,16 @@ class Manager {
         this.microphoneStream = browserStreams.microphoneStream;
       }
 
+      // Create persistent video elements for capture (fixes iOS race condition)
+      if (type === 'camera' && this.cameraStream && !this.cameraVideoElement) {
+        this.cameraVideoElement = this.createPersistentVideoElement(this.cameraStream);
+        Logger.debug("StreamManager", "Created persistent camera video element");
+      }
+      if (type === 'display' && this.screenVideoStream && !this.screenVideoElement) {
+        this.screenVideoElement = this.createPersistentVideoElement(this.screenVideoStream);
+        Logger.debug("StreamManager", "Created persistent screen video element");
+      }
+
       Logger.info("StreamManager", `Master '${type}' stream acquired and synced.`);
       this.notifyListeners();
     } catch (error) {
@@ -415,6 +490,12 @@ class Manager {
     Logger.info("StreamManager", "Tearing down display stream.");
     captureImpl.teardownMasterStream('display');
 
+    // Clean up persistent video element
+    if (this.screenVideoElement) {
+      this.screenVideoElement.srcObject = null;
+      this.screenVideoElement = null;
+    }
+
     // Sync local state
     this.masterDisplayStream = null;
     this.screenVideoStream = null;
@@ -445,6 +526,12 @@ class Manager {
 
     Logger.info("StreamManager", "Tearing down camera stream.");
     captureImpl.teardownMasterStream('camera');
+
+    // Clean up persistent video element
+    if (this.cameraVideoElement) {
+      this.cameraVideoElement.srcObject = null;
+      this.cameraVideoElement = null;
+    }
 
     // Sync local state
     this.masterCameraStream = null;
