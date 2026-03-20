@@ -238,10 +238,14 @@ async fn proxy_handler(
         }
     };
 
+    // Strip Origin header before forwarding - Ollama rejects non-web origins like tauri://localhost
+    let mut forwarded_headers = headers.clone();
+    forwarded_headers.remove(axum::http::header::ORIGIN);
+
     let reqwest_request = state
         .http_client
         .request(method, &target_url)
-        .headers(headers)
+        .headers(forwarded_headers)
         .body(body_bytes);
 
     match reqwest_request.send().await {
