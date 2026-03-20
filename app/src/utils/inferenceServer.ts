@@ -1,4 +1,6 @@
 // src/utils/inferenceServer.ts
+import { platformFetch } from './platform';
+
 interface ServerResponse {
   status: 'online' | 'offline';
   error?: string;
@@ -149,7 +151,7 @@ export async function checkCustomServer(address: string): Promise<ServerResponse
 
 export async function checkInferenceServer(address: string): Promise<ServerResponse> {
   try {
-    const response = await fetch(`${address}/v1/models`, {
+    const response = await platformFetch(`${address}/v1/models`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -174,7 +176,7 @@ export async function checkInferenceServer(address: string): Promise<ServerRespo
 
 async function listModelsFromAddress(address: string): Promise<Model[]> {
   try {
-    const response = await fetch(`${address}/v1/models`, {
+    const response = await platformFetch(`${address}/v1/models`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });

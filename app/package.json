@@ -24,7 +24,6 @@
     "@codemirror/lang-python": "^6.1.7",
     "@codemirror/view": "^6.38.1",
     "@huggingface/transformers": "^3.5.2",
-    "tauri-plugin-web-auth-api": "^1.0.0",
     "@jupyterlab/services": "^7.3.6",
     "@lexical/history": "^0.25.0",
     "@lexical/list": "^0.25.0",
@@ -34,6 +33,7 @@
     "@tauri-apps/api": "^2.6.0",
     "@tauri-apps/plugin-deep-link": "^2.4.6",
     "@tauri-apps/plugin-dialog": "^2.3.1",
+    "@tauri-apps/plugin-http": "^2.5.7",
     "@tauri-apps/plugin-log": "^2",
     "@tauri-apps/plugin-notification": "^2.3.0",
     "@tauri-apps/plugin-opener": "^2.5.3",
@@ -69,6 +69,7 @@
     "slate": "^0.123.0",
     "slate-history": "^0.113.1",
     "slate-react": "^0.123.0",
+    "tauri-plugin-web-auth-api": "^1.0.0",
     "tesseract.js": "^6.0.0",
     "ts-node": "^10.9.2",
     "yaml": "^2.7.0"

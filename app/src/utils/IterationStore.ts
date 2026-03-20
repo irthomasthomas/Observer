@@ -49,7 +49,6 @@ class IterationStoreClass {
   private iterations = new Map<string, IterationData>();
   private currentSessions = new Map<string, string>(); // agentId -> sessionId
   private sessionIterationCounts = new Map<string, number>(); // sessionId -> count
-  private listeners: Array<(iterations: Map<string, IterationData>) => void> = [];
 
   constructor() {
     // Subscribe to all log entries
@@ -132,9 +131,6 @@ class IterationStoreClass {
     if (logType === 'tool-error') {
       currentIteration.hasError = true;
     }
-
-    // Notify listeners
-    this.notifyListeners();
   }
 
   private processSensorLog(iteration: IterationData, log: LogEntry) {
@@ -237,10 +233,6 @@ class IterationStoreClass {
       const endTime = new Date(iteration.modelResponseTime).getTime();
       iteration.duration = (endTime - startTime) / 1000; // in seconds
     }
-  }
-
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.iterations));
   }
 
   // IndexedDB setup
@@ -393,8 +385,7 @@ class IterationStoreClass {
       });
       
       await this.saveToIndexedDB();
-      this.notifyListeners();
-      
+
       Logger.info('IterationStore', `Ended session ${sessionId} for agent ${agentId}`);
     }
   }
@@ -439,16 +430,6 @@ class IterationStoreClass {
 
   public getIteration(iterationId: string): IterationData | undefined {
     return this.iterations.get(iterationId);
-  }
-
-  public subscribe(listener: (iterations: Map<string, IterationData>) => void) {
-    this.listeners.push(listener);
-    return () => {
-      const index = this.listeners.indexOf(listener);
-      if (index > -1) {
-        this.listeners.splice(index, 1);
-      }
-    };
   }
 
   public getIterationsForSession(sessionId: string): IterationData[] {

@@ -4,6 +4,7 @@ import { Cpu, RefreshCw, Eye, Server } from 'lucide-react'; // <-- Import Eye an
 import { Logger } from '@utils/logging';
 import { getInferenceAddresses } from '@utils/inferenceServer';
 import TerminalModal from '@components/TerminalModal';
+import { platformFetch } from '@utils/platform';
 
 // No need to redefine Model interface here if imported correctly
 
@@ -22,7 +23,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({ isProUser = false }) 
   // Check if a server supports Ollama by probing /api/tags endpoint
   const checkOllamaSupport = async (address: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${address}/api/tags`, {
+      const response = await platformFetch(`${address}/api/tags`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

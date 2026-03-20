@@ -4,7 +4,7 @@ import { Clock, Power, Activity, Eye, Moon, Sun } from 'lucide-react';
 import { wakeAgentLoop } from '@utils/main_loop';
 import { StreamState, StreamManager } from '@utils/streamManager';
 import { CompleteAgent } from '@utils/agent_database';
-import { IterationStore, ToolCall } from '@utils/IterationStore';
+import { useLastTools } from '@hooks/useIterations';
 import { DetectionMode } from '@utils/change_detector';
 import { isMobile } from '@utils/platform';
 import ToolStatus from '@components/AgentCard/ToolStatus';
@@ -361,7 +361,7 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
 }) => {
     const [streamingResponse, setStreamingResponse] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
-    const [lastTools, setLastTools] = useState<ToolCall[]>([]);
+    const lastTools = useLastTools(agentId);
     const [changeDetectionData, setChangeDetectionData] = useState<ChangeDetectionData | null>(null);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [focusedThreshold, setFocusedThreshold] = useState<'text' | 'dhash' | 'pixel' | 'suspicious' | undefined>(undefined);
@@ -377,24 +377,6 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
         window.addEventListener('keydown', handleEscape);
         return () => window.removeEventListener('keydown', handleEscape);
     }, [isSettingsModalOpen]);
-
-    // Load initial tool data and subscribe to updates
-    useEffect(() => {
-        const loadLastTools = () => {
-            const tools = IterationStore.getToolsFromLastIteration(agentId);
-            setLastTools(tools);
-        };
-
-        // Load initial data
-        loadLastTools();
-
-        // Subscribe to IterationStore updates
-        const unsubscribe = IterationStore.subscribe(() => {
-            loadLastTools();
-        });
-
-        return unsubscribe;
-    }, [agentId]);
 
     useEffect(() => {
         const handleStreamStart = (event: CustomEvent) => {

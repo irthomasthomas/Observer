@@ -159,29 +159,45 @@ class RecordingManager {
 
     for (const { type, video, audio } of streamsToRecord) {
       if (!video) continue;
-  
-      const tracks = [...video.getVideoTracks()];
+
+      const videoTracks = video.getVideoTracks();
+
+      // Check if video tracks are active before proceeding
+      const hasActiveVideoTrack = videoTracks.some(track => track.readyState === 'live');
+      if (!hasActiveVideoTrack) {
+        Logger.warn("RecordingManager", `Skipping '${type}' recorder: no active video tracks`);
+        continue;
+      }
+
+      const tracks = [...videoTracks];
       if (audio) {
         tracks.push(...audio.getAudioTracks());
       }
       const combinedStream = new MediaStream(tracks);
-      
+
       const mediaRecorder = this.createRecorderWithFallback(combinedStream, type);
 
       if (!mediaRecorder) {
         continue;
       }
-      
+
       const chunksForType: Blob[] = [];
       this.chunks.set(type, chunksForType);
-  
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksForType.push(event.data);
       };
-      
+
       this.recorders.set(type, mediaRecorder);
-      mediaRecorder.start(1000); // Start buffering
-      bufferStarted = true;
+
+      try {
+        mediaRecorder.start(1000); // Start buffering
+        bufferStarted = true;
+      } catch (err) {
+        Logger.error("RecordingManager", `Failed to start '${type}' recorder`, err);
+        this.recorders.delete(type);
+        this.chunks.delete(type);
+      }
     }
   
     if (bufferStarted) {

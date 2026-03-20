@@ -1,6 +1,7 @@
 // src/utils/pullModelManager.ts
 
 import { Logger } from './logging';
+import { platformFetch } from './platform';
 
 type PullStatus = 'idle' | 'pulling' | 'success' | 'error';
 
@@ -72,7 +73,7 @@ const pullModel = async (modelName: string, serverAddress: string) => {
   Logger.info('PULL_MANAGER', `Starting pull for model: ${modelName} from ${serverAddress}`);
 
   try {
-    const response = await fetch(`${serverAddress}/api/pull`, {
+    const response = await platformFetch(`${serverAddress}/api/pull`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: modelName, stream: true }),

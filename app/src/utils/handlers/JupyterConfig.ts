@@ -1,5 +1,6 @@
 // src/utils/handlers/JupyterConfig.ts
 import { Logger } from '../logging';
+import { platformFetch } from '../platform';
 
 // Default values
 let jupyterHost = '127.0.0.1';
@@ -62,7 +63,7 @@ export async function testJupyterConnection(configOverride?: {
   try {
     const url = `http://${config.host}:${config.port}/api/kernels`;
     
-    const response = await fetch(url, {
+    const response = await platformFetch(url, {
       headers: {
         'Authorization': `token ${config.token}`
       }

@@ -191,3 +191,68 @@ export const initTauriLogForwarding = async (): Promise<(() => void) | null> => 
     return null;
   }
 };
+
+// Cached Tauri fetch function (loaded lazily on first use)
+let tauriFetchFn: typeof fetch | null = null;
+let tauriFetchLoading: Promise<void> | null = null;
+
+/**
+ * Initialize Tauri HTTP fetch for desktop.
+ * Call this at app startup to pre-load the Tauri HTTP plugin.
+ */
+export const initPlatformFetch = async (): Promise<void> => {
+  if (!isDesktop()) return;
+
+  if (tauriFetchLoading) {
+    await tauriFetchLoading;
+    return;
+  }
+
+  tauriFetchLoading = (async () => {
+    try {
+      const { fetch } = await import('@tauri-apps/plugin-http');
+      tauriFetchFn = fetch;
+      Logger.info('platform', 'Tauri HTTP plugin loaded for desktop localhost requests');
+    } catch (err) {
+      console.warn('[Platform] Failed to load Tauri HTTP plugin:', err);
+    }
+  })();
+
+  await tauriFetchLoading;
+};
+
+/**
+ * Platform-aware fetch for local/private network requests.
+ *
+ * On Windows desktop, WebView2 blocks fetch requests from the tauri.localhost
+ * origin to private network addresses due to Private Network Access security
+ * restrictions. This function uses Tauri's HTTP plugin (native Rust HTTP via
+ * reqwest) on desktop for HTTP requests, bypassing WebView2 entirely.
+ *
+ * Logic:
+ * - http:// URLs → likely local/private network → use Tauri HTTP plugin on desktop
+ * - https:// URLs → external APIs → use regular browser fetch
+ *
+ * This elegantly covers all cases: localhost, LAN IPs, custom network setups.
+ */
+export const platformFetch = async (
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> => {
+  const url = typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : input.url;
+
+  // HTTP (not HTTPS) = likely local/private network
+  const isHttp = url.startsWith('http://');
+
+  if (isDesktop() && isHttp && tauriFetchFn) {
+    Logger.debug('platform', `Using Tauri HTTP for: ${url}`);
+    return tauriFetchFn(input as any, init as any);
+  }
+
+  // Use regular fetch for HTTPS and non-desktop platforms
+  return fetch(input, init);
+};

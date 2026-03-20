@@ -1,3 +1,5 @@
+import { StreamManager } from './streamManager';
+
 export interface CropConfig {
   x: number;
   y: number;
@@ -40,72 +42,17 @@ export function removeAgentCrops(agentId: string): void {
   console.log(`Removed all crop configs for agent '${agentId}'`);
 }
 
-// Helper function to apply crop during drawing
-function drawVideoWithCrop(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, crop: CropConfig | null): void {
-  if (!crop) {
-    // No crop, draw full video
-    ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-    return;
-  }
-
-  // Apply crop: source crop coordinates, destination fills canvas
-  const safeX = Math.min(crop.x, video.videoWidth - 1);
-  const safeY = Math.min(crop.y, video.videoHeight - 1);
-  const safeWidth = Math.min(crop.width, video.videoWidth - safeX);
-  const safeHeight = Math.min(crop.height, video.videoHeight - safeY);
-
-  if (safeWidth > 0 && safeHeight > 0) {
-    ctx.drawImage(
-      video,
-      safeX, safeY, safeWidth, safeHeight, // Source crop (from video)
-      0, 0, ctx.canvas.width, ctx.canvas.height // Destination (fill canvas)
-    );
-    console.log(`Applied crop to capture: ${safeWidth}x${safeHeight} from (${safeX},${safeY})`);
-  }
-}
-
-// REFACTORED: This function also accepts a stream and returns the raw Base64 data.
-export async function captureScreenImage(stream: MediaStream, agentId?: string, streamType?: 'camera' | 'screen'): Promise<string | null> {
-  try {
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    
-    return new Promise<string | null>((resolve) => {
-      video.onloadedmetadata = async () => {
-        video.play();
-        const canvas = document.createElement('canvas');
-
-        // Get crop config for this agent if provided
-        const crop = agentId && streamType ? getAgentCrop(agentId, streamType) : null;
-
-        // Set canvas size based on crop or full video
-        if (crop) {
-          canvas.width = crop.width;
-          canvas.height = crop.height;
-        } else {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-        }
-
-        const ctx = canvas.getContext('2d');
-
-        if (ctx) {
-          // Apply crop or draw full video
-          drawVideoWithCrop(ctx, video, crop);
-
-          // THE FIX: Return only the raw Base64 string, stripping the prefix.
-          // This is what the LLM API expects.
-          const base64Image = canvas.toDataURL('image/png').split(',')[1];
-          resolve(base64Image);
-        } else {
-          console.error('Failed to get canvas context');
-          resolve(null);
-        }
-      };
-      video.onerror = () => resolve(null);
-    });
-  } catch (error) {
-    console.error('Frame capture error:', error);
-    return null;
-  }
+/**
+ * Captures a frame from the screen stream.
+ * Uses StreamManager's persistent video element for instant capture.
+ * This eliminates the race condition where onloadedmetadata fires before the first frame is rendered.
+ *
+ * @param stream The active screen MediaStream (kept for API compatibility, not used internally)
+ * @param agentId Optional agent ID for crop configuration
+ * @param streamType The type of stream ('camera' or 'screen'), defaults to 'screen'
+ * @returns The raw Base64 string (without the data URI prefix) or null on failure.
+ */
+export function captureScreenImage(_stream: MediaStream, agentId?: string, streamType?: 'camera' | 'screen'): string | null {
+  const type = streamType || 'screen';
+  return StreamManager.captureFrame(type, agentId);
 }

@@ -238,10 +238,14 @@ async fn proxy_handler(
         }
     };
 
+    // Strip Origin header before forwarding - Ollama rejects non-web origins like tauri://localhost
+    let mut forwarded_headers = headers.clone();
+    forwarded_headers.remove(axum::http::header::ORIGIN);
+
     let reqwest_request = state
         .http_client
         .request(method, &target_url)
-        .headers(headers)
+        .headers(forwarded_headers)
         .body(body_bytes);
 
     match reqwest_request.send().await {
@@ -367,6 +371,7 @@ fn start_static_server(app_handle: tauri::AppHandle) {
 pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_screen_capture::init());
