@@ -304,14 +304,54 @@ class Manager {
 
   /**
    * Create a persistent video element that stays attached to a stream.
-   * The video element is always playing, eliminating race conditions on frame capture.
+   * Waits for the video to be fully ready (first frame rendered) before resolving.
+   * This eliminates race conditions on frame capture, especially on iOS.
    */
-  private createPersistentVideoElement(stream: MediaStream): HTMLVideoElement {
+  private async createPersistentVideoElement(stream: MediaStream, timeoutMs: number = 5000): Promise<HTMLVideoElement> {
     const video = document.createElement('video');
     video.srcObject = stream;
     video.muted = true;
     video.playsInline = true;
-    video.play().catch(e => Logger.warn("StreamManager", `Video play failed: ${e}`));
+
+    // Wait for video to be ready with first frame
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        Logger.warn("StreamManager", "Video element ready timeout - proceeding anyway");
+        resolve();
+      }, timeoutMs);
+
+      const checkReady = () => {
+        // readyState >= 2 (HAVE_CURRENT_DATA) means we have at least one frame
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          clearTimeout(timeout);
+          resolve();
+          return true;
+        }
+        return false;
+      };
+
+      // Check if already ready
+      if (checkReady()) return;
+
+      // Listen for loadeddata event (fires when first frame is available)
+      video.addEventListener('loadeddata', () => {
+        if (checkReady()) return;
+      }, { once: true });
+
+      // Also listen for canplay as fallback
+      video.addEventListener('canplay', () => {
+        if (checkReady()) return;
+      }, { once: true });
+
+      // Start playing
+      video.play().catch(e => {
+        Logger.warn("StreamManager", `Video play failed: ${e}`);
+        clearTimeout(timeout);
+        reject(e);
+      });
+    });
+
+    Logger.debug("StreamManager", `Video element ready: readyState=${video.readyState}, ${video.videoWidth}x${video.videoHeight}`);
     return video;
   }
 
@@ -423,13 +463,14 @@ class Manager {
       }
 
       // Create persistent video elements for capture (fixes iOS race condition)
+      // We await these to ensure the video has its first frame before the stream is considered "ready"
       if (type === 'camera' && this.cameraStream && !this.cameraVideoElement) {
-        this.cameraVideoElement = this.createPersistentVideoElement(this.cameraStream);
-        Logger.debug("StreamManager", "Created persistent camera video element");
+        Logger.debug("StreamManager", "Creating persistent camera video element...");
+        this.cameraVideoElement = await this.createPersistentVideoElement(this.cameraStream);
       }
       if (type === 'display' && this.screenVideoStream && !this.screenVideoElement) {
-        this.screenVideoElement = this.createPersistentVideoElement(this.screenVideoStream);
-        Logger.debug("StreamManager", "Created persistent screen video element");
+        Logger.debug("StreamManager", "Creating persistent screen video element...");
+        this.screenVideoElement = await this.createPersistentVideoElement(this.screenVideoStream);
       }
 
       Logger.info("StreamManager", `Master '${type}' stream acquired and synced.`);
