@@ -3,6 +3,7 @@ import { Home, Users, Database, Settings, Cpu, Video, Sparkles } from 'lucide-re
 import { Logger } from '@utils/logging';
 import { isIOS } from '../utils/platform';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { version } from '../../package.json';
 
 interface PersistentSidebarProps {
   activeTab: string;
@@ -99,7 +100,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
       {(isExpanded || isMobileMenuOpen) && (
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
-            <div>Observer v0.1.0</div>
+            <div>Observer v{version}</div>
             <div className="flex justify-center gap-2">
               {isIOS() ? (
                 <>
