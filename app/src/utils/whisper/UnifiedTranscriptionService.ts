@@ -48,6 +48,9 @@ export class UnifiedTranscriptionService {
   // Cleanup for interim result listener (local mode)
   private unsubscribeInterimResults: (() => void) | null = null;
 
+  // Track last audio received for cloud mode reconnect logic
+  private lastAudioReceivedAt: number | null = null;
+
   constructor(mode?: TranscriptionMode, config?: Partial<UnifiedTranscriptionConfig>) {
     this.mode = mode ?? SensorSettings.getTranscriptionMode();
     this.config = { ...DEFAULT_UNIFIED_CONFIG, ...config, mode: this.mode };
@@ -104,7 +107,18 @@ export class UnifiedTranscriptionService {
    * @param samples - Float32Array of PCM samples at 16kHz mono
    */
   feedPCM(samples: Float32Array): void {
-    if (!this.isRunning || samples.length === 0) return;
+    if (samples.length === 0) return;
+
+    // Self-healing for cloud mode: if we receive audio but service is stopped,
+    // restart it. This handles race conditions where the service timed out
+    // but audio starts flowing again.
+    if (!this.isRunning && this.mode === 'cloud') {
+      Logger.info('UnifiedTranscriptionService', 'Audio received while stopped, restarting cloud mode...');
+      this.start(this.streamType);
+      return; // This chunk is lost, but subsequent chunks will flow
+    }
+
+    if (!this.isRunning) return;
 
     switch (this.mode) {
       case 'local':
@@ -315,6 +329,9 @@ export class UnifiedTranscriptionService {
   }
 
   private feedCloudMode(samples: Float32Array): void {
+    // Track when we last received audio for reconnect logic
+    this.lastAudioReceivedAt = Date.now();
+
     // Convert to Int16 and buffer
     const int16 = float32ToInt16(samples);
     this.cloudStreamBuffer.push(int16);
@@ -355,6 +372,18 @@ export class UnifiedTranscriptionService {
   private reconnectCloud(): void {
     if (!this.isRunning) return;
 
+    // If we had audio flowing but it stopped, don't reconnect - just stop
+    // (null means never received audio yet - keep trying in that case)
+    const AUDIO_TIMEOUT_MS = 5000;
+    const isStale = this.lastAudioReceivedAt &&
+      (Date.now() - this.lastAudioReceivedAt > AUDIO_TIMEOUT_MS);
+
+    if (isStale) {
+      Logger.info('UnifiedTranscriptionService', 'No recent audio, stopping instead of reconnecting');
+      this.stop();
+      return;
+    }
+
     Logger.info('UnifiedTranscriptionService', 'Reconnecting to cloud...');
 
     this.stopCloudStreamTimer();
@@ -370,6 +399,7 @@ export class UnifiedTranscriptionService {
   private cleanupCloudMode(): void {
     this.stopCloudStreamTimer();
     this.cloudStreamBuffer = [];
+    this.lastAudioReceivedAt = null;
 
     if (this.ws) {
       this.ws.close();
