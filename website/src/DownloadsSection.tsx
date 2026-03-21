@@ -119,10 +119,10 @@ const DownloadsSection = () => {
   const [activePlatform, setActivePlatform] = useState<Platform>('windows');
 
   useEffect(() => {
-    fetch('https://github.com/Roy3838/Observer/releases/latest/download/latest.json')
+    fetch('https://api.github.com/repos/Roy3838/Observer/releases/latest')
       .then((res) => res.json())
-      .then((data) => setVersion(data.version))
-      .catch(() => setVersion('2.1.0'));
+      .then((data) => setVersion(data.tag_name?.replace(/^v/, '') ?? '2.1.1'))
+      .catch(() => setVersion('2.1.1'));
   }, []);
 
   const downloadFile = (url: string) => {
