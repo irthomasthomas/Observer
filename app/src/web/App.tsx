@@ -1151,7 +1151,7 @@ export function App() {
       domain="auth.observer-ai.com"
       clientId="R5iv3RVkWjGZrexFSJ6HqlhSaaGLyFpm"
       authorizationParams={{
-        redirect_uri: window.location.origin,
+        redirect_uri: window.location.origin.startsWith('tauri://') ? 'http://localhost:3838' : window.location.origin,
         audience: 'https://api.observer-ai.com',
         scope: 'openid profile email offline_access'
       }}
