@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Terminal, MessageSquare, ChevronUp, X } from 'lucide-react';
 import { Auth0Provider } from '@auth0/auth0-react';
+import { platform as getPlatform } from '@tauri-apps/plugin-os';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
@@ -1151,7 +1152,7 @@ export function App() {
       domain="auth.observer-ai.com"
       clientId="R5iv3RVkWjGZrexFSJ6HqlhSaaGLyFpm"
       authorizationParams={{
-        redirect_uri: window.location.origin.startsWith('tauri://') ? 'http://localhost:3838' : window.location.origin,
+        redirect_uri: (window.location.origin.startsWith('tauri://') && getPlatform() === 'linux') ? 'http://localhost:3838' : window.location.origin,
         audience: 'https://api.observer-ai.com',
         scope: 'openid profile email offline_access'
       }}
