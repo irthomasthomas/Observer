@@ -10,7 +10,7 @@ const EyeLogo = ({
   const scale = size / 150; // Base size is 150
   const eyeRadius = 67 * scale;
   const pupilRadius = 18 * scale;
-  const strokeWidth = 12 * scale;
+  const strokeWidth = 16 * scale;
   const maxPupilOffset = eyeRadius - pupilRadius - (7 * scale);
 
   const calculatePupilPosition = useCallback(() => {
@@ -115,8 +115,8 @@ const ObserverLanding = () => {
   // Final text size when fully scrolled
   const finalTextSize = 72;
 
-  // Calculate offset: at scroll=0, eye is centered. At scroll=1, "Observer" is centered.
-  const bserverWidth = finalTextSize * 4.2;
+  // Calculate offset: at scroll=0, eye is centered. At scroll=1, "Observer AI" is centered.
+  const bserverWidth = finalTextSize * 5.4;
   const eyeTranslateX = scrollProgress * -(bserverWidth / 2);
 
   // Once animation is complete (scrollProgress >= 1), switch to absolute positioning
@@ -169,7 +169,7 @@ const ObserverLanding = () => {
               }}
             >
               <span className="sr-only">Observer AI</span>
-              <span aria-hidden="true">bserver</span>
+              <span aria-hidden="true">bserver AI</span>
             </h1>
           </div>
         </div>
