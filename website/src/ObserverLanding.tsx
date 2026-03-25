@@ -187,19 +187,19 @@ const ObserverLanding = () => {
           <span className="text-[#5C6975]">so you don't have to.</span>
         </p>
 
-        {/* CTA - fades in slightly later */}
-        <div
-          className="mt-8"
-          style={{
-            opacity: Math.max(0, (scrollProgress - 0.5) / 0.5),
-            transform: `translateY(${20 - Math.max(0, (scrollProgress - 0.5) / 0.5) * 20}px)`,
-          }}
-        >
+        {/* CTA - visible from start */}
+        <div className="mt-8 flex gap-4">
           <a
             href="https://app.observer-ai.com"
             className="inline-block px-8 py-4 rounded-full font-semibold text-white border border-white/20 hover:bg-white/10 transition-all duration-200 pointer-events-auto"
           >
             Try it
+          </a>
+          <a
+            href="#downloads"
+            className="inline-block px-8 py-4 rounded-full font-semibold text-white border border-white/20 hover:bg-white/10 transition-all duration-200 pointer-events-auto"
+          >
+            Download
           </a>
         </div>
 
