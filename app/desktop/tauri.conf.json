@@ -42,7 +42,11 @@
       "binaries/observe"
     ],
     "macOS": {
-      "entitlements": "./Entitlements.plist"
+      "entitlements": "./Entitlements.plist",
+      "signingIdentity": "Developer ID Application: Luis Rodrigo Medina (55RWNTY4PH)",
+      "notarization": {
+        "teamId": "55RWNTY4PH"
+      }
     }
   },
   "plugins": {
