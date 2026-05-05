@@ -145,7 +145,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] backdrop-blur-sm p-2 md:p-4"
+      className="fixed inset-0 bg-black/50 flex flex-col items-center justify-center z-[10000] backdrop-blur-sm p-2 md:p-4"
       onClick={shouldShowSubscription ? handleClose : undefined}
     >
       <div
@@ -193,24 +193,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                 className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
                 Sign In
-              </button>
-              <label className="flex items-start gap-2 cursor-pointer mt-1">
-                <input
-                  type="checkbox"
-                  checked={dontShowAgain}
-                  onChange={(e) => setDontShowAgain(e.target.checked)}
-                  className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-gray-500 leading-relaxed">
-                  I know what I'm doing, I have a local server running and I already know how to use Observer 
-                </span>
-              </label>
-              <button
-                onClick={() => { Analytics.localModeContinue(); handleClose(); }}
-                disabled={!dontShowAgain}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors leading-relaxed disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
-              >
-                Continue without signing in →
               </button>
             </div>
 
@@ -488,6 +470,28 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
           </div>
         ) : null}
       </div>
+
+      {/* Skip for local mode — outside card, barely visible */}
+      {shouldShowLocalMode && (
+        <div className="flex flex-col items-end gap-1.5 mt-3 w-full max-w-3xl px-1" onClick={e => e.stopPropagation()}>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dontShowAgain}
+              onChange={(e) => setDontShowAgain(e.target.checked)}
+              className="h-3 w-3 flex-shrink-0 rounded border-white/40 bg-white/20 accent-white focus:ring-white/50"
+            />
+            <span className="text-xs text-white/50 leading-relaxed">I have a local server and know how to use Observer</span>
+          </label>
+          <button
+            onClick={() => { Analytics.localModeContinue(); handleClose(); }}
+            disabled={!dontShowAgain}
+            className="text-xs text-white/35 hover:text-white/60 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            skip →
+          </button>
+        </div>
+      )}
     </div>
   );
 };
