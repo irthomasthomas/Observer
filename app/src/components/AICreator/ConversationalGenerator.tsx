@@ -335,9 +335,9 @@ What would you like to create today?`
   
   const getPlaceholderText = () => {
     if (isUsingObServer) {
-      return isAuthenticated ? "Describe the agent you want to build..." : "Enable Ob-Server and log in to use AI Builder";
+      return isAuthenticated ? "Describe what you want to monitor..." : "Enable Ob-Server and log in to use AI Builder";
     }
-    return selectedLocalModel ? "Describe the agent to build with your model..." : "Click the CPU icon to select a local model";
+    return selectedLocalModel ? "Describe what you want to monitor..." : "Click the CPU icon to select a local model";
   };
   
   const isInputDisabled = isLoading || (isUsingObServer ? !isAuthenticated : !selectedLocalModel);

@@ -239,7 +239,7 @@ export const AgentAutocompleteInput: React.FC<AgentAutocompleteInputProps> = ({
           placeholder={placeholder}
           disabled={disabled}
           rows={1}
-          className={`w-full resize-none ${className}`}
+          className={`w-full resize-none placeholder:truncate placeholder:overflow-hidden ${className}`}
           style={{
             minHeight: '48px',
             overflow: 'hidden'

@@ -486,7 +486,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
           {/* --- Step 2: Prompt & Sensors --- */}
           <div className="w-full flex-shrink-0 p-8 flex flex-col overflow-y-auto">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Prompt & Sensors</h3>
-            <div data-tutorial="prompt-area">
+            <div data-tutorial="prompt-area" className="flex-grow flex flex-col">
               <SensorInputText
                 value={systemPrompt}
                 onChange={setSystemPrompt}
