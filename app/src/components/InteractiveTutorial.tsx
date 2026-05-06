@@ -102,6 +102,14 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       action: 'click',
     },
     {
+      id: 'whats-next',
+      title: "What's next?",
+      message: 'You can auto-generate agents in the Alert Builder or build your own in the Simple Creator. Explore when you\'re ready!',
+      icon: <Sparkles className="h-6 w-6 text-blue-500" />,
+      noSpotlight: true,
+      noOverlay: true,
+    },
+    {
       id: 'upsell',
       title: '',
       message: '',
@@ -564,9 +572,9 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           <p className="text-sm text-gray-700 leading-relaxed">{currentStepData.message}</p>
         </div>
 
-        {/* Progress dots (steps 1–4) */}
+        {/* Progress dots (steps 1–5) */}
         <div className="flex items-center gap-1 mb-3">
-          {[1, 2, 3, 4, 5].map(i => (
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <div
               key={i}
               className={`h-1.5 w-6 rounded-full transition-colors ${
@@ -575,6 +583,15 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
             />
           ))}
         </div>
+
+        {currentStepData.id === 'whats-next' && (
+          <button
+            onClick={advanceStep}
+            className="w-full py-2 px-4 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            I'm ready!
+          </button>
+        )}
       </div>
 
       <style>{`
