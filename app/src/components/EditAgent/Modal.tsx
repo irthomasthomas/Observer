@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom';
 interface ModalProps {
   open: boolean;
   onClose: () => void;
+  onRequestClose?: () => void;
   children: ReactNode;
   className?: string;      // width / height / flex etc.
   backdropClassName?: string;
@@ -13,6 +14,7 @@ interface ModalProps {
 const Modal: React.FC<ModalProps> = ({
   open,
   onClose,
+  onRequestClose,
   children,
   className = '',
   backdropClassName = 'bg-black/50'
@@ -22,16 +24,18 @@ const Modal: React.FC<ModalProps> = ({
   const portalTarget =
     document.getElementById('modal-root') ?? document.body;
 
+  const handleDismiss = onRequestClose ?? onClose;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleDismiss();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [handleDismiss]);
 
   const handleBackdropMouseDown = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) handleDismiss();
   };
 
   return ReactDOM.createPortal(

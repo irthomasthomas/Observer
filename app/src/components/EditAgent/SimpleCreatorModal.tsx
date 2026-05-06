@@ -79,6 +79,20 @@ const ToolWarning = ({ icon: Icon, message, colorClass }: { icon: React.ElementT
 );
 // --- END NEW ---
 
+// --- Confirm Close Overlay ---
+const ConfirmCloseOverlay: React.FC<{ onConfirm: () => void; onCancel: () => void }> = ({ onConfirm, onCancel }) => (
+  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 rounded-lg">
+    <div className="bg-white rounded-xl shadow-2xl p-6 mx-4 max-w-sm w-full text-center">
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">Discard this agent?</h3>
+      <p className="text-sm text-gray-500 mb-6">Your progress will be lost if you close now.</p>
+      <div className="flex gap-3 justify-center">
+        <button onClick={onCancel} className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">Keep Editing</button>
+        <button onClick={onConfirm} className="px-4 py-2 rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700">Discard & Close</button>
+      </div>
+    </div>
+  </div>
+);
+
 // --- Cloud Privacy Notice ---
 interface SensorDataType {
   sensor: string;
@@ -196,6 +210,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   // --- END NEW ---
   
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const tutorialDrivenPageChange = useRef(false);
 
@@ -434,16 +449,20 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const handleBack = () => setStep(s => s - 1);
   
   const handleCloseAndReset = () => {
+    setShowConfirmClose(false);
     setTutorialStep(0);
     resetState();
     onClose();
   };
 
+  const handleRequestClose = () => setShowConfirmClose(true);
+
   const isStep1Valid = name && agentId && model;
   const isStep2Valid = systemPrompt.trim() && model;
 
   return (
-    <Modal open={isOpen} onClose={handleCloseAndReset} className="w-full max-w-4xl h-[700px] flex flex-col">
+    <Modal open={isOpen} onClose={handleCloseAndReset} onRequestClose={handleRequestClose} className="w-full max-w-4xl h-[700px] flex flex-col relative">
+      {showConfirmClose && <ConfirmCloseOverlay onConfirm={handleCloseAndReset} onCancel={() => setShowConfirmClose(false)} />}
       <div className="p-6 border-b flex-shrink-0 relative">
         <h2 className="text-2xl font-bold text-gray-900">Create a New Agent</h2>
         <p className="text-gray-500 mt-1">Step {step} of 3: {step === 1 ? 'Setup' : step === 2 ? 'Prompt' : 'Actions'}</p>

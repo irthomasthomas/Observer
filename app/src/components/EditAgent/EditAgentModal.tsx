@@ -548,6 +548,7 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
     isOpen, onClose, createMode, agent, code: existingCode, onSave, getToken
   });
 
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [editorIsLoaded, setEditorIsLoaded] = useState(false);
   const [importStatus, setImportStatus] = useState<{ inProgress: boolean; results: {filename: string; success: boolean; agent?: CompleteAgent; error?: string;}[] }>({
     inProgress: false,
@@ -601,6 +602,8 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
   };
 
 
+  const handleRequestClose = createMode ? () => setShowConfirmClose(true) : onClose;
+
   if (!isOpen) return null;
 
   /* ───────────────────────── RENDER LOGIC ───────────────────────── */
@@ -611,8 +614,21 @@ const EditAgentModal: React.FC<EditAgentModalProps> = ({
       <Modal
         open={isOpen}
         onClose={onClose}
-        className="w-full max-w-7xl h-full md:max-h-[95vh] flex flex-col overflow-hidden"
+        onRequestClose={handleRequestClose}
+        className="w-full max-w-7xl h-full md:max-h-[95vh] flex flex-col overflow-hidden relative"
       >
+        {showConfirmClose && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 rounded-lg">
+            <div className="bg-white rounded-xl shadow-2xl p-6 mx-4 max-w-sm w-full text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Discard this agent?</h3>
+              <p className="text-sm text-gray-500 mb-6">Your progress will be lost if you close now.</p>
+              <div className="flex gap-3 justify-center">
+                <button onClick={() => setShowConfirmClose(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">Keep Editing</button>
+                <button onClick={() => { setShowConfirmClose(false); onClose(); }} className="px-4 py-2 rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700">Discard & Close</button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* --- HEADER --- */}
         <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
           <h2 className="text-xl font-semibold truncate pr-4">
