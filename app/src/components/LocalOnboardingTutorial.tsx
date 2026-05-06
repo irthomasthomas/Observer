@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X as CloseIcon, Server, Download, Code, ArrowRight } from 'lucide-react';
+import { isTauri } from '@utils/platform';
 
 interface LocalOnboardingTutorialProps {
   isActive: boolean;
@@ -116,6 +117,11 @@ const LocalOnboardingTutorial: React.FC<LocalOnboardingTutorialProps> = ({ isAct
     ? (() => {
         const btn = document.querySelector('button[data-tutorial-gemma-e2b]');
         const isLoad = btn?.textContent?.trim().toLowerCase().startsWith('load');
+        if (isTauri()) {
+          return isLoad
+            ? 'Gemma 4 E2B is already downloaded! Click Load to activate it.'
+            : 'Click Download next to Gemma 4 E2B — it runs natively via llama.cpp for better stability and performance.';
+        }
         return isLoad
           ? 'Gemma 4 E2B is already downloaded! Click Load to activate it in your browser.'
           : 'Click Download next to Gemma 4 E2B ONNX — it runs directly in your browser, no install needed.';
