@@ -6,7 +6,7 @@ import { useApplePayments } from '@hooks/useApplePayments';
 import { X as CloseIcon, Loader2, Sparkles, Zap, Heart, Star, Shield, Monitor, Camera, Mic, Clipboard, Server } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { Analytics } from '@utils/analytics';
-import { isIOS } from '../utils/platform';
+import { isIOS, isWeb } from '../utils/platform';
 import { CreditInfoButton } from './CreditVisualization';
 
 interface WelcomeModalProps {
@@ -40,6 +40,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
   } = useApplePayments();
 
   const isAppleDevice = isIOS();
+  const isMobileWeb = isWeb();
 
   // Reset state when modal closes
   useEffect(() => {
@@ -189,6 +190,16 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                 </div>
               </div>
             </div>
+
+            {/* Mobile web + local model warning */}
+            {isMobileWeb && (
+              <div className="md:hidden bg-red-50 border border-red-300 rounded-lg p-2.5 mb-3 flex items-start gap-2">
+                <span className="text-red-500 text-base flex-shrink-0">⚠️</span>
+                <p className="text-xs text-red-700 leading-relaxed">
+                  <strong>Local models crash mobile browsers.</strong> This is a known transformers.js limitation, local models won't work on this device if it's a phone.
+                </p>
+              </div>
+            )}
 
             {/* Tip */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 md:p-3 mb-3 md:mb-6">
