@@ -29,6 +29,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [skipConfirmText, setSkipConfirmText] = useState('');
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(false);
 
   const { isAuthenticated, user, login, getAccessToken } = useAuth();
@@ -45,6 +46,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
     if (!isOpen) {
       setHasAcceptedPrivacy(false);
       setDontShowAgain(false);
+      setSkipConfirmText('');
       setError(null);
     }
   }, [isOpen]);
@@ -194,6 +196,36 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               >
                 Sign In
               </button>
+            </div>
+
+            {/* Type-to-confirm skip for advanced users */}
+            <div className="mt-6 pt-5 border-t border-gray-200">
+              <p className="text-xs text-gray-400 mb-2">Already have a model server and know what you're doing? Type the phrase below to continue without signing in:</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={skipConfirmText}
+                  onChange={(e) => setSkipConfirmText(e.target.value)}
+                  placeholder="I have a model server"
+                  className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                />
+                <button
+                  onClick={() => { Analytics.localModeContinue(); handleClose(); }}
+                  disabled={skipConfirmText.trim().toLowerCase() !== 'i have a model server'}
+                  className="px-4 py-2 text-sm text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Continue
+                </button>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer mt-2">
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-gray-500 focus:ring-gray-400"
+                />
+                <span className="text-xs text-gray-400">Don't show this again</span>
+              </label>
             </div>
 
           </div>
@@ -471,27 +503,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
         ) : null}
       </div>
 
-      {/* Skip for local mode — outside card, barely visible */}
-      {shouldShowLocalMode && (
-        <div className="flex flex-col items-end gap-1.5 mt-3 w-full max-w-3xl px-1" onClick={e => e.stopPropagation()}>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={dontShowAgain}
-              onChange={(e) => setDontShowAgain(e.target.checked)}
-              className="h-3 w-3 flex-shrink-0 rounded border-white/40 bg-white/20 accent-white focus:ring-white/50"
-            />
-            <span className="text-xs text-white/50 leading-relaxed">I have a local server and know how to use Observer</span>
-          </label>
-          <button
-            onClick={() => { Analytics.localModeContinue(); handleClose(); }}
-            disabled={!dontShowAgain}
-            className="text-xs text-white/35 hover:text-white/60 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            skip →
-          </button>
-        </div>
-      )}
     </div>
   );
 };
