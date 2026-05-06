@@ -72,8 +72,8 @@ main {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  /* Shift up when keyboard is visible */
-  transform: translateY(calc(var(--keyboard-height, 0px) * -0.4));
+  /* Shift up exactly enough to keep the focused input above the keyboard */
+  transform: translateY(calc(var(--keyboard-offset, 0px) * -1));
   transition: transform 0.25s ease-out;
 }
 
@@ -89,8 +89,8 @@ main {
 .fixed.top-0.left-0.right-0.bottom-0 {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
-  /* Shift modal up when keyboard visible - same 0.2 multiplier as main */
-  transform: translateY(calc(var(--keyboard-height, 0px) * -0.4));
+  /* Shift modal up exactly enough to keep the focused input above the keyboard */
+  transform: translateY(calc(var(--keyboard-offset, 0px) * -1));
   transition: transform 0.25s ease-out;
 }
 
