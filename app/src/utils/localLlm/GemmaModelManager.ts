@@ -100,6 +100,7 @@ export class GemmaModelManager {
     const loadSettings: GemmaLoadSettings = { device, dtype, imageTokenBudget, enableThinking };
     this.setState({ status: 'loading', modelId, progress: [], error: null, loadSettings });
     this.currentLoadSettings = loadSettings;
+    this.recordInstall(modelId, dtype);
     Logger.info('GemmaModelManager', `Loading model: ${modelId} (device: ${device}, dtype: ${dtype}, imageTokenBudget: ${imageTokenBudget}), thinking: ${enableThinking}`);
 
     this.worker = new Worker(new URL('./gemma.worker.ts', import.meta.url), { type: 'module' });
@@ -154,9 +155,6 @@ export class GemmaModelManager {
       case 'ready':
         Logger.info('GemmaModelManager', 'Model loaded successfully');
         if (this.state.modelId && this.currentLoadSettings) {
-          // Record install and runtime settings BEFORE notifying listeners so that
-          // listLocalModels() reflects the new model when the UI re-renders.
-          this.recordInstall(this.state.modelId as GemmaModelId, this.currentLoadSettings.dtype);
           this.saveRuntimeSettings({
             device: this.currentLoadSettings.device,
             imageTokenBudget: this.currentLoadSettings.imageTokenBudget,
