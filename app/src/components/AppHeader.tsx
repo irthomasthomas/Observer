@@ -605,6 +605,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     onClick={() => setIsSettingsModalOpen(true)}
                     className="p-2 rounded-md hover:bg-gray-100"
                     aria-label="Open connection settings"
+                    data-tutorial-modelhub
                 >
                     <Server className="h-5 w-5 text-gray-600" />
                 </button>
@@ -666,7 +667,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {/* Model Hub - central modal for all model/server management */}
       <ModelHub
         isOpen={isSettingsModalOpen}
-        onClose={() => { setIsSettingsModalOpen(false); setAutoDownloadPreset(undefined); }}
+        onClose={() => { setIsSettingsModalOpen(false); setAutoDownloadPreset(undefined); window.dispatchEvent(new CustomEvent('modelHubClosed')); }}
         autoDownloadPreset={autoDownloadPreset}
         isUsingObServer={isUsingObServer}
         handleToggleObServer={handleToggleObServer}

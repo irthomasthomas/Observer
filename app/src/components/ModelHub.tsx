@@ -990,6 +990,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                                 GemmaModelManager.getInstance().loadModelWithSettings(model.id as GemmaModelId, gemmaDevice, installedDtype, gemmaTokenBudget, gemmaEnableThinking);
                               }}
                               className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg hover:bg-gray-900 font-medium shadow-sm"
+                              {...(model.id === 'onnx-community/gemma-4-E2B-it-ONNX' ? { 'data-tutorial-gemma-e2b': true } : {})}
                             >
                               <Sparkles size={12} /> Load
                             </button>
@@ -1169,6 +1170,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                           onClick={() => handleDownloadPreset(preset)}
                           disabled={downloadBlocked}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
+                          {...(preset.name === 'Gemma 4 E2B ONNX' ? { 'data-tutorial-gemma-e2b': true } : {})}
                         >
                           <Download size={12} />
                           Download

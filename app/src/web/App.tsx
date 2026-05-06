@@ -52,6 +52,7 @@ import FeedbackDialog from '@components/FeedbackDialog';
 import { startCommandSSE, updateCommandSSEToken } from '@utils/commandSSE';
 import WhitelistModal from '@components/WhitelistModal';
 import InteractiveTutorial from '@components/InteractiveTutorial';
+import LocalOnboardingTutorial from '@components/LocalOnboardingTutorial';
 import AgentChip from '@components/AgentChip';
 import { PERSON_DETECTOR_AGENT, PERSON_DETECTOR_CODE, PERSON_DETECTOR_ID } from '@utils/personDetectorAgent';
 
@@ -139,6 +140,7 @@ function AppContent() {
   // AcceptToS modal state
   const [isAcceptToSOpen, setIsAcceptToSOpen] = useState(false);
   const [showLocalModeWarning, setShowLocalModeWarning] = useState(false);
+  const [isLocalOnboardingActive, setIsLocalOnboardingActive] = useState(false);
 
   // Tutorial modal state
   const [tutorialModalInfo, setTutorialModalInfo] = useState<{
@@ -868,6 +870,7 @@ function AppContent() {
         onNext={handleSimpleCreatorNext}
         isAuthenticated={isAuthenticated}
         hostingContext={hostingContext}
+        userEmail={user?.email}
       />
 
       <ConversationalGeneratorModal
@@ -1101,6 +1104,12 @@ function AppContent() {
         onViewAllTiers={() => setActiveTab('obServer')}
         intent="local"
         tier={null}
+        onPrivacyAccepted={() => setIsLocalOnboardingActive(true)}
+      />
+
+      <LocalOnboardingTutorial
+        isActive={isLocalOnboardingActive}
+        onDismiss={() => setIsLocalOnboardingActive(false)}
       />
 
       <FeedbackDialog

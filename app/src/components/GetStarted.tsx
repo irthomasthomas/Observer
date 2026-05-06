@@ -143,6 +143,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
           {/* Build Custom Card */}
           <div
             onClick={onCreateNewAgent}
+            data-tutorial-build-custom
             className="flex-1 md:flex-initial bg-white shadow-sm cursor-pointer p-3 md:p-6 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex flex-col justify-center"
           >
             <div className="md:mb-4 flex items-center justify-center md:justify-start -translate-x-[10px] md:translate-x-0">

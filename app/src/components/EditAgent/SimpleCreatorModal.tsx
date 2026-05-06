@@ -2,13 +2,17 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Modal from '@components/EditAgent/Modal';
 import SensorInputText from '@components/EditAgent/SensorInputText';
 import { SimpleTool, ToolData } from '@utils/agentTemplateManager';
-import { Model, listModels, SKIP_MODEL_SENTINEL } from '@utils/inferenceServer';
+import { Model, listModels, fetchModels, SKIP_MODEL_SENTINEL } from '@utils/inferenceServer';
 import { isIOS } from '@utils/platform';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { listAgents, CompleteAgent } from '@utils/agent_database';
 import {
   Bell, Save, Monitor, ScanText, Eye, Camera, Clipboard, Mic, ArrowRight, ArrowLeft, ChevronDown, AlertTriangle, Info, Loader2, CheckCircle2, MessageSquare, Smartphone, Mail, Volume2, Blend, Clapperboard, Tag, HelpCircle, MessageCircle, Images, Server, MousePointer, Phone, PartyPopper, MinusCircle
 } from 'lucide-react';
+import SimpleCreatorTutorial from '@components/EditAgent/SimpleCreatorTutorial';
+
+const TUTORIAL_PROMPT = `Look at $CAMERA. If you see a person, respond with exactly: PERSON_DETECTED
+Otherwise, respond with: NO_PERSON`;
 
 
 // --- NEW: Actual SVG components for Discord and WhatsApp ---
@@ -158,9 +162,9 @@ const CloudPrivacyNotice: React.FC<CloudPrivacyNoticeProps> = ({ detectedData, p
 
 // --- MAIN WIZARD COMPONENT ---
 interface SimpleCreatorModalProps {
-  isOpen: boolean; onClose: () => void; onNext: (config: any) => void; isAuthenticated: boolean; hostingContext?: 'official-web' | 'self-hosted';
+  isOpen: boolean; onClose: () => void; onNext: (config: any) => void; isAuthenticated: boolean; hostingContext?: 'official-web' | 'self-hosted'; userEmail?: string;
 }
-const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose, onNext, isAuthenticated, hostingContext }) => {
+const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose, onNext, isAuthenticated, hostingContext, userEmail }) => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [agentId, setAgentId] = useState('');
@@ -192,6 +196,67 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   // --- END NEW ---
   
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const tutorialDrivenPageChange = useRef(false);
+
+  const tutorialStepConfigs = [
+    { selector: '[data-tutorial="name-input"]', title: 'Name your agent', message: "We've suggested 'Person Watcher', change it if you like." },
+    { selector: '[data-tutorial="model-grid"]', title: 'Choose a model', message: 'Cloud models work out of the box. Pick any one to continue.' },
+    { selector: '[data-tutorial="prompt-area"]', title: 'Your prompt is ready', message: "It watches your camera and outputs PERSON_DETECTED when it sees someone." },
+    { selector: '[data-tutorial="keyword-area"]', title: 'Trigger on a keyword', message: "Actions only fire when the model says PERSON_DETECTED, already configured for you!" },
+    {
+      selector: isAuthenticated ? '[data-tutorial="email-tool"]' : '[data-tutorial="celebrate-tool"]',
+      title: isAuthenticated ? 'Get emailed on detection' : 'Celebrate on detection!',
+      message: isAuthenticated
+        ? `We've pre-selected your email${userEmail ? ` (${userEmail})` : ''} — you'll get alerted when someone is detected.`
+        : "Trigger a celebration animation whenever a person is detected... a fun way to test your agent!",
+    },
+    { selector: '[data-tutorial="finish-button"]', title: 'Ready to launch!', message: "Hit Finish & Create, your agent will be generated so you can view it!" },
+  ];
+
+  const handleTutorialNext = () => {
+    const next = tutorialStep + 1;
+    if (next > tutorialStepConfigs.length) {
+      localStorage.setItem('observer_creator_tutorial_seen', 'true');
+      setTutorialStep(0);
+      return;
+    }
+    if (next === 3) {
+      tutorialDrivenPageChange.current = true;
+      setSystemPrompt(TUTORIAL_PROMPT);
+      setStep(2);
+    }
+    if (next === 4) {
+      tutorialDrivenPageChange.current = true;
+      setStep(3);
+      setConditionEnabled(true);
+      setConditionKeyword('PERSON_DETECTED');
+    }
+    if (next === 5) {
+      if (isAuthenticated && userEmail) {
+        setEmailAddress(userEmail);
+        setSelectedTools(prev => { const m = new Map(prev); m.set('email', { emailAddress: userEmail }); return m; });
+      } else {
+        setSelectedTools(prev => { const m = new Map(prev); m.set('celebrate', {}); return m; });
+      }
+    }
+    setTutorialStep(next);
+  };
+
+  const dismissTutorial = () => {
+    localStorage.setItem('observer_creator_tutorial_seen', 'true');
+    setTutorialStep(0);
+  };
+
+  const restartTutorial = () => {
+    setStep(1);
+    setName('Person Watcher');
+    setSystemPrompt('');
+    setSelectedTools(new Map());
+    setConditionEnabled(false);
+    setConditionKeyword('');
+    setTutorialStep(1);
+  };
 
   const resetState = useCallback(() => {
     setStep(1); setName(''); setAgentId(''); setModel(''); setSystemPrompt('');
@@ -213,12 +278,13 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const fetchInitialData = useCallback(async () => {
     setLoadingModels(true);
     try {
-      const modelsResponse = listModels();
-      const agentsResponse = await listAgents();
+      const [modelsResponse, agentsResponse] = await Promise.all([fetchModels(), listAgents()]);
       if (modelsResponse.models) {
         setAvailableModels(modelsResponse.models);
-        if (modelsResponse.models.length > 0 && !model) {
-          setModel(modelsResponse.models[0].name);
+        if (!model) {
+          const firstReal = modelsResponse.models.find(m => m.server !== SKIP_MODEL_SENTINEL);
+          const autoSelect = firstReal ?? modelsResponse.models[0];
+          if (autoSelect) setModel(autoSelect.name);
         }
       }
       setExistingAgents(agentsResponse);
@@ -227,6 +293,43 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   }, [isOpen, model]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
+
+  // Activate tutorial on first open
+  useEffect(() => {
+    if (isOpen) {
+      const seen = localStorage.getItem('observer_creator_tutorial_seen');
+      if (!seen) {
+        setName('Person Watcher');
+        setTutorialStep(1);
+      }
+    } else {
+      setTutorialStep(0);
+    }
+  }, [isOpen]);
+
+  // Sync tutorial when user navigates modal independently (not driven by tutorial)
+  useEffect(() => {
+    if (tutorialStep === 0) return;
+    if (tutorialDrivenPageChange.current) {
+      tutorialDrivenPageChange.current = false;
+      return;
+    }
+    // First tutorial step that belongs to each modal page
+    const firstStepForPage = step <= 1 ? 1 : step === 2 ? 3 : 4;
+    if (tutorialStep < firstStepForPage) {
+      // Navigated forward — apply side effects for skipped steps
+      if (firstStepForPage >= 3 && tutorialStep < 3) setSystemPrompt(TUTORIAL_PROMPT);
+      if (firstStepForPage >= 4 && tutorialStep < 4) {
+        setConditionEnabled(true);
+        setConditionKeyword('PERSON_DETECTED');
+      }
+      setTutorialStep(firstStepForPage);
+    } else {
+      // Navigated backward — snap tutorial to the first step of the current page
+      const nextPageFirstStep = step <= 1 ? 3 : step === 2 ? 4 : 99;
+      if (tutorialStep >= nextPageFirstStep) setTutorialStep(firstStepForPage);
+    }
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!name) { setAgentId(''); return; }
@@ -319,6 +422,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
         selectedTools: selectedTools,
         condition: { enabled: conditionEnabled, keyword: conditionKeyword }
       };
+      if (tutorialStep > 0) localStorage.setItem('observer_creator_tutorial_seen', 'true');
       onNext(config);
       resetState();
       onClose();
@@ -330,6 +434,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
   const handleBack = () => setStep(s => s - 1);
   
   const handleCloseAndReset = () => {
+    setTutorialStep(0);
     resetState();
     onClose();
   };
@@ -339,9 +444,12 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
 
   return (
     <Modal open={isOpen} onClose={handleCloseAndReset} className="w-full max-w-4xl h-[700px] flex flex-col">
-      <div className="p-6 border-b flex-shrink-0">
+      <div className="p-6 border-b flex-shrink-0 relative">
         <h2 className="text-2xl font-bold text-gray-900">Create a New Agent</h2>
         <p className="text-gray-500 mt-1">Step {step} of 3: {step === 1 ? 'Setup' : step === 2 ? 'Prompt' : 'Actions'}</p>
+        <button onClick={restartTutorial} title="Restart tutorial" className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+          <HelpCircle className="h-5 w-5" />
+        </button>
       </div>
       
       <div className="flex-grow relative overflow-hidden">
@@ -352,13 +460,13 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               <h3 className="text-xl font-semibold text-gray-800">1. Name Your Agent</h3>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Agent Name</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} className="w-full p-3 bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="My Screen Watcher" autoFocus/>
+                <input data-tutorial="name-input" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-3 bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="My Screen Watcher" autoFocus/>
                 {agentId && <p className="text-xs text-gray-500 mt-2">ID: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded-md">{agentId}</span></p>}
               </div>
             </div>
             <div className="space-y-6 flex flex-col">
               <h3 className="text-xl font-semibold text-gray-800">2. Choose a Model</h3>
-              <div className="flex-grow border border-gray-200 rounded-lg bg-gray-50 p-3 overflow-y-auto">
+              <div data-tutorial="model-grid" className="flex-grow border border-gray-200 rounded-lg bg-gray-50 p-3 overflow-y-auto">
                 {loadingModels && <div className="p-4 text-center text-gray-500 flex items-center justify-center h-full"><Loader2 className="h-5 w-5 mr-2 animate-spin"/>Loading...</div>}
                 <div className="flex flex-wrap gap-2">
                     {!loadingModels && availableModels.map((m) => (
@@ -378,13 +486,15 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
           {/* --- Step 2: Prompt & Sensors --- */}
           <div className="w-full flex-shrink-0 p-8 flex flex-col overflow-y-auto">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Prompt & Sensors</h3>
-            <SensorInputText
-              value={systemPrompt}
-              onChange={setSystemPrompt}
-              textareaRef={promptRef}
-              className="flex-grow min-h-[250px]"
-              placeholder="e.g., Look at the screen for 'ERROR'..."
-            />
+            <div data-tutorial="prompt-area">
+              <SensorInputText
+                value={systemPrompt}
+                onChange={setSystemPrompt}
+                textareaRef={promptRef}
+                className="flex-grow min-h-[250px]"
+                placeholder="e.g., Look at the screen for 'ERROR'..."
+              />
+            </div>
             <div className="flex flex-wrap gap-2 mt-4">
               <SensorButton icon={ScanText} label="Screen Text" onClick={() => insertSensor('$SCREEN_OCR')} colorClass="text-blue-600" />
               <SensorButton icon={Monitor} label="Screen Image" onClick={() => insertSensor('$SCREEN')} colorClass="text-purple-600" />
@@ -414,6 +524,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               <p className="text-gray-600 mt-1">What should the agent do with the model's response?</p>
             </div>
             
+            <div data-tutorial="keyword-area">
             <div className="p-1 bg-gray-200 rounded-lg flex"><button onClick={() => setConditionEnabled(false)} className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${!conditionEnabled ? 'bg-white text-blue-600 shadow' : 'text-gray-600 hover:bg-gray-300'}`}>Always Trigger</button><button onClick={() => setConditionEnabled(true)} className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${conditionEnabled ? 'bg-white text-blue-600 shadow' : 'text-gray-600 hover:bg-gray-300'}`}>On Keyword</button></div>
 
             {conditionEnabled && (
@@ -427,6 +538,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               </div>
             </div>
             )}
+            </div>{/* end keyword-area */}
             
             {/* --- NEW: Contextual Warnings Area --- */}
             <div className="space-y-2">
@@ -446,7 +558,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                     {/* Discord Tool */}
                     <button type="button" onClick={() => toggleTool('discord')} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('discord') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}><div className="flex items-center space-x-4"><DiscordIcon className={`h-8 w-8 transition-colors ${selectedTools.has('discord') ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send to Discord</h3><p className="text-sm text-gray-500">Sends a Discord message.</p></div></div>{selectedTools.has('discord') && (<div className="relative pl-12 pt-2"><input type="text" value={discordWebhookUrl} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newUrl = e.target.value; setDiscordWebhookUrl(newUrl); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('discord', { discordWebhookUrl: newUrl }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Discord Webhook URL"/></div>)}</button>
                     {/* Email Tool */}
-                    <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('email')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('email') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><Mail className={`h-8 w-8 transition-colors ${selectedTools.has('email') ? 'text-blue-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send an Email</h3><p className="text-sm text-gray-500">Sends response as an email.</p></div></div>{selectedTools.has('email') && (<div className="relative pl-12 pt-2"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="email" value={emailAddress} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newAddress = e.target.value; setEmailAddress(newAddress); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('email', { emailAddress: newAddress }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="recipient@example.com"/></div>)}</button>
+                    <button data-tutorial="email-tool" type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('email')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('email') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><Mail className={`h-8 w-8 transition-colors ${selectedTools.has('email') ? 'text-blue-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send an Email</h3><p className="text-sm text-gray-500">Sends response as an email.</p></div></div>{selectedTools.has('email') && (<div className="relative pl-12 pt-2"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="email" value={emailAddress} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newAddress = e.target.value; setEmailAddress(newAddress); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('email', { emailAddress: newAddress }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="recipient@example.com"/></div>)}</button>
                     {/* Pushover Tool */}
                     <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('pushover')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('pushover') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><Smartphone className={`h-8 w-8 transition-colors ${selectedTools.has('pushover') ? 'text-blue-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send to Pushover</h3><p className="text-sm text-gray-500">Sends a push notification.</p></div></div>{selectedTools.has('pushover') && (<div className="relative pl-12 pt-2"><input type="text" value={pushoverUserKey} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newKey = e.target.value; setPushoverUserKey(newKey); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('pushover', { pushoverUserKey: newKey }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Pushover User Key"/></div>)}</button>
                     {/* Telegram Tool */}
@@ -481,17 +593,24 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                       <button type="button" onClick={() => toggleTool('overlay')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('overlay') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}><Monitor className={`h-8 w-8 transition-colors ${selectedTools.has('overlay') ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Show Overlay</h3><p className="text-sm text-gray-500">Displays message in translucent overlay.</p></div></button>
                       {/* Click Tool */}
                       <button type="button" onClick={() => toggleTool('click')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('click') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}><MousePointer className={`h-8 w-8 transition-colors ${selectedTools.has('click') ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Mouse Click</h3><p className="text-sm text-gray-500">Clicks at current cursor position.</p></div></button>
-                      <button type="button" onClick={() => toggleTool('celebrate')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('celebrate') ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300 hover:border-gray-400'}`}><PartyPopper className={`h-8 w-8 transition-colors ${selectedTools.has('celebrate') ? 'text-yellow-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Celebrate</h3><p className="text-sm text-gray-500">Triggers a celebration animation.</p></div></button>
                     </div>
                   </div>
                 )}
+
+                {/* Celebrate — always visible */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-700">Fun</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <button data-tutorial="celebrate-tool" type="button" onClick={() => toggleTool('celebrate')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('celebrate') ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300 hover:border-gray-400'}`}><PartyPopper className={`h-8 w-8 transition-colors ${selectedTools.has('celebrate') ? 'text-yellow-500' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Celebrate</h3><p className="text-sm text-gray-500">Triggers a celebration animation.</p></div></button>
+                  </div>
+                </div>
 
                 {/* Section 4: Other Notifications */}
                 <div className="space-y-4">
                   <h4 className="text-lg font-semibold text-gray-700">Other Notifications</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Desktop Notification Tool */}
-                    <button type="button" onClick={() => toggleTool('notification')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('notification') ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300 hover:border-gray-400'}`}><Bell className={`h-8 w-8 transition-colors ${selectedTools.has('notification') ? 'text-yellow-600' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Desktop Notification</h3><p className="text-sm text-gray-500">Sends a local desktop alert.</p></div></button>
+                    <button data-tutorial="notification-tool" type="button" onClick={() => toggleTool('notification')} className={`group flex items-center space-x-4 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('notification') ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300 hover:border-gray-400'}`}><Bell className={`h-8 w-8 transition-colors ${selectedTools.has('notification') ? 'text-yellow-600' : 'text-gray-400 group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Desktop Notification</h3><p className="text-sm text-gray-500">Sends a local desktop alert.</p></div></button>
                     {/* WhatsApp Tool */}
                     <button type="button" title={!isAuthenticated ? 'Please sign in to use this tool.' : ''} onClick={() => toggleTool('whatsapp')} disabled={!isAuthenticated} className={`group flex flex-col space-y-3 p-4 border-2 rounded-lg text-left transition-all ${selectedTools.has('whatsapp') ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'} disabled:opacity-50 disabled:cursor-not-allowed`}><div className="flex items-center space-x-4"><WhatsAppIcon className={`h-8 w-8 transition-colors ${selectedTools.has('whatsapp') ? 'text-blue-500' : 'text-gray-400 group-enabled:group-hover:text-gray-600'}`} /><div><h3 className="font-semibold text-gray-900">Send a WhatsApp</h3><p className="text-sm text-gray-500">Sends a WhatsApp alert.</p></div></div>{selectedTools.has('whatsapp') && (<div className="relative pl-12 pt-2"><Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><input type="tel" value={whatsappPhoneNumber} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newNumber = e.target.value; setWhatsappPhoneNumber(newNumber); setSelectedTools(prev => { const newMap = new Map(prev); newMap.set('whatsapp', { whatsappPhoneNumber: newNumber }); return newMap; }); }} className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="+1 555 123-4567"/></div>)}</button>
                     {/* SMS Tool */}
@@ -538,7 +657,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                     />
                   </div>
                 ) : <div className="flex-1" />}
-                <button onClick={handleNext} disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)} className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                <button data-tutorial="finish-button" onClick={handleNext} disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)} className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
                   {buttonText}
                   {step < 3 && <ArrowRight className="h-5 w-5 ml-2" />}
                 </button>
@@ -547,6 +666,12 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
           );
         })()}
       </div>
+      <SimpleCreatorTutorial
+        tutorialStep={tutorialStep}
+        steps={tutorialStepConfigs}
+        onNext={handleTutorialNext}
+        onDismiss={dismissTutorial}
+      />
     </Modal>
   );
 };
