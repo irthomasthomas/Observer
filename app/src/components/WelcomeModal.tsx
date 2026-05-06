@@ -165,53 +165,62 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
           <div className="p-6 md:p-8">
             {/* Header */}
             <div className="mb-6">
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">Love that you value your privacy 🔒</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">No sign-in? Totally fine 🔒</h2>
               <p className="text-sm md:text-base text-gray-600 leading-relaxed">
-                 Observer is all in on that! Just a heads-up on what the fully offline path needs to work well:
+                Observer works without an account. Just know a few things are limited without logging in:
               </p>
             </div>
 
-            {/* Requirements */}
+            {/* What's limited */}
             <div className="space-y-3 mb-6">
-              <div className="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
-                <Server className="h-5 w-5 text-gray-500 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <Sparkles className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">Your own OpenAI-compatible model server</p>
-                  <p className="text-xs text-gray-500 mt-0.5">The AI Agent Builder needs a model with at least a 50k token context window to work.</p>
+                  <p className="text-sm font-semibold text-gray-800">AI Agent Creator won't work</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Building agents with AI assistance requires a cloud model, you'd need to set up your own OpenAI-compatible server.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <Zap className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Most notifications won't work</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Email, Telegram, SMS, and WhatsApp need an account. <strong>Discord webhooks still work</strong>, no login needed.</p>
                 </div>
               </div>
             </div>
 
-            {/* Soft sign-in nudge */}
+            {/* Tip */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
               <p className="text-xs md:text-sm text-blue-800 leading-relaxed">
-                <strong>Tip:</strong> You can sign in <em>and</em> use local models, your data stays on-device either way, and you'll be able to build agents with AI and run them locally.              </p>
+                <strong>Recommended:</strong> You can sign in <em>and</em> use local models! your data stays on-device either way, and you'll unlock the AI agent builder and all notifications.
+              </p>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-3">
+            {/* Soft sign-in nudge */}
+            <div className="mb-6">
               <button
                 onClick={handleSignIn}
                 className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
-                Sign In
+                Sign In for Full Access
               </button>
+              <p className="text-xs text-gray-400 text-center mt-2">Your data stays on-device even when signed in.</p>
             </div>
 
-            {/* Type-to-confirm skip for advanced users */}
-            <div className="mt-6 pt-5 border-t border-gray-200">
-              <p className="text-xs text-gray-400 mb-2">Already have a model server and know what you're doing? Type the phrase below to continue without signing in:</p>
+            {/* Type-to-confirm */}
+            <div className="pt-5 border-t border-gray-200">
+              <p className="text-xs text-gray-400 mb-2">Understood the limitations? Type <strong className="text-gray-500">I understand</strong> to continue without signing in:</p>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={skipConfirmText}
                   onChange={(e) => setSkipConfirmText(e.target.value)}
-                  placeholder="I have a model server"
+                  placeholder="I understand"
                   className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
                 />
                 <button
-                  onClick={() => { Analytics.localModeContinue(); handleClose(); }}
-                  disabled={skipConfirmText.trim().toLowerCase() !== 'i have a model server'}
+                  onClick={() => { Analytics.localModeContinue(); handleClose(); if (onPrivacyAccepted) onPrivacyAccepted(); }}
+                  disabled={skipConfirmText.trim().toLowerCase() !== 'i understand'}
                   className="px-4 py-2 text-sm text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   Continue
