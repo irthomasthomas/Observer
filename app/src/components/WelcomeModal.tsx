@@ -162,42 +162,43 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
 
         {/* STATE 1: Local Mode Warning (Not Signed In) */}
         {shouldShowLocalMode && (
-          <div className="p-6 md:p-8">
+          <div className="p-4 md:p-8">
             {/* Header */}
-            <div className="mb-6">
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">No sign-in? Totally fine 🔒</h2>
-              <p className="text-sm md:text-base text-gray-600 leading-relaxed">
+            <div className="mb-3 md:mb-6">
+              <h2 className="text-lg md:text-2xl font-bold text-gray-900 mb-1">No sign-in? Totally fine 🔒</h2>
+              <p className="text-xs md:text-base text-gray-600 leading-relaxed">
                 Observer works without an account. Just know a few things are limited without logging in:
               </p>
             </div>
 
             {/* What's limited */}
-            <div className="space-y-3 mb-6">
-              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <Sparkles className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="space-y-2 mb-3 md:mb-6">
+              <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg p-2.5 md:p-3">
+                <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">AI Agent Creator won't work</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Building agents with AI assistance requires a cloud model, you'd need to set up your own OpenAI-compatible server.</p>
+                  <p className="text-xs md:text-sm font-semibold text-gray-800">AI Agent Creator won't work</p>
+                  <p className="text-xs text-gray-500 mt-0.5 hidden md:block">Building agents with AI assistance requires a cloud model, you'd need to set up your own OpenAI-compatible server.</p>
+                  <p className="text-xs text-gray-500 mt-0.5 md:hidden">Requires a cloud model or your own OpenAI-compatible server.</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <Zap className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg p-2.5 md:p-3">
+                <Zap className="h-4 w-4 md:h-5 md:w-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">Most notifications won't work</p>
+                  <p className="text-xs md:text-sm font-semibold text-gray-800">Most notifications won't work</p>
                   <p className="text-xs text-gray-500 mt-0.5">Email, Telegram, SMS, and WhatsApp need an account. <strong>Discord webhooks still work</strong>, no login needed.</p>
                 </div>
               </div>
             </div>
 
             {/* Tip */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 md:p-3 mb-3 md:mb-6">
               <p className="text-xs md:text-sm text-blue-800 leading-relaxed">
                 <strong>Recommended:</strong> You can sign in <em>and</em> use local models! your data stays on-device either way, and you'll unlock the AI agent builder and all notifications.
               </p>
             </div>
 
             {/* Soft sign-in nudge */}
-            <div className="mb-6">
+            <div className="mb-3 md:mb-6">
               <button
                 onClick={handleSignIn}
                 className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
@@ -208,7 +209,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
             </div>
 
             {/* Type-to-confirm */}
-            <div className="pt-5 border-t border-gray-200">
+            <div className="pt-3 md:pt-5 border-t border-gray-200">
               <p className="text-xs text-gray-400 mb-2">Understood the limitations? Type <strong className="text-gray-500">I understand</strong> to continue without signing in:</p>
               <div className="flex items-center gap-2">
                 <input
