@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Modal from '@components/EditAgent/Modal';
 import SensorInputText from '@components/EditAgent/SensorInputText';
 import { SimpleTool, ToolData } from '@utils/agentTemplateManager';
-import { Model, listModels, fetchModels, SKIP_MODEL_SENTINEL } from '@utils/inferenceServer';
+import { Model, fetchModels, SKIP_MODEL_SENTINEL } from '@utils/inferenceServer';
 import { isIOS } from '@utils/platform';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { listAgents, CompleteAgent } from '@utils/agent_database';
