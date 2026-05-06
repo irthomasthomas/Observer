@@ -196,7 +196,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               <div className="md:hidden bg-red-50 border border-red-300 rounded-lg p-2.5 mb-3 flex items-start gap-2">
                 <span className="text-red-500 text-base flex-shrink-0">⚠️</span>
                 <p className="text-xs text-red-700 leading-relaxed">
-                  <strong>Local models crash mobile browsers.</strong> This is a known transformers.js limitation, local models won't work on this device if it's a phone.
+                  <strong>Local models crash mobile browsers.</strong> This is a known transformers.js limitation, download the app if you want to run local models on your phone.
                 </p>
               </div>
             )}
