@@ -297,15 +297,14 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
       if (modelsResponse.models) {
         setAvailableModels(modelsResponse.models);
         if (!model) {
-          const firstReal = modelsResponse.models.find(m => m.server !== SKIP_MODEL_SENTINEL);
-          const autoSelect = firstReal ?? modelsResponse.models[0];
+          const autoSelect = modelsResponse.models.find(m => m.server !== SKIP_MODEL_SENTINEL);
           if (autoSelect) setModel(autoSelect.name);
         }
       }
       setExistingAgents(agentsResponse);
     } catch (error) { console.error("Failed to fetch initial data", error); }
     finally { setLoadingModels(false); }
-  }, [isOpen, model]);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
