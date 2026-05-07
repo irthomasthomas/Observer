@@ -1,6 +1,6 @@
 // components/AppHeader.tsx
 import React, { useState, useEffect } from 'react';
-import { Server, Menu, Sun, Moon, User } from 'lucide-react';
+import { Cpu, Menu, Sun, Moon, User } from 'lucide-react';
 import {
   checkInferenceServer,
   addInferenceAddress,
@@ -603,11 +603,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 {/* Settings Button */}
                 <button
                     onClick={() => setIsSettingsModalOpen(true)}
-                    className="p-2 rounded-md hover:bg-gray-100"
+                    className="flex items-center gap-1 px-2 py-2 rounded-md hover:bg-gray-100"
                     aria-label="Open connection settings"
                     data-tutorial-modelhub
                 >
-                    <Server className="h-5 w-5 text-gray-600" />
+                    <Cpu className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm text-gray-600 hidden sm:inline">Models</span>
                 </button>
               </div>
 
