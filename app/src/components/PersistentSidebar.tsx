@@ -31,7 +31,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
 
   const menuItems = [
     { id: 'myAgents', icon: Home, label: 'My Agents', color: 'blue' },
-    { id: 'models', icon: Cpu, label: 'Models', color: 'blue' },
+    { id: 'models', icon: Cpu, label: 'Model List', color: 'blue' },
     { id: 'memoryStore', icon: Database, label: 'Memories', color: 'blue' },
     { id: 'recordings', icon: Video, label: 'Recordings', color: 'blue' },
     { id: 'community', icon: Users, label: 'Community', color: 'blue' },
