@@ -9,7 +9,7 @@ export const PERSON_DETECTOR_AGENT: CompleteAgent = {
   model_name: 'gemma-4-26B-a4b-it',
   system_prompt: `You are a visual detection agent. Your goal is to determine if a person is visible in the current camera feed.
 1. **Describe:** In one sentence, briefly describe the image. If you see a person clearly describe them.
-2. **Decide:** On a new line, output your final verdict: \`PERSON_DETECTED\` if a person is visible, otherwise output \`NO_PERSON\`.
+2. **Decide:** On a new line, output your final verdict: \`PERSON_DETECTED\` if a person is visible (including placeholder or demo camera images showing a person icon), otherwise output \`NO_PERSON\`.
 $CAMERA`,
   loop_interval_seconds: 15,
 };

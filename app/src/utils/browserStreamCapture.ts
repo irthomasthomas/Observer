@@ -29,6 +29,104 @@ class BrowserStreamCapture {
   };
 
   private pendingAcquisitions = new Map<MasterStreamType, Promise<void>>();
+  private mockCameraAnimationId: number | null = null;
+  private mockCameraCanvas: HTMLCanvasElement | null = null;
+
+  private createMockCameraStream(): MediaStream {
+    const W = 640, H = 480;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    this.mockCameraCanvas = canvas;
+
+    const ctx = canvas.getContext('2d')!;
+    let frame = 0;
+
+    const draw = () => {
+      frame++;
+      ctx.clearRect(0, 0, W, H);
+
+      const ACCENT = '#6366f1'; // single color for everything
+      const BG = '#eef2ff';     // indigo-50 — tinted to match
+
+      // Background
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, W, H);
+
+      const cx = W / 2, cy = H / 2 - 10;
+
+      // Pulse rings — crisp, same accent at low opacity
+      for (let i = 0; i < 2; i++) {
+        const phase = (frame / 100 + i * 0.5) % 1;
+        const radius = 70 + phase * 90;
+        const alpha = (1 - phase) * 0.12;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(99, 102, 241, ${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Person figure — same accent color
+      ctx.fillStyle = ACCENT;
+
+      // Head
+      ctx.beginPath();
+      ctx.arc(cx, cy - 38, 28, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body
+      const bw = 52, bh = 62, bx = cx - bw / 2, by = cy - 6;
+      const r = 14;
+      ctx.beginPath();
+      ctx.moveTo(bx + r, by);
+      ctx.lineTo(bx + bw - r, by);
+      ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+      ctx.lineTo(bx + bw, by + bh - r);
+      ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
+      ctx.lineTo(bx + r, by + bh);
+      ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
+      ctx.lineTo(bx, by + r);
+      ctx.quadraticCurveTo(bx, by, bx + r, by);
+      ctx.fill();
+
+      // "a person" label above with arrow pointing down
+      const labelY = cy - 105;
+      ctx.fillStyle = ACCENT;
+      ctx.font = 'italic 600 13px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('a person', cx, labelY);
+
+      const arrowTipY = cy - 70;
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, labelY + 10);
+      ctx.lineTo(cx, arrowTipY - 8);
+      ctx.stroke();
+
+      ctx.fillStyle = ACCENT;
+      ctx.beginPath();
+      ctx.moveTo(cx, arrowTipY);
+      ctx.lineTo(cx - 5, arrowTipY - 9);
+      ctx.lineTo(cx + 5, arrowTipY - 9);
+      ctx.closePath();
+      ctx.fill();
+
+      // "No camera access" — same accent, lighter weight
+      ctx.fillStyle = `rgba(99, 102, 241, 0.45)`;
+      ctx.font = '500 13px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('No camera access', cx, H / 2 + 115);
+
+      this.mockCameraAnimationId = requestAnimationFrame(draw);
+    };
+
+    this.mockCameraAnimationId = requestAnimationFrame(draw);
+    return canvas.captureStream(15);
+  }
 
   /**
    * Acquire a master stream (deduplicates concurrent requests)
@@ -110,9 +208,15 @@ class BrowserStreamCapture {
           // If preferred device fails, try default camera
           if (preferredDeviceId) {
             Logger.warn("BrowserCapture", `Preferred camera device failed, falling back to default.`, error);
-            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            try {
+              cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch (fallbackError) {
+              Logger.warn("BrowserCapture", "Camera access denied, using mock stream.", fallbackError);
+              cameraStream = this.createMockCameraStream();
+            }
           } else {
-            throw error;
+            Logger.warn("BrowserCapture", "Camera access denied, using mock stream.", error);
+            cameraStream = this.createMockCameraStream();
           }
         }
 
@@ -164,6 +268,11 @@ class BrowserStreamCapture {
       case 'camera':
         if (this.streams.masterCameraStream) {
           Logger.info("BrowserCapture", "Tearing down camera stream");
+          if (this.mockCameraAnimationId !== null) {
+            cancelAnimationFrame(this.mockCameraAnimationId);
+            this.mockCameraAnimationId = null;
+            this.mockCameraCanvas = null;
+          }
           this.streams.masterCameraStream.getTracks().forEach(track => track.stop());
           this.streams.masterCameraStream = null;
           this.streams.cameraStream = null;
