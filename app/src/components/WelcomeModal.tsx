@@ -177,16 +177,9 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg p-2.5 md:p-3">
                 <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs md:text-sm font-semibold text-gray-800">AI Agent Creator won't work</p>
-                  <p className="text-xs text-gray-500 mt-0.5 hidden md:block">Building agents with AI assistance requires a cloud model, you'd need to set up your own OpenAI-compatible server.</p>
+                  <p className="text-xs md:text-sm font-semibold text-gray-800">Easy AI Agent Creator and most notifications won't work</p>
+                  <p className="text-xs text-gray-500 mt-0.5 hidden md:block">Building agents with AI assistance requires a cloud model, you'd need to set up your own OpenAI-compatible server. Email, Telegram, SMS, Voice Calling and Whatsapp need an account. Discord webhooks still work.</p>
                   <p className="text-xs text-gray-500 mt-0.5 md:hidden">Requires a cloud model or your own OpenAI-compatible server.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg p-2.5 md:p-3">
-                <Zap className="h-4 w-4 md:h-5 md:w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs md:text-sm font-semibold text-gray-800">Most notifications won't work</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Email, Telegram, SMS, and WhatsApp need an account. <strong>Discord webhooks still work</strong>, no login needed.</p>
                 </div>
               </div>
             </div>
@@ -214,7 +207,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
                 onClick={handleSignIn}
                 className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
-                Sign In for Full Access
+                Sign In
               </button>
               <p className="text-xs text-gray-400 text-center mt-2">Your data stays on-device even when signed in.</p>
             </div>
