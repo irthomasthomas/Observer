@@ -52,7 +52,7 @@ $$$
 id: logger
 name: Activity Logger
 description: Visual Activity Logger
-model_name: gemma-3-4b-it
+model_name: gemma-4-26b-a4b-it
 loop_interval_seconds: 120
 system_prompt: |
 You are a visual observation agent. Look at the screen and respond with ONE concise sentence describing what the user is currently doing. \$SCREEN
@@ -67,7 +67,7 @@ $$$
 id: render_complete_notifier
 name: Render Complete Notifier
 description: Sends a notification when the render is complete 
-model_name: gemma-3-4b-it
+model_name: gemma-4-26b-a4b-it
 loop_interval_seconds: 60
 system_prompt: |
 You are a notification agent watching for a process to complete.
@@ -90,7 +90,7 @@ $$$
 id: dog_match_detector
 name: Dog Detector
 description: Sends a notification when your dog is on screen
-model_name: gemma-3-12b-it
+model_name: gemma-4-26b-a4b-it
 loop_interval_seconds: 30
 system_prompt: |
 You are a dog security agent. Your goal is to determine if the dog in your MemoryImage is visible in the current CameraFeed. Analyze the images and decide.
@@ -115,8 +115,7 @@ $$$
 #### 1. Models
 | Model Name       | When to Use                                    |
 | ---------------- | ---------------------------------------------- |
-| \`gemma-3-4b-it\`  | **(Default)** For simple visual recognition.     |
-| \`gemma-3-12b-it\` | For more nuanced visual understanding.        |
+| \`gemma-4-26b-a4b-it\`  | **(Default)** For simple visual recognition.     |
 
 #### 2. SENSORS (Your Agent's Eyes and Memory)
 | User Term       | Technical Sensor    | Description                                       |

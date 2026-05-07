@@ -74,7 +74,7 @@ Problem extractor and solver, runs only once by extracting the problem on screen
 id: screen_problem_extractor
 name: Screen Problem Extractor
 description: This agent reads the screen, extracts the problem statement, and stores it in another agent's memory.
-model_name: gemma-3-12b-it
+model_name: gemma-4-26b-a4b-it
 loop_interval_seconds: 60
 system_prompt: |
     You are a visual observation agent. Your goal is to identify the problem statement on the screen.
@@ -93,7 +93,7 @@ memory: ""
 id: problem_solver
 name: Problem Solver
 description: This agent receives a problem statement in it's memory, solves it, and pushes it to the overlay.
-model_name: gemma-3n-e4b-it
+model_name: gemma-4-26b-a4b-it
 loop_interval_seconds: 60
 system_prompt: |
     You are a problem solver, solve this problem:
@@ -111,7 +111,7 @@ Another example, a vision model that describes state and buttons; and a thinking
 id: screen_watcher
 name: Screen Watcher
 description: An agent created with the Simple Creator.
-model_name: gemma-3-4b-it
+model_name: gemma-4-26b-a4b-it
 loop_interval_seconds: 60
 system_prompt: |
     You are an observer watching a user trying to create a Google account. Your task is to describe what you see on the screen in the context of this goal. The user's progress will be sent to another agent to provide guidance.
@@ -134,7 +134,7 @@ memory: ""
 id: thinking_agent
 name: Thinking Agent
 description: An agent created with the Simple Creator.
-model_name: gemma-3n-e4b-it 
+model_name: gemma-4-26b-a4b-it 
 loop_interval_seconds: 60
 system_prompt: |
     You are a helpful assistant guiding a user through creating a Google account. You will receive a description of the user's current screen content with all of the text on screen. Your job is to provide a very simple, minimal instruction for the next action they should take. If there is a button or title you want to reference, say the exact text on screen, say exactly the text you want the user to click on.
@@ -166,7 +166,7 @@ Or create powerful single agents with powerfull patterns like this one:
 id: distraction_detector
 name: Distraction Detector
 description: Monitors the screen for potential distractions and asks the user for confirmation before logging the distraction.
-model_name: gemma-3-4b-it
+model_name: gemma-4-26b-a4b-it
 loop_interval_seconds: 60
 system_prompt: |
     You are an AI agent designed to identify and manage distractions.
@@ -193,7 +193,7 @@ Very powerfull single agent that leverages simple state detection to the model a
 id: download_complete_notifier
 name: Long-Run Status Monitor
 description: Monitors a long-running process every 10 minutes. Detects completion (100%) or if the progress percentage has stalled since the last check. Now handles consecutive 'UNKNOWN' states by notifying and stopping using simplified memory flags.
-model_name: gemma-3-12b-it
+model_name: gemma-4-26b-a4b-it
 loop_interval_seconds: 600
 system_prompt: |
     You are a state monitoring agent tracking a long-running process's progress. Your output must be structured so the code can reliably determine the state.
@@ -269,9 +269,9 @@ memory: |
 A range of models are available to power your agents, from small and fast to large and powerful.
 
 *   **Vision Models (Multimodal):** Use these models for tasks involving screen or camera input.
-Start with \`gemma-3-4b-it\` or \`gemma-3-12b-it\` for general use. Complex detailed multimodal identification use \`gemma-3-27b-it\`
+Start with \`gemma-4-26b-a4b-it\` or \`gemma-4-26b-a4b-it\` for general use. Complex detailed multimodal identification use \`gemma-4-26b-a4b-it\`
 *   **Text-Only Models:** Use these for tasks that only require text processing or reasoning.
-\`gemma-3n-e4b-it\` as a general model, \`gemini-2.5-flash-lite\` for complex reasoning tasks.
+\`gemma-4-26b-a4b-it\` as a general model, \`gemini-2.5-flash-lite\` for complex reasoning tasks.
 
 **Classification Mode (Finetuning Detection Agents):**
 

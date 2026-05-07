@@ -3,7 +3,7 @@
 /**
  * Stream a prompt to the Gemini API and receive chunks of the response
  * @param apiKey Your Gemini API key
- * @param modelName Name of the model to use (e.g., "gemini-2.0-flash", "gemma-3-27b-it")
+ * @param modelName Name of the model to use (e.g., "gemini-2.0-flash", "gemma-4-26b-a4b-it")
  * @param prompt The prompt text to send
  * @param onChunk Callback function that receives each chunk of text as it arrives
  * @param onComplete Optional callback function that is called when streaming completes
