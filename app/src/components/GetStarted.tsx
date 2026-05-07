@@ -1,6 +1,6 @@
 // src/components/GetStarted.tsx
 import React, { useState } from 'react';
-import { Users, FlaskConical, MessageCircle, Code, Bell } from 'lucide-react';
+import { Users, FlaskConical, MessageCircle, Plus, Bell } from 'lucide-react';
 import ConversationalGenerator from './AICreator/ConversationalGenerator';
 import MultiAgentCreator from './AICreator/MultiAgentCreator';
 // CompleteAgent import removed - no longer needed
@@ -148,11 +148,11 @@ const GetStarted: React.FC<GetStartedProps> = ({
           >
             <div className="md:mb-4 flex items-center justify-center md:justify-start -translate-x-[10px] md:translate-x-0">
               <div className="mr-3 bg-purple-50 flex justify-center items-center rounded-lg w-10 h-10 shrink-0">
-                <Code className="text-purple-600 w-5 h-5" strokeWidth={2} />
+                <Plus className="text-purple-600 w-5 h-5" strokeWidth={2} />
               </div>
               <h3 className="text-gray-900 font-semibold">
-                <span className="md:hidden">Build</span>
-                <span className="hidden md:inline">Build Custom</span>
+                <span className="md:hidden">Create</span>
+                <span className="hidden md:inline">Create Agent</span>
               </h3>
             </div>
             <p className="hidden md:block text-gray-600 text-sm">

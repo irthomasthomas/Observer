@@ -48,7 +48,7 @@ const STEPS: Step[] = [
     id: 'build-custom',
     targetSelector: '[data-tutorial-build-custom]',
     title: "Let's create an agent manually!",
-    message: 'Click Build Custom to start building your first agent with full control over its behavior.',
+    message: 'Click Create Agent to start building your first agent with full control over its behavior.',
     icon: <Code className="h-5 w-5 text-purple-500" />,
     action: 'click',
   },
