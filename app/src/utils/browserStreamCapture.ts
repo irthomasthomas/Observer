@@ -30,15 +30,12 @@ class BrowserStreamCapture {
 
   private pendingAcquisitions = new Map<MasterStreamType, Promise<void>>();
   private mockCameraAnimationId: number | null = null;
-  private mockCameraCanvas: HTMLCanvasElement | null = null;
 
   private createMockCameraStream(): MediaStream {
     const W = 640, H = 480;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
-    this.mockCameraCanvas = canvas;
-
     const ctx = canvas.getContext('2d')!;
     let frame = 0;
 
@@ -271,7 +268,6 @@ class BrowserStreamCapture {
           if (this.mockCameraAnimationId !== null) {
             cancelAnimationFrame(this.mockCameraAnimationId);
             this.mockCameraAnimationId = null;
-            this.mockCameraCanvas = null;
           }
           this.streams.masterCameraStream.getTracks().forEach(track => track.stop());
           this.streams.masterCameraStream = null;
