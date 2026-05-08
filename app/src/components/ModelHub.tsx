@@ -729,7 +729,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                   modelFile.kind === 'complete' &&
                   (projectorFile.kind === 'complete' || projectorFile.kind === 'absent');
 
-                const renderProgressRow = (label: string, file: typeof modelFile) => {
+                const renderProgressRow = (label: string, file: typeof modelFile, action?: React.ReactNode) => {
                   if (file.kind === 'absent') return null;
                   const done = file.kind === 'complete';
                   const downloading = !done && file.downloading;
@@ -744,7 +744,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                           }
                           {label}
                         </span>
-                        <span className="font-medium text-gray-500 flex-shrink-0">
+                        <span className="font-medium text-gray-500 flex-shrink-0 flex items-center gap-1.5">
                           {done
                             ? formatBytes(file.bytes)
                             : downloading
@@ -752,6 +752,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                                   ? `${formatBytes(file.downloadedBytes ?? 0)} / ${formatBytes(file.totalBytes)}`
                                   : `${Math.round(file.progress ?? 0)}%`)
                               : `${formatBytes(file.bytes)} — paused`}
+                          {action}
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -765,6 +766,16 @@ const ModelHub: React.FC<ModelHubProps> = ({
                     </div>
                   );
                 };
+
+                const projectorAction = projectorPaused ? (
+                  <button
+                    onClick={() => NativeLlmManager.getInstance().discardPartialProjector(id)}
+                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 hover:bg-red-200 rounded font-medium"
+                    title="Delete the partial .part file and unassign the projector"
+                  >
+                    <Trash2 size={10} /> Discard
+                  </button>
+                ) : null;
 
                 const showProgressBlock =
                   isModelDownloading || isProjectorDownloading || modelPaused || projectorPaused;
@@ -886,7 +897,12 @@ const ModelHub: React.FC<ModelHubProps> = ({
                     {showProgressBlock && (
                       <div className="space-y-1.5 mt-3">
                         {renderProgressRow('Model', modelFile)}
-                        {projectorFile.kind !== 'absent' && renderProgressRow('Vision projector', projectorFile)}
+                        {projectorFile.kind !== 'absent' && renderProgressRow('Vision projector', projectorFile, projectorAction)}
+                        {projectorPaused && modelFile.kind === 'complete' && (
+                          <p className="text-[11px] text-amber-700">
+                            Projector paused — finish the download or discard it to load this model.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

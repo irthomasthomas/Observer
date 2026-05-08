@@ -116,6 +116,33 @@ export class NativeLlmManager {
     return this.getMmprojAssignments()[modelFilename] ?? null;
   }
 
+  /**
+   * Recover from a cancelled projector download: unassign the projector
+   * from the model and delete its .part file from disk. Called from the UI
+   * when a partial projector blocks loading. If the assigned projector is
+   * already complete (.gguf on disk), nothing is deleted — the dropdown's
+   * "No projector" option handles that case.
+   */
+  public async discardPartialProjector(modelFilename: string): Promise<void> {
+    const assignment = this.getMmprojAssignment(modelFilename);
+    if (!assignment) return;
+
+    const partFilename = `${assignment}.part`;
+    const hasPart = this.cachedGgufFiles.some(f => f.filename === partFilename);
+
+    this.setMmprojAssignment(modelFilename, null);
+
+    if (hasPart) {
+      try {
+        await invoke('llm_delete_model', { filename: partFilename });
+        Logger.info('NativeLlmManager', `Discarded partial projector: ${partFilename}`);
+      } catch (error) {
+        Logger.warn('NativeLlmManager', `Failed to delete partial projector ${partFilename}: ${error}`);
+      }
+      await this.refreshGgufCache();
+    }
+  }
+
   public static getInstance(): NativeLlmManager {
     if (!NativeLlmManager.instance) {
       NativeLlmManager.instance = new NativeLlmManager();
@@ -509,7 +536,20 @@ export class NativeLlmManager {
     }
 
     const modelId = filename.replace('.gguf', '').replace('.GGUF', '');
-    const resolvedMmproj = mmprojFilename ?? this.getMmprojAssignment(filename) ?? undefined;
+    let resolvedMmproj = mmprojFilename ?? this.getMmprojAssignment(filename) ?? undefined;
+
+    // Defensive: never pass a missing or partial (.part) projector to the
+    // backend — llama.cpp will fail trying to open it. Pre-assignment for
+    // chained preset downloads makes this reachable when a projector
+    // download is cancelled mid-flight.
+    if (resolvedMmproj) {
+      const completeOnDisk = this.cachedGgufFiles.some(f => f.filename === resolvedMmproj);
+      if (!completeOnDisk) {
+        Logger.warn('NativeLlmManager', `Projector ${resolvedMmproj} is not present as a complete file; loading text-only`);
+        resolvedMmproj = undefined;
+      }
+    }
+
     this.setState({ status: 'loading', modelId: modelId as any, error: null });
     Logger.info('NativeLlmManager', `Loading model: ${filename}, mmproj: ${resolvedMmproj ?? 'none'}`);
 
