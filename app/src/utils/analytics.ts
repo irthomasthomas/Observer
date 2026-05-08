@@ -33,4 +33,14 @@ export const Analytics = {
     track('upsell_continue_free_clicked', { source }),
   upsellViewTiers: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
     track('upsell_view_tiers_clicked', { source }),
+
+  // ── Next-step fork ──────────────────────────────────────────────────────────
+  forkShown: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
+    track('fork_shown', { source }),
+  forkAiCreator: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
+    track('fork_ai_creator_clicked', { source }),
+  forkBuildIt: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
+    track('fork_build_it_clicked', { source }),
+  forkDismissed: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
+    track('fork_dismissed', { source }),
 };

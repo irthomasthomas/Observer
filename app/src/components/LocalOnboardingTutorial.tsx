@@ -10,13 +10,24 @@ interface LocalOnboardingTutorialProps {
 
 type Step = {
   id: string;
-  targetSelector: string;
+  targetSelector: string | string[];
   title: string;
   message: string;
   icon: React.ReactNode;
   action: 'click' | 'next' | 'event';
   waitForEvent?: string;
 };
+
+function firstVisible(selector: string | string[]): Element | null {
+  const list = Array.isArray(selector) ? selector : [selector];
+  for (const sel of list) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) return el;
+  }
+  return null;
+}
 
 const STEPS: Step[] = [
   {
@@ -46,7 +57,7 @@ const STEPS: Step[] = [
   },
   {
     id: 'build-custom',
-    targetSelector: '[data-tutorial-build-custom]',
+    targetSelector: ['[data-tutorial-build-custom]', '[data-tutorial-grid-create]'],
     title: "Let's create an agent manually!",
     message: 'Click Create Agent to start building your first agent with full control over its behavior.',
     icon: <Code className="h-5 w-5 text-purple-500" />,
@@ -68,7 +79,7 @@ const LocalOnboardingTutorial: React.FC<LocalOnboardingTutorialProps> = ({ isAct
     if (!current?.targetSelector) { setRect(null); return; }
     let rafId: number;
     const loop = () => {
-      const el = document.querySelector(current.targetSelector);
+      const el = firstVisible(current.targetSelector);
       if (el) setRect(el.getBoundingClientRect());
       rafId = requestAnimationFrame(loop);
     };
@@ -81,7 +92,7 @@ const LocalOnboardingTutorial: React.FC<LocalOnboardingTutorialProps> = ({ isAct
 
     const handleClick = (e: Event) => {
       const target = e.target as HTMLElement;
-      const highlighted = document.querySelector(current.targetSelector);
+      const highlighted = firstVisible(current.targetSelector);
       if (highlighted && (highlighted === target || highlighted.contains(target))) {
         if (step < STEPS.length - 1) {
           setStep(s => s + 1);

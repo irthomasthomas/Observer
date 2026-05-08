@@ -45,7 +45,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
     <div className="w-full max-w-6xl mx-auto">
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-4 lg:gap-6 h-full">
         {/* Main Create Agent Card - Full width on mobile */}
-        <div className="flex flex-col md:col-span-2 order-1">
+        <div className="flex flex-col md:col-span-2 order-1" data-tutorial-ai-creator>
           <div className="h-full bg-white shadow-sm flex flex-col border-0 md:border border-gray-200 rounded-none md:rounded-xl">
             <div className="border-b border-gray-200 shrink-0 p-4 md:p-6">
               <div className="flex items-center justify-between">

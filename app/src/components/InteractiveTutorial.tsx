@@ -9,6 +9,7 @@ import { isIOS } from '@utils/platform';
 import { CreditInfoButton } from './CreditVisualization';
 import { Logger } from '@utils/logging';
 import { Analytics } from '@utils/analytics';
+import NextStepFork from './NextStepFork';
 
 export type TutorialStep = {
   id: string;
@@ -30,6 +31,7 @@ interface InteractiveTutorialProps {
   agentId: string;
   onImportAgent: () => Promise<void>;
   onViewAllTiers: () => void;
+  onChooseLocalOnboarding: () => void;
 }
 
 export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
@@ -39,6 +41,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   agentId,
   onImportAgent,
   onViewAllTiers,
+  onChooseLocalOnboarding,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -102,15 +105,14 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       action: 'click',
     },
     {
-      id: 'whats-next',
-      title: "What's next?",
-      message: 'You can auto-generate agents in the Alert Builder or build your own in the Simple Creator. Explore when you\'re ready!',
-      icon: <Sparkles className="h-6 w-6 text-blue-500" />,
+      id: 'upsell',
+      title: '',
+      message: '',
       noSpotlight: true,
       noOverlay: true,
     },
     {
-      id: 'upsell',
+      id: 'fork',
       title: '',
       message: '',
       noSpotlight: true,
@@ -463,7 +465,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
                 <div className="hidden md:block text-gray-300">|</div>
 
                 <button
-                  onClick={() => { Analytics.upsellContinueFree(dismissedEarly ? 'tutorial_dismissed' : 'tutorial_complete'); onComplete(agentId); }}
+                  onClick={() => { Analytics.upsellContinueFree(dismissedEarly ? 'tutorial_dismissed' : 'tutorial_complete'); advanceStep(); }}
                   className="text-xs md:text-sm text-gray-600 hover:text-gray-800 hover:underline transition-colors font-medium"
                 >
                   Continue with free tier →
@@ -474,6 +476,24 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
         </div>
       </div>,
       document.body
+    );
+  }
+
+  // ── Next-step fork (post-upsell) ───────────────────────────────────────────
+  if (currentStepData.id === 'fork') {
+    const forkSource: 'tutorial_complete' | 'tutorial_dismissed' =
+      dismissedEarly ? 'tutorial_dismissed' : 'tutorial_complete';
+    return (
+      <NextStepFork
+        isActive={true}
+        source={forkSource}
+        onChooseAiCreator={() => onComplete(agentId)}
+        onChooseBuildIt={() => {
+          onComplete(agentId);
+          onChooseLocalOnboarding();
+        }}
+        onDismiss={() => onComplete(agentId)}
+      />
     );
   }
 

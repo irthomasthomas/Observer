@@ -2,7 +2,7 @@ import { datadogRum } from '@datadog/browser-rum';
 import { reactPlugin } from '@datadog/browser-rum-react';
 import { Analytics } from '@utils/analytics';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Terminal, MessageSquare, ChevronUp } from 'lucide-react';
+import { Terminal, MessageSquare, ChevronUp, HelpCircle } from 'lucide-react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { platform as getPlatform } from '@tauri-apps/plugin-os';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -332,6 +332,11 @@ function AppContent() {
     setIsCreateMode(false);
     setIsEditModalOpen(true);
     Logger.info('APP', `Opening editor for agent ${agentId}`);
+  };
+
+  const handleReplayTutorial = () => {
+    localStorage.removeItem('observer_creator_tutorial_seen');
+    setIsLocalOnboardingActive(true);
   };
 
   const handleAddAgentClick = () => {
@@ -952,6 +957,13 @@ function AppContent() {
                     <MessageSquare className="h-5 w-5 text-blue-500" />
                     <span className="text-[10px] text-blue-500 mt-1.5 font-medium tracking-wide">Feedback</span>
                   </button>
+                  <button
+                    onClick={() => { handleReplayTutorial(); setIsMobileFooterOpen(false); }}
+                    className="flex flex-col items-center justify-center w-16 h-16 bg-purple-50 rounded-2xl active:scale-95 transition-transform"
+                  >
+                    <HelpCircle className="h-5 w-5 text-purple-500" />
+                    <span className="text-[10px] text-purple-500 mt-1.5 font-medium tracking-wide">Tutorial</span>
+                  </button>
                 </div>
 
                 {/* Social icon tiles */}
@@ -1033,11 +1045,11 @@ function AppContent() {
         </div>
         {minimizedAgents.size > 0 && <div className="w-px h-5 bg-gray-200 flex-shrink-0" />}
         <button
+          onClick={handleReplayTutorial}
           className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full hover:bg-gray-200 transition"
-          onClick={() => setShowGlobalLogs(!showGlobalLogs)}
-          title="Logs"
+          title="Tutorial: download a local model and create an agent"
         >
-          <Terminal className="h-4 w-4" />
+          <HelpCircle className="h-4 w-4" />
         </button>
         <div className="w-px h-5 bg-gray-200" />
         <button
@@ -1064,6 +1076,14 @@ function AppContent() {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg>
           </a>
         </div>
+        <div className="w-px h-5 bg-gray-200" />
+        <button
+          className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full hover:bg-gray-200 transition"
+          onClick={() => setShowGlobalLogs(!showGlobalLogs)}
+          title="Console"
+        >
+          <Terminal className="h-4 w-4" />
+        </button>
       </div>
 
       {showGlobalLogs && (
@@ -1167,6 +1187,7 @@ function AppContent() {
             setTutorialModalInfo(prev => prev ? { ...prev, agentId: PERSON_DETECTOR_ID } : prev);
           }}
           onViewAllTiers={() => setActiveTab('obServer')}
+          onChooseLocalOnboarding={() => setIsLocalOnboardingActive(true)}
         />
       )}
     </div>
