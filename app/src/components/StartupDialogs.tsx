@@ -79,7 +79,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
             onClick={handleSkip}
             className="mt-4 text-xs text-gray-400 hover:text-gray-500 transition-colors"
           >
-            Continue without signing in
+            Other options 
           </button>
         </div>
       </div>
