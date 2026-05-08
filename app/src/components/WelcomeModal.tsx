@@ -134,6 +134,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
 
   const handleSignIn = () => {
     if (intent === 'local') Analytics.localModeSignIn();
+    onClose();
     login();
   };
 
