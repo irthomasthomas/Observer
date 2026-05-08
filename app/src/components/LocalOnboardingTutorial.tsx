@@ -167,10 +167,15 @@ const LocalOnboardingTutorial: React.FC<LocalOnboardingTutorialProps> = ({ isAct
 
   const getBubbleStyle = (): React.CSSProperties => {
     if (!rect) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-    const W = 288, vw = window.innerWidth, vh = window.innerHeight;
-    if (rect.right + W + pad * 3 < vw) return { left: rect.right + pad * 2, top: Math.min(rect.top, vh - 240) };
-    if (rect.left - W - pad > 0) return { left: rect.left - W - pad, top: Math.min(rect.top, vh - 240) };
-    return { top: rect.bottom + pad * 2, left: Math.max(pad, Math.min(rect.left, vw - W - pad)) };
+    const W = 288, H = 240, vw = window.innerWidth, vh = window.innerHeight;
+    const clampTop = (t: number) => Math.max(pad, Math.min(t, vh - H - pad));
+    const left = Math.max(pad, Math.min(rect.left, vw - W - pad));
+    if (rect.right + W + pad * 3 < vw) return { left: rect.right + pad * 2, top: clampTop(rect.top) };
+    if (rect.left - W - pad > 0) return { left: rect.left - W - pad, top: clampTop(rect.top) };
+    // Below: flip above if off-screen
+    const belowTop = rect.bottom + pad * 2;
+    if (belowTop + H <= vh - pad) return { top: belowTop, left };
+    return { top: Math.max(pad, rect.top - H - pad * 2), left };
   };
 
   return createPortal(

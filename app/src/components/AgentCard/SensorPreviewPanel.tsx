@@ -949,7 +949,7 @@ const SensorPreviewPanel: React.FC<SensorPreviewPanelProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tutorial-camera={agentId}>
       {/* Video Streams */}
       {hasScreenSensor && (
         streams.screenVideoStream ? (

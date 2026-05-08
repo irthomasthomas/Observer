@@ -76,14 +76,13 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
     },
     {
       id: 'detecting',
+      targetSelector: `[data-tutorial-camera="${agentId}"]`,
       title: detected ? '🎉 Person Detected!' : 'Looking...',
       message: detected
         ? 'Amazing! Your first agent is working. Now let\'s stop it.'
         : 'Stand in front of your camera. Your agent is watching every 15 seconds.',
       icon: <Eye className="h-6 w-6 text-blue-500" />,
       position: 'top-left',
-      noSpotlight: true,
-      noOverlay: true,
       waitForEvent: 'celebrateAgent',
     },
     {
@@ -196,6 +195,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       setIsButtonLoading(false);
     }
   }, [purchaseProduct]);
+
 
   // Listen for celebrateAgent to advance from detecting step
   useEffect(() => {
@@ -497,8 +497,9 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
   // ── Spotlight / bubble steps (step 1+) ─────────────────────────────────────
   const getBubbleStyle = (): React.CSSProperties => {
     const padding = 20;
-    const bubbleWidth = 300;
-    const isMobile = window.innerWidth < 768;
+    const W = 300, H = 240;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     const position = currentStepData.position || 'right';
 
     if (position === 'top-left') {
@@ -509,7 +510,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       };
     }
 
-    if (!targetRect || isMobile) {
+    if (!targetRect) {
       return {
         top: `calc(${padding}px + var(--sat, 0px))`,
         left: `calc(${padding}px + var(--sal, 0px))`,
@@ -517,29 +518,26 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       };
     }
 
-    if (position === 'right') {
-      if (targetRect.right + bubbleWidth + padding * 2 > window.innerWidth) {
-        return { left: targetRect.left - bubbleWidth - padding, top: targetRect.top + targetRect.height / 2, transform: 'translateY(-50%)' };
-      }
-      return { left: targetRect.right + padding, top: targetRect.top + targetRect.height / 2, transform: 'translateY(-50%)' };
-    }
-
-    if (position === 'bottom') {
-      return { left: targetRect.left + targetRect.width / 2, top: targetRect.bottom + padding, transform: 'translateX(-50%)' };
-    }
-
-    return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    // Flip+clamp: try right → left → below → above
+    const clampTop = (t: number) => Math.max(padding, Math.min(t, vh - H - padding));
+    const left = Math.max(padding, Math.min(targetRect.left, vw - W - padding));
+    if (targetRect.right + W + padding * 3 < vw) return { left: targetRect.right + padding * 2, top: clampTop(targetRect.top) };
+    if (targetRect.left - W - padding > 0) return { left: targetRect.left - W - padding, top: clampTop(targetRect.top) };
+    const belowTop = targetRect.bottom + padding * 2;
+    if (belowTop + H <= vh - padding) return { top: belowTop, left };
+    return { top: Math.max(padding, targetRect.top - H - padding * 2), left };
   };
 
   const getArrowClass = () => {
-    if (window.innerWidth < 768 || currentStepData.noSpotlight || currentStepData.position === 'top-left') return '';
-    const position = currentStepData.position || 'right';
-    if (position === 'right' && targetRect) {
-      const bubbleWidth = 300;
-      const padding = 20;
-      return targetRect.right + bubbleWidth + padding * 2 > window.innerWidth ? 'arrow-right' : 'arrow-left';
-    }
-    if (position === 'bottom') return 'arrow-top';
+    if (currentStepData.noSpotlight || currentStepData.position === 'top-left' || !targetRect) return '';
+    const padding = 20;
+    const W = 300, H = 240;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    if (targetRect.right + W + padding * 3 < vw) return 'arrow-left';
+    if (targetRect.left - W - padding > 0) return 'arrow-right';
+    const belowTop = targetRect.bottom + padding * 2;
+    if (belowTop + H <= vh - padding) return 'arrow-top';
     return '';
   };
 
@@ -573,7 +571,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
         className={`fixed z-[101] pointer-events-auto bg-white rounded-xl shadow-2xl p-5 ${getArrowClass()}`}
         style={{
           ...getBubbleStyle(),
-          ...(window.innerWidth >= 768 && { width: '300px' }),
+          width: '300px',
           maxWidth: 'calc(100vw - 40px)',
         }}
       >
@@ -586,16 +584,24 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           <p className="text-sm text-gray-700 leading-relaxed">{currentStepData.message}</p>
         </div>
 
-        {/* Progress dots (steps 1–5) */}
-        <div className="flex items-center gap-1 mb-3">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div
-              key={i}
-              className={`h-1.5 w-6 rounded-full transition-colors ${
-                i === currentStep ? 'bg-blue-600' : i < currentStep ? 'bg-blue-300' : 'bg-gray-200'
-              }`}
-            />
-          ))}
+        {/* Progress dots + skip */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div
+                key={i}
+                className={`h-1.5 w-6 rounded-full transition-colors ${
+                  i === currentStep ? 'bg-blue-600' : i < currentStep ? 'bg-blue-300' : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+          <button
+            onClick={handleDismiss}
+            className="text-xs text-gray-500 hover:text-gray-800 hover:underline transition-colors flex-shrink-0"
+          >
+            Skip
+          </button>
         </div>
 
         {currentStepData.id === 'whats-next' && (
