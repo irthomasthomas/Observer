@@ -81,7 +81,11 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
   return createPortal(
     <>
       {/* Multi-target spotlight via SVG mask */}
-      <svg className="fixed inset-0 w-full h-full z-[200] pointer-events-none" aria-hidden>
+      <svg
+        className="fixed z-[200] pointer-events-none"
+        style={{ top: 0, left: 0, width: '100vw', height: '100vh' }}
+        aria-hidden
+      >
         <defs>
           <mask id="next-step-fork-spot">
             <rect width="100%" height="100%" fill="white" />
@@ -128,9 +132,9 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
           <CloseIcon className="h-4 w-4" />
         </button>
 
-        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Where to next?</p>
+        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">What comes next?</p>
         <h3 className="text-lg font-bold text-gray-900 mb-1 pr-6">Two ways to build your first real agent</h3>
-        <p className="text-sm text-gray-600 mb-4">Pick the path that fits you — you can always switch later.</p>
+        <p className="text-sm text-gray-600 mb-4">Pick the path that fits you, you can always switch later.</p>
 
         <div className="space-y-2 mb-3">
           <button
