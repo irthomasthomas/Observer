@@ -148,6 +148,74 @@ class TauriStreamCapture {
     return promise;
   }
 
+  private createMockCameraStream(): MediaStream {
+    const W = 640, H = 480;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+    let frame = 0;
+    const draw = () => {
+      frame++;
+      ctx.clearRect(0, 0, W, H);
+      const ACCENT = '#6366f1';
+      const BG = '#eef2ff';
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2 - 10;
+      for (let i = 0; i < 2; i++) {
+        const phase = (frame / 100 + i * 0.5) % 1;
+        const radius = 70 + phase * 90;
+        const alpha = (1 - phase) * 0.12;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(99, 102, 241, ${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.fillStyle = ACCENT;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 38, 28, 0, Math.PI * 2);
+      ctx.fill();
+      const bw = 52, bh = 62, bx = cx - bw / 2, by = cy - 6, r = 14;
+      ctx.beginPath();
+      ctx.moveTo(bx + r, by);
+      ctx.lineTo(bx + bw - r, by);
+      ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+      ctx.lineTo(bx + bw, by + bh - r);
+      ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
+      ctx.lineTo(bx + r, by + bh);
+      ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
+      ctx.lineTo(bx, by + r);
+      ctx.quadraticCurveTo(bx, by, bx + r, by);
+      ctx.fill();
+      ctx.fillStyle = ACCENT;
+      ctx.font = 'italic 600 13px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('a person', cx, cy - 105);
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 95);
+      ctx.lineTo(cx, cy - 78);
+      ctx.stroke();
+      ctx.fillStyle = ACCENT;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 70);
+      ctx.lineTo(cx - 5, cy - 79);
+      ctx.lineTo(cx + 5, cy - 79);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = `rgba(99, 102, 241, 0.45)`;
+      ctx.font = '500 13px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('No camera access', cx, H / 2 + 115);
+      requestAnimationFrame(draw);
+    };
+    requestAnimationFrame(draw);
+    return canvas.captureStream(15);
+  }
+
   private async _acquireMasterStreamImpl(type: MasterStreamType): Promise<void> {
     switch (type) {
       case 'display':
@@ -187,12 +255,17 @@ class TauriStreamCapture {
         try {
           cameraStream = await navigator.mediaDevices.getUserMedia(cameraConstraints);
         } catch (error) {
-          // If preferred device fails, try default camera
           if (preferredCameraId) {
             Logger.warn("TauriCapture", `Preferred camera device failed, falling back to default.`, error);
-            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            try {
+              cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch (fallbackError) {
+              Logger.warn("TauriCapture", "Camera access denied, using mock stream.", fallbackError);
+              cameraStream = this.createMockCameraStream();
+            }
           } else {
-            throw error;
+            Logger.warn("TauriCapture", "Camera access denied, using mock stream.", error);
+            cameraStream = this.createMockCameraStream();
           }
         }
 
@@ -203,8 +276,12 @@ class TauriStreamCapture {
         if (this.streams.microphoneStream) return;
 
         Logger.info("TauriCapture", "Starting microphone capture");
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.streams.microphoneStream = micStream;
+        try {
+          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          this.streams.microphoneStream = micStream;
+        } catch (error) {
+          Logger.warn("TauriCapture", "Microphone access denied, stream unavailable.", error);
+        }
         break;
     }
 
