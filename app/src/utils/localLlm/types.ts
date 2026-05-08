@@ -168,3 +168,35 @@ export interface LocalModelEntry {
   sizeBytes?: number;                               // For downloaded GGUF models
   isMultimodal?: boolean;
 }
+
+// ============================================================================
+// Native (llama.cpp) Logical Model
+// ============================================================================
+//
+// A "logical model" for the native engine is the unit users think about: one
+// model file plus an optional vision projector. The on-disk reality is two
+// independent .gguf files (with .part suffixes mid-download); the registry
+// derives this view from disk + assignments + in-flight download state.
+
+export type LocalFileState =
+  | { kind: 'absent' }
+  | {
+      kind: 'partial';
+      bytes: number;                  // current size on disk (.part file)
+      downloading: boolean;           // true if this is the active download
+      progress?: number;              // 0..100, only when downloading
+      downloadedBytes?: number;       // only when downloading
+      totalBytes?: number;            // only when downloading
+    }
+  | { kind: 'complete'; bytes: number };
+
+export interface NativeLocalModel {
+  id: string;                         // canonical model filename, sans .part (e.g. "model.gguf")
+  name: string;                       // display name (no extension)
+  modelFile: LocalFileState;
+  projectorFilename: string | null;   // assigned mmproj filename, if any
+  projectorFile: LocalFileState;      // 'absent' if no projector assigned
+  runtime: 'unloaded' | 'loading' | 'loaded' | 'error';
+  errorMessage?: string;
+  isMultimodal: boolean;              // projectorFile complete + runtime loaded + backend confirmed
+}

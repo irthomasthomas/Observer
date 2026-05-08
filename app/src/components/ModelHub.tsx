@@ -25,6 +25,7 @@ import {
   GemmaModelId,
   LocalModelEntry,
   GgufFileInfo,
+  NativeLocalModel,
   NativeModelState,
   SamplerParams,
   DEFAULT_SAMPLER_PARAMS,
@@ -187,8 +188,8 @@ const ModelHub: React.FC<ModelHubProps> = ({
 
   // ── llama.cpp (Native) state
   const [nativeState, setNativeState] = useState<NativeModelState>(NativeLlmManager.getInstance().getState());
-  const [ggufFiles, setGgufFiles] = useState<GgufFileInfo[]>(() => NativeLlmManager.getInstance().getCachedGgufFiles());
-  const [mmprojAssignments, setMmprojAssignments] = useState<Record<string, string>>(() => NativeLlmManager.getInstance().getMmprojAssignments());
+  const [nativeModels, setNativeModels] = useState<NativeLocalModel[]>(() => NativeLlmManager.getInstance().listNativeModels());
+  const [orphanProjectors, setOrphanProjectors] = useState<GgufFileInfo[]>(() => NativeLlmManager.getInstance().listOrphanProjectors());
   const [ggufUrl, setGgufUrl] = useState('');
   const [samplerParams, setSamplerParams] = useState<SamplerParams>({ ...DEFAULT_SAMPLER_PARAMS });
   const [llamaSubTab, setLlamaSubTab] = useState<'generation' | 'context' | 'debug'>('generation');
@@ -289,16 +290,21 @@ const ModelHub: React.FC<ModelHubProps> = ({
 
   useEffect(() => {
     if (!isOpen || !isTauriApp) return;
-    const unsubscribe = NativeLlmManager.getInstance().onStateChange(setNativeState);
-    setNativeState(NativeLlmManager.getInstance().getState());
+    const manager = NativeLlmManager.getInstance();
+    const refreshDerived = () => {
+      setNativeModels(manager.listNativeModels());
+      setOrphanProjectors(manager.listOrphanProjectors());
+    };
+    const unsubscribe = manager.onStateChange((s) => {
+      setNativeState(s);
+      refreshDerived();
+    });
+    setNativeState(manager.getState());
+    refreshDerived();
+    // Kick off a fresh disk read; the manager will notify listeners when it lands.
+    manager.listGgufFiles();
     return unsubscribe;
   }, [isOpen, isTauriApp]);
-
-  useEffect(() => {
-    if (!isOpen || !isTauriApp) return;
-    NativeLlmManager.getInstance().listGgufFiles().then(setGgufFiles);
-    setMmprojAssignments(NativeLlmManager.getInstance().getMmprojAssignments());
-  }, [isOpen, isTauriApp, nativeState.status]);
 
   useEffect(() => {
     if (!isOpen || !isTauriApp) return;
@@ -345,15 +351,16 @@ const ModelHub: React.FC<ModelHubProps> = ({
   useEffect(() => {
     if (nativeState.status !== 'downloading' && downloadingPreset?.engine === 'llamacpp') {
       if (presetDownloadStep === 'gguf' && downloadingPreset.mmprojUrl) {
-        // gguf done, kick off mmproj
+        // gguf done, kick off mmproj. Pre-assign before downloading so the
+        // projector renders inside the model's card during download (orphans
+        // are otherwise hidden until assigned).
         setPresetDownloadStep('mmproj');
+        const ggufFilename = downloadingPreset.ggufUrl!.split('/').pop()!;
+        const mmprojFilename = downloadingPreset.mmprojUrl!.split('/').pop()!;
+        NativeLlmManager.getInstance().setMmprojAssignment(ggufFilename, mmprojFilename);
         NativeLlmManager.getInstance().downloadModel(downloadingPreset.mmprojUrl)
           .then((resultFilename) => {
-            if (!resultFilename) return; // cancelled — downloadModel returns '' on cancel, skip assignment
-            const ggufFilename = downloadingPreset.ggufUrl!.split('/').pop()!;
-            const mmprojFilename = downloadingPreset.mmprojUrl!.split('/').pop()!;
-            NativeLlmManager.getInstance().setMmprojAssignment(ggufFilename, mmprojFilename);
-            setMmprojAssignments(NativeLlmManager.getInstance().getMmprojAssignments());
+            if (!resultFilename) return; // cancelled — assignment stays so the .part is resumable
             onPullComplete?.();
           })
           .catch(() => {})
@@ -398,7 +405,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
 
   const handleMmprojAssignment = (modelFilename: string, mmprojFilename: string | null) => {
     NativeLlmManager.getInstance().setMmprojAssignment(modelFilename, mmprojFilename);
-    setMmprojAssignments(NativeLlmManager.getInstance().getMmprojAssignments());
+    // setMmprojAssignment notifies listeners, so the subscription effect refreshes nativeModels/orphanProjectors.
   };
 
   const handleSamplerParamChange = async (key: keyof SamplerParams, value: number) => {
@@ -504,17 +511,14 @@ const ModelHub: React.FC<ModelHubProps> = ({
     .map(s => s.address);
   const allOllamaServers = [...new Set([...availableServers, ...ollamaServersFromCustom])];
 
-  const ggufModels = ggufFiles.filter(f => !f.filename.toLowerCase().includes('mmproj'));
-  const ggufProjectors = ggufFiles.filter(f => f.filename.toLowerCase().includes('mmproj'));
   const isTransformersLoading = gemmaState.status === 'loading';
   const isTransformersDownloading = isTransformersLoading && !transformersModels.some(m => m.id === gemmaState.modelId);
-  const isDownloadingAny = downloadingPreset !== null || (isNativeDownloading && !downloadingPreset) || isTransformersDownloading;
-  const installedCount = ggufFiles.length + transformersModels.length + (isDownloadingAny ? 1 : 0);
+  const installedCount = nativeModels.length + transformersModels.length + (isTransformersDownloading ? 1 : 0);
 
   const isPresetInstalled = (preset: ModelPreset) => {
     if (preset.engine === 'llamacpp') {
       const filename = preset.ggufUrl?.split('/').pop();
-      return ggufFiles.some(f => f.filename === filename);
+      return nativeModels.some(m => m.id === filename && m.modelFile.kind === 'complete');
     }
     return transformersModels.some(m => m.id === preset.hfModelId);
   };
@@ -652,86 +656,6 @@ const ModelHub: React.FC<ModelHubProps> = ({
           ) : (
             <div className="space-y-2">
 
-              {/* In-flight preset download (llamacpp) */}
-              {downloadingPreset && downloadingPreset.engine === 'llamacpp' && (
-                <div className="border border-blue-300 bg-blue-50 rounded-xl p-3">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-100">
-                        <FileDown size={18} className="text-blue-500 animate-bounce" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-medium text-gray-900 truncate">{downloadingPreset.name}</span>
-                          <span className="text-[10px] font-semibold bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">llama.cpp</span>
-                        </div>
-                        <p className="text-xs text-blue-600 mt-0.5">
-                          {presetDownloadStep === 'gguf' ? 'Downloading model…' : 'Downloading vision projector…'}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleCancelNativeDownload}
-                      className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-medium flex-shrink-0"
-                      title="Cancel download"
-                    >
-                      <StopCircle size={11} /> Cancel
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <div>
-                      <div className="flex justify-between text-[11px] mb-1">
-                        <span className="text-gray-500 flex items-center gap-1.5">
-                          {presetDownloadStep === 'mmproj'
-                            ? <CheckCircle className="h-3 w-3 text-green-500" />
-                            : <FileDown className="h-3 w-3 text-blue-400" />
-                          }
-                          Model (.gguf)
-                        </span>
-                        <span className="font-mono text-gray-500">
-                          {presetDownloadStep === 'mmproj'
-                            ? 'Done'
-                            : nativeState.totalBytes > 0
-                              ? `${formatBytes(nativeState.downloadedBytes)} / ${formatBytes(nativeState.totalBytes)}`
-                              : `${nativeState.downloadProgress}%`
-                          }
-                        </span>
-                      </div>
-                      <div className="w-full bg-blue-200 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full transition-all duration-300 ${presetDownloadStep === 'mmproj' ? 'bg-green-500' : 'bg-blue-600'}`}
-                          style={{ width: presetDownloadStep === 'mmproj' ? '100%' : `${nativeState.downloadProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                    {downloadingPreset.mmprojUrl && (
-                      <div>
-                        <div className="flex justify-between text-[11px] mb-1">
-                          <span className="text-gray-500 flex items-center gap-1.5">
-                            <FileDown className={`h-3 w-3 ${presetDownloadStep === 'mmproj' ? 'text-purple-400' : 'text-gray-300'}`} />
-                            Vision projector (.gguf)
-                          </span>
-                          <span className="font-mono text-gray-500">
-                            {presetDownloadStep === 'mmproj'
-                              ? nativeState.totalBytes > 0
-                                ? `${formatBytes(nativeState.downloadedBytes)} / ${formatBytes(nativeState.totalBytes)}`
-                                : `${nativeState.downloadProgress}%`
-                              : 'Pending'
-                            }
-                          </span>
-                        </div>
-                        <div className="w-full bg-blue-200 rounded-full h-1.5">
-                          <div
-                            className="h-1.5 rounded-full bg-purple-500 transition-all duration-300"
-                            style={{ width: presetDownloadStep === 'mmproj' ? `${nativeState.downloadProgress}%` : '0%' }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* In-flight preset download (Transformers.js) */}
               {isTransformersDownloading && (
                 <div className="border border-yellow-300 bg-yellow-50 rounded-xl p-3">
@@ -790,78 +714,111 @@ const ModelHub: React.FC<ModelHubProps> = ({
                 </div>
               )}
 
-              {/* In-flight ad-hoc URL-bar download (non-preset) */}
-              {isNativeDownloading && !downloadingPreset && (
-                <div className="border border-blue-300 bg-blue-50 rounded-xl p-3">
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-100">
-                        <FileDown size={18} className="text-blue-500 animate-bounce" />
+              {/* llama.cpp logical models — derived from disk + assignments + in-flight download */}
+              {nativeModels.map((model) => {
+                const { id, name, modelFile, projectorFile, projectorFilename, runtime, isMultimodal } = model;
+                const isLoaded = runtime === 'loaded';
+                const isLoading = runtime === 'loading';
+                const isUnloading = nativeState.modelId === name && nativeState.status === 'unloading';
+                const isModelDownloading = modelFile.kind === 'partial' && modelFile.downloading;
+                const isProjectorDownloading = projectorFile.kind === 'partial' && projectorFile.downloading;
+                const isDownloading = isModelDownloading || isProjectorDownloading;
+                const modelPaused = modelFile.kind === 'partial' && !modelFile.downloading;
+                const projectorPaused = projectorFile.kind === 'partial' && !projectorFile.downloading;
+                const isFullyOnDisk =
+                  modelFile.kind === 'complete' &&
+                  (projectorFile.kind === 'complete' || projectorFile.kind === 'absent');
+
+                const renderProgressRow = (label: string, file: typeof modelFile) => {
+                  if (file.kind === 'absent') return null;
+                  const done = file.kind === 'complete';
+                  const downloading = !done && file.downloading;
+                  const pct = done ? 100 : (downloading ? (file.progress ?? 0) : 0);
+                  return (
+                    <div key={label}>
+                      <div className="flex justify-between items-center text-[11px] mb-1">
+                        <span className="text-gray-600 flex items-center gap-1.5 truncate max-w-[55%]">
+                          {done
+                            ? <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                            : <FileDown className={`h-3 w-3 flex-shrink-0 ${downloading ? 'text-blue-400' : 'text-amber-400'}`} />
+                          }
+                          {label}
+                        </span>
+                        <span className="font-medium text-gray-500 flex-shrink-0">
+                          {done
+                            ? formatBytes(file.bytes)
+                            : downloading
+                              ? (file.totalBytes && file.totalBytes > 0
+                                  ? `${formatBytes(file.downloadedBytes ?? 0)} / ${formatBytes(file.totalBytes)}`
+                                  : `${Math.round(file.progress ?? 0)}%`)
+                              : `${formatBytes(file.bytes)} — paused`}
+                        </span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs font-semibold text-gray-700 truncate block">{nativeState.modelId}</span>
-                        <p className="text-xs text-blue-600 mt-0.5">Downloading…</p>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            done ? 'bg-green-500' : downloading ? 'bg-blue-600' : 'bg-amber-400'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     </div>
-                    <button
-                      onClick={handleCancelNativeDownload}
-                      className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-medium flex-shrink-0"
-                    >
-                      <StopCircle size={11} /> Cancel
-                    </button>
-                  </div>
-                  <div className="w-full bg-blue-200 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full bg-blue-600 transition-all" style={{ width: `${nativeState.downloadProgress}%` }} />
-                  </div>
-                </div>
-              )}
+                  );
+                };
 
-              {/* llama.cpp model files */}
-              {ggufModels.map((file) => {
-                const modelId = file.filename.replace(/\.gguf$/i, '');
-                const isThisModel = nativeState.modelId === modelId;
-                const isLoaded = isThisModel && nativeState.status === 'loaded';
-                const isLoading = isThisModel && nativeState.status === 'loading';
-                const isUnloading = isThisModel && nativeState.status === 'unloading';
-                const assignedMmproj = mmprojAssignments[file.filename] ?? null;
-                const isMultimodal = isThisModel
-                  ? NativeLlmManager.getInstance().isMultimodal()
-                  : !!assignedMmproj;
+                const showProgressBlock =
+                  isModelDownloading || isProjectorDownloading || modelPaused || projectorPaused;
 
                 return (
                   <div
-                    key={file.filename}
+                    key={id}
                     className={`border rounded-xl p-3 transition-all ${
-                      isLoaded ? 'border-gray-400 bg-gray-50' : 'border-gray-200 bg-white hover:border-gray-300'
+                      isLoaded ? 'border-gray-400 bg-gray-50' :
+                      isDownloading ? 'border-blue-300 bg-blue-50' :
+                      (modelPaused || projectorPaused) ? 'border-amber-300 bg-amber-50' :
+                      'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isLoaded ? 'bg-gray-200' : 'bg-gray-100'
+                          isLoaded ? 'bg-gray-200' :
+                          isDownloading ? 'bg-blue-100' :
+                          'bg-gray-100'
                         }`}>
-                          <Cpu size={18} className={isLoaded ? 'text-gray-800' : 'text-gray-500'} />
+                          {isDownloading
+                            ? <FileDown size={18} className="text-blue-500 animate-bounce" />
+                            : <Cpu size={18} className={isLoaded ? 'text-gray-800' : 'text-gray-500'} />
+                          }
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-medium text-gray-900 truncate">{modelId}</span>
+                            <span className="font-medium text-gray-900 truncate">{name}</span>
                             <span className="text-[10px] font-semibold text-gray-700 bg-gray-200 px-1.5 py-0.5 rounded">llama.cpp</span>
                             {isMultimodal && (
                               <span className="text-[10px] font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded flex items-center gap-0.5"><Eye size={9} /></span>
                             )}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs text-gray-500">{formatBytes(file.sizeBytes)}</p>
-                            {(ggufProjectors.length > 0 || assignedMmproj !== null) && (
+                            <p className="text-xs text-gray-500">
+                              {modelFile.kind === 'complete' ? formatBytes(modelFile.bytes) :
+                               isModelDownloading ? 'Downloading…' :
+                               modelPaused ? 'Partial — paused' :
+                               'Missing'}
+                            </p>
+                            {(orphanProjectors.length > 0 || projectorFilename !== null) && (
                               <select
-                                value={assignedMmproj ?? ''}
-                                onChange={e => handleMmprojAssignment(file.filename, e.target.value || null)}
-                                disabled={isLoaded || isLoading}
+                                value={projectorFilename ?? ''}
+                                onChange={e => handleMmprojAssignment(id, e.target.value || null)}
+                                disabled={isLoaded || isLoading || isDownloading}
                                 className="text-xs border border-gray-200 rounded px-1.5 py-0.5 bg-white text-gray-600 focus:ring-1 focus:ring-purple-400 disabled:opacity-50 max-w-[160px] truncate"
                                 title="Assign a vision projector"
                               >
                                 <option value="">No projector</option>
-                                {ggufProjectors.map(p => (
+                                {projectorFilename && (
+                                  <option value={projectorFilename}>{projectorFilename.replace(/\.gguf$/i, '')}</option>
+                                )}
+                                {orphanProjectors.map(p => (
                                   <option key={p.filename} value={p.filename}>{p.filename.replace(/\.gguf$/i, '')}</option>
                                 ))}
                               </select>
@@ -870,7 +827,15 @@ const ModelHub: React.FC<ModelHubProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {isUnloading ? (
+                        {isDownloading ? (
+                          <button
+                            onClick={handleCancelNativeDownload}
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-medium"
+                            title="Cancel download"
+                          >
+                            <StopCircle size={11} /> Cancel
+                          </button>
+                        ) : isUnloading ? (
                           <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-200 text-gray-600 rounded-lg font-medium">
                             <Cpu size={12} className="animate-pulse" /> Unloading
                           </span>
@@ -892,23 +857,20 @@ const ModelHub: React.FC<ModelHubProps> = ({
                         ) : (
                           <>
                             <button
-                              disabled={isAnyNativeBusy}
-                              onClick={() => NativeLlmManager.getInstance().loadModel(file.filename, undefined, contextParams.imageMinTokens, contextParams.imageMaxTokens)}
+                              disabled={isAnyNativeBusy || !isFullyOnDisk}
+                              onClick={() => NativeLlmManager.getInstance().loadModel(id, undefined, contextParams.imageMinTokens, contextParams.imageMaxTokens)}
                               className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
+                              title={!isFullyOnDisk ? 'Files are still partial — finish download first' : undefined}
                             >
                               <Cpu size={12} /> Load
                             </button>
                             <button
                               disabled={isAnyNativeBusy}
                               onClick={async () => {
-                                const mmproj = mmprojAssignments[file.filename] ?? null;
-                                setGgufFiles(prev => prev.filter(f => f.filename !== file.filename && f.filename !== mmproj));
-                                await NativeLlmManager.getInstance().deleteModel(file.filename);
-                                if (mmproj) {
-                                  const stillUsed = ggufModels.some(
-                                    m => m.filename !== file.filename && mmprojAssignments[m.filename] === mmproj
-                                  );
-                                  if (!stillUsed) await NativeLlmManager.getInstance().deleteModel(mmproj);
+                                await NativeLlmManager.getInstance().deleteModel(id);
+                                if (projectorFilename) {
+                                  const stillUsed = nativeModels.some(m => m.id !== id && m.projectorFilename === projectorFilename);
+                                  if (!stillUsed) await NativeLlmManager.getInstance().deleteModel(projectorFilename);
                                 }
                               }}
                               className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -920,6 +882,13 @@ const ModelHub: React.FC<ModelHubProps> = ({
                         )}
                       </div>
                     </div>
+
+                    {showProgressBlock && (
+                      <div className="space-y-1.5 mt-3">
+                        {renderProgressRow('Model', modelFile)}
+                        {projectorFile.kind !== 'absent' && renderProgressRow('Vision projector', projectorFile)}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1198,7 +1167,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                 <p className="text-xs text-gray-400 mb-3">All Unsloth Gemma-4-E2B-it quantizations, sorted lightest → heaviest. Good for finding the quality/size sweet spot on a specific device.</p>
                 {EXTENDED_PRESETS.map(preset => {
                   const filename = preset.ggufUrl?.split('/').pop();
-                  const installed = filename ? ggufFiles.some(f => f.filename === filename) : false;
+                  const installed = filename ? nativeModels.some(m => m.id === filename && m.modelFile.kind === 'complete') : false;
                   const thisDownloading = downloadingPreset?.name === preset.name;
                   const downloadBlocked = isAnyNativeBusy && !thisDownloading;
 

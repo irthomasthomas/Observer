@@ -15,6 +15,8 @@ import {
   ContextParams,
   GenerationMetrics,
   LocalModelEntry,
+  LocalFileState,
+  NativeLocalModel,
 } from './types';
 
 const NATIVE_LLM_STORAGE_KEY = 'observer-native-llm-settings';
@@ -180,28 +182,172 @@ export class NativeLlmManager {
   }
 
   /**
-   * List all local models with unified status tracking.
-   * Returns model-looking files (non-mmproj) with their current status.
+   * Logical-model view of the registry.
+   *
+   * One entry per non-mmproj file (model). Each entry pairs that file with its
+   * assigned projector (if any). The view is fully derived — no extra storage.
+   *
+   * Sources of truth:
+   *   - cachedGgufFiles      : on-disk .gguf and .gguf.part files
+   *   - mmprojAssignments    : user-defined model→projector pairing
+   *   - state                : in-flight download progress + runtime status
+   *   - loadedFilename       : currently loaded model
    */
-  public listLocalModels(): LocalModelEntry[] {
-    return this.getCachedModelFiles().map(file => {
-      const isThisFile = this.loadedFilename === file.filename;
-      const modelIdFromFilename = file.filename.replace('.gguf', '').replace('.GGUF', '');
-      const isThisModelActive = isThisFile || this.state.modelId === modelIdFromFilename;
+  public listNativeModels(): NativeLocalModel[] {
+    const assignments = this.getMmprojAssignments();
 
-      let status: LocalModelEntry['status'] = 'unloaded';
-      if (isThisModelActive) {
-        if (this.state.status === 'loaded') status = 'loaded';
-        else if (this.state.status === 'loading') status = 'loading';
-        else if (this.state.status === 'error') status = 'error';
+    // Group on-disk files by canonical name (strip .part). When both a .gguf
+    // and a .gguf.part exist for the same name, prefer the complete one.
+    const filesByCanonical = new Map<string, { sizeBytes: number; isPart: boolean }>();
+    for (const file of this.cachedGgufFiles) {
+      const isPart = file.filename.endsWith('.part');
+      const canonical = isPart ? file.filename.slice(0, -'.part'.length) : file.filename;
+      const existing = filesByCanonical.get(canonical);
+      if (!existing || (existing.isPart && !isPart)) {
+        filesByCanonical.set(canonical, { sizeBytes: file.sizeBytes, isPart });
+      }
+    }
+
+    const isMmproj = (name: string) => name.toLowerCase().includes('mmproj');
+
+    const resolveFileState = (canonicalName: string): LocalFileState => {
+      const entry = filesByCanonical.get(canonicalName);
+      const isActiveDownload =
+        this.state.status === 'downloading' &&
+        this.currentDownloadFilename === canonicalName;
+
+      if (!entry) {
+        if (isActiveDownload) {
+          return {
+            kind: 'partial',
+            bytes: 0,
+            downloading: true,
+            progress: this.state.downloadProgress,
+            downloadedBytes: this.state.downloadedBytes,
+            totalBytes: this.state.totalBytes,
+          };
+        }
+        return { kind: 'absent' };
+      }
+      if (!entry.isPart) return { kind: 'complete', bytes: entry.sizeBytes };
+      return isActiveDownload
+        ? {
+            kind: 'partial',
+            bytes: entry.sizeBytes,
+            downloading: true,
+            progress: this.state.downloadProgress,
+            downloadedBytes: this.state.downloadedBytes,
+            totalBytes: this.state.totalBytes,
+          }
+        : { kind: 'partial', bytes: entry.sizeBytes, downloading: false };
+    };
+
+    const models: NativeLocalModel[] = [];
+    const seen = new Set<string>();
+
+    for (const canonical of filesByCanonical.keys()) {
+      if (isMmproj(canonical)) continue;
+      seen.add(canonical);
+
+      const projectorFilename = assignments[canonical] ?? null;
+      const projectorFile: LocalFileState = projectorFilename
+        ? resolveFileState(projectorFilename)
+        : { kind: 'absent' };
+
+      const canonicalModelId = canonical.replace(/\.gguf$/i, '');
+      const isThisModelRuntime =
+        this.loadedFilename === canonical ||
+        (this.state.status !== 'downloading' && this.state.modelId === canonicalModelId);
+
+      let runtime: NativeLocalModel['runtime'] = 'unloaded';
+      if (isThisModelRuntime) {
+        if (this.state.status === 'loaded') runtime = 'loaded';
+        else if (this.state.status === 'loading') runtime = 'loading';
+        else if (this.state.status === 'error') runtime = 'error';
       }
 
+      models.push({
+        id: canonical,
+        name: canonicalModelId,
+        modelFile: resolveFileState(canonical),
+        projectorFilename,
+        projectorFile,
+        runtime,
+        errorMessage: runtime === 'error' ? this.state.error ?? undefined : undefined,
+        isMultimodal:
+          projectorFile.kind === 'complete' && runtime === 'loaded' && this.multimodalAvailable,
+      });
+    }
+
+    // In-flight download not yet on disk (the .part file usually appears
+    // subsecond, so this branch is brief — but keep it so the card shows up
+    // immediately when the user clicks download).
+    if (
+      this.state.status === 'downloading' &&
+      this.currentDownloadFilename &&
+      !isMmproj(this.currentDownloadFilename) &&
+      !seen.has(this.currentDownloadFilename)
+    ) {
+      const canonical = this.currentDownloadFilename;
+      const projectorFilename = assignments[canonical] ?? null;
+      const projectorFile: LocalFileState = projectorFilename
+        ? resolveFileState(projectorFilename)
+        : { kind: 'absent' };
+
+      models.push({
+        id: canonical,
+        name: canonical.replace(/\.gguf$/i, ''),
+        modelFile: resolveFileState(canonical),
+        projectorFilename,
+        projectorFile,
+        runtime: 'unloaded',
+        isMultimodal: false,
+      });
+    }
+
+    return models;
+  }
+
+  /**
+   * Projector files (mmproj) that aren't paired with any model.
+   * Used to populate the "assign projector" dropdown.
+   * Orphans don't appear as their own LocalModel entries — only here.
+   */
+  public listOrphanProjectors(): GgufFileInfo[] {
+    const assignments = this.getMmprojAssignments();
+    const assigned = new Set(Object.values(assignments));
+    const seen = new Set<string>();
+    const orphans: GgufFileInfo[] = [];
+
+    for (const file of this.cachedGgufFiles) {
+      const isPart = file.filename.endsWith('.part');
+      const canonical = isPart ? file.filename.slice(0, -'.part'.length) : file.filename;
+      if (!canonical.toLowerCase().includes('mmproj')) continue;
+      if (assigned.has(canonical)) continue;
+      if (seen.has(canonical)) continue;
+      seen.add(canonical);
+      orphans.push({ filename: canonical, sizeBytes: file.sizeBytes });
+    }
+    return orphans;
+  }
+
+  /**
+   * Backwards-compatible flat view for the cross-manager interface.
+   * Native UI should prefer listNativeModels().
+   */
+  public listLocalModels(): LocalModelEntry[] {
+    return this.listNativeModels().map(m => {
+      const status: LocalModelEntry['status'] =
+        m.runtime === 'loaded' ? 'loaded' :
+        m.runtime === 'loading' ? 'loading' :
+        m.runtime === 'error' ? 'error' :
+        'unloaded';
       return {
-        id: file.filename,
-        name: file.filename.replace(/\.gguf$/i, ''),
+        id: m.id,
+        name: m.name,
         status,
-        sizeBytes: file.sizeBytes,
-        isMultimodal: isThisFile ? this.multimodalAvailable : false,
+        sizeBytes: m.modelFile.kind === 'absent' ? undefined : m.modelFile.bytes,
+        isMultimodal: m.isMultimodal,
       };
     });
   }
@@ -237,9 +383,16 @@ export class NativeLlmManager {
 
     try {
       const progressChannel = new Channel<NativeProgressEvent>();
+      let firstDownloadingEvent = true;
 
       progressChannel.onmessage = (event: NativeProgressEvent) => {
         if (event.status === 'downloading') {
+          if (firstDownloadingEvent) {
+            firstDownloadingEvent = false;
+            // Pick up the .part file as soon as the OS creates it, so the
+            // model entry transitions from "absent" to "partial+downloading".
+            this.refreshGgufCache();
+          }
           this.setState({
             downloadProgress: event.progress,
             downloadedBytes: event.downloadedBytes,
