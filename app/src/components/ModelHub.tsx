@@ -1113,7 +1113,14 @@ const ModelHub: React.FC<ModelHubProps> = ({
                           <span className="text-[10px] font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded flex items-center gap-0.5"><Eye size={9} /></span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{preset.sizeLabel}</p>
+                      {!isLlamaCpp ? (
+                        <>
+                          <p className="hidden md:block text-xs text-gray-500 mt-0.5">{preset.sizeLabel}</p>
+                          <p className="md:hidden text-xs font-bold text-red-600 mt-0.5">Will crash on mobile</p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-0.5">{preset.sizeLabel}</p>
+                      )}
                     </div>
 
                     <div className="flex-shrink-0">
