@@ -487,12 +487,16 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
         onChooseAiCreator={() => {
           onComplete(agentId);
           requestAnimationFrame(() => {
-            const el = document.querySelector('[data-tutorial-ai-creator]');
-            if (!el) return;
-            el.classList.add('tutorial-select-flash');
-            el.addEventListener(
+            const ai = document.querySelector('[data-tutorial-ai-creator]');
+            const aiVisible = !!ai && ai.getBoundingClientRect().width > 0;
+            const target: Element | null = aiVisible
+              ? (ai!.firstElementChild ?? ai)
+              : document.querySelector('[data-tutorial-grid-generate]');
+            if (!target) return;
+            target.classList.add('tutorial-select-flash');
+            target.addEventListener(
               'animationend',
-              () => el.classList.remove('tutorial-select-flash'),
+              () => target.classList.remove('tutorial-select-flash'),
               { once: true },
             );
           });
