@@ -941,15 +941,6 @@ function AppContent() {
             <div className="fixed inset-0 z-40" onClick={() => setIsMobileFooterOpen(false)} />
             <div className="relative z-50 mx-4 mb-2 bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-100/80 px-5 py-4">
               <div className="flex items-center gap-3">
-                {/* Tutorial - kept big */}
-                <button
-                  onClick={() => { handleReplayTutorial(); setIsMobileFooterOpen(false); }}
-                  className="flex-shrink-0 flex flex-col items-center justify-center w-16 h-16 bg-purple-50 rounded-2xl active:scale-95 transition-transform"
-                >
-                  <HelpCircle className="h-5 w-5 text-purple-500" />
-                  <span className="text-[10px] text-purple-500 mt-1.5 font-medium tracking-wide">Tutorial</span>
-                </button>
-
                 {/* Small icon tiles - wrapping row */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
@@ -1007,6 +998,15 @@ function AppContent() {
               />
             ) : null)}
           </div>
+
+          {/* Tutorial — always visible */}
+          <button
+            onClick={handleReplayTutorial}
+            className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-2xl bg-purple-50 text-purple-500 active:scale-90 transition-all duration-200"
+            title="Tutorial"
+          >
+            <HelpCircle size={18} />
+          </button>
 
           {/* Chevron toggle — 44px touch target */}
           <button
