@@ -148,6 +148,7 @@ function AppContent() {
     agentId: string;
     hasPhoneTools: boolean;
   } | null>(null);
+  const [tutorialReplayKey, setTutorialReplayKey] = useState(0);
 
   // Minimized agents — persisted to localStorage
   const [minimizedAgents, setMinimizedAgents] = useState<Set<string>>(() => {
@@ -336,6 +337,7 @@ function AppContent() {
 
   const handleReplayTutorial = () => {
     localStorage.removeItem('observer_creator_tutorial_seen');
+    setTutorialReplayKey(k => k + 1);
     setIsLocalOnboardingActive(true);
   };
 
@@ -1122,6 +1124,7 @@ function AppContent() {
       />
 
       <LocalOnboardingTutorial
+        key={tutorialReplayKey}
         isActive={isLocalOnboardingActive}
         onDismiss={() => setIsLocalOnboardingActive(false)}
       />
