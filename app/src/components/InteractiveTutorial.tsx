@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X as CloseIcon, Sparkles, Play, Eye, Camera, CheckCircle2, Square, Zap, Heart, Star, Loader2 } from 'lucide-react';
+import { Sparkles, Play, Eye, Camera, CheckCircle2, Square, Zap, Heart, Star, Loader2 } from 'lucide-react';
 import { useAuth } from '@contexts/AuthContext';
 import { useApplePayments } from '@hooks/useApplePayments';
 import { isIOS } from '@utils/platform';
@@ -337,9 +337,6 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[85vh] md:max-h-[90vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
-          <button onClick={() => onComplete(agentId)} className="absolute top-3 right-3 md:top-4 md:right-4 text-gray-400 hover:text-gray-700 z-10 transition-colors">
-            <CloseIcon className="h-5 w-5 md:h-6 md:w-6" />
-          </button>
 
           <div className="p-4 md:p-8">
             {/* Welcome Section */}
@@ -580,9 +577,6 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
           maxWidth: 'calc(100vw - 40px)',
         }}
       >
-        <button onClick={handleDismiss} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition-colors">
-          <CloseIcon className="h-4 w-4" />
-        </button>
 
         <div className="mb-3">
           <div className="flex items-center gap-2 mb-1">

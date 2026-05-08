@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X as CloseIcon, Sparkles, Wrench, ArrowRight } from 'lucide-react';
 import { Analytics } from '@utils/analytics';
@@ -33,6 +33,8 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
 }) => {
   const [aiRect, setAiRect] = useState<DOMRect | null>(null);
   const [hubRect, setHubRect] = useState<DOMRect | null>(null);
+  const [snoozed, setSnoozed] = useState(false);
+  const snoozeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isActive) return;
@@ -40,7 +42,7 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
   }, [isActive, source]);
 
   useEffect(() => {
-    if (!isActive) { setAiRect(null); setHubRect(null); return; }
+    if (!isActive) { setSnoozed(false); if (snoozeTimer.current) clearTimeout(snoozeTimer.current); setAiRect(null); setHubRect(null); return; }
     let rafId: number;
     const loop = () => {
       const ai = firstVisible(AI_CREATOR_SELECTORS);
@@ -53,7 +55,12 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
     return () => cancelAnimationFrame(rafId);
   }, [isActive]);
 
-  if (!isActive) return null;
+  if (!isActive || snoozed) return null;
+
+  const handleSnooze = () => {
+    snoozeTimer.current = setTimeout(() => setSnoozed(false), 30_000);
+    setSnoozed(true);
+  };
 
   const handleAiCreator = () => {
     Analytics.forkAiCreator(source);
@@ -125,7 +132,7 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
         style={{ maxWidth: 'calc(100vw - 32px)', ...cardStyle }}
       >
         <button
-          onClick={handleSkip}
+          onClick={handleSnooze}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
           aria-label="Close"
         >

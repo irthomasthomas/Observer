@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ArrowRight } from 'lucide-react';
 
@@ -17,8 +17,15 @@ interface Props {
 
 const SimpleCreatorTutorial: React.FC<Props> = ({ tutorialStep, steps, onNext, onDismiss }) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [snoozed, setSnoozed] = useState(false);
+  const snoozeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cfg = steps[tutorialStep - 1] ?? null;
+
+  useEffect(() => {
+    setSnoozed(false);
+    if (snoozeTimer.current) clearTimeout(snoozeTimer.current);
+  }, [tutorialStep]);
 
   useEffect(() => {
     if (!cfg?.selector) { setRect(null); return; }
@@ -47,7 +54,12 @@ const SimpleCreatorTutorial: React.FC<Props> = ({ tutorialStep, steps, onNext, o
     return () => cancelAnimationFrame(rafId);
   }, [cfg?.selector]);
 
-  if (!cfg || tutorialStep === 0) return null;
+  if (!cfg || tutorialStep === 0 || snoozed) return null;
+
+  const handleSnooze = () => {
+    snoozeTimer.current = setTimeout(() => setSnoozed(false), 30_000);
+    setSnoozed(true);
+  };
 
   const isLast = tutorialStep === steps.length;
   const pad = 8;
@@ -71,7 +83,7 @@ const SimpleCreatorTutorial: React.FC<Props> = ({ tutorialStep, steps, onNext, o
         </>
       )}
       <div className="fixed z-[201] bg-white rounded-xl shadow-2xl p-4 pointer-events-auto" style={{ width: 272, ...getBubbleStyle() }}>
-        <button onClick={onDismiss} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors">
+        <button onClick={handleSnooze} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors">
           <X className="h-4 w-4" />
         </button>
         <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Tutorial</p>

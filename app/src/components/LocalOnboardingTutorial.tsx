@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X as CloseIcon, Server, Download, Code, ArrowRight } from 'lucide-react';
 import { isTauri } from '@utils/platform';
@@ -68,11 +68,13 @@ const STEPS: Step[] = [
 const LocalOnboardingTutorial: React.FC<LocalOnboardingTutorialProps> = ({ isActive, onDismiss }) => {
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [snoozed, setSnoozed] = useState(false);
+  const snoozeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const current = STEPS[step] ?? null;
 
   useEffect(() => {
-    if (!isActive) { setStep(0); return; }
+    if (!isActive) { setStep(0); setSnoozed(false); if (snoozeTimer.current) clearTimeout(snoozeTimer.current); return; }
   }, [isActive]);
 
   useEffect(() => {
@@ -133,7 +135,12 @@ const LocalOnboardingTutorial: React.FC<LocalOnboardingTutorialProps> = ({ isAct
     return () => clearInterval(id);
   }, [isActive, step, current, onDismiss]);
 
-  if (!isActive || !current) return null;
+  if (!isActive || !current || snoozed) return null;
+
+  const handleSnooze = () => {
+    snoozeTimer.current = setTimeout(() => setSnoozed(false), 30_000);
+    setSnoozed(true);
+  };
 
   const resolvedMessage = current.id === 'download-gemma'
     ? (() => {
@@ -183,7 +190,7 @@ const LocalOnboardingTutorial: React.FC<LocalOnboardingTutorialProps> = ({ isAct
         className="fixed z-[201] bg-white rounded-xl shadow-2xl p-4 pointer-events-auto"
         style={{ width: 288, maxWidth: 'calc(100vw - 32px)', ...getBubbleStyle() }}
       >
-        <button onClick={onDismiss} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors">
+        <button onClick={handleSnooze} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors">
           <CloseIcon className="h-4 w-4" />
         </button>
 
