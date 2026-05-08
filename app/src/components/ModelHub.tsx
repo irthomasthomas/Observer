@@ -34,7 +34,6 @@ import {
   GEMMA_DISPLAY_NAMES,
 } from '@utils/localLlm/types';
 import { MODEL_PRESETS, EXTENDED_PRESETS, type ModelPreset } from '@utils/modelPresets';
-import LocalServerSetupDialog from '@components/LocalServerSetupDialog';
 
 type QuotaInfo = {
   used: number;
@@ -211,9 +210,6 @@ const ModelHub: React.FC<ModelHubProps> = ({
   // ── System memory
   const [memInfo, setMemInfo] = useState<{ totalBytes: number; usedBytes: number; availableBytes: number } | null>(null);
 
-  // ── First-visit setup dialog
-  const [showLocalSetup, setShowLocalSetup] = useState(false);
-
   // ── Custom server state
   const [isAddingServer, setIsAddingServer] = useState(false);
   const [newServerAddress, setNewServerAddress] = useState('');
@@ -223,7 +219,6 @@ const ModelHub: React.FC<ModelHubProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     setActiveTab(isTauriApp ? 'llamacpp' : 'transformers');
-    if (!localStorage.getItem('observer_local_setup_seen')) setShowLocalSetup(true);
   }, [isOpen, isTauriApp]);
 
   // Subscribe to LLM logs while the Advanced panel is open on the llama.cpp tab
@@ -530,14 +525,6 @@ const ModelHub: React.FC<ModelHubProps> = ({
 
   return (
     <>
-    {showLocalSetup && (
-      <LocalServerSetupDialog
-        onDismiss={() => {
-          localStorage.setItem('observer_local_setup_seen', '1');
-          setShowLocalSetup(false);
-        }}
-      />
-    )}
     <Modal open={isOpen} onClose={handleDone} className="w-full max-w-3xl">
       <div className="p-6 sm:p-8 overflow-y-auto" style={{ maxHeight: 'calc(88vh - env(safe-area-inset-top) - env(safe-area-inset-bottom))' }}>
 
