@@ -484,7 +484,19 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
       <NextStepFork
         isActive={true}
         source={forkSource}
-        onChooseAiCreator={() => onComplete(agentId)}
+        onChooseAiCreator={() => {
+          onComplete(agentId);
+          requestAnimationFrame(() => {
+            const el = document.querySelector('[data-tutorial-ai-creator]');
+            if (!el) return;
+            el.classList.add('tutorial-select-flash');
+            el.addEventListener(
+              'animationend',
+              () => el.classList.remove('tutorial-select-flash'),
+              { once: true },
+            );
+          });
+        }}
         onChooseBuildIt={() => {
           onComplete(agentId);
           onChooseLocalOnboarding();
