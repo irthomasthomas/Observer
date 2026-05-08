@@ -938,6 +938,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                           <button
                             onClick={() => GemmaModelManager.getInstance().unloadModel()}
                             className="group flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors bg-gray-200 text-gray-800 hover:bg-red-100 hover:text-red-700"
+                            {...(model.id === 'onnx-community/gemma-4-E2B-it-ONNX' ? { 'data-tutorial-gemma-state': 'loaded' } : {})}
                           >
                             <span className="group-hover:hidden flex items-center gap-1.5"><CheckCircle size={12} /> Ready</span>
                             <span className="hidden group-hover:flex items-center gap-1.5"><X size={12} /> Unload</span>
@@ -946,12 +947,15 @@ const ModelHub: React.FC<ModelHubProps> = ({
                           <button
                             onClick={() => GemmaModelManager.getInstance().unloadModel()}
                             className="group flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-700 rounded-lg font-medium transition-colors"
+                            {...(model.id === 'onnx-community/gemma-4-E2B-it-ONNX' ? { 'data-tutorial-gemma-state': 'loading' } : {})}
                           >
                             <span className="group-hover:hidden flex items-center gap-1.5"><Cpu size={12} className="animate-pulse" /> Loading</span>
                             <span className="hidden group-hover:flex items-center gap-1.5"><StopCircle size={12} /> Cancel</span>
                           </button>
                         ) : isError ? (
-                          <span className="flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-100 px-2 py-1 rounded-full">
+                          <span className="flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-100 px-2 py-1 rounded-full"
+                            {...(model.id === 'onnx-community/gemma-4-E2B-it-ONNX' ? { 'data-tutorial-gemma-state': 'error' } : {})}
+                          >
                             <AlertTriangle size={12} /> Error
                           </span>
                         ) : (
@@ -962,7 +966,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                                 GemmaModelManager.getInstance().loadModelWithSettings(model.id as GemmaModelId, gemmaDevice, installedDtype, gemmaTokenBudget, gemmaEnableThinking);
                               }}
                               className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg hover:bg-gray-900 font-medium shadow-sm"
-                              {...(model.id === 'onnx-community/gemma-4-E2B-it-ONNX' ? { 'data-tutorial-gemma-e2b': true } : {})}
+                              {...(model.id === 'onnx-community/gemma-4-E2B-it-ONNX' ? { 'data-tutorial-gemma-e2b': true, 'data-tutorial-gemma-state': 'load' } : {})}
                             >
                               <Sparkles size={12} /> Load
                             </button>
@@ -1116,11 +1120,15 @@ const ModelHub: React.FC<ModelHubProps> = ({
                       {unavailable ? (
                         <span className="text-xs text-gray-400" title="Install the desktop app to use llama.cpp">App only</span>
                       ) : installed ? (
-                        <span className="flex items-center gap-1 text-xs text-green-700 font-medium">
+                        <span className="flex items-center gap-1 text-xs text-green-700 font-medium"
+                          {...(preset.name === 'Gemma 4 E2B ONNX' || preset.name === 'Gemma 4 E2B' ? { 'data-tutorial-gemma-state': 'installed' } : {})}
+                        >
                           <CheckCircle size={12} /> Installed
                         </span>
                       ) : thisDownloading ? (
-                        <span className="flex items-center gap-1.5 text-xs text-blue-600 font-medium">
+                        <span className="flex items-center gap-1.5 text-xs text-blue-600 font-medium"
+                          {...(preset.name === 'Gemma 4 E2B ONNX' || preset.name === 'Gemma 4 E2B' ? { 'data-tutorial-gemma-state': 'downloading' } : {})}
+                        >
                           <Download size={12} className="animate-bounce" />
                           {isLlamaCpp
                             ? (presetDownloadStep === 'gguf' ? 'Model…' : 'Vision…')
@@ -1142,7 +1150,7 @@ const ModelHub: React.FC<ModelHubProps> = ({
                           onClick={() => handleDownloadPreset(preset)}
                           disabled={downloadBlocked}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
-                          {...(preset.name === 'Gemma 4 E2B ONNX' || preset.name === 'Gemma 4 E2B' ? { 'data-tutorial-gemma-e2b': true } : {})}
+                          {...(preset.name === 'Gemma 4 E2B ONNX' || preset.name === 'Gemma 4 E2B' ? { 'data-tutorial-gemma-e2b': true, 'data-tutorial-gemma-state': 'download' } : {})}
                         >
                           <Download size={12} />
                           Download

@@ -121,21 +121,38 @@ const LocalOnboardingTutorial: React.FC<LocalOnboardingTutorialProps> = ({ isAct
     return () => window.removeEventListener(current.waitForEvent!, advance);
   }, [isActive, step, current]);
 
+  useEffect(() => {
+    if (!isActive || current?.id !== 'download-gemma') return;
+    const id = setInterval(() => {
+      const state = document.querySelector('[data-tutorial-gemma-state]')?.getAttribute('data-tutorial-gemma-state');
+      if (state === 'loaded' || state === 'installed') {
+        if (step < STEPS.length - 1) setStep(s => s + 1);
+        else onDismiss();
+      }
+    }, 500);
+    return () => clearInterval(id);
+  }, [isActive, step, current, onDismiss]);
+
   if (!isActive || !current) return null;
 
-  // Resolve dynamic message for the gemma step based on which button is present
   const resolvedMessage = current.id === 'download-gemma'
     ? (() => {
-        const btn = document.querySelector('button[data-tutorial-gemma-e2b]');
-        const isLoad = btn?.textContent?.trim().toLowerCase().startsWith('load');
+        const gemmaState = document.querySelector('[data-tutorial-gemma-state]')?.getAttribute('data-tutorial-gemma-state');
         if (isTauri()) {
-          return isLoad
-            ? 'Gemma 4 E2B is already downloaded! Click Load to activate it.'
-            : 'Click Download next to Gemma 4 E2B — it runs natively via llama.cpp for better stability and performance.';
+          switch (gemmaState) {
+            case 'downloading': return 'Gemma 4 E2B is downloading — hang tight!';
+            case 'installed': return 'Gemma 4 E2B is installed and ready!';
+            default: return 'Click Download next to Gemma 4 E2B — it runs natively via llama.cpp for better stability and performance.';
+          }
         }
-        return isLoad
-          ? 'Gemma 4 E2B is already downloaded! Click Load to activate it in your browser.'
-          : 'Click Download next to Gemma 4 E2B ONNX — it runs directly in your browser, no install needed.';
+        switch (gemmaState) {
+          case 'downloading': return 'Gemma 4 E2B ONNX is downloading — this may take a moment.';
+          case 'load': return 'Gemma 4 E2B ONNX is downloaded! Click Load to activate it in your browser.';
+          case 'loading': return 'Gemma 4 E2B ONNX is loading — almost ready!';
+          case 'loaded': return 'Gemma 4 E2B ONNX is loaded and ready!';
+          case 'error': return 'Something went wrong. Try downloading Gemma 4 E2B ONNX again.';
+          default: return 'Click Download next to Gemma 4 E2B ONNX — it runs directly in your browser, no install needed.';
+        }
       })()
     : current.message;
 
