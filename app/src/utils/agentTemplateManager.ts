@@ -14,7 +14,20 @@ export interface ToolData {
   telegramChatId?: string;
 }
 
-const TOOL_CODE_SNIPPETS: Record<SimpleTool, (data: ToolData) => string> = {
+interface SensorContext {
+  hasScreen: boolean;
+  hasCamera: boolean;
+}
+
+function buildImageArg(ctx: SensorContext): string | null {
+  const vars: string[] = [];
+  if (ctx.hasScreen) vars.push('screen');
+  if (ctx.hasCamera) vars.push('camera');
+  if (vars.length === 0) return null;
+  return vars.length === 1 ? vars[0] : `[${vars.join(', ')}]`;
+}
+
+const TOOL_CODE_SNIPPETS: Record<SimpleTool, (data: ToolData, ctx: SensorContext) => string> = {
   notification: () => `
 // --- NOTIFICATION TOOL ---
 // Sends the model's entire response as a desktop notification.
@@ -26,53 +39,65 @@ notify("Observer AI Agent", response);
 const timestamp = time();
 appendMemory(agentId, \`\\n[\${timestamp}] \${response}\`);
 `,
-  sms: (data: ToolData) => {
+  sms: (data: ToolData, ctx: SensorContext) => {
     const phoneNumber = data.smsPhoneNumber ? JSON.stringify(data.smsPhoneNumber) : '""';
+    const imgArg = buildImageArg(ctx);
+    const imgPart = imgArg ? `, ${imgArg}` : '';
     return `
 // --- SMS TOOL ---
 // Sends the model's response as an SMS to the specified number.
-sendSms(${phoneNumber}, response);
+sendSms(${phoneNumber}, response${imgPart});
 `;
   },
-  whatsapp: (data: ToolData) => {
+  whatsapp: (data: ToolData, ctx: SensorContext) => {
     const phoneNumber = data.whatsappPhoneNumber ? JSON.stringify(data.whatsappPhoneNumber) : '""';
+    const imgArg = buildImageArg(ctx);
+    const imgPart = imgArg ? `, ${imgArg}` : '';
     return `
 // --- WHATSAPP TOOL ---
 // Sends a pre-approved WhatsApp notification. The content is static for now.
 // IMPORTANT: The 'response' variable is currently ignored for anti-spam reasons.
-sendWhatsapp(${phoneNumber}, response);
+sendWhatsapp(${phoneNumber}, response${imgPart});
 `;
   },
-  email: (data: ToolData) => {
+  email: (data: ToolData, ctx: SensorContext) => {
     const emailAddr = data.emailAddress ? JSON.stringify(data.emailAddress) : '""';
+    const imgArg = buildImageArg(ctx);
+    const imgPart = imgArg ? `, ${imgArg}` : '';
     return `
 // --- EMAIL TOOL ---
 // Sends the model's response as an email to the specified address.
-sendEmail(${emailAddr}, response);
+sendEmail(${emailAddr}, response${imgPart});
 `;
   },
-  pushover: (data: ToolData) => {
+  pushover: (data: ToolData, ctx: SensorContext) => {
     const userKey = data.pushoverUserKey ? JSON.stringify(data.pushoverUserKey) : '""';
+    const imgArg = buildImageArg(ctx);
+    const imgPart = imgArg ? `, ${imgArg}` : '';
     return `
 // --- PUSHOVER TOOL ---
 // Sends the model's response as a Pushover notification.
-sendPushover(${userKey}, response);
+sendPushover(${userKey}, response${imgPart});
 `;
   },
-  discord: (data: ToolData) => {
+  discord: (data: ToolData, ctx: SensorContext) => {
     const webhookUrl = data.discordWebhookUrl ? JSON.stringify(data.discordWebhookUrl) : '""';
+    const imgArg = buildImageArg(ctx);
+    const imgPart = imgArg ? `, ${imgArg}` : '';
     return `
 // --- DISCORD TOOL ---
 // Sends the model's response to a Discord channel via a webhook.
-sendDiscord(${webhookUrl}, response);
+sendDiscord(${webhookUrl}, response${imgPart});
 `;
   },
-  telegram: (data: ToolData) => {
+  telegram: (data: ToolData, ctx: SensorContext) => {
     const chatId = data.telegramChatId ? JSON.stringify(data.telegramChatId) : '""';
+    const imgArg = buildImageArg(ctx);
+    const imgPart = imgArg ? `, ${imgArg}` : '';
     return `
 // --- TELEGRAM TOOL ---
 // Sends the model's response to a Telegram chat.
-sendTelegram(${chatId}, response);
+sendTelegram(${chatId}, response${imgPart});
 `;
   },
   start_clip: () => `
@@ -147,8 +172,14 @@ export function generateAgentFromSimpleConfig(
     '// You can edit it to add more complex logic.',
   ].join('\n');
 
+  const systemPrompt = config.agentData.system_prompt || '';
+  const ctx: SensorContext = {
+    hasScreen: /\$SCREEN(?![A-Z_])/.test(systemPrompt),
+    hasCamera: /\$CAMERA(?![A-Z_])/.test(systemPrompt),
+  };
+
   let toolCode = Array.from(config.selectedTools.entries())
-    .map(([tool, data]) => TOOL_CODE_SNIPPETS[tool](data).trim())
+    .map(([tool, data]) => TOOL_CODE_SNIPPETS[tool](data, ctx).trim())
     .join('\n\n');
 
   if (config.condition.enabled && config.condition.keyword) {

@@ -174,7 +174,7 @@ Notification Tools:
   * `sendEmail(email, message, images?, videos?)` - Sends an email. Email must be the signed in email.
   * `sendPushover(user_token, message, images?, title?)` - Sends a pushover notification.
   * `call(phone_number, message)*` - Makes an automated phone call with text-to-speech message. Needs whitelisting.
-  * `sendWhatsapp(phone_number, message, videos?)*` - Sends a whatsapp message with the Observer bot. Needs whitelisting. 
+  * `sendWhatsapp(phone_number, message, images?, videos?)*` - Sends a whatsapp message with the Observer bot. Needs whitelisting. 
   * `sendSms(phone_number, message, images?, videos?)*` - Sends an SMS to a phone number. Due to A2P policy, blocked for US/Canada. Needs whitelisting.
   * `notify(title, options)` – Send browser notification ⚠️IMPORTANT: Some browsers block notifications
 
