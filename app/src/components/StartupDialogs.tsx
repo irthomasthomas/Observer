@@ -1,5 +1,6 @@
 import React from 'react';
 import { Analytics } from '@utils/analytics';
+import { isWeb } from '../utils/platform';
 
 interface StartupDialogProps {
   onDismiss: () => void;
@@ -77,9 +78,9 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
 
           <button
             onClick={handleSkip}
-            className="mt-4 text-xs text-gray-400 hover:text-gray-500 transition-colors"
+            className={`mt-4 text-xs text-gray-400 hover:text-gray-500 transition-colors${isWeb() ? ' hidden md:block' : ''}`}
           >
-            Other options 
+            Other options
           </button>
         </div>
       </div>
