@@ -2,16 +2,14 @@
 
 import React, { useState, useCallback } from 'react';
 import {
-  Loader2, Zap, ExternalLink, Heart, HeartCrack,
-  Check, HardDrive, Server, Sparkles, RotateCcw
+  Loader2, Zap, ExternalLink,
+  Check, X, Server, Sparkles, RotateCcw
 } from 'lucide-react';
 import { isIOS } from '../utils/platform';
 import { Logger } from '@utils/logging';
 import type { UseApplePaymentsReturn } from '@hooks/useApplePayments';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { CreditInfoButton } from './CreditVisualization';
 
-// Define the props this component will accept
 interface PricingTableProps {
   headline: string;
   subheadline: string;
@@ -24,12 +22,66 @@ interface PricingTableProps {
   onCheckoutMax: () => void;
   onManageSubscription: () => void;
   onLogin: () => void;
-  isTriggeredByQuotaError?: boolean; // Optional prop for special styling
-  isHalfwayWarning?: boolean; // New prop to indicate halfway warning vs full limit
-  // Apple In-App Purchase - pass the whole hook result
+  isTriggeredByQuotaError?: boolean;
+  isHalfwayWarning?: boolean;
   applePayments?: UseApplePaymentsReturn | null;
-  onModalClose?: () => void; // Optional callback to close modal after purchase
+  onModalClose?: () => void;
 }
+
+interface FeatureRow {
+  label: string;
+  sparkle?: boolean;
+  notLoggedIn: boolean | string;
+  free: boolean | string;
+  pro: boolean | string;
+  max: boolean | string;
+}
+
+interface FeatureGroup {
+  group: string;
+  rows: FeatureRow[];
+}
+
+const featureGroups: FeatureGroup[] = [
+  {
+    group: 'Core Loop',
+    rows: [
+      { label: 'Local Monitoring 24/7',   notLoggedIn: true,  free: true,       pro: true,        max: true },
+      { label: 'Logging & Recording',      notLoggedIn: true,  free: true,       pro: true,        max: true },
+      { label: 'Discord Notifications',    notLoggedIn: true,  free: true,       pro: true,        max: true },
+    ],
+  },
+  {
+    group: 'Notifications',
+    rows: [
+      { label: 'Telegram, Email & Pushover', notLoggedIn: false, free: true,      pro: true,        max: true },
+      { label: 'SMS, Phone & WhatsApp',      notLoggedIn: false, free: '5 / day', pro: 'Unlimited', max: 'Unlimited' },
+    ],
+  },
+  {
+    group: 'AI inference',
+    rows: [
+      { label: 'Alert Builder',            notLoggedIn: false, free: true,        pro: true,         max: true },
+      { label: 'Cloud Monitoring',         notLoggedIn: false, free: '1 hr / day', pro: '8 hr / day', max: '24 / 7' },
+      { label: 'AI Studio (Multi-Agent)',  sparkle: true, notLoggedIn: false, free: false, pro: true, max: true },
+    ],
+  },
+  {
+    group: 'Support',
+    rows: [
+      { label: 'Support', notLoggedIn: "We don't know you!", free: 'Limited', pro: 'Better', max: 'Priority' },
+    ],
+  },
+];
+
+const CheckMark = () => <Check className="h-5 w-5 text-green-500 mx-auto" />;
+const CrossMark = () => <X className="h-5 w-5 text-gray-300 mx-auto" />;
+
+const renderCell = (value: boolean | string) => {
+  if (value === true)  return <CheckMark />;
+  if (value === false) return <CrossMark />;
+  return <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">{value}</span>;
+};
 
 export const PricingTable: React.FC<PricingTableProps> = ({
   headline,
@@ -39,42 +91,30 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   isAuthenticated,
   error,
   onCheckout,
-  onCheckoutPlus,
   onCheckoutMax,
   onManageSubscription,
   onLogin,
   isTriggeredByQuotaError = false,
-  isHalfwayWarning = false,
   applePayments,
   onModalClose,
 }) => {
   const isAppleDevice = isIOS();
   const [internalLoading, setInternalLoading] = useState(false);
 
-  // Apple In-App Purchase handler - just purchase and navigate to /upgrade-success
-  // Verification is handled by UpgradeSuccessPage
-  const handleApplePurchase = useCallback(async (tier: 'plus' | 'pro' | 'max') => {
-    if (!applePayments) return;
+  // plus is a legacy tier — treat it as pro
+  const effectiveStatus = status === 'plus' ? 'pro' : status;
 
+  const handleApplePurchase = useCallback(async (tier: 'pro' | 'max') => {
+    if (!applePayments) return;
     Logger.info('PRICING_TABLE', `Starting Apple purchase for tier: ${tier}`);
     setInternalLoading(true);
-
     try {
-      const purchaseResult = await applePayments.purchaseProduct(tier);
-      Logger.info('PRICING_TABLE', 'Purchase result:', purchaseResult);
-
-      if (purchaseResult.success) {
-        Logger.info('PRICING_TABLE', 'StoreKit purchase succeeded, navigating to /upgrade-success');
-
-        // Close modal if provided
-        if (onModalClose) {
-          onModalClose();
-        }
-
-        // Navigate to success page - it will handle verification and polling
+      const result = await applePayments.purchaseProduct(tier);
+      Logger.info('PRICING_TABLE', 'Purchase result:', result);
+      if (result.success) {
+        if (onModalClose) onModalClose();
         window.location.href = '/upgrade-success';
       }
-      // If not successful, error is already set by the hook
     } catch (err) {
       Logger.error('PRICING_TABLE', 'Purchase failed:', err);
     } finally {
@@ -84,23 +124,13 @@ export const PricingTable: React.FC<PricingTableProps> = ({
 
   const handleAppleRestore = useCallback(async () => {
     if (!applePayments) return;
-
     Logger.info('PRICING_TABLE', 'Starting Apple restore');
     setInternalLoading(true);
-
     try {
       const result = await applePayments.restorePurchases();
       Logger.info('PRICING_TABLE', 'Restore result:', result);
-
       if (result.success) {
-        Logger.info('PRICING_TABLE', 'Restore successful! Navigating to /upgrade-success');
-
-        // Close modal if provided
-        if (onModalClose) {
-          onModalClose();
-        }
-
-        // Navigate to success page
+        if (onModalClose) onModalClose();
         window.location.href = '/upgrade-success';
       }
     } catch (err) {
@@ -110,306 +140,259 @@ export const PricingTable: React.FC<PricingTableProps> = ({
     }
   }, [applePayments, onModalClose]);
 
-  // On Apple, redirect to Apple subscription management instead of Stripe portal
   const handleManageSubscription = isAppleDevice && applePayments
-    ? () => {
-        Logger.info('PRICING_TABLE', `handleManageSubscription: Apple device, opening App Store subscriptions. isAppleDevice=${isAppleDevice}, applePayments=${!!applePayments}`);
-        openUrl('https://apps.apple.com/account/subscriptions')
-          .then(() => Logger.info('PRICING_TABLE', 'openUrl succeeded'))
-          .catch((err: unknown) => Logger.error('PRICING_TABLE', 'openUrl failed:', err));
-      }
-    : () => {
-        Logger.info('PRICING_TABLE', `handleManageSubscription: falling back to onManageSubscription. isAppleDevice=${isAppleDevice}, applePayments=${!!applePayments}`);
-        onManageSubscription();
-      };
+    ? () => openUrl('https://apps.apple.com/account/subscriptions')
+        .catch((err: unknown) => Logger.error('PRICING_TABLE', 'openUrl failed:', err))
+    : onManageSubscription;
 
-  // Determine which checkout handlers to use (Apple native or Stripe web)
-  const handlePlusCheckout = isAppleDevice && applePayments
-    ? () => handleApplePurchase('plus')
-    : onCheckoutPlus;
-  const handleProCheckout = isAppleDevice && applePayments
-    ? () => handleApplePurchase('pro')
-    : onCheckout;
-  const handleMaxCheckout = isAppleDevice && applePayments
-    ? () => handleApplePurchase('max')
-    : onCheckoutMax;
+  const handleProCheckout  = isAppleDevice && applePayments ? () => handleApplePurchase('pro')  : onCheckout;
+  const handleMaxCheckout  = isAppleDevice && applePayments ? () => handleApplePurchase('max')  : onCheckoutMax;
 
-  // Combine loading states
   const combinedLoading = isButtonLoading || internalLoading || (applePayments?.isLoading ?? false);
-  const combinedError = error || (applePayments?.error ?? null);
+  const combinedError   = error || (applePayments?.error ?? null);
 
-  // Use smaller sizing for non-modal contexts (like ObServerTab)
-  const containerClass = isTriggeredByQuotaError
-    ? "w-full max-w-6xl mx-auto p-4 sm:p-6 md:p-8 bg-white rounded-lg"  // Modal - larger
-    : "w-full max-w-6xl mx-auto p-4 sm:p-6 md:p-8 bg-white rounded-lg";  // Tab - same as modal
+  // ── table column helpers ──────────────────────────────────────────────────
+  const headerBase = "text-center px-3 pt-3 pb-2 text-sm font-bold";
+  const cellBase   = "text-center px-3 py-3";
+
+  const getHeaderClass = (tier: 'free' | 'pro' | 'max') => {
+    const current = effectiveStatus === tier;
+    if (tier === 'pro') return `${headerBase} rounded-t-lg ${current ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-900'}`;
+    if (tier === 'max') return `${headerBase} rounded-t-lg ${current ? 'bg-amber-500  text-white' : 'bg-amber-50  text-amber-900'}`;
+    return `${headerBase} bg-gray-50 text-gray-600`;
+  };
+
+  const getCellClass = (tier: 'notLoggedIn' | 'free' | 'pro' | 'max') => {
+    const current = tier !== 'notLoggedIn' && effectiveStatus === tier;
+    if (tier === 'pro') return `${cellBase} ${current ? 'bg-purple-50/60' : ''}`;
+    if (tier === 'max') return `${cellBase} ${current ? 'bg-amber-50/60'  : ''}`;
+    return cellBase;
+  };
+
+  const dataColCount = isAuthenticated ? 4 : 3; // label + data columns
 
   return (
-    <div className={containerClass}>
-      <div className="flex items-start gap-4 mb-4">
-        <div className="flex-shrink-0">
-          <Zap className={isTriggeredByQuotaError ? "h-12 w-12 text-purple-500" : "h-8 w-8 text-purple-500"} />
-        </div>
-        <div className="flex-1">
-          <h1 className={isTriggeredByQuotaError ? "text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight mb-2" : "text-xl sm:text-2xl font-bold text-gray-800 tracking-tight mb-2"}>{headline}</h1>
-          <p className={isTriggeredByQuotaError ? "text-base sm:text-lg text-gray-600 mb-3" : "text-sm sm:text-base text-gray-600 mb-2"}>{subheadline}</p>
+    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 bg-white rounded-lg">
+
+      {/* ── Header ── */}
+      <div className="flex items-start gap-3 mb-6">
+        <Zap className={`flex-shrink-0 mt-1 text-purple-500 ${isTriggeredByQuotaError ? 'h-10 w-10' : 'h-7 w-7'}`} />
+        <div>
+          <h1 className={`font-bold text-gray-800 tracking-tight ${isTriggeredByQuotaError ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'}`}>
+            {headline}
+          </h1>
+          <p className="text-sm sm:text-base text-gray-500 mt-1">{subheadline}</p>
           {isTriggeredByQuotaError && (
-            <div className="flex items-center space-x-3 text-xs text-gray-500">
+            <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
               <span>🚀 2k+ users</span>
               <span>•</span>
               <span>⭐ 1k+ GitHub stars</span>
               <span>•</span>
-              <span>⚡ Processing 100k+ captures daily</span>
+              <span>⚡ 100k+ captures/day</span>
             </div>
           )}
         </div>
       </div>
 
-      <div className={isTriggeredByQuotaError ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 items-start" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 items-start"}>
-        {/* Column 1: Free Tier */}
-        <div className={`relative border rounded-lg p-4 grid grid-rows-[auto_1fr_auto] h-full bg-white shadow-md ${status === 'free' && isTriggeredByQuotaError ? 'border-gray-400 border-2' : ''}`}>
-           {status === 'free' && isTriggeredByQuotaError && (
-             <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-               <div className="bg-gray-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-6 py-1 whitespace-nowrap">Current</div>
-             </div>
-           )}
-          <div className="text-center mb-4">
-            <Server className="mx-auto h-12 w-12 text-gray-500 mb-3" />
-            <h2 className="text-2xl font-bold text-gray-800">Quick Start</h2>
-            <p className="text-gray-500 text-sm">Perfect for trying out Observer</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">$0<span className="text-base font-normal">/month</span></p>
+      {/* ── Comparison Table ── */}
+      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm mb-6">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-50 w-2/5">
+                Features
+              </th>
+              {isAuthenticated ? (
+                <>
+                  <th className={getHeaderClass('free')}>
+                    <div>Quick Start</div>
+                    <div className="text-xs font-normal text-gray-400 mt-0.5">Free</div>
+                  </th>
+                  <th className={getHeaderClass('pro')}>
+                    <div>Pro</div>
+                    <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'pro' ? 'text-purple-200' : 'text-purple-500'}`}>
+                      ${isAppleDevice ? '22.99' : '20'} / mo
+                    </div>
+                  </th>
+                  <th className={getHeaderClass('max')}>
+                    <div>Max</div>
+                    <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'max' ? 'text-amber-100' : 'text-amber-500'}`}>
+                      ${isAppleDevice ? '99.99' : '80'} / mo
+                    </div>
+                  </th>
+                </>
+              ) : (
+                <>
+                  <th className={`${headerBase} bg-gray-50 text-gray-500`}>Not Logged In</th>
+                  <th className={`${headerBase} bg-purple-50 text-purple-900 rounded-t-lg`}>
+                    <div>Quick Start</div>
+                    <div className="text-xs font-normal text-purple-500 mt-0.5">Free</div>
+                  </th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {featureGroups.map((group) => (
+              <React.Fragment key={group.group}>
+                {/* Group header row */}
+                <tr className="bg-gray-50/80">
+                  <td colSpan={dataColCount} className="px-4 py-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                      {group.group}
+                    </span>
+                  </td>
+                </tr>
+                {/* Feature rows */}
+                {group.rows.filter(row => isAuthenticated || !row.sparkle).map((row, i) => (
+                  <tr key={row.label} className={`border-t border-gray-100 ${row.sparkle ? 'bg-purple-200/60' : i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                    <td className="px-4 py-3 text-sm font-medium">
+                      {row.sparkle ? (
+                        <span className="inline-flex items-center gap-1.5 text-gray-700 font-medium">
+                          {row.label}
+                          <Sparkles className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                        </span>
+                      ) : (
+                        <span className="text-gray-700">{row.label}</span>
+                      )}
+                    </td>
+                    {isAuthenticated ? (
+                      <>
+                        <td className={getCellClass('free')}>{renderCell(row.free)}</td>
+                        <td className={getCellClass('pro')}>{renderCell(row.pro)}</td>
+                        <td className={getCellClass('max')}>{renderCell(row.max)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className={getCellClass('notLoggedIn')}>{renderCell(row.notLoggedIn)}</td>
+                        <td className={getCellClass('free')}>{renderCell(row.free)}</td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Plan Cards / CTA ── */}
+      {isAuthenticated ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+          {/* Free Card */}
+          <div className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-colors ${
+            effectiveStatus === 'free' ? 'border-gray-400 bg-gray-50' : 'border-gray-200 bg-white'
+          }`}>
+            <div className="flex items-center gap-2">
+              <Server className="h-5 w-5 text-gray-500" />
+              <span className="font-bold text-gray-800">Quick Start</span>
+              {effectiveStatus === 'free' && (
+                <span className="ml-auto text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">Current</span>
+              )}
+            </div>
+            <p className="text-2xl font-bold text-gray-900">
+              $0<span className="text-sm font-normal text-gray-400"> / mo</span>
+            </p>
+            <button disabled className="w-full py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">
+              Free Forever
+            </button>
           </div>
-          <ul className="space-y-2.5 mb-6 text-sm">
-            <li className="flex items-start">
-              <HardDrive className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Local Monitoring 24/7 </strong></span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Unlimited Notifications: </strong>Discord, Email, Telegram and Pushover
-              </span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Notifications: </strong> SMS, Phone Calls and WhatsApp <strong>5/Day</strong>
-              </span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Cloud Monitoring:</strong> 1 hr/day
-                <CreditInfoButton dailyCredits={60} tierName="Free tier" className="ml-1 align-middle" />
-                {isHalfwayWarning && <span className="block text-yellow-600 text-xs mt-1">(Halfway there!)</span>}
-              </span>
-            </li>
-            <li className="flex items-start">
-              <HeartCrack className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Support:</strong> Limited (solo dev!)</span>
-            </li>
-          </ul>
+
+          {/* Pro Card */}
+          <div className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-colors ${
+            effectiveStatus === 'pro' ? 'border-purple-500 bg-purple-50' : 'border-purple-200 bg-white'
+          }`}>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              <span className="font-bold text-purple-900">Pro</span>
+              {effectiveStatus === 'pro' && (
+                <span className="ml-auto text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full font-medium">Current</span>
+              )}
+            </div>
+            <p className="text-2xl font-bold text-purple-900">
+              ${isAppleDevice ? '22.99' : '20'}<span className="text-sm font-normal text-purple-400"> / mo</span>
+            </p>
+            {effectiveStatus === 'pro' ? (
+              <button
+                onClick={handleManageSubscription}
+                disabled={combinedLoading}
+                className="w-full py-2 rounded-lg border border-purple-200 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {combinedLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                Manage Subscription
+              </button>
+            ) : (
+              <button
+                onClick={handleProCheckout}
+                disabled={combinedLoading}
+                className="w-full py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {combinedLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Start Free Trial
+              </button>
+            )}
+          </div>
+
+          {/* Max Card */}
+          <div className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-colors ${
+            effectiveStatus === 'max' ? 'border-amber-500 bg-amber-50' : 'border-amber-200 bg-white'
+          }`}>
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              <span className="font-bold text-amber-900">Max</span>
+              {effectiveStatus === 'max' && (
+                <span className="ml-auto text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-medium">Current</span>
+              )}
+            </div>
+            <p className="text-2xl font-bold text-amber-900">
+              ${isAppleDevice ? '99.99' : '80'}<span className="text-sm font-normal text-amber-400"> / mo</span>
+            </p>
+            {effectiveStatus === 'max' ? (
+              <button
+                onClick={handleManageSubscription}
+                disabled={combinedLoading}
+                className="w-full py-2 rounded-lg border border-amber-200 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {combinedLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                Manage Subscription
+              </button>
+            ) : (
+              <button
+                onClick={handleMaxCheckout}
+                disabled={combinedLoading}
+                className="w-full py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-md"
+              >
+                {combinedLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Upgrade to Max
+              </button>
+            )}
+          </div>
+
+        </div>
+      ) : (
+        /* Not authenticated: sign-up CTA */
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 text-center border border-purple-100">
+          <p className="text-gray-700 font-medium mb-1">
+            Log in to unlock cloud monitoring, alert builder & more
+          </p>
           <button
-            disabled
-            className="w-full inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-bold rounded-md text-gray-400 bg-gray-100 cursor-not-allowed"
+            onClick={onLogin}
+            className="inline-flex items-center px-8 py-3 rounded-lg text-base font-bold text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-md"
           >
-            Current Plan
+            Get Started
           </button>
         </div>
+      )}
 
-        {/* Column 2: Plus Tier */}
-        <div className={`relative border-2 border-blue-500 rounded-lg p-4 grid grid-rows-[auto_1fr_auto] h-full bg-blue-50 shadow-lg ${status === 'plus' && isTriggeredByQuotaError ? 'ring-2 ring-blue-600' : ''}`}>
-          {status === 'plus' && isTriggeredByQuotaError && (
-            <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-              <div className="bg-blue-600 text-white text-xs font-bold uppercase tracking-wider rounded-full px-6 py-1 whitespace-nowrap">Current</div>
-            </div>
-          )}
-          {status !== 'plus' && status === 'free' && (
-            <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-              <div className="bg-blue-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap">Popular</div>
-            </div>
-          )}
-          <div className="text-center mb-4">
-            <Zap className="mx-auto h-12 w-12 text-blue-500 mb-3" />
-            <h2 className="text-2xl font-bold text-blue-800">Observer Plus</h2>
-            <p className="text-blue-700 text-sm">Unlimited alerts for local monitoring</p>
-            <p className="text-3xl font-bold text-blue-900 mt-2">${isAppleDevice ? '5.99' : '5'}<span className="text-base font-normal">/month</span></p>
-          </div>
-          <ul className="space-y-2.5 mb-6 text-sm">
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Unlimited notifications:</strong> SMS, Phone Calls and WhatsApp!
-</span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Unlimited Alert Builder</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Heart className="h-5 w-5 text-pink-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Better support</strong></span>
-            </li>
-          </ul>
-          {status === 'plus' ? (
-            <button
-              onClick={handleManageSubscription}
-              disabled={combinedLoading}
-              className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 disabled:bg-gray-300 transition-colors"
-            >
-              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
-              Manage Subscription
-            </button>
-          ) : (
-            <button
-              onClick={isAuthenticated ? handlePlusCheckout : onLogin}
-              disabled={combinedLoading}
-              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
-            >
-              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-              Upgrade to Plus
-            </button>
-          )}
-        </div>
-
-        {/* Column 3: Pro Tier */}
-        <div className={`relative border-2 border-purple-500 rounded-lg p-4 grid grid-rows-[auto_1fr_auto] h-full bg-purple-50 shadow-lg ${status === 'pro' && isTriggeredByQuotaError ? 'ring-2 ring-purple-600' : ''}`}>
-          {status === 'pro' && isTriggeredByQuotaError && (
-            <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-              <div className="bg-purple-600 text-white text-xs font-bold uppercase tracking-wider rounded-full px-6 py-1 whitespace-nowrap">Current</div>
-            </div>
-          )}
-          {status !== 'pro' && (
-            <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-              <div className="bg-purple-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap">Best Value</div>
-            </div>
-          )}
-          <div className="text-center mb-4">
-            <Sparkles className="mx-auto h-12 w-12 text-purple-500 mb-3" />
-            <h2 className="text-2xl font-bold text-purple-800">Observer Pro</h2>
-            <p className="text-purple-700 text-sm">Coordinate agent teams, solve complex tasks</p>
-            <p className="text-3xl font-bold text-purple-900 mt-2">${isAppleDevice ? '22.99' : '20'}<span className="text-base font-normal">/month</span></p>
-          </div>
-          <ul className="space-y-2.5 mb-6 text-sm">
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Cloud Monitoring:</strong> 8 hr/day!
-                <CreditInfoButton dailyCredits={480} tierName="Pro tier" className="ml-1 align-middle" />
-              </span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Premium Models</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Sparkles className="h-5 w-5 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Unlock AI Studio: Multi-Agent configurations!</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Unlimited notifications</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Unlimited Alert Builder</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Heart className="h-5 w-5 text-pink-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Better support</strong></span>
-            </li>
-          </ul>
-          {status === 'pro' ? (
-            <button
-              onClick={handleManageSubscription}
-              disabled={combinedLoading}
-              className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200 disabled:bg-gray-300 transition-colors"
-            >
-              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
-              Manage Subscription
-            </button>
-          ) : (
-            <button
-              onClick={isAuthenticated ? handleProCheckout : onLogin}
-              disabled={combinedLoading}
-              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 transition-colors"
-            >
-              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-              Start Free Trial
-            </button>
-          )}
-        </div>
-
-        {/* Column 4: Max Tier */}
-        <div className={`relative border-2 border-amber-500 rounded-lg p-4 grid grid-rows-[auto_1fr_auto] h-full bg-gradient-to-br from-amber-50 to-yellow-50 shadow-xl ${status === 'max' && isTriggeredByQuotaError ? 'ring-2 ring-amber-600' : ''}`}>
-          {status === 'max' && isTriggeredByQuotaError && (
-            <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-              <div className="bg-amber-600 text-white text-xs font-bold uppercase tracking-wider rounded-full px-6 py-1 whitespace-nowrap">Current</div>
-            </div>
-          )}
-          {status !== 'max' && (
-            <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-              <div className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap shadow-lg">Premium</div>
-            </div>
-          )}
-          <div className="text-center mb-4">
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <Zap className="h-12 w-12 text-amber-500" />
-            </div>
-            <h2 className="text-2xl font-bold text-amber-900">Observer Max</h2>
-            <p className="text-amber-800 text-sm font-semibold">Absolutely everything, unlimited</p>
-            <p className="text-3xl font-bold text-amber-900 mt-2">${isAppleDevice ? '99.99' : '80'}<span className="text-base font-normal">/month</span></p>
-          </div>
-          <ul className="space-y-2.5 mb-6 text-sm">
-            <li className="flex items-start">
-              <Zap className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>24/7 Unlimited Cloud Monitoring</strong>
-                <CreditInfoButton dailyCredits={2880} tierName="Max tier" className="ml-1 align-middle" />
-              </span>
-            </li>
-            <li className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Everything Unlimited</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Sparkles className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Unlimited Premium Models</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Sparkles className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Unlock AI Studio</strong></span>
-            </li>
-            <li className="flex items-start">
-              <Heart className="h-5 w-5 text-pink-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span><strong>Priority Support</strong></span>
-            </li>
-          </ul>
-          {status === 'max' ? (
-            <button
-              onClick={handleManageSubscription}
-              disabled={combinedLoading}
-              className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-amber-700 bg-amber-100 hover:bg-amber-200 disabled:bg-gray-300 transition-colors"
-            >
-              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
-              Manage Subscription
-            </button>
-          ) : (
-            <button
-              onClick={isAuthenticated ? handleMaxCheckout : onLogin}
-              disabled={combinedLoading}
-              className="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-md text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 disabled:bg-gray-300 transition-all shadow-md"
-            >
-              {combinedLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-              Upgrade to Max
-            </button>
-          )}
-        </div>
-      </div>
+      {/* ── Error ── */}
       {combinedError && (
-        <div className="text-center mt-8">
+        <div className="text-center mt-4">
           <p className="text-sm text-red-600 font-semibold">{combinedError}</p>
         </div>
       )}
-      {/* iOS Debug & Restore Purchases */}
+
+      {/* ── iOS: Restore & Load Products ── */}
       {isAppleDevice && applePayments && isAuthenticated && (
         <div className="text-center mt-4 flex justify-center gap-4">
           {applePayments.loadProducts && (
@@ -432,31 +415,26 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           </button>
         </div>
       )}
-      {/* Terms of Service & Privacy Policy - Required for App Store */}
-      <div className="text-center mt-6 pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-500">
+
+      {/* ── Terms (required for App Store) ── */}
+      <div className="text-center mt-6 pt-4 border-t border-gray-100">
+        <p className="text-xs text-gray-400">
           By subscribing, you agree to our{' '}
           {isIOS() ? (
             <>
-              <button
-                onClick={() => openUrl('https://observer-ai.com/#/Terms')}
-                className="text-blue-600 hover:text-blue-800 underline"
-              >
+              <button onClick={() => openUrl('https://observer-ai.com/#/Terms')} className="text-blue-500 hover:text-blue-700 underline">
                 Terms of Service
               </button>
               {' '}and{' '}
-              <button
-                onClick={() => openUrl('https://observer-ai.com/#/Privacy')}
-                className="text-blue-600 hover:text-blue-800 underline"
-              >
+              <button onClick={() => openUrl('https://observer-ai.com/#/Privacy')} className="text-blue-500 hover:text-blue-700 underline">
                 Privacy Policy
               </button>
             </>
           ) : (
             <>
-              <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">Terms of Service</a>
+              <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 underline">Terms of Service</a>
               {' '}and{' '}
-              <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">Privacy Policy</a>
+              <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 underline">Privacy Policy</a>
             </>
           )}
           .
