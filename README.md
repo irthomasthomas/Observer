@@ -2,17 +2,17 @@
 
 # 👁️ Observer AI
 
-[![Observer App Online](https://img.shields.io/badge/🌐_Try_Out-Online-blue?style=for-the-badge&color=4CAF50)](https://app.observer-ai.com/)
+[![Observer App Online](https://img.shields.io/badge/🌐_Try_Out-Web_App-blue?style=for-the-badge&color=4CAF50)](https://app.observer-ai.com/)
 [![Download App](https://img.shields.io/badge/⬇️_Download-Latest_Release-blue?style=for-the-badge&color=2196F3)](https://github.com/Roy3838/Observer/releases/latest/)
 
- [Website](https://observer-ai.com) | [WebApp](https://app.observer-ai.com) | [YouTube](https://www.youtube.com/@Observer-AI) | [Tiktok](https://www.tiktok.com/@observerai) | [Twitter](https://x.com/AppObserverAI) | [Discord](https://discord.com/invite/wnBb7ZQDUC)
+[YouTube](https://www.youtube.com/@Observer-AI) | [Tiktok](https://www.tiktok.com/@observerai) | [Instagram](https://www.instagram.com/observer_ai.tech/) | [Twitter](https://x.com/AppObserverAI) | [Discord](https://discord.com/invite/wnBb7ZQDUC) 
 
-### *Local Micro-Agents That Observe, Log and React*
+### *_Build powerful micro-agents that observe, log and react, so you don't have to._*
 
-Build powerful micro-agents that observe your digital world, remember what matters, and react intelligently—all while keeping your data **100% private and secure**.
+All while keeping your data **100% private and secure**.
 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-success)](https://roy3838.github.io/observer-ai)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
 
 
 
