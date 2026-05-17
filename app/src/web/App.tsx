@@ -858,7 +858,7 @@ function AppContent() {
 
         {/* ObServer Tab */}
         {activeTab === 'obServer' && (
-          <div className="px-4">
+          <div className="-mx-2 md:mx-0 md:px-4">
             <ObServerTab />
           </div>
         )}

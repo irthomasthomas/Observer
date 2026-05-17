@@ -172,7 +172,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   const dataColCount = isAuthenticated ? 4 : 3; // label + data columns
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 bg-white rounded-lg">
+    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 bg-white rounded-none sm:rounded-lg">
 
       {/* ── Header ── */}
       <div className="flex items-start gap-3 mb-6">
