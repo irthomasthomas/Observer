@@ -97,7 +97,7 @@ export const ObServerTab: React.FC = () => {
   // The main render path is now incredibly simple.
   // It renders the reusable table with props tailored for the general "Ob-Server" tab.
   return (
-    <div className="w-full pt-8">
+    <div className="w-full pt-2 md:pt-8">
       <PricingTable
         headline="Choose Your Way to Observe"
         subheadline=""

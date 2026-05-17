@@ -152,8 +152,8 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   const combinedError   = error || (applePayments?.error ?? null);
 
   // ── table column helpers ──────────────────────────────────────────────────
-  const headerBase = "text-center px-3 pt-3 pb-2 text-sm font-bold";
-  const cellBase   = "text-center px-3 py-3";
+  const headerBase = "text-center px-3 pt-2 pb-1 md:pt-3 md:pb-2 text-sm font-bold";
+  const cellBase   = "text-center px-3 py-2 md:py-3";
 
   const getHeaderClass = (tier: 'free' | 'pro' | 'max') => {
     const current = effectiveStatus === tier;
@@ -172,10 +172,10 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   const dataColCount = isAuthenticated ? 4 : 3; // label + data columns
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 bg-white rounded-none sm:rounded-lg">
+    <div className="w-full max-w-4xl mx-auto p-4 md:p-6 bg-white rounded-none md:rounded-lg">
 
       {/* ── Header ── */}
-      <div className="flex items-start gap-3 mb-6">
+      <div className="flex items-start gap-3 mb-3 md:mb-6">
         <Zap className={`flex-shrink-0 mt-1 text-purple-500 ${isTriggeredByQuotaError ? 'h-10 w-10' : 'h-7 w-7'}`} />
         <div>
           <h1 className={`font-bold text-gray-800 tracking-tight ${isTriggeredByQuotaError ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'}`}>
@@ -195,7 +195,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       </div>
 
       {/* ── Comparison Table ── */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm mb-6">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm mb-3 md:mb-6">
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-gray-200">
@@ -237,7 +237,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
               <React.Fragment key={group.group}>
                 {/* Group header row */}
                 <tr className="bg-gray-50/80">
-                  <td colSpan={dataColCount} className="px-4 py-2">
+                  <td colSpan={dataColCount} className="px-4 py-1 md:py-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
                       {group.group}
                     </span>
@@ -278,7 +278,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
 
       {/* ── Plan Cards / CTA ── */}
       {isAuthenticated ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
 
           {/* Free Card */}
           <div className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-colors ${
@@ -417,7 +417,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       )}
 
       {/* ── Terms (required for App Store) ── */}
-      <div className="text-center mt-6 pt-4 border-t border-gray-100">
+      <div className="text-center mt-3 pt-3 md:mt-6 md:pt-4 border-t border-gray-100">
         <p className="text-xs text-gray-400">
           By subscribing, you agree to our{' '}
           {isIOS() ? (
