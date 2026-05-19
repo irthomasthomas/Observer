@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   Loader2, Zap, ExternalLink,
-  Check, X, Server, Sparkles, RotateCcw
+  Check, X, Sparkles, RotateCcw
 } from 'lucide-react';
 import { isIOS } from '../utils/platform';
 import { Logger } from '@utils/logging';
@@ -152,7 +152,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   const combinedError   = error || (applePayments?.error ?? null);
 
   // ── table column helpers ──────────────────────────────────────────────────
-  const headerBase = "text-center px-3 pt-2 pb-1 md:pt-3 md:pb-2 text-sm font-bold";
+  const headerBase = "text-center px-3 pt-2 pb-3 md:pt-3 md:pb-4 text-sm font-bold";
   const cellBase   = "text-center px-3 py-2 md:py-3";
 
   const getHeaderClass = (tier: 'free' | 'pro' | 'max') => {
@@ -172,18 +172,18 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   const dataColCount = isAuthenticated ? 4 : 3; // label + data columns
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 md:p-6 bg-white rounded-none md:rounded-lg">
+    <div className="w-full max-w-4xl mx-auto p-3 md:p-5 bg-white rounded-none md:rounded-lg">
 
       {/* ── Header ── */}
-      <div className="flex items-start gap-3 mb-3 md:mb-6">
-        <Zap className={`flex-shrink-0 mt-1 text-purple-500 ${isTriggeredByQuotaError ? 'h-10 w-10' : 'h-7 w-7'}`} />
+      <div className="flex items-start gap-3 mb-3 md:mb-4">
+        <Zap className={`flex-shrink-0 mt-0.5 text-purple-500 ${isTriggeredByQuotaError ? 'h-8 w-8' : 'h-6 w-6'}`} />
         <div>
-          <h1 className={`font-bold text-gray-800 tracking-tight ${isTriggeredByQuotaError ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'}`}>
+          <h1 className={`font-bold text-gray-800 tracking-tight ${isTriggeredByQuotaError ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'}`}>
             {headline}
           </h1>
-          <p className="text-sm sm:text-base text-gray-500 mt-1">{subheadline}</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{subheadline}</p>
           {isTriggeredByQuotaError && (
-            <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
               <span>🚀 2k+ users</span>
               <span>•</span>
               <span>⭐ 1k+ GitHub stars</span>
@@ -194,8 +194,8 @@ export const PricingTable: React.FC<PricingTableProps> = ({
         </div>
       </div>
 
-      {/* ── Comparison Table ── */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm mb-3 md:mb-6">
+      {/* ── Comparison Table with pricing + CTA embedded in headers ── */}
+      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm mb-3 md:mb-4">
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-gray-200">
@@ -204,21 +204,81 @@ export const PricingTable: React.FC<PricingTableProps> = ({
               </th>
               {isAuthenticated ? (
                 <>
+                  {/* Free column */}
                   <th className={getHeaderClass('free')}>
                     <div>Quick Start</div>
-                    <div className="text-xs font-normal text-gray-400 mt-0.5">Free</div>
+                    <div className="text-xs font-normal text-gray-400 mt-0.5">$0 / mo</div>
+                    {effectiveStatus === 'free' ? (
+                      <span className="mt-2 block text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                        Current
+                      </span>
+                    ) : (
+                      <button disabled className="mt-2 w-full py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">
+                        Free Forever
+                      </button>
+                    )}
                   </th>
+                  {/* Pro column */}
                   <th className={getHeaderClass('pro')}>
                     <div>Pro</div>
                     <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'pro' ? 'text-purple-200' : 'text-purple-500'}`}>
                       ${isAppleDevice ? '22.99' : '20'} / mo
                     </div>
+                    {effectiveStatus === 'pro' ? (
+                      <>
+                        <span className="mt-2 block text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                          Current
+                        </span>
+                        <button
+                          onClick={handleManageSubscription}
+                          disabled={combinedLoading}
+                          className="mt-1.5 w-full py-1.5 rounded-lg border border-purple-300 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                        >
+                          {combinedLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                          Manage
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleProCheckout}
+                        disabled={combinedLoading}
+                        className="mt-2 w-full py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 hover:scale-105 disabled:opacity-50 transition-all flex items-center justify-center gap-1 shadow-md ring-2 ring-purple-300"
+                      >
+                        {combinedLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                        Free Trial
+                      </button>
+                    )}
                   </th>
+                  {/* Max column */}
                   <th className={getHeaderClass('max')}>
                     <div>Max</div>
                     <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'max' ? 'text-amber-100' : 'text-amber-500'}`}>
                       ${isAppleDevice ? '99.99' : '80'} / mo
                     </div>
+                    {effectiveStatus === 'max' ? (
+                      <>
+                        <span className="mt-2 block text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                          Current
+                        </span>
+                        <button
+                          onClick={handleManageSubscription}
+                          disabled={combinedLoading}
+                          className="mt-1.5 w-full py-1.5 rounded-lg border border-amber-300 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                        >
+                          {combinedLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                          Manage
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleMaxCheckout}
+                        disabled={combinedLoading}
+                        className="mt-2 w-full py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 hover:scale-105 disabled:opacity-50 transition-all flex items-center justify-center gap-1 shadow-md ring-2 ring-amber-300"
+                      >
+                        {combinedLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                        Upgrade
+                      </button>
+                    )}
                   </th>
                 </>
               ) : (
@@ -227,6 +287,12 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                   <th className={`${headerBase} bg-purple-50 text-purple-900 rounded-t-lg`}>
                     <div>Quick Start</div>
                     <div className="text-xs font-normal text-purple-500 mt-0.5">Free</div>
+                    <button
+                      onClick={onLogin}
+                      className="mt-2 w-full py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 hover:scale-105 transition-all shadow-md ring-2 ring-purple-300"
+                    >
+                      Get Started
+                    </button>
                   </th>
                 </>
               )}
@@ -235,7 +301,6 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <tbody>
             {featureGroups.map((group) => (
               <React.Fragment key={group.group}>
-                {/* Group header row */}
                 <tr className="bg-gray-50/80">
                   <td colSpan={dataColCount} className="px-4 py-1 md:py-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
@@ -243,7 +308,6 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                     </span>
                   </td>
                 </tr>
-                {/* Feature rows */}
                 {group.rows.filter(row => isAuthenticated || !row.sparkle).map((row, i) => (
                   <tr key={row.label} className={`border-t border-gray-100 ${row.sparkle ? 'bg-purple-200/60' : i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
                     <td className="px-4 py-3 text-sm font-medium">
@@ -276,125 +340,16 @@ export const PricingTable: React.FC<PricingTableProps> = ({
         </table>
       </div>
 
-      {/* ── Plan Cards / CTA ── */}
-      {isAuthenticated ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
-
-          {/* Free Card */}
-          <div className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-colors ${
-            effectiveStatus === 'free' ? 'border-gray-400 bg-gray-50' : 'border-gray-200 bg-white'
-          }`}>
-            <div className="flex items-center gap-2">
-              <Server className="h-5 w-5 text-gray-500" />
-              <span className="font-bold text-gray-800">Quick Start</span>
-              {effectiveStatus === 'free' && (
-                <span className="ml-auto text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">Current</span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-gray-900">
-              $0<span className="text-sm font-normal text-gray-400"> / mo</span>
-            </p>
-            <button disabled className="w-full py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">
-              Free Forever
-            </button>
-          </div>
-
-          {/* Pro Card */}
-          <div className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-colors ${
-            effectiveStatus === 'pro' ? 'border-purple-500 bg-purple-50' : 'border-purple-200 bg-white'
-          }`}>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-purple-500" />
-              <span className="font-bold text-purple-900">Pro</span>
-              {effectiveStatus === 'pro' && (
-                <span className="ml-auto text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full font-medium">Current</span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-purple-900">
-              ${isAppleDevice ? '22.99' : '20'}<span className="text-sm font-normal text-purple-400"> / mo</span>
-            </p>
-            {effectiveStatus === 'pro' ? (
-              <button
-                onClick={handleManageSubscription}
-                disabled={combinedLoading}
-                className="w-full py-2 rounded-lg border border-purple-200 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-              >
-                {combinedLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-                Manage Subscription
-              </button>
-            ) : (
-              <button
-                onClick={handleProCheckout}
-                disabled={combinedLoading}
-                className="w-full py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-              >
-                {combinedLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                Start Free Trial
-              </button>
-            )}
-          </div>
-
-          {/* Max Card */}
-          <div className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-colors ${
-            effectiveStatus === 'max' ? 'border-amber-500 bg-amber-50' : 'border-amber-200 bg-white'
-          }`}>
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-500" />
-              <span className="font-bold text-amber-900">Max</span>
-              {effectiveStatus === 'max' && (
-                <span className="ml-auto text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-medium">Current</span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-amber-900">
-              ${isAppleDevice ? '99.99' : '80'}<span className="text-sm font-normal text-amber-400"> / mo</span>
-            </p>
-            {effectiveStatus === 'max' ? (
-              <button
-                onClick={handleManageSubscription}
-                disabled={combinedLoading}
-                className="w-full py-2 rounded-lg border border-amber-200 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-              >
-                {combinedLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-                Manage Subscription
-              </button>
-            ) : (
-              <button
-                onClick={handleMaxCheckout}
-                disabled={combinedLoading}
-                className="w-full py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-md"
-              >
-                {combinedLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                Upgrade to Max
-              </button>
-            )}
-          </div>
-
-        </div>
-      ) : (
-        /* Not authenticated: sign-up CTA */
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 text-center border border-purple-100">
-          <p className="text-gray-700 font-medium mb-1">
-            Log in to unlock cloud monitoring, alert builder & more
-          </p>
-          <button
-            onClick={onLogin}
-            className="inline-flex items-center px-8 py-3 rounded-lg text-base font-bold text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-md"
-          >
-            Get Started
-          </button>
-        </div>
-      )}
-
       {/* ── Error ── */}
       {combinedError && (
-        <div className="text-center mt-4">
+        <div className="text-center mt-3">
           <p className="text-sm text-red-600 font-semibold">{combinedError}</p>
         </div>
       )}
 
       {/* ── iOS: Restore & Load Products ── */}
       {isAppleDevice && applePayments && isAuthenticated && (
-        <div className="text-center mt-4 flex justify-center gap-4">
+        <div className="text-center mt-3 flex justify-center gap-4">
           {applePayments.loadProducts && (
             <button
               onClick={applePayments.loadProducts}
@@ -417,7 +372,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       )}
 
       {/* ── Terms (required for App Store) ── */}
-      <div className="text-center mt-3 pt-3 md:mt-6 md:pt-4 border-t border-gray-100">
+      <div className="text-center mt-3 pt-3 border-t border-gray-100">
         <p className="text-xs text-gray-400">
           By subscribing, you agree to our{' '}
           {isIOS() ? (
