@@ -155,6 +155,7 @@ jobs:
     needs: [create-release, build-tauri]
     name: Sign Windows Installers
     runs-on: windows-latest
+    environment: windows-signing
     permissions:
       contents: write
 
