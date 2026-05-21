@@ -12,6 +12,14 @@ on:
         description: 'Tag to build (e.g., v2.1.0)'
         required: true
         type: string
+      signing_policy:
+        description: 'SignPath signing policy'
+        required: false
+        type: choice
+        options:
+          - release-signing
+          - test-signing
+        default: release-signing
 
 jobs:
   create-release:
@@ -41,7 +49,6 @@ jobs:
 
   build-tauri:
     needs: create-release
-    # Use a strategy matrix to build on both windows and macos
     permissions:
       contents: write
     strategy:
@@ -58,18 +65,19 @@ jobs:
             target: x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.platform.os }}
+    outputs:
+      # Only set by the windows-latest matrix job; used by sign-windows
+      windows-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+
     steps:
-      # 1. Checkout the repository code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Install Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18 # Using LTS version 18, which is very stable
+          node-version: 18
 
-      # 3. Install Rust toolchain
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -78,7 +86,6 @@ jobs:
         if: matrix.platform.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          # Pin libwebkit2gtk to 2.44.x to avoid EGL issues on Fedora/Arch
           sudo apt-get install -y libglib2.0-dev libgtk-3-dev libappindicator3-dev librsvg2-dev patchelf libpipewire-0.3-dev libgbm-dev
           sudo apt-get install -y --allow-downgrades \
             libwebkit2gtk-4.1-dev=2.44.* \
@@ -87,31 +94,20 @@ jobs:
             libjavascriptcoregtk-4.1-dev=2.44.* \
             libjavascriptcoregtk-4.1-0=2.44.* \
             gir1.2-javascriptcoregtk-4.1=2.44.*
-      #
-      # - name: Workaround for AppImage project migration
-      #   if: matrix.platform.os == 'ubuntu-latest'
-      #   run: |
-      #     mkdir -p ~/.cache/tauri-bundler/
-      #     wget -O ~/.cache/tauri-bundler/AppRun-x86_64 https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-      #     chmod +x ~/.cache/tauri-bundler/AppRun-x86_64
 
-      # 4. Install pnpm
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      # 5. Install frontend dependencies
       - name: Install app dependencies
         run: pnpm install
         working-directory: ./app
 
-      # 6. Build the frontend
       - name: Build frontend
         run: pnpm build
         working-directory: ./app
 
-      # 7. Build the observe CLI and stage it as a named sidecar for Tauri
       - name: Build observe CLI
         run: cargo build --release --manifest-path cli/Cargo.toml
 
@@ -125,28 +121,120 @@ jobs:
             cp cli/target/release/observe "app/desktop/binaries/observe-${{ matrix.platform.target }}"
           fi
 
-      # 8. Build the Tauri application and create a GitHub release
       - name: Build and release Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Required for llama-cpp C++ filesystem features (CMAKE_ prefix passes to cmake)
           CMAKE_OSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '10.15' || '' }}
           MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '10.15' || '' }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          # macOS code signing and notarization
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          # Desktop Tauri project location
           projectPath: ./app/desktop
-
-          # Upload to the pre-created release (avoids race condition with parallel matrix jobs)
           releaseId: ${{ needs.create-release.outputs.release_id }}
 
-      # Windows code signing is handled in a separate workflow (sign-windows.yml)
-      # This allows for manual approval in SignPath UI before signing completes
+      # Upload unsigned Windows installers as a workflow artifact so sign-windows can consume
+      # them directly (satisfies SignPath trusted-build requirement: artifacts must be built
+      # within the same workflow that submits the signing request, not downloaded externally)
+      - name: Upload unsigned Windows installers
+        id: upload-unsigned
+        if: matrix.platform.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows-installers
+          path: |
+            app/desktop/target/release/bundle/nsis/*.exe
+            app/desktop/target/release/bundle/msi/*.msi
+
+  sign-windows:
+    needs: [create-release, build-tauri]
+    name: Sign Windows Installers
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Sign Windows installers with SignPath
+        id: signpath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'observer'
+          signing-policy-slug: '${{ inputs.signing_policy || ''release-signing'' }}'
+          artifact-configuration-slug: 'windows-nsis-installer'
+          github-artifact-id: '${{ needs.build-tauri.outputs.windows-artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: 'signed-windows'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0"
+
+      - name: Re-generate Tauri updater signatures
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path "signed-windows" -Recurse -Filter "*.exe" | ForEach-Object {
+            cargo tauri signer sign --private-key "$env:TAURI_SIGNING_PRIVATE_KEY" --password "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$($_.FullName)"
+          }
+          Get-ChildItem -Path "signed-windows" -Recurse -Filter "*.msi" | ForEach-Object {
+            cargo tauri signer sign --private-key "$env:TAURI_SIGNING_PRIVATE_KEY" --password "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$($_.FullName)"
+          }
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: Update latest.json with new Windows signatures
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.tag || github.ref_name }}"
+
+          gh release download $tag --pattern "latest.json" --dir "." --clobber
+          $latestJson = Get-Content -Path "latest.json" -Raw | ConvertFrom-Json
+
+          $nsisExe = Get-ChildItem -Path "signed-windows" -Recurse -Filter "*-setup.exe" | Select-Object -First 1
+          $msiFile = Get-ChildItem -Path "signed-windows" -Recurse -Filter "*.msi" | Select-Object -First 1
+
+          if ($nsisExe) {
+            $nsisSignature = Get-Content -Path "$($nsisExe.FullName).sig" -Raw
+            if ($latestJson.platforms.'windows-x86_64-nsis') {
+              $latestJson.platforms.'windows-x86_64-nsis'.signature = $nsisSignature.Trim()
+            }
+          }
+          if ($msiFile) {
+            $msiSignature = Get-Content -Path "$($msiFile.FullName).sig" -Raw
+            if ($latestJson.platforms.'windows-x86_64') {
+              $latestJson.platforms.'windows-x86_64'.signature = $msiSignature.Trim()
+            }
+            if ($latestJson.platforms.'windows-x86_64-msi') {
+              $latestJson.platforms.'windows-x86_64-msi'.signature = $msiSignature.Trim()
+            }
+          }
+
+          $latestJson | ConvertTo-Json -Depth 10 | Set-Content -Path "latest.json" -Encoding UTF8
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload signed installers and updated latest.json to release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          draft: true
+          files: |
+            signed-windows/**/*.exe
+            signed-windows/**/*.exe.sig
+            signed-windows/**/*.msi
+            signed-windows/**/*.msi.sig
+            latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
