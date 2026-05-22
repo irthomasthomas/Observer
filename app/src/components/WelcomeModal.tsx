@@ -167,21 +167,25 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
           <div className="p-4 md:p-8">
             {/* Header */}
             <div className="mb-3 md:mb-6">
-              <h2 className="text-lg md:text-2xl font-bold text-gray-900 mb-1">No sign-in? Totally fine 🔒</h2>
+              <h2 className="text-lg md:text-2xl font-bold text-gray-900 mb-1">Trust me, the UX will suck.</h2>
               <p className="text-xs md:text-base text-gray-600 leading-relaxed">
-                Observer works without an account. Just know a few things are limited without logging in:
+                Observer <em>works</em> without an account. But a lot of things are limited:
               </p>
             </div>
 
             {/* What's limited */}
             <div className="space-y-2 mb-3 md:mb-6">
-              <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg p-2.5 md:p-3">
-                <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs md:text-sm font-semibold text-gray-800">Easy AI Agent Creator and most notifications won't work</p>
-                  <p className="text-xs text-gray-500 mt-0.5 hidden md:block">Building agents with AI assistance requires a cloud model, you'd need to set up your own OpenAI-compatible server. Email, Telegram, SMS, Voice Calling and Whatsapp need an account. Discord webhooks still work.</p>
-                  <p className="text-xs text-gray-500 mt-0.5 md:hidden">Requires a cloud model or your own OpenAI-compatible server.</p>
-                </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 md:p-3">
+                <ul className="space-y-1.5">
+                  <li className="flex items-center gap-2.5 text-xs md:text-sm font-semibold text-gray-800">
+                    <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                    Agent creator won't work, you'll have to create them manually!
+                  </li>
+                  <li className="flex items-center gap-2.5 text-xs md:text-sm font-semibold text-gray-800">
+                    <Zap className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                    Most notifications won't work
+                  </li>
+                </ul>
               </div>
             </div>
 
@@ -195,13 +199,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               </div>
             )}
 
-            {/* Tip */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 md:p-3 mb-3 md:mb-6">
-              <p className="text-xs md:text-sm text-blue-800 leading-relaxed">
-                <strong>Recommended:</strong> You can sign in <em>and</em> use local models! your data stays on-device either way, and you'll unlock the AI agent builder and all notifications.
-              </p>
-            </div>
-
             {/* Soft sign-in nudge */}
             <div className="mb-3 md:mb-6">
               <button
@@ -210,23 +207,25 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onV
               >
                 Sign In
               </button>
-              <p className="text-xs text-gray-400 text-center mt-2">Your data stays on-device even when signed in.</p>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                I recommend this, you can sign in <strong>and</strong> use local models. Your data stays on-device either way :)
+              </p>
             </div>
 
             {/* Type-to-confirm */}
             <div className="pt-3 md:pt-5 border-t border-gray-200">
-              <p className="text-xs text-gray-400 mb-2">Understood the limitations? Type <strong className="text-gray-500">I understand</strong> to continue without signing in:</p>
+              <p className="text-xs text-gray-400 mb-2">If you know what you're doing and already know how to use the framework, type <strong className="text-gray-500">I know how to use Observer</strong> to continue without signing in:</p>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={skipConfirmText}
                   onChange={(e) => setSkipConfirmText(e.target.value)}
-                  placeholder="I understand"
+                  placeholder="I know how to use Observer"
                   className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
                 />
                 <button
                   onClick={() => { Analytics.localModeContinue(); handleClose(); if (onPrivacyAccepted) onPrivacyAccepted(); }}
-                  disabled={skipConfirmText.trim().toLowerCase() !== 'i understand'}
+                  disabled={skipConfirmText.trim().toLowerCase() !== 'i know how to use observer'}
                   className="px-4 py-2 text-sm text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   Continue
