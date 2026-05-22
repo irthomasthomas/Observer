@@ -35,7 +35,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
     { id: 'memoryStore', icon: Database, label: 'Memories', color: 'blue' },
     { id: 'recordings', icon: Video, label: 'Recordings', color: 'blue' },
     { id: 'community', icon: Users, label: 'Community', color: 'blue' },
-    { id: 'obServer', icon: Sparkles, label: 'Upgrade', color: 'purple' },
+    { id: 'obServer', icon: Sparkles, label: 'Subscription', color: 'purple' },
     { id: 'settings', icon: Settings, label: 'Settings', color: 'blue' },
   ];
 
