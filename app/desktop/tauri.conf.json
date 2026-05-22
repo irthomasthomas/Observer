@@ -50,7 +50,7 @@
   "plugins": {
     "deep-link": {
       "desktop": [
-        { "scheme": "observer" }
+        { "schemes": ["observer"] }
       ]
     },
     "updater": {
