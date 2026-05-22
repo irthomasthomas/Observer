@@ -17,7 +17,6 @@ interface MarketplaceAgent {
 
 const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isAndroid = () => /Android/i.test(navigator.userAgent);
-const isMobileBrowser = () => isIOS() || isAndroid();
 
 const AgentShareLandingPage: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
