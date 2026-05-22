@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Terminal, MessageSquare, ChevronUp, HelpCircle } from 'lucide-react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { platform as getPlatform } from '@tauri-apps/plugin-os';
-import { BrowserRouter, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
 import { isMobile, confirm, isDesktop, isIOS, isAndroid } from '@utils/platform';
@@ -43,10 +43,7 @@ import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
 import MemoryStoreTab from '@components/MemoryStoreTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
-const MarketplaceRedirect: React.FC = () => {
-  const { agentId } = useParams<{ agentId: string }>();
-  return <Navigate to={`/?importAgent=${agentId}`} replace />;
-};
+import AgentShareLandingPage from '@components/AgentShareLandingPage';
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import { AcceptToS } from '@components/AcceptToS';
@@ -1323,7 +1320,7 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/upgrade-success" element={<UpgradeSuccessPage />} />
-            <Route path="/marketplace/:agentId" element={<MarketplaceRedirect />} />
+            <Route path="/marketplace/:agentId" element={<AgentShareLandingPage />} />
             <Route path="/*" element={<AppContent />} />
           </Routes>
         </BrowserRouter>

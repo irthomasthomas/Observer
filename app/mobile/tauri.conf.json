@@ -42,6 +42,7 @@
   "plugins": {
     "deep-link": {
       "mobile": [
+        { "scheme": "observer" },
         {
           "scheme": ["https"],
           "host": "auth.observer-ai.com",
