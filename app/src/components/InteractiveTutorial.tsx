@@ -318,7 +318,7 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
               ) : (
                 <>
                   <Sparkles size={18} />
-                  Let's Go!
+                 Start Tutorial 
                 </>
               )}
             </button>
