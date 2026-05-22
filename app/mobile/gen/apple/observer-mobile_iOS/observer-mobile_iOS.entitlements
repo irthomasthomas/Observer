@@ -5,6 +5,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:auth.observer-ai.com</string>
+		<string>applinks:app.observer-ai.com</string>
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
