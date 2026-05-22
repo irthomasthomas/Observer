@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Terminal, MessageSquare, ChevronUp, HelpCircle } from 'lucide-react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { platform as getPlatform } from '@tauri-apps/plugin-os';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
 import { isMobile, confirm, isDesktop, isIOS, isAndroid } from '@utils/platform';
@@ -43,6 +43,10 @@ import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
 import MemoryStoreTab from '@components/MemoryStoreTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
+const MarketplaceRedirect: React.FC = () => {
+  const { agentId } = useParams<{ agentId: string }>();
+  return <Navigate to={`/?importAgent=${agentId}`} replace />;
+};
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import { AcceptToS } from '@components/AcceptToS';
@@ -101,6 +105,7 @@ function AppContent() {
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isConversationalModalOpen, setIsConversationalModalOpen] = useState(false);
   const [aiEditMessage, setAiEditMessage] = useState<string | undefined>();
 
@@ -582,6 +587,93 @@ function AppContent() {
       window.removeEventListener('error', handleWindowError);
     };
   }, [isAuthenticated, isLoading, user]);
+
+  // Handle ?importAgent=id from marketplace share URL
+  useEffect(() => {
+    const importAgentId = searchParams.get('importAgent');
+    if (!importAgentId) return;
+
+    setSearchParams(prev => { prev.delete('importAgent'); return prev; }, { replace: true });
+
+    (async () => {
+      try {
+        const response = await fetch(`https://api.observer-ai.com/agents/${importAgentId}`);
+        if (!response.ok) return;
+        const agent = await response.json();
+        setStagedAgentConfig({
+          agent: {
+            id: agent.id,
+            name: agent.name,
+            description: agent.description,
+            model_name: agent.model_name,
+            system_prompt: agent.system_prompt,
+            loop_interval_seconds: agent.loop_interval_seconds,
+          },
+          code: agent.code,
+        });
+        setIsCreateMode(true);
+        setIsEditModalOpen(true);
+      } catch (err) {
+        Logger.error('APP', `Failed to fetch marketplace agent for import: ${importAgentId}`, err);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Deep link listener for agent sharing (Tauri only)
+  useEffect(() => {
+    if (!isDesktop() && !isMobile()) return;
+
+    let cleanup: (() => void) | undefined;
+
+    (async () => {
+      try {
+        const { onOpenUrl } = await import('@tauri-apps/plugin-deep-link');
+        const unlisten = await onOpenUrl(async (urls) => {
+          for (const rawUrl of urls) {
+            let agentId: string | null = null;
+            try {
+              const url = new URL(rawUrl);
+              if (url.protocol === 'observer:') {
+                // observer://marketplace/agent-id
+                agentId = url.pathname.replace(/^\//, '');
+              } else if (url.pathname.startsWith('/marketplace/')) {
+                // https://app.observer-ai.com/marketplace/agent-id
+                agentId = url.pathname.replace('/marketplace/', '');
+              }
+            } catch { continue; }
+
+            if (!agentId) continue;
+
+            try {
+              const response = await fetch(`https://api.observer-ai.com/agents/${agentId}`);
+              if (!response.ok) continue;
+              const agent = await response.json();
+              setStagedAgentConfig({
+                agent: {
+                  id: agent.id,
+                  name: agent.name,
+                  description: agent.description,
+                  model_name: agent.model_name,
+                  system_prompt: agent.system_prompt,
+                  loop_interval_seconds: agent.loop_interval_seconds,
+                },
+                code: agent.code,
+              });
+              setIsCreateMode(true);
+              setIsEditModalOpen(true);
+            } catch (err) {
+              Logger.error('DEEPLINK', `Failed to fetch agent from deep link: ${rawUrl}`, err);
+            }
+          }
+        });
+        cleanup = () => unlisten();
+      } catch {
+        // Plugin not available in this context
+      }
+    })();
+
+    return () => cleanup?.();
+  }, [fetchAgents]);
 
   // Start command SSE for hotkey support (desktop only)
   useEffect(() => {
@@ -1231,6 +1323,7 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/upgrade-success" element={<UpgradeSuccessPage />} />
+            <Route path="/marketplace/:agentId" element={<MarketplaceRedirect />} />
             <Route path="/*" element={<AppContent />} />
           </Routes>
         </BrowserRouter>

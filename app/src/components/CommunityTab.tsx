@@ -1,7 +1,7 @@
 // src/components/CommunityTab.tsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit, Flag, Send, X, Trash2 } from 'lucide-react';
+import { Download, RefreshCw, Info, Upload, AlertTriangle, Edit, Flag, Send, X, Trash2, Link } from 'lucide-react';
 import { saveAgent, CompleteAgent, getAgentCode, getAgentMemory } from '@utils/agent_database';
 import { Logger } from '@utils/logging';
 import { useAuth } from '@contexts/AuthContext';
@@ -44,6 +44,62 @@ interface AgentUpload {
   date_added: string;
 }
 
+const SPARKLE_DOTS = [
+  { dx: '-28px', dy: '-32px', delay: '0ms',   color: '#f87171' },
+  { dx:  '30px', dy: '-28px', delay: '40ms',  color: '#fb923c' },
+  { dx: '-36px', dy:   '8px', delay: '60ms',  color: '#f87171' },
+  { dx:  '38px', dy:  '10px', delay: '20ms',  color: '#fb923c' },
+  { dx:  '-8px', dy:  '36px', delay: '80ms',  color: '#f87171' },
+  { dx:  '10px', dy: '-40px', delay: '50ms',  color: '#fb923c' },
+  { dx: '-42px', dy: '-10px', delay: '30ms',  color: '#f87171' },
+  { dx:  '42px', dy: '-14px', delay: '70ms',  color: '#fb923c' },
+];
+
+const CopiedOverlay: React.FC = () => (
+  <span style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+    {/* sparkle dots — centered on the icon */}
+    {SPARKLE_DOTS.map((d, i) => (
+      <span
+        key={i}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: d.color,
+          '--dx': d.dx,
+          '--dy': d.dy,
+          animation: `sparkle-fly 0.55s cubic-bezier(0.25,0.46,0.45,0.94) ${d.delay} forwards`,
+        } as React.CSSProperties}
+      />
+    ))}
+    {/* "Copied!" text */}
+    <span
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        transform: 'translate(-20%, -90%) rotate(-6deg)',
+        transformOrigin: 'bottom left',
+        whiteSpace: 'nowrap',
+        fontWeight: 700,
+        fontSize: '0.75rem',
+        color: '#1f2937',
+        background: 'white',
+        borderRadius: 6,
+        padding: '2px 6px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        animation: 'copied-pop-tl 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards',
+        zIndex: 10,
+      }}
+    >
+      Copied!
+    </span>
+  </span>
+);
+
 const CommunityTab: React.FC = () => {
   const { isAuthenticated: auth0IsAuthenticated, login, user: auth0User, isLoading, getAccessToken } = useAuth();
   const [agents, setAgents] = useState<MarketplaceAgent[]>([]);
@@ -79,6 +135,9 @@ const CommunityTab: React.FC = () => {
   const [reportComment, setReportComment] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportStatus, setReportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  // State for share link feedback
+  const [copiedAgent, setCopiedAgent] = useState<string | null>(null);
 
   // File input ref for direct file uploads
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -382,6 +441,22 @@ const CommunityTab: React.FC = () => {
 
   const closeDetails = () => {
     setSelectedAgent(null);
+  };
+
+  const handleShare = async (agent: MarketplaceAgent) => {
+    const url = `https://app.observer-ai.com/marketplace/${agent.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    setCopiedAgent(agent.id);
+    setTimeout(() => setCopiedAgent(null), 2000);
   };
 
   // New function to handle edit button click
@@ -835,6 +910,15 @@ ${reportComment}
                   >
                     <Info className="h-5 w-5" />
                   </button>
+                  <button
+                    onClick={() => handleShare(agent)}
+                    className="p-2 rounded-md hover:bg-gray-100 relative"
+                    title="Copy share link"
+                    style={{ overflow: 'visible' }}
+                  >
+                    <Link className="h-5 w-5" />
+                    {copiedAgent === agent.id && <CopiedOverlay />}
+                  </button>
                   {isAuthorOfAgent(agent) && (
                     <>
                       <button
@@ -854,19 +938,6 @@ ${reportComment}
                       </button>
                     </>
                   )}
-                  <button
-                    onClick={async () => {
-                      const fullAgent = await handleGetAgent(agent.id);
-                      if (fullAgent) {
-                        await handleImport(fullAgent);
-                      }
-                    }}
-                    className="p-2 rounded-md hover:bg-blue-100 text-blue-600"
-                    title="Import agent"
-                    disabled={importing === agent.id}
-                  >
-                    <Download className={`h-5 w-5 ${importing === agent.id ? 'animate-pulse' : ''}`} />
-                  </button>
                 </div>
               </div>
               
@@ -913,13 +984,14 @@ ${reportComment}
                       await handleImport(fullAgent);
                     }
                   }}
-                  className={`px-4 py-2 rounded-md ${
+                  className={`px-4 py-2 rounded-md flex items-center gap-2 ${
                     importing === agent.id
                       ? 'bg-yellow-500 text-white hover:bg-yellow-600'
                       : 'bg-blue-500 text-white hover:bg-blue-600'
                   }`}
                 >
-                  {importing === agent.id ? '⏳ Importing...' : '⬇️ Import'}
+                  <Download className={`h-4 w-4 ${importing === agent.id ? 'animate-pulse' : ''}`} />
+                  {importing === agent.id ? 'Importing...' : 'Import'}
                 </button>
 
                 <div className="text-sm bg-gray-100 px-2 py-1 rounded">
@@ -1003,6 +1075,15 @@ ${reportComment}
                 Report
               </button>
               <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3">
+                <button
+                  onClick={() => handleShare(selectedAgent)}
+                  className="px-4 py-3 sm:py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors relative"
+                  style={{ overflow: 'visible' }}
+                >
+                  <Link className="h-4 w-4" />
+                  Share
+                  {copiedAgent === selectedAgent.id && <CopiedOverlay />}
+                </button>
                 {isAuthorOfAgent(selectedAgent) && (
                   <button
                     onClick={() => {

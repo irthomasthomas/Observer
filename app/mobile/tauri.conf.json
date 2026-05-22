@@ -47,6 +47,12 @@
           "host": "auth.observer-ai.com",
           "pathPrefix": ["/ios/com.observer.ai/callback"],
           "appLink": true
+        },
+        {
+          "scheme": ["https"],
+          "host": "app.observer-ai.com",
+          "pathPrefix": ["/marketplace/"],
+          "appLink": true
         }
       ]
     }

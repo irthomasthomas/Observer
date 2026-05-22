@@ -23,6 +23,7 @@
     "core:window:allow-set-focus",
     "shell:default",
     "dialog:default",
+    "deep-link:default",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-is-registered",
