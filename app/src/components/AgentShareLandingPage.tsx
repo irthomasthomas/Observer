@@ -88,7 +88,7 @@ const AgentShareLandingPage: React.FC = () => {
 
         {/* Wordmark */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          <img src="/logo.png" alt="Observer" className="h-6 w-6" />
+          <img src="/eye-logo-black.svg" alt="Observer" className="h-6 w-6" />
           <span className="text-slate-500 text-sm font-medium tracking-wide">Observer</span>
         </div>
 

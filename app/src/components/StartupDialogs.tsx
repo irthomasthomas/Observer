@@ -9,6 +9,7 @@ interface StartupDialogProps {
   onToggleObServer?: () => void;
   isAuthenticated: boolean;
   hostingContext: 'official-web' | 'self-hosted' | 'tauri';
+  hasPendingImport?: boolean;
 }
 
 
@@ -18,6 +19,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
   onLogin,
   onToggleObServer,
   isAuthenticated,
+  hasPendingImport,
 }) => {
 
   // Don't show dialog if user is already authenticated
@@ -61,9 +63,13 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
           </div>
 
           {/* Welcome Message */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Observer</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {hasPendingImport ? 'Sign in first!' : 'Welcome to Observer'}
+          </h1>
           <p className="text-gray-600 mb-8 leading-relaxed">
-            Local open-source micro-agents that observe, log and react, so you don't have to.
+            {hasPendingImport
+              ? "You need an account to import agents. Sign in, then click the share link again to import it."
+              : "Local open-source micro-agents that observe, log and react, so you don't have to."}
           </p>
 
           {/* Action Buttons */}
@@ -72,7 +78,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
               onClick={handleSignIn}
               className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium shadow-sm hover:shadow-md"
             >
-              Sign In to Start Creating Agents
+              {hasPendingImport ? 'Sign In to Import Agent' : 'Sign In to Start Creating Agents'}
             </button>
           </div>
 

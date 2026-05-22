@@ -102,6 +102,7 @@ function AppContent() {
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
+  const [hasPendingImport, setHasPendingImport] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [isConversationalModalOpen, setIsConversationalModalOpen] = useState(false);
   const [aiEditMessage, setAiEditMessage] = useState<string | undefined>();
@@ -610,6 +611,7 @@ function AppContent() {
         });
         setIsCreateMode(true);
         setIsEditModalOpen(true);
+        setHasPendingImport(true);
       } catch (err) {
         Logger.error('APP', `Failed to fetch marketplace agent for import: ${importAgentId}`, err);
       }
@@ -1200,6 +1202,7 @@ function AppContent() {
           onToggleObServer={() => setIsUsingObServer(true)}
           isAuthenticated={isAuthenticated}
           hostingContext={hostingContext}
+          hasPendingImport={hasPendingImport}
         />
       )}
 
