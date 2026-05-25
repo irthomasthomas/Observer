@@ -4,7 +4,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 import logging
-import httpx # Import httpx here if base class needs it, or just in subclasses
+import httpx
+from typing import Optional
 
 logger = logging.getLogger("api_handlers")
 # Basic logging setup if not configured elsewhere
@@ -12,6 +13,32 @@ logger = logging.getLogger("api_handlers")
 
 # Global registry for API handlers
 API_HANDLERS = {}
+
+# Shared HTTP client - one connection pool for the process lifetime
+_shared_http_client: Optional[httpx.AsyncClient] = None
+
+def get_http_client() -> httpx.AsyncClient:
+    """Return the shared HTTP client. Requires startup_handlers() to have run."""
+    if _shared_http_client is None:
+        raise RuntimeError("Shared HTTP client not initialized.")
+    return _shared_http_client
+
+async def startup_handlers():
+    """Initialize shared resources. Called from FastAPI lifespan on startup."""
+    global _shared_http_client
+    _shared_http_client = httpx.AsyncClient(
+        timeout=120.0,
+        limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+    )
+    logger.info("Shared HTTP client initialized")
+
+async def shutdown_handlers():
+    """Close shared resources. Called from FastAPI lifespan on shutdown."""
+    global _shared_http_client
+    if _shared_http_client:
+        await _shared_http_client.aclose()
+        _shared_http_client = None
+        logger.info("Shared HTTP client closed")
 
 class HandlerError(Exception):
     """Custom exception for handler-specific errors."""
@@ -71,16 +98,22 @@ class BaseAPIHandler:
 # --- Import and Instantiate REWRITTEN Handlers ---
 # Ensure these files contain the rewritten async versions below
 from gemini_handler import GeminiAPIHandler
-from gemini_pro_handler import GeminiProAPIHandler
 from openrouter_handler import OpenRouterAPIHandler
 from fireworks_handler import FireworksAPIHandler
 
 # Instantiate and register the handlers.
 # The __init__ method in BaseAPIHandler adds them to API_HANDLERS
 gemini_handler = GeminiAPIHandler()
-gemini_pro_handler = GeminiProAPIHandler()
 fireworks_handler = FireworksAPIHandler()
 openrouter_handler = OpenRouterAPIHandler()
 
 logger.info("Initialized API Handlers. Available: %s", list(API_HANDLERS.keys()))
+
+# Pre-built model-name → handler lookup (avoids O(handlers × models) search per request)
+MODEL_TO_HANDLER = {
+    m["name"]: handler
+    for handler in API_HANDLERS.values()
+    for m in handler.get_models()
+}
+logger.info("Model-to-handler index built. Models: %s", list(MODEL_TO_HANDLER.keys()))
 # --- End Handler Instantiation ---

@@ -6,7 +6,7 @@ import httpx  # Use httpx for async requests
 from fastapi.responses import StreamingResponse
 
 # Import base class and custom exceptions
-from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError
+from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError, get_http_client
 
 logger = logging.getLogger("fireworks_handler")
 
@@ -24,21 +24,26 @@ class FireworksAPIHandler(BaseAPIHandler):
         # Dictionary mapping display names to actual model IDs and parameters
         self.model_map = {
             # Simple mapping with just two models
-            "llama4-scout": {
+            "Meta llama4-scout": {
                 "model_id": "accounts/fireworks/models/llama4-scout-instruct-basic",
                 "parameters": "109B",
                 "multimodal": True
             },
-            "llama4-maverick": {
-                "model_id": "accounts/fireworks/models/llama4-maverick-instruct-basic",
-                "parameters": "400B",
-                "multimodal": True
-            },
-            "gpt-oss-120b": {
-                "model_id": "accounts/fireworks/models/gpt-oss-120b",
-                "parameters": "120B",
-                "multimodal": False 
-            },
+            # "llama4-maverick": {
+            #     "model_id": "accounts/fireworks/models/llama4-maverick-instruct-basic",
+            #     "parameters": "400B",
+            #     "multimodal": True
+            # },
+            # "OpenAI gpt-oss-120b": {
+            #     "model_id": "accounts/fireworks/models/gpt-oss-120b",
+            #     "parameters": "120B",
+            #     "multimodal": False 
+            # },
+            # "NVIDIA nemotron Nano 2 VL": {
+            #     "model_id": "accounts/fireworks/models/nemotron-nano-v2-12b-vl",
+            #     "parameters": "12B",
+            #     "multimodal": True
+            # },
         }
 
         # Define supported models for display using the pretty names from the map
@@ -126,10 +131,10 @@ class FireworksAPIHandler(BaseAPIHandler):
 
         # --- Make Non-Streaming API Call using httpx ---
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(self.FIREWORKS_API_URL, headers=headers, json=payload)
-                response.raise_for_status()
-                response_data = response.json()
+            client = get_http_client()
+            response = await client.post(self.FIREWORKS_API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            response_data = response.json()
 
         # --- Error Handling ---
         except httpx.RequestError as exc:
@@ -176,24 +181,24 @@ class FireworksAPIHandler(BaseAPIHandler):
     async def _stream_fireworks_response(self, headers: dict, payload: dict, display_model_name: str, actual_model_id: str):
         """Stream SSE chunks from Fireworks API."""
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream("POST", self.FIREWORKS_API_URL, headers=headers, json=payload) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            # Replace actual model ID with display name in streaming chunks
-                            chunk_data = line[6:]  # Remove "data: " prefix
-                            if chunk_data != "[DONE]":
-                                try:
-                                    chunk_json = json.loads(chunk_data)
-                                    if "model" in chunk_json:
-                                        chunk_json["model"] = display_model_name
-                                    yield f"data: {json.dumps(chunk_json)}\n\n"
-                                except json.JSONDecodeError:
-                                    # If we can't parse, just forward as-is
-                                    yield f"data: {chunk_data}\n\n"
-                            else:
+            client = get_http_client()
+            async with client.stream("POST", self.FIREWORKS_API_URL, headers=headers, json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        # Replace actual model ID with display name in streaming chunks
+                        chunk_data = line[6:]  # Remove "data: " prefix
+                        if chunk_data != "[DONE]":
+                            try:
+                                chunk_json = json.loads(chunk_data)
+                                if "model" in chunk_json:
+                                    chunk_json["model"] = display_model_name
+                                yield f"data: {json.dumps(chunk_json)}\n\n"
+                            except json.JSONDecodeError:
+                                # If we can't parse, just forward as-is
                                 yield f"data: {chunk_data}\n\n"
+                        else:
+                            yield f"data: {chunk_data}\n\n"
         except httpx.RequestError as exc:
             logger.error(f"Fireworks streaming API request failed: {exc}")
             yield f"data: {json.dumps({'error': f'Connection error: {exc}'})}\n\n"

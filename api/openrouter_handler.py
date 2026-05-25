@@ -2,11 +2,12 @@
 import os
 import json
 import logging
+import time
 import httpx # Use httpx for async requests
 from fastapi.responses import StreamingResponse
 
 # Import base class and custom exceptions
-from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError
+from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError, get_http_client
 
 logger = logging.getLogger("openrouter_handler")
 
@@ -34,19 +35,44 @@ class OpenRouterAPIHandler(BaseAPIHandler):
             #     "parameters": "27B",
             #     "multimodal": True
             # },
-            "Grok 4": {
-                "model_id": "x-ai/grok-4-fast:free", # Example
+            "Qwen3-VL-8B": {
+                "model_id": "qwen/qwen3-vl-8b-instruct", 
+                "parameters": "8B",
+                "multimodal": True,
+                "pro": True,
+            },
+
+            "OpenAI GPT-5": {
+                "model_id": "openai/gpt-5-mini", 
                 "parameters": "N/A",
                 "multimodal": True,
                 "pro": True,
             },
-            "deepseek-v3.1": {
-                "model_id": "deepseek/deepseek-chat-v3.1:free", # Example
-                "parameters": "671B",
-                "multimodal": False
+
+            "OpenAI GPT-4o-mini": {
+                "model_id": "openai/gpt-4o-mini", 
+                "parameters": "N/A",
+                "multimodal": True,
+                "pro": True,
             },
-             "gpt-oss-20b": {
-                 "model_id": "openai/gpt-oss-20b:free", # Example
+            "xAI Grok 4 Fast": {
+                "model_id": "x-ai/grok-4-fast", 
+                "parameters": "N/A",
+                "multimodal": True,
+                "pro": True,
+            },
+            "Nemotron Nano V2": {
+                "model_id": "nvidia/nemotron-nano-9b-v2:free",
+                "parameters": "9B",
+                "multimodal": False 
+            },
+            "Nemotron Nano V2 VL": {
+                "model_id": "nvidia/nemotron-nano-12b-v2-vl:free",
+                "parameters": "12B",
+                "multimodal": True
+            },
+             "OpenAI gpt-oss-20b": {
+                 "model_id": "openai/gpt-oss-20b:free", # Example qwen/qwen3-next-80b-a3b-instruct:free
                  "parameters": "20B",
                  "multimodal": False
             },
@@ -55,6 +81,11 @@ class OpenRouterAPIHandler(BaseAPIHandler):
                 "parameters": "70b",
                 "multimodal": False
             }
+            # "Skip Model Call": {
+            #     "model_id": "deepseek/deepseek-chat-v3.1:free", # Example
+            #     "parameters": "0B",
+            #     "multimodal": False
+            # }
             # Add more models following this pattern
             # "your-pretty-name": { "model_id": "actual/openrouter-model-id:tag", "parameters": "..."}
         }
@@ -99,6 +130,39 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         if not display_model_name:
             raise ValueError("Request data must include a 'model' field (using the display name).")
 
+        # --- Special Case: NULL Model ---
+        if display_model_name == "NULL":
+            logger.info("NULL model requested, returning empty response without API call")
+
+            if request_data.get("stream", False):
+                # Return streaming response for NULL
+                return StreamingResponse(
+                    self._generate_null_stream(),
+                    media_type="text/event-stream"
+                )
+            else:
+                # Return non-streaming response for NULL
+                return {
+                    "id": f"chatcmpl-null-{int(time.time())}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": "NULL",
+                    "choices": [{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": " "
+                        },
+                        "finish_reason": "stop"
+                    }],
+                    "usage": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 1,
+                        "total_tokens": 1
+                    }
+                }
+        # --- End Special Case ---
+
         # Look up the display name in our map
         model_info = self.model_map.get(display_model_name)
         if not model_info:
@@ -134,10 +198,10 @@ class OpenRouterAPIHandler(BaseAPIHandler):
 
         # --- Make Non-Streaming API Call using httpx ---
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(self.OPENROUTER_API_URL, headers=headers, json=payload)
-                response.raise_for_status()
-                response_data = response.json()
+            client = get_http_client()
+            response = await client.post(self.OPENROUTER_API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            response_data = response.json()
 
         # --- Error Handling (keep as before) ---
         except httpx.RequestError as exc:
@@ -185,24 +249,24 @@ class OpenRouterAPIHandler(BaseAPIHandler):
     async def _stream_openrouter_response(self, headers: dict, payload: dict, display_model_name: str, actual_model_id: str):
         """Stream SSE chunks from OpenRouter API."""
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream("POST", self.OPENROUTER_API_URL, headers=headers, json=payload) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            # Replace actual model ID with display name in streaming chunks
-                            chunk_data = line[6:]  # Remove "data: " prefix
-                            if chunk_data != "[DONE]":
-                                try:
-                                    chunk_json = json.loads(chunk_data)
-                                    if "model" in chunk_json:
-                                        chunk_json["model"] = display_model_name
-                                    yield f"data: {json.dumps(chunk_json)}\n\n"
-                                except json.JSONDecodeError:
-                                    # If we can't parse, just forward as-is
-                                    yield f"data: {chunk_data}\n\n"
-                            else:
+            client = get_http_client()
+            async with client.stream("POST", self.OPENROUTER_API_URL, headers=headers, json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        # Replace actual model ID with display name in streaming chunks
+                        chunk_data = line[6:]  # Remove "data: " prefix
+                        if chunk_data != "[DONE]":
+                            try:
+                                chunk_json = json.loads(chunk_data)
+                                if "model" in chunk_json:
+                                    chunk_json["model"] = display_model_name
+                                yield f"data: {json.dumps(chunk_json)}\n\n"
+                            except json.JSONDecodeError:
+                                # If we can't parse, just forward as-is
                                 yield f"data: {chunk_data}\n\n"
+                        else:
+                            yield f"data: {chunk_data}\n\n"
         except httpx.RequestError as exc:
             logger.error(f"OpenRouter streaming API request failed: {exc}")
             yield f"data: {json.dumps({'error': f'Connection error: {exc}'})}\n\n"
@@ -213,3 +277,17 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         except Exception as exc:
             logger.exception(f"Unexpected error in OpenRouter streaming for model {actual_model_id}")
             yield f"data: {json.dumps({'error': f'Unexpected error: {exc}'})}\n\n"
+
+    async def _generate_null_stream(self):
+        """Generate a minimal streaming response for the NULL model."""
+        chunk_id = f"chatcmpl-null-{int(time.time())}"
+        created = int(time.time())
+
+        # Send initial chunk with a single space
+        yield f"data: {json.dumps({'id': chunk_id, 'object': 'chat.completion.chunk', 'created': created, 'model': 'NULL', 'choices': [{'index': 0, 'delta': {'role': 'assistant', 'content': ' '}, 'finish_reason': None}]})}\n\n"
+
+        # Send final chunk marking completion
+        yield f"data: {json.dumps({'id': chunk_id, 'object': 'chat.completion.chunk', 'created': created, 'model': 'NULL', 'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}]})}\n\n"
+
+        # Send [DONE] marker
+        yield "data: [DONE]\n\n"

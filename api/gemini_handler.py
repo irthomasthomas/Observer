@@ -10,7 +10,7 @@ import httpx # Use httpx for async requests
 from fastapi.responses import StreamingResponse
 
 # Import base class and custom exceptions
-from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError
+from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError, get_http_client
 
 logger = logging.getLogger("gemini_handler")
 # Assuming logging is configured elsewhere (e.g., in main FastAPI app)
@@ -25,34 +25,59 @@ class GeminiAPIHandler(BaseAPIHandler):
         # --- Model Mapping (like OpenRouter) ---
         # Maps display names to actual Gemini model IDs
         self.model_map = {
+            "gemma-4-26b-a4b-it": {
+                "model_id": "gemma-4-26b-a4b-it",
+                "parameters": "26BA4",
+                "multimodal": True,
+                "pro": False
+            },
+            "gemma-4-31b-it": {
+                "model_id": "gemma-4-31b-it",
+                "parameters": "31B",
+                "multimodal": True,
+                "pro": True
+            },
             "gemma-3-4b-it": {
-                "model_id": "gemma-3-4b-it",
+                "model_id": "gemma-4-26b-a4b-it",
                 "parameters": "4B",
                 "multimodal": True,
                 "pro": False
             },
             "gemma-3-12b-it": {
-                "model_id": "gemma-3-12b-it", 
+                "model_id": "gemma-4-26b-a4b-it", 
                 "parameters": "12B",
                 "multimodal": True,
                 "pro": False
             },
-            "gemma-3n-e4b-it": {
-                "model_id": "gemma-3n-e4b-it",
-                "parameters": "4B",
-                "multimodal": False,
-                "pro": False
-            },
             # Hidden model for agent creator (free users)
             "gemini-2.0-flash-lite-free": {
-                "model_id": "gemini-2.0-flash-lite",  # Maps to actual model
+                "model_id": "gemini-2.5-flash-lite",
                 "parameters": "N/A",
                 "multimodal": True,
                 "pro": False
             },
+            # Hidden model for agent creator (pro users)
             "gemini-2.5-flash-lite-free": {
-                "model_id": "gemini-2.5-flash",  # Maps to actual model
+                "model_id": "gemini-2.5-flash-lite",
                 "parameters": "N/A",
+                "multimodal": True,
+                "pro": True
+            },
+            "gemini-2.5-flash-lite": {
+                "model_id": "gemini-2.5-flash-lite",
+                "parameters": "N/A",
+                "multimodal": True,
+                "pro": True
+            },
+            "gemma-3-27b-it": {
+                "model_id": "gemma-4-26b-a4b-it",
+                "parameters": "27B",
+                "multimodal": True,
+                "pro": True
+            },
+            "gemma-4-26B-a4b-it": {
+                "model_id": "gemma-4-26b-a4b-it",
+                "parameters": "26BA4",
                 "multimodal": True,
                 "pro": False
             },
@@ -106,71 +131,25 @@ class GeminiAPIHandler(BaseAPIHandler):
             )
 
         # --- Convert OpenAI format messages to Gemini format ---
-        # Gemini expects a 'contents' list. Handle basic user/assistant roles.
-        # This is a simplified conversion. Real implementation might need history handling.
-        last_message = messages[-1]
-        if last_message.get("role") != "user":
-            logger.warning("Last message role is not 'user'. Processing with caution.")
-            # You might want to raise ValueError here depending on strictness
+        system_instruction, contents = self._convert_messages_to_gemini_format(messages)
 
-        content = last_message.get("content")
-        gemini_parts = []
-        combined_text_prompt = "" # For logging
-        image_count = 0
-
-        if isinstance(content, str):
-            text = content.strip()
-            if text:
-                gemini_parts.append({"text": text})
-                combined_text_prompt = text
-        elif isinstance(content, list): # Handle multimodal input (text + images)
-            text_parts_log = []
-            for item in content:
-                if not isinstance(item, dict): continue
-                item_type = item.get("type")
-                if item_type == "text":
-                    text = item.get("text", "").strip()
-                    if text:
-                        gemini_parts.append({"text": text})
-                        text_parts_log.append(text)
-                elif item_type == "image_url":
-                    image_url_data = item.get("image_url")
-                    if isinstance(image_url_data, dict) and "url" in image_url_data:
-                         url = image_url_data["url"]
-                         if url.startswith("data:"):
-                              try:
-                                   header, base64_data = url.split(",", 1)
-                                   mime_match = re.match(r"data:(image\/[a-zA-Z+.-]+);base64", header)
-                                   if mime_match:
-                                        mime_type = mime_match.group(1)
-                                        gemini_parts.append({
-                                             "inline_data": {"mime_type": mime_type, "data": base64_data}
-                                        })
-                                        image_count += 1
-                                   else:
-                                        logger.warning(f"Could not extract MIME type from data URI: {header}")
-                              except Exception as e:
-                                   logger.error(f"Error processing data URI image: {e}")
-                         else:
-                              logger.warning(f"Skipping non-data URI image URL: {url[:50]}...")
-                    else:
-                         logger.warning(f"Skipping invalid image_url item: {item}")
-            combined_text_prompt = " ".join(text_parts_log) + f" ({image_count} images)" if image_count else " ".join(text_parts_log)
-        else:
-            raise ValueError("Invalid 'content' format in the last message.")
-
-        if not gemini_parts:
+        if not contents:
             raise ValueError("No valid content found to send to Gemini.")
 
         # --- Prepare Gemini API Call ---
         gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent"
-        # Simple payload structure
-        payload = {"contents": [{"role": "user", "parts": gemini_parts}]}
+
+        # Build payload with converted contents
+        payload = {"contents": contents}
+
+        # Add system_instruction if present
+        if system_instruction:
+            payload["system_instruction"] = system_instruction
+
         # Add generationConfig if needed from request_data (temperature, max_tokens etc.)
         generation_config = {}
         if "temperature" in request_data: generation_config["temperature"] = request_data["temperature"]
         if "max_tokens" in request_data: generation_config["maxOutputTokens"] = request_data["max_tokens"]
-        # Add more mappings as needed
         if generation_config: payload["generationConfig"] = generation_config
 
         headers = {
@@ -179,14 +158,14 @@ class GeminiAPIHandler(BaseAPIHandler):
             "User-Agent": "ObserverAI-FastAPI-Client/1.0"
         }
 
-        logger.info(f"Calling Gemini API: model={target_model}, parts={len(gemini_parts)}, images={image_count}")
+        logger.info(f"Calling Gemini API: model={target_model}, messages={len(contents)}, system_instruction={system_instruction is not None}")
 
         # --- Make API Call using httpx ---
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client: # Increased timeout
-                response = await client.post(gemini_url, headers=headers, json=payload)
-                response.raise_for_status() # Raises HTTPStatusError for 4xx/5xx responses
-                response_data = response.json()
+            client = get_http_client()
+            response = await client.post(gemini_url, headers=headers, json=payload)
+            response.raise_for_status() # Raises HTTPStatusError for 4xx/5xx responses
+            response_data = response.json()
 
         except httpx.RequestError as exc:
             logger.error(f"Gemini API request failed (network/connection): {exc}")
@@ -209,6 +188,7 @@ class GeminiAPIHandler(BaseAPIHandler):
 
         # --- Process Gemini Response ---
         generated_text = ""
+        reasoning_text = ""
         finish_reason = "stop" # Default
 
         try:
@@ -219,7 +199,13 @@ class GeminiAPIHandler(BaseAPIHandler):
                  content = candidate.get("content", {})
                  parts = content.get("parts", [])
                  if parts:
-                      generated_text = "".join(part.get("text", "") for part in parts).strip()
+                      for part in parts:
+                          if part.get("thought", False):
+                              reasoning_text += part.get("text", "")
+                          else:
+                              generated_text += part.get("text", "")
+                      generated_text = generated_text.strip()
+                      reasoning_text = reasoning_text.strip()
 
                  # Map finish reason
                  finish_reason_gemini = candidate.get("finishReason", "STOP").upper()
@@ -258,7 +244,7 @@ class GeminiAPIHandler(BaseAPIHandler):
             "choices": [
                 {
                     "index": 0,
-                    "message": {"role": "assistant", "content": generated_text},
+                    "message": {"role": "assistant", "content": generated_text, **({"reasoning": reasoning_text} if reasoning_text else {})},
                     "finish_reason": finish_reason
                 }
             ],
@@ -276,13 +262,18 @@ class GeminiAPIHandler(BaseAPIHandler):
 
     async def _stream_gemini_response(self, request_data: dict, target_model: str):
         """Stream Gemini API response and convert to OpenAI SSE format."""
-        # Prepare Gemini content from request
-        gemini_parts, combined_text_prompt, image_count = self._prepare_gemini_content(request_data)
-        
+        # Convert messages to Gemini format
+        messages = request_data.get("messages", [])
+        system_instruction, contents = self._convert_messages_to_gemini_format(messages)
+
         # Prepare Gemini API call
         gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:streamGenerateContent?alt=sse"
-        payload = {"contents": [{"role": "user", "parts": gemini_parts}]}
-        
+        payload = {"contents": contents}
+
+        # Add system_instruction if present
+        if system_instruction:
+            payload["system_instruction"] = system_instruction
+
         # Add generationConfig if needed
         generation_config = {}
         if "temperature" in request_data: generation_config["temperature"] = request_data["temperature"]
@@ -295,36 +286,36 @@ class GeminiAPIHandler(BaseAPIHandler):
             "User-Agent": "ObserverAI-FastAPI-Client/1.0"
         }
 
-        logger.info(f"Streaming Gemini API: model={target_model}, parts={len(gemini_parts)}, images={image_count}")
+        logger.info(f"Streaming Gemini API: model={target_model}, messages={len(contents)}, system_instruction={system_instruction is not None}")
 
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream("POST", gemini_url, headers=headers, json=payload) as response:
-                    response.raise_for_status()
-                    
-                    chunk_id = "gemini-chatcmpl-" + secrets.token_hex(12)
-                    chunk_index = 0
-                    
-                    async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            chunk_data = line[6:]  # Remove "data: " prefix
-                            if chunk_data.strip():
-                                try:
-                                    gemini_chunk = json.loads(chunk_data)
-                                    # Convert Gemini chunk to OpenAI format
-                                    openai_chunk = self._convert_gemini_chunk_to_openai(
-                                        gemini_chunk, chunk_id, chunk_index, target_model
-                                    )
-                                    if openai_chunk:
-                                        yield f"data: {json.dumps(openai_chunk)}\n\n"
-                                        chunk_index += 1
-                                except json.JSONDecodeError:
-                                    # Skip invalid JSON chunks
-                                    continue
-                    
-                    # Send [DONE] when finished
-                    yield f"data: [DONE]\n\n"
-                    
+            client = get_http_client()
+            async with client.stream("POST", gemini_url, headers=headers, json=payload) as response:
+                response.raise_for_status()
+
+                chunk_id = "gemini-chatcmpl-" + secrets.token_hex(12)
+                chunk_index = 0
+
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        chunk_data = line[6:]  # Remove "data: " prefix
+                        if chunk_data.strip():
+                            try:
+                                gemini_chunk = json.loads(chunk_data)
+                                # Convert Gemini chunk to OpenAI format
+                                openai_chunk = self._convert_gemini_chunk_to_openai(
+                                    gemini_chunk, chunk_id, chunk_index, target_model
+                                )
+                                if openai_chunk:
+                                    yield f"data: {json.dumps(openai_chunk)}\n\n"
+                                    chunk_index += 1
+                            except json.JSONDecodeError:
+                                # Skip invalid JSON chunks
+                                continue
+
+                # Send [DONE] when finished
+                yield f"data: [DONE]\n\n"
+
         except httpx.RequestError as exc:
             logger.error(f"Gemini streaming API request failed: {exc}")
             yield f"data: {json.dumps({'error': f'Connection error: {exc}'})}\n\n"
@@ -336,12 +327,62 @@ class GeminiAPIHandler(BaseAPIHandler):
             logger.exception(f"Unexpected error in Gemini streaming for model {target_model}")
             yield f"data: {json.dumps({'error': f'Unexpected error: {exc}'})}\n\n"
 
-    def _prepare_gemini_content(self, request_data: dict):
-        """Extract and prepare content for Gemini API from OpenAI request format."""
-        messages = request_data.get("messages", [])
-        last_message = messages[-1]
-        content = last_message.get("content")
-        
+    def _convert_messages_to_gemini_format(self, messages: list):
+        """
+        Convert OpenAI format messages to Gemini API format.
+
+        Returns: (system_instruction_dict or None, contents_list)
+        """
+        system_instruction = None
+        contents = []
+
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content")
+
+            if not content:
+                continue
+
+            # Handle system messages - convert to system_instruction
+            if role == "system":
+                if isinstance(content, str):
+                    system_instruction = {
+                        "parts": [{"text": content.strip()}]
+                    }
+                continue
+
+            # Map roles: assistant -> model, user -> user
+            gemini_role = "model" if role == "assistant" else "user"
+
+            # Process content using existing helper
+            gemini_parts, _, _ = self._prepare_gemini_content(content)
+
+            if not gemini_parts:
+                continue
+
+            # Check if we need to merge with previous message (same role)
+            if contents and contents[-1]["role"] == gemini_role:
+                # Merge parts with previous message of same role
+                contents[-1]["parts"].extend(gemini_parts)
+            else:
+                # Add new message
+                contents.append({
+                    "role": gemini_role,
+                    "parts": gemini_parts
+                })
+
+        return system_instruction, contents
+
+    def _prepare_gemini_content(self, content):
+        """
+        Extract and prepare content for Gemini API from OpenAI message content.
+
+        Args:
+            content: Either a string or a list of content items (text/image_url)
+
+        Returns:
+            tuple: (gemini_parts, combined_text_prompt, image_count)
+        """
         gemini_parts = []
         combined_text_prompt = ""
         image_count = 0
@@ -391,12 +432,16 @@ class GeminiAPIHandler(BaseAPIHandler):
         content = candidate.get("content", {})
         parts = content.get("parts", [])
         
-        # Extract text content
+        # Route thought parts to reasoning, regular parts to content (mirrors Ollama)
         text_content = ""
+        reasoning_content = ""
         for part in parts:
             if "text" in part:
-                text_content += part["text"]
-        
+                if part.get("thought", False):
+                    reasoning_content += part["text"]
+                else:
+                    text_content += part["text"]
+
         # Check for finish reason
         finish_reason = None
         finish_reason_gemini = candidate.get("finishReason")
@@ -419,13 +464,15 @@ class GeminiAPIHandler(BaseAPIHandler):
                 "delta": {}
             }]
         }
-        
-        # Add content if present
+
+        # Add content/reasoning if present (matches Ollama delta.reasoning / delta.content pattern)
         if text_content:
             openai_chunk["choices"][0]["delta"]["content"] = text_content
-        
+        if reasoning_content:
+            openai_chunk["choices"][0]["delta"]["reasoning"] = reasoning_content
+
         # Add finish reason if present
         if finish_reason:
             openai_chunk["choices"][0]["finish_reason"] = finish_reason
-        
+
         return openai_chunk
