@@ -162,7 +162,7 @@ async def create_agent(agent: Agent, user: AuthUser):
     ''', (
         agent.id, agent.name, agent.description, agent.model_name,
         agent.system_prompt, agent.loop_interval_seconds, agent.code, agent.memory,
-        agent.author, agent.author_id, agent.date_added, agent.downloads, agent.featured_order
+        agent.author, agent.author_id, agent.date_added, 0, None
     ))
 
     conn.commit()
