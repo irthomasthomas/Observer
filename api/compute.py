@@ -5,14 +5,15 @@ from fastapi.responses import JSONResponse, StreamingResponse
 import logging
 import json
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Lock
 
 # --- Local Imports ---
 from auth import AuthUser
 from admin_auth import get_admin_access
 # Import the new, specific functions and the QUOTA_LIMITS dictionary
-from quota_manager import increment_usage, get_usage_for_service, check_usage, QUOTA_LIMITS
+from quota_manager import increment_usage, get_usage_for_service, check_usage, QUOTA_LIMITS, PRO_QUOTA_LIMITS, MAX_QUOTA_LIMITS, PLUS_QUOTA_LIMITS
+from auth0_manager import get_email_by_id
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -31,21 +32,105 @@ except ImportError as e:
 
 compute_router = APIRouter()
 
+# --- Agent Creator Models Configuration ---
+AGENT_CREATOR_MODELS = {
+    "gemini-2.0-flash-lite-free",
+    "gemini-2.5-flash-lite-free"
+}
+
 # --- Metrics Logging System (Memory-Only) ---
 # Similar to quota_manager.py pattern - all in memory
 _conversation_metrics = []
 _metrics_lock = Lock()
 
+# --- Hourly Status Aggregates (for /status endpoint) ---
+_hourly_aggregates = defaultdict(dict)  # {model: {hour: {"success": int, "total": int} or float}}
+_hourly_lock = Lock()
+
+def update_hourly_stats(model: str, timestamp: str, is_success: bool):
+    """
+    Update hourly statistics for a model. Freezes past hours into percentages.
+    This is called on every model request to maintain up-to-date hourly data.
+
+    Args:
+        model: Model name (e.g., "gemini-2.0-flash-exp")
+        timestamp: ISO format timestamp of the request
+        is_success: Whether the request was successful (status_code < 400)
+    """
+    with _hourly_lock:
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            hour_bucket = dt.replace(minute=0, second=0, microsecond=0).isoformat()
+            current_hour = datetime.now().replace(minute=0, second=0, microsecond=0).isoformat()
+
+            # Freeze any hours that are no longer current (convert counters to percentage)
+            for hour, data in list(_hourly_aggregates[model].items()):
+                if isinstance(data, dict) and hour != current_hour:
+                    # Freeze this hour - convert to percentage
+                    if data["total"] > 0:
+                        success_rate = round((data["success"] / data["total"]) * 100, 1)
+                    else:
+                        success_rate = None  # No data for this hour
+                    _hourly_aggregates[model][hour] = success_rate
+
+            # Initialize current hour bucket if it doesn't exist
+            if hour_bucket not in _hourly_aggregates[model]:
+                _hourly_aggregates[model][hour_bucket] = {"success": 0, "total": 0}
+
+            # Update current hour counters (only if it's still a dict, not frozen)
+            if isinstance(_hourly_aggregates[model][hour_bucket], dict):
+                _hourly_aggregates[model][hour_bucket]["total"] += 1
+                if is_success:
+                    _hourly_aggregates[model][hour_bucket]["success"] += 1
+
+            # Cleanup: remove hours older than 24h
+            cutoff = (datetime.now() - timedelta(hours=24)).replace(minute=0, second=0, microsecond=0).isoformat()
+            for hour in list(_hourly_aggregates[model].keys()):
+                if hour < cutoff:
+                    del _hourly_aggregates[model][hour]
+
+        except Exception as e:
+            # Don't crash the request if stats tracking fails
+            logger.error(f"Error updating hourly stats for {model}: {e}")
+
 def log_conversation_metrics(user_id: str, prompt_text: str, response_text: str,
                            handler: str, model: str, status_code: int, image_count: int = 0,
-                           time_to_first_token: float = None, chunks_per_second: float = None):
+                           time_to_first_token: float = None, chunks_per_second: float = None,
+                           request_data: dict = None):
     """Log conversation metrics to memory (no disk I/O)."""
+    timestamp = datetime.now().isoformat()
+
+    # For Agent Creator models, parse messages array to get clean latest exchange
+    if model in AGENT_CREATOR_MODELS and request_data and "messages" in request_data:
+        messages = request_data["messages"]
+
+        # Extract the latest user message
+        user_message = ""
+        for msg in reversed(messages):
+            if msg.get("role") == "user":
+                content = msg.get("content", "")
+                if isinstance(content, str):
+                    user_message = content
+                elif isinstance(content, list):
+                    # Handle multimodal content
+                    text_parts = [item.get("text", "") for item in content if isinstance(item, dict) and item.get("type") == "text"]
+                    user_message = " ".join(text_parts)
+                break
+
+        # Use the extracted user message and full response for Agent Creator
+        final_prompt = user_message
+        final_response = response_text  # Full response, not truncated
+    else:
+        # Monitoring agents: keep current [-500:] approach (standalone prompts)
+        final_prompt = prompt_text[-500:] if prompt_text else ""
+        final_response = response_text[:500] if response_text else ""
+
     with _metrics_lock:
         entry = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": timestamp,
             "user_id": user_id,
-            "prompt": prompt_text[-500:] if prompt_text else "",  # See last 500 chars to look at requests for generated agents
-            "response": response_text[:500] if response_text else "",
+            "prompt": final_prompt,
+            "response": final_response,
             "handler": handler,
             "model": model,
             "status_code": status_code,
@@ -54,18 +139,111 @@ def log_conversation_metrics(user_id: str, prompt_text: str, response_text: str,
             "chunks_per_second": chunks_per_second
         }
         _conversation_metrics.append(entry)
-        
+
         # Keep only last 1000 entries to prevent memory bloat
         if len(_conversation_metrics) > 1000:
             _conversation_metrics.pop(0)
 
+    # Update hourly status aggregates (for /status endpoint)
+    is_success = status_code < 400
+    update_hourly_stats(model, timestamp, is_success)
+
 def get_all_conversation_metrics() -> list:
     """Get all conversation metrics (for admin endpoint)."""
     with _metrics_lock:
-        return list(_conversation_metrics)  # Return copy
+        metrics_copy = list(_conversation_metrics)  # Return copy
+        # Add email to each metric entry
+        for metric in metrics_copy:
+            user_id = metric.get("user_id")
+            if user_id:
+                try:
+                    metric["email"] = get_email_by_id(user_id)
+                except Exception as e:
+                    logger.error(f"Failed to fetch email for user {user_id}: {e}")
+                    metric["email"] = None
+        return metrics_copy
+
+def get_hourly_status() -> dict:
+    """
+    Generate status page response with hourly uptime data for all models.
+    Returns pre-computed success rates for the last 24 hours.
+    """
+    with _hourly_lock:
+        now = datetime.now()
+        current_hour = now.replace(minute=0, second=0, microsecond=0)
+
+        # Generate list of last 24 hours
+        hours_list = []
+        for i in range(24):
+            hour = current_hour - timedelta(hours=i)
+            hours_list.insert(0, hour)  # Insert at beginning to maintain chronological order
+
+        models_status = []
+
+        for model_name, hourly_data in _hourly_aggregates.items():
+            # Skip NULL model from status endpoint
+            if model_name == "Skip Model Call":
+                continue
+
+            hourly_stats = []
+            total_success = 0
+            total_requests = 0
+
+            for hour in hours_list:
+                hour_key = hour.isoformat()
+
+                if hour_key in hourly_data:
+                    data = hourly_data[hour_key]
+
+                    # Current hour is still a dict, compute percentage on the fly
+                    if isinstance(data, dict):
+                        if data["total"] > 0:
+                            success_rate = round((data["success"] / data["total"]) * 100, 1)
+                            total_success += data["success"]
+                            total_requests += data["total"]
+                        else:
+                            success_rate = None
+                    else:
+                        # Frozen percentage
+                        success_rate = data
+                        # Estimate counts for overall rate (assuming ~100% if high rate)
+                        # This is approximate since we don't store counts for frozen hours
+                        if data is not None:
+                            # Rough estimate: assume 10 requests per hour on average
+                            estimated_requests = 10
+                            estimated_success = round(estimated_requests * data / 100)
+                            total_success += estimated_success
+                            total_requests += estimated_requests
+
+                    hourly_stats.append({
+                        "hour": hour_key,
+                        "success_rate": success_rate
+                    })
+                else:
+                    # No data for this hour
+                    hourly_stats.append({
+                        "hour": hour_key,
+                        "success_rate": None
+                    })
+
+            # Compute overall success rate
+            overall_success_rate = round((total_success / total_requests) * 100, 1) if total_requests > 0 else None
+
+            models_status.append({
+                "name": model_name,
+                "overall_success_rate": overall_success_rate,
+                "hourly_stats": hourly_stats
+            })
+
+        return {
+            "checked_at": now.isoformat(),
+            "window_hours": 24,
+            "models": models_status
+        }
 
 async def _log_streaming_response(stream_iterator, user_id: str, prompt_text: str,
-                                 handler: str, model: str, image_count: int = 0):
+                                 handler: str, model: str, image_count: int = 0,
+                                 request_data: dict = None):
     """
     Wrapper that logs complete streaming response with timing metrics.
     Accumulates content from OpenAI SSE chunks and logs when stream completes.
@@ -126,7 +304,8 @@ async def _log_streaming_response(stream_iterator, user_id: str, prompt_text: st
             status_code=200,
             image_count=image_count,
             time_to_first_token=time_to_first_token_ms,
-            chunks_per_second=chunks_per_second
+            chunks_per_second=chunks_per_second,
+            request_data=request_data
         )
 
     except Exception as e:
@@ -138,7 +317,8 @@ async def _log_streaming_response(stream_iterator, user_id: str, prompt_text: st
             handler=handler,
             model=model,
             status_code=500,
-            image_count=image_count
+            image_count=image_count,
+            request_data=request_data
         )
 
 # --- API Routes ---
@@ -151,51 +331,57 @@ async def get_all_metrics(is_admin: bool = Depends(get_admin_access)):
     """
     return get_all_conversation_metrics()
 
-@compute_router.get("/quota", summary="Check remaining API credits for the authenticated user")
-async def check_quota_endpoint(current_user: AuthUser): 
+@compute_router.get("/status", tags=["Status"], summary="Get model availability and uptime statistics")
+async def get_status():
     """
-    Returns the daily CHAT credit usage for the authenticated user.
-    Requires a valid JWT. Pro users will show unlimited credits.
+    Public endpoint showing model availability and hourly uptime statistics.
+    Returns success rates for each model over the last 24 hours.
+    No authentication required.
     """
-    # Check if the user is a pro member
-    if current_user.is_pro:
-        return JSONResponse(content={"used": 0, "remaining": "unlimited", "limit": "unlimited", "pro_status": True})
+    return get_hourly_status()
 
-    # Use the new specific function for the 'chat' service
-    used = get_usage_for_service(current_user.id, "chat") # <-- Use current_user.id
-    limit = QUOTA_LIMITS["chat"]
+@compute_router.get("/quota", summary="Check remaining API credits for the authenticated user")
+async def check_quota_endpoint(current_user: AuthUser):
+    """
+    Returns the daily MONITOR credit usage for the authenticated user.
+    Requires a valid JWT. Pro and Max users will show their tier limits.
+    """
+    # Determine user tier and limits
+    if current_user.is_max:
+        tier = "max"
+        limit = MAX_QUOTA_LIMITS["monitor"]
+    elif current_user.is_plus:
+        tier = "plus"
+        limit = PLUS_QUOTA_LIMITS["monitor"]
+    elif current_user.is_pro:
+        tier = "pro"
+        limit = PRO_QUOTA_LIMITS["monitor"]
+    else:
+        tier = "free"
+        limit = QUOTA_LIMITS["monitor"]
+
+    # Use the new specific function for the 'monitor' service
+    used = await get_usage_for_service(current_user.id, "monitor")
     remaining = max(0, limit - used)
-    
-    return JSONResponse(content={"used": used, "remaining": remaining, "limit": limit, "pro_status": False})
+
+    return JSONResponse(content={
+        "used": used,
+        "remaining": remaining,
+        "limit": limit,
+        "tier": tier
+    })
 
 
 @compute_router.post("/v1/chat/completions", summary="Process chat completion requests")
 async def handle_chat_completions_endpoint(request: Request, current_user: AuthUser):
     """
     Processes a chat completion request. Requires a valid JWT.
-    Each call will consume one daily CHAT credit.
+    Each call will consume one daily MONITOR credit or AGENT_CREATOR credit depending on model.
     """
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend LLM handlers are not available.")
 
-    # --- NEW: Quota Check Logic ---
-    # Check quota for both pro and free users (pro has higher limit as anti-abuse)
-    if check_usage(current_user.id, "chat", current_user.is_pro):
-        limit_type = "pro" if current_user.is_pro else "free"
-        limit_value = 1000 if current_user.is_pro else QUOTA_LIMITS["chat"]
-        logger.warning(f"Chat credit limit exceeded for {limit_type} user: {current_user.id} (Limit: {limit_value})")
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"You have exceeded your daily chat quota. Please try again tomorrow."
-        )
-    
-    # If within limit, increment the 'chat' usage.
-    usage_count = increment_usage(current_user.id, "chat")
-    user_type = "PRO" if current_user.is_pro else "free"
-    logger.info(f"Processing chat request for {user_type} user: {current_user.id} (Daily chat request #{usage_count})")
-    # --- END of Quota Logic ---
-
-    # 4. Parse Request Data
+    # Parse Request Data first to determine model
     try:
         request_data = await request.json()
         model_name = request_data.get("model")
@@ -204,21 +390,65 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON request body.")
 
+    # --- NEW: Model-based Quota Routing ---
+    # Determine which quota to use based on model type
+    service_type = "agent_creator" if model_name in AGENT_CREATOR_MODELS else "monitor"
+
+    # Check quota for all users (each tier has limits as anti-abuse)
+    if await check_usage(current_user.id, service_type, current_user.is_pro, current_user.is_max, current_user.is_plus):
+        # Determine tier and limit for error message
+        if current_user.is_max:
+            limit_type = "max"
+            limit_value = MAX_QUOTA_LIMITS[service_type]
+        elif current_user.is_plus:
+            limit_type = "plus"
+            limit_value = PLUS_QUOTA_LIMITS[service_type]
+        elif current_user.is_pro:
+            limit_type = "pro"
+            limit_value = PRO_QUOTA_LIMITS[service_type]
+        else:
+            limit_type = "free"
+            limit_value = QUOTA_LIMITS[service_type]
+
+        logger.warning(f"{service_type.capitalize()} limit exceeded for {limit_type} user: {current_user.id} (Daily limit: {limit_value})")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": "Rate limit exceeded. Please slow down your requests or try again later.",
+                "quota_type": service_type
+            }
+        )
+
+    # If within limit, increment the appropriate usage counter
+    usage_count = await increment_usage(current_user.id, service_type)
+    user_type = "MAX" if current_user.is_max else ("PLUS" if current_user.is_plus else ("PRO" if current_user.is_pro else "free"))
+    logger.info(f"Processing {service_type} request for {user_type} user: {current_user.id} (Daily {service_type} request #{usage_count})")
+    # --- END of Quota Logic ---
+
     # 5. Find the appropriate handler
-    selected_handler = next((h for h in api_handlers.API_HANDLERS.values() if model_name in [m["name"] for m in h.get_models()]), None)
+    selected_handler = api_handlers.MODEL_TO_HANDLER.get(model_name)
 
     if not selected_handler:
         logger.warning(f"Request for unsupported model: {model_name}")
         raise HTTPException(status_code=404, detail=f"Model '{model_name}' is not found or supported.")
 
-    # 6. Check pro access control
+    # 6. Check tier-based access control
     model_info = next((m for m in selected_handler.get_models() if m["name"] == model_name), None)
-    if model_info and model_info.get("pro", False) and not current_user.is_pro:
-        logger.warning(f"Non-pro user {current_user.id} attempted to access pro model: {model_name}")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Model '{model_name}' requires a pro subscription. Please upgrade to access premium models."
-        )
+    if model_info:
+        # Check if model requires max tier
+        if model_info.get("max", False) and not current_user.is_max:
+            logger.warning(f"Non-max user {current_user.id} attempted to access max model: {model_name}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Model '{model_name}' requires a Max subscription. Please upgrade to access this model."
+            )
+        # Check if model requires pro tier (or higher)
+        elif model_info.get("pro", False) and not (current_user.is_pro or current_user.is_max):
+            logger.warning(f"Free user {current_user.id} attempted to access pro model: {model_name}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Model '{model_name}' requires a Pro subscription. Please upgrade to access premium models."
+            )
 
     # 7. Execute handler logic with centralized metrics logging
     
@@ -257,7 +487,8 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
                     prompt_text,
                     selected_handler.name,
                     model_name,
-                    image_count
+                    image_count,
+                    request_data
                 ),
                 media_type=response_payload.media_type,
                 headers=response_payload.headers
@@ -268,7 +499,7 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
         
     except (HandlerError, ConfigError, BackendAPIError) as e:
         status_code = getattr(e, 'status_code', 500)
-        
+
         # Log error request metrics
         log_conversation_metrics(
             user_id=current_user.id,
@@ -277,7 +508,8 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
             handler=selected_handler.name,
             model=model_name,
             status_code=status_code,
-            image_count=image_count
+            image_count=image_count,
+            request_data=request_data
         )
         
         logger.error(f"Handler error for model '{model_name}': {e}", exc_info=True)
@@ -292,50 +524,13 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
             handler=selected_handler.name,
             model=model_name,
             status_code=500,
-            image_count=image_count
+            image_count=image_count,
+            request_data=request_data
         )
         
         logger.exception(f"Unexpected error processing request with handler {selected_handler.name}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
-
-@compute_router.get("/api/tags", summary="List available models (Ollama compatible format)")
-async def list_tags_endpoint():
-    if not HANDLERS_AVAILABLE:
-         raise HTTPException(status_code=503, detail="Backend handlers are not available.")
-    EXCLUDED = {"gemini-2.0-flash-lite"}
-
-    ollama_models = []
-    if api_handlers and api_handlers.API_HANDLERS:
-        for handler in api_handlers.API_HANDLERS.values():
-            try:
-                for model_info in handler.get_models():
-                     name = model_info.get("name", "")
-                     if name in EXCLUDED:
-                         continue
-                     is_multimodal = model_info.get("multimodal", False)
-
-                     model_entry = {
-                          "name": model_info.get("name", "unknown"),
-                          "model": model_info.get("name", "unknown"),
-                          "size": model_info.get("size_bytes", 0),
-                          "digest": model_info.get("digest", ""),
-                          "details": {
-                               "parameter_size": model_info.get("parameters", "N/A"),
-                               "quantization_level": model_info.get("quantization", "N/A"),
-                               "family": model_info.get("family", handler.name),
-                               "format": model_info.get("format", "N/A"),
-                               "multimodal": is_multimodal,
-                               "pro": model_info.get("pro", False)
-                          }
-                     }
-                     ollama_models.append(model_entry)
-            except Exception as e:
-                 logger.error(f"Failed to get tags from handler {handler.name}: {e}")
-    else:
-         logger.warning("/api/tags called but no handlers are loaded.")
-
-    return JSONResponse(content={"models": ollama_models})
 
 @compute_router.get("/v1/models", summary="List available models (OpenAI v1 compatible)")
 async def list_models_v1_endpoint():
@@ -349,7 +544,8 @@ async def list_models_v1_endpoint():
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend handlers are not available.")
 
-    EXCLUDED = {"gemini-2.0-flash-lite", "gemini-2.0-flash-lite-free", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite-free"}
+    # Exclude agent creator models and other hidden models from public listing
+    EXCLUDED = AGENT_CREATOR_MODELS | {"gemini-2.5-pro"}
     
     # This list will hold the model data in the new format.
     model_data_list = []

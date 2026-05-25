@@ -1,4 +1,12 @@
-fastapi==0.103.1
-uvicorn==0.23.2
-httpx==0.24.1
-pydantic==2.3.0
+# Core (likely installed via system package manager on Arch)
+# fastapi, uvicorn, httpx, pydantic, python-dotenv, python-jose, PyJWT
+
+# Additional dependencies - install with pip
+requests
+redis
+stripe
+python-json-logger
+twilio
+pillow
+sendgrid
+phonenumbers
