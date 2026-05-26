@@ -13,7 +13,6 @@ from auth import AuthUser
 from admin_auth import get_admin_access
 # Import the new, specific functions and the QUOTA_LIMITS dictionary
 from quota_manager import increment_usage, get_usage_for_service, check_usage, QUOTA_LIMITS, PRO_QUOTA_LIMITS, MAX_QUOTA_LIMITS, PLUS_QUOTA_LIMITS
-from auth0_manager import get_email_by_id
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -150,17 +149,12 @@ def log_conversation_metrics(user_id: str, prompt_text: str, response_text: str,
 
 def get_all_conversation_metrics() -> list:
     """Get all conversation metrics (for admin endpoint)."""
+    import hashlib
     with _metrics_lock:
         metrics_copy = list(_conversation_metrics)  # Return copy
-        # Add email to each metric entry
         for metric in metrics_copy:
             user_id = metric.get("user_id")
-            if user_id:
-                try:
-                    metric["email"] = get_email_by_id(user_id)
-                except Exception as e:
-                    logger.error(f"Failed to fetch email for user {user_id}: {e}")
-                    metric["email"] = None
+            metric["user"] = hashlib.sha256(user_id.encode()).hexdigest()[:8] if user_id else None
         return metrics_copy
 
 def get_hourly_status() -> dict:
