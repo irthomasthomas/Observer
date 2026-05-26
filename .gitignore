@@ -337,3 +337,4 @@ api/keys.sh
 api/*.db
 api/logs/
 api/certs/
+api/.env
