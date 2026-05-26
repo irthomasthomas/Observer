@@ -44,8 +44,6 @@ services:
     volumes:
       # Persist marketplace database
       - ./marketplace.db:/app/marketplace.db
-      # Persist SSL certificates
-      - ./certs:/app/certs
       # Persist temporary images
       - ./temp_images:/app/temp_images
       # Persist logs
