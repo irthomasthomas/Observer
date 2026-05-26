@@ -19,7 +19,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: observer-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
+    command: tunnel --no-autoupdate run --url http://observer-api:3839
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
@@ -51,7 +51,7 @@ services:
     networks:
       - observer-network
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('https://localhost:3839/', context=__import__('ssl')._create_unverified_context())"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3839/')"]
       interval: 30s
       timeout: 10s
       retries: 3
