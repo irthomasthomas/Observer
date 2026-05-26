@@ -1,11 +1,6 @@
 # Multi-stage build for Observer API
 FROM python:3.11-slim as base
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
 # Set working directory
 WORKDIR /app
 
@@ -27,7 +22,7 @@ EXPOSE 3839
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3839/ || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3839/')"
 
 # Run the application
 CMD ["python", "api.py", "--port", "3839"]
