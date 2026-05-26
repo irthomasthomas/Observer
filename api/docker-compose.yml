@@ -19,14 +19,13 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: observer-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --url http://observer-api:3839
+    command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       observer-api:
         condition: service_healthy
-    networks:
-      - observer-network
+    network_mode: "service:observer-api"
 
   observer-api:
     build: .
