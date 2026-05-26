@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: observer-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - observer-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: observer-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      observer-api:
+        condition: service_healthy
+    networks:
+      - observer-network
+
+  observer-api:
+    build: .
+    container_name: observer-api
+    restart: unless-stopped
+    ports:
+      - "3839:3839"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      # Persist marketplace database
+      - ./marketplace.db:/app/marketplace.db
+      # Persist SSL certificates
+      - ./certs:/app/certs
+      # Persist temporary images
+      - ./temp_images:/app/temp_images
+      # Persist logs
+      - ./logs:/app/logs
+    networks:
+      - observer-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('https://localhost:3839/', context=__import__('ssl')._create_unverified_context())"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  observer-network:
+    driver: bridge
+
+volumes:
+  redis-data:

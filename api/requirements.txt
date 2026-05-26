@@ -1,12 +1,34 @@
-# Core (likely installed via system package manager on Arch)
-# fastapi, uvicorn, httpx, pydantic, python-dotenv, python-jose, PyJWT
+# Web framework
+fastapi
+uvicorn[standard]
 
-# Additional dependencies - install with pip
+# HTTP clients
+httpx
 requests
-redis
+websockets
+urllib3
+
+# Auth & crypto
+python-jose[cryptography]
+PyJWT[crypto]
+cryptography
+
+# Data validation
+pydantic[email]
+
+# Payments
 stripe
-python-json-logger
+
+# Messaging
 twilio
-pillow
 sendgrid
 phonenumbers
+
+# AI / media
+pillow
+
+# Observability
+python-json-logger
+
+# Storage
+redis
