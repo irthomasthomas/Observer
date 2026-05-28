@@ -56,6 +56,7 @@ import InteractiveTutorial from '@components/InteractiveTutorial';
 import LocalOnboardingTutorial from '@components/LocalOnboardingTutorial';
 import AgentChip from '@components/AgentChip';
 import { PERSON_DETECTOR_AGENT, PERSON_DETECTOR_CODE, PERSON_DETECTOR_ID } from '@utils/personDetectorAgent';
+import LiveStream from '@components/LiveStream';
 
 datadogRum.init({
   applicationId: 'ed504b99-0755-4aff-b155-06eeb559c705',
@@ -1263,6 +1264,8 @@ function AppContent() {
           getToken={getToken}
         />
       )}
+
+      <LiveStream />
 
       {tutorialModalInfo && (
         <InteractiveTutorial
