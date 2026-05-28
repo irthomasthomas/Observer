@@ -10,6 +10,7 @@ import os
 import sqlite3
 import stripe
 import hashlib
+import httpx
 from pathlib import Path
 
 from auth import AuthUser
@@ -100,6 +101,43 @@ app.include_router(
 )
 # Transcriptions router
 app.include_router(transcriptions_router)
+
+YOUTUBE_CHANNEL_ID = "UCgXTVhPSngONO6XhQiLhftg"
+LIVE_CACHE_TTL = 120  # seconds
+
+_live_cache: dict = {"live": False, "videoId": None, "last_checked": 0.0}
+
+@app.get("/live")
+async def live_status():
+    import time
+    now = time.monotonic()
+    if now - _live_cache["last_checked"] < LIVE_CACHE_TTL:
+        return {"live": _live_cache["live"], "videoId": _live_cache["videoId"]}
+
+    api_key = os.environ.get("YOUTUBE_API_KEY")
+    if not api_key:
+        return {"live": False, "videoId": None}
+
+    url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        "part": "id",
+        "channelId": YOUTUBE_CHANNEL_ID,
+        "eventType": "live",
+        "type": "video",
+        "key": api_key,
+    }
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url, params=params, timeout=10)
+
+    if resp.status_code != 200:
+        _live_cache["last_checked"] = now
+        return {"live": False, "videoId": None}
+
+    items = resp.json().get("items", [])
+    result = {"live": bool(items), "videoId": items[0]["id"]["videoId"] if items else None}
+    _live_cache.update({**result, "last_checked": now})
+    return result
+
 
 # Root path to check if service is running
 @app.get("/")
