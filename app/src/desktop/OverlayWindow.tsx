@@ -130,8 +130,16 @@ function renderMarkdown(text: string): React.ReactNode {
 // Helper function for inline markdown (no code blocks)
 function renderInlineMarkdown(text: string): React.ReactNode {
   if (!text) return null;
-  
-  const html = text
+
+  // Escape HTML entities first to prevent XSS
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+
+  const html = escaped
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
     .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic
     .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>') // Inline code
