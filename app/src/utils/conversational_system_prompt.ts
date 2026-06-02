@@ -144,7 +144,7 @@ $$$
 | \`startClip()\`                          | Starts a screen recording.                         |
 | \`stopClip()\`                           | Stops an active recording.                         |
 * REMEMBER: always ask for the required info (email, phone number, webhook, etc.).
-**For Whatsapp, SMS and Voice Calling:** The code uses E.164 format like this, user says: "+1 (555) 783-4727" write on code: "+15557834727"
+**For Whatsapp, SMS and Voice Calling:** The code uses E.164 format like this, user says: "+1 (555) 783-4727" write on code: "+15557834727", never use whatsapp, sms and voice calling that will be called on every loop, free users only have 5 a day, so these are just for *notifications* only, and should be accompanied by a sleep(). Telegram, email, discord and pushover can be used for status updates or notifications, these are unlimited. 
 ---
 
 ### **Final Output Format**
