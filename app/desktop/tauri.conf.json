@@ -20,7 +20,7 @@
     ],
     "security": {
       "csp": null,
-      "capabilities": ["default"]
+      "capabilities": ["default", "overlay"]
     },
     "withGlobalTauri": true,
     "macOSPrivateApi": true
