@@ -2,14 +2,12 @@ Ob-server/certs
 
 /video
 
-website/dist
-website/build
+websites/landing/dist
+websites/landing/build
 
-website/src-tauri/target
-website/src-tauri/Cargo.lock
-
-website/node_modules
-website/.pnp
+websites/landing/node_modules
+websites/landing/.pnp
+websites/status/.vite
 
 app/mobile/public
 app/mobile/AppStore.md

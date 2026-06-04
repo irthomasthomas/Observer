@@ -31,8 +31,8 @@ npm run build
 2. Create a new project
 3. Connect your GitHub repository
 4. Configure build settings:
-   - **Build command**: `cd status && npm install && npm run build`
-   - **Build output directory**: `status/dist`
+   - **Build command**: `cd websites/status && npm install && npm run build`
+   - **Build output directory**: `websites/status/dist`
    - **Root directory**: `/` (or leave empty)
 
 ### Method 2: Manual Deployment
