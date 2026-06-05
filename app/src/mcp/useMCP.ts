@@ -12,6 +12,7 @@ import { getTool, getToolSpecs } from './registry';
 import getMcpSystemPrompt from './systemPrompt';
 import {
   runConversation,
+  sealDanglingToolCalls,
   type InteractionRequest,
   type InteractionDecision,
 } from './runner';
@@ -39,6 +40,10 @@ const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
 /** Tools that change the dashboard's agent list / running state. */
 const MUTATING_TOOLS = new Set(['create_agent', 'edit_agent', 'start_agent', 'stop_agent']);
 
+const abortError = () => new DOMException('Stopped by user.', 'AbortError');
+const isAbortError = (e: unknown): boolean =>
+  e instanceof DOMException ? e.name === 'AbortError' : (e as any)?.name === 'AbortError';
+
 export function useMCP(options: UseMCPOptions) {
   const { getToken, isUsingObServer, modelName = DEFAULT_MODEL, skipPermissions } = options;
 
@@ -62,8 +67,15 @@ export function useMCP(options: UseMCPOptions) {
   const [toolStatus, setToolStatus] = useState<Map<string, ToolStatusEntry>>(new Map());
   const [pendingApproval, setPendingApproval] = useState<InteractionRequest | null>(null);
 
-  // batchId → resolver for the deferred approval promise.
-  const pendingResolvers = useRef<Map<string, (d: InteractionDecision) => void>>(new Map());
+  // batchId → settlers for the deferred approval promise. We keep `reject` too so a hard
+  // stop can unwind a run that's parked at the human-approval gate.
+  const pendingResolvers = useRef<Map<string, {
+    resolve: (d: InteractionDecision) => void;
+    reject: (e: unknown) => void;
+  }>>(new Map());
+
+  // Aborts the in-flight run. One controller per send(); stop() fires it.
+  const abortRef = useRef<AbortController | null>(null);
 
   const syncMessages = useCallback(() => {
     // Expose everything except the system message; the component decides what to render.
@@ -84,18 +96,18 @@ export function useMCP(options: UseMCPOptions) {
   }, []);
 
   const requestInteraction = useCallback((req: InteractionRequest): Promise<InteractionDecision> => {
-    return new Promise<InteractionDecision>(resolve => {
-      pendingResolvers.current.set(req.batchId, resolve);
+    return new Promise<InteractionDecision>((resolve, reject) => {
+      pendingResolvers.current.set(req.batchId, { resolve, reject });
       setPendingApproval(req);
     });
   }, []);
 
   /** Resolve a pending approval batch from the UI. */
   const resolveInteraction = useCallback((batchId: string, decision: InteractionDecision) => {
-    const resolve = pendingResolvers.current.get(batchId);
-    if (resolve) {
+    const settler = pendingResolvers.current.get(batchId);
+    if (settler) {
       pendingResolvers.current.delete(batchId);
-      resolve(decision);
+      settler.resolve(decision);
     }
     setPendingApproval(prev => (prev && prev.batchId === batchId ? null : prev));
   }, []);
@@ -117,6 +129,9 @@ export function useMCP(options: UseMCPOptions) {
     wireRef.current.push({ role: 'user', content: userContent });
     syncMessages();
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
     setIsRunning(true);
 
     const sendToModel = async (
@@ -125,8 +140,9 @@ export function useMCP(options: UseMCPOptions) {
     ) => {
       setStreamingText('');
       try {
+        if (signal.aborted) throw abortError();
         const token = isUsingObServer ? await getToken() : undefined;
-        return await ModelManager.getInstance().sendToolMessages(
+        const modelCall = ModelManager.getInstance().sendToolMessages(
           modelName,
           wire,
           getToolSpecs(),
@@ -134,6 +150,14 @@ export function useMCP(options: UseMCPOptions) {
           true,
           onTextDelta,
         );
+        // Race the streamed call against the abort signal so a hard stop unwinds the loop
+        // immediately instead of waiting for the model to finish. The orphaned modelCall
+        // settles in the background; its result is discarded (deltas are gated below).
+        return await new Promise<Awaited<typeof modelCall>>((resolve, reject) => {
+          const onAbort = () => reject(abortError());
+          signal.addEventListener('abort', onAbort, { once: true });
+          modelCall.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+        });
       } finally {
         setStreamingText('');
       }
@@ -145,8 +169,11 @@ export function useMCP(options: UseMCPOptions) {
         getTool,
         context: { getToken },
         skipPermissions,
+        signal,
         onWireUpdate: syncMessages,
-        onAssistantDelta: chunk => setStreamingText(prev => prev + chunk),
+        // Drop stream chunks from an orphaned (aborted) model call so a killed run can't
+        // keep repopulating the live bubble.
+        onAssistantDelta: chunk => { if (!signal.aborted) setStreamingText(prev => prev + chunk); },
         onStatus: (id, status, meta) => {
           setStatus(id, status, meta);
           if (status === 'done' && meta && MUTATING_TOOLS.has(meta.name)) {
@@ -156,14 +183,43 @@ export function useMCP(options: UseMCPOptions) {
         requestInteraction,
       });
     } catch (err) {
-      const text = err instanceof Error ? err.message : 'An unknown error occurred.';
-      wireRef.current.push({ role: 'assistant', content: `Sorry, I ran into an error: ${text}` });
-      syncMessages();
+      if (isAbortError(err)) {
+        // Hard stop: leave the conversation valid (no dangling tool_calls) and silent —
+        // the user asked to stop, so no error bubble.
+        sealDanglingToolCalls(wireRef.current);
+        syncMessages();
+      } else {
+        const text = err instanceof Error ? err.message : 'An unknown error occurred.';
+        wireRef.current.push({ role: 'assistant', content: `Sorry, I ran into an error: ${text}` });
+        syncMessages();
+      }
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setIsRunning(false);
       setStreamingText('');
     }
   }, [isRunning, isUsingObServer, getToken, modelName, skipPermissions, syncMessages, setStatus, requestInteraction]);
+
+  /** Hard-stop the in-flight run: kill the loop, abandon any model call, and unwind a
+   *  run parked at the approval gate. Leaves the (sealed) conversation intact. */
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    // Reject any parked approval gate so the runner's await unwinds promptly.
+    for (const [, settler] of pendingResolvers.current) settler.reject(abortError());
+    pendingResolvers.current.clear();
+    setPendingApproval(prev => {
+      // Any tool calls still awaiting that gate are being abandoned — clear their spinners.
+      if (prev) setToolStatus(s => {
+        const next = new Map(s);
+        for (const c of prev.calls) {
+          const existing = next.get(c.id);
+          if (existing && existing.status === 'pending') next.set(c.id, { ...existing, status: 'denied' });
+        }
+        return next;
+      });
+      return null;
+    });
+  }, []);
 
   /** Reset the conversation back to a fresh system message. No-op while a run is in flight. */
   const clear = useCallback(() => {
@@ -185,6 +241,7 @@ export function useMCP(options: UseMCPOptions) {
     resolveInteraction,
     subscribeMutation,
     clear,
+    stop,
     send,
   };
 }

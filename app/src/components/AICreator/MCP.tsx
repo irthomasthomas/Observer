@@ -289,6 +289,7 @@ const MCP: React.FC<MCPProps> = ({
     resolveInteraction,
     subscribeMutation,
     clear,
+    stop,
     send,
   } = useMCPContext();
 
@@ -532,14 +533,25 @@ const MCP: React.FC<MCPProps> = ({
             <Plus className="h-5 w-5" />
           </button>
 
-          <button
-            type="submit"
-            disabled={isSendDisabled}
-            className="p-2 md:p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
-            title="Send"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+          {isRunning ? (
+            <button
+              type="button"
+              onClick={stop}
+              className="p-2 md:p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center flex-shrink-0"
+              title="Stop"
+            >
+              <Square className="h-4 w-4" fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isSendDisabled}
+              className="p-2 md:p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
+              title="Send"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          )}
         </form>
       </div>
     </div>

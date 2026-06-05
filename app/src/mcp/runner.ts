@@ -46,6 +46,9 @@ export interface RunnerDeps {
   context: ToolContext;
   /** When true, confirmable tools run without a human gate. */
   skipPermissions?: boolean;
+  /** Aborts the loop. Checked at each safe boundary; an in-flight `send`/gate should also
+   *  reject when this fires so the loop unwinds promptly. */
+  signal?: AbortSignal;
   /** Called whenever the wire changes (new assistant/tool message appended). */
   onWireUpdate?: (wire: WireMessage[]) => void;
   /** Streamed assistant prose for the live bubble. */
@@ -69,6 +72,36 @@ function toolResultContent(result: ToolResult): string {
 }
 
 /**
+ * Guarantee wire validity after an abort: the OpenAI API rejects a request where an
+ * assistant `tool_calls` message isn't immediately followed by a `role: 'tool'` result
+ * for every call. If a run is killed mid-turn, the most recent assistant turn can have
+ * tool calls with no results — fill those with a synthetic "stopped" result so the
+ * conversation can still be continued or cleared without a 400.
+ */
+export function sealDanglingToolCalls(wire: WireMessage[]): WireMessage[] {
+  // Only the most recent assistant turn can be unanswered (the loop's invariant is that
+  // every prior turn's calls already have results), so stop at the first assistant we hit.
+  for (let i = wire.length - 1; i >= 0; i--) {
+    if (wire[i].role !== 'assistant') continue;
+    const calls = wire[i].tool_calls;
+    if (calls && calls.length > 0) {
+      const answered = new Set<string>();
+      for (let j = i + 1; j < wire.length; j++) {
+        const id = wire[j].tool_call_id;
+        if (wire[j].role === 'tool' && id) answered.add(id);
+      }
+      for (const tc of calls) {
+        if (!answered.has(tc.id)) {
+          wire.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ error: 'Stopped by user.' }) });
+        }
+      }
+    }
+    return wire;
+  }
+  return wire;
+}
+
+/**
  * Run the agentic loop in place, mutating and returning `wire`.
  */
 export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Promise<WireMessage[]> {
@@ -78,6 +111,10 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
   };
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
+    // Boundary 1: between turns the wire always ends in a user/tool/system message, so
+    // it's already valid — just stop.
+    if (deps.signal?.aborted) return wire;
+
     const assistant = await deps.send(wire, deps.onAssistantDelta);
 
     wire.push({
@@ -89,6 +126,14 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
 
     if (!assistant.tool_calls || assistant.tool_calls.length === 0) {
       // Natural termination → final prose already on the wire.
+      return wire;
+    }
+
+    // Boundary 2: aborted while the model was responding. We just pushed an assistant turn
+    // with tool calls — seal it so the wire stays valid, then stop before running anything.
+    if (deps.signal?.aborted) {
+      sealDanglingToolCalls(wire);
+      deps.onWireUpdate?.(wire);
       return wire;
     }
 
