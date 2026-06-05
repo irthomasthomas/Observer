@@ -5,12 +5,16 @@
 // OpenAI function calls (see src/mcp/). This component is pure UI over the useMCP hook.
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Trash2 } from 'lucide-react';
+import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Trash2, Download, Cpu, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
 import { useMCPContext } from '../../mcp/MCPContext';
 import type { WireMessage, ToolCall } from '../../mcp/types';
+import { isTauri } from '@utils/platform';
+import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
+import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
+import type { GemmaModelState, NativeModelState } from '@utils/localLlm/types';
 
 interface MCPProps {
   getToken: TokenProvider;
@@ -66,6 +70,110 @@ const ToolChip: React.FC<{ call: ToolCall; status?: ToolStatusEntry }> = ({ call
 );
 
 // ===================================================================================
+//  DOWNLOAD-MODEL PROGRESS  (live bars while download_model runs)
+// ===================================================================================
+const formatBytes = (bytes: number) => {
+  if (!+bytes) return '0 B';
+  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+};
+
+const Bar: React.FC<{ pct: number; done?: boolean }> = ({ pct, done }) => (
+  <div className="w-full bg-gray-200 rounded-full h-1.5">
+    <div
+      className={`h-1.5 rounded-full transition-all duration-300 ${done ? 'bg-green-500' : 'bg-purple-600'}`}
+      style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+    />
+  </div>
+);
+
+/**
+ * Subscribes directly to the local-model managers (the same state ModelHub renders) to show
+ * live progress for the in-flight `download_model` tool call. Renders nothing when idle.
+ */
+const DownloadModelProgress: React.FC = () => {
+  const tauri = isTauri();
+  const [gemma, setGemma] = useState<GemmaModelState>(() => GemmaModelManager.getInstance().getState());
+  const [native, setNative] = useState<NativeModelState>(() => NativeLlmManager.getInstance().getState());
+
+  useEffect(() => {
+    const unsubGemma = GemmaModelManager.getInstance().onStateChange(setGemma);
+    if (!tauri) return unsubGemma;
+    const unsubNative = NativeLlmManager.getInstance().onStateChange(setNative);
+    return () => { unsubGemma(); unsubNative(); };
+  }, [tauri]);
+
+  const Shell: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({ icon, children }) => (
+    <div className="mt-2 w-full max-w-md p-3 rounded-lg border border-purple-200 bg-white/70">
+      <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-gray-700">
+        {icon}<span>On-device model</span>
+      </div>
+      {children}
+    </div>
+  );
+
+  if (tauri) {
+    const { status, modelId, downloadProgress, downloadedBytes, totalBytes, error } = native;
+    if (status === 'downloading') {
+      return (
+        <Shell icon={<Download className="h-4 w-4 text-purple-600 animate-bounce" />}>
+          <div className="flex justify-between text-[11px] text-gray-600 mb-1">
+            <span className="truncate max-w-[60%]">{modelId ?? 'model'}.gguf</span>
+            <span className="font-medium">
+              {totalBytes > 0 ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}` : `${Math.round(downloadProgress)}%`}
+            </span>
+          </div>
+          <Bar pct={downloadProgress} />
+        </Shell>
+      );
+    }
+    if (status === 'loading') {
+      return <Shell icon={<Cpu className="h-4 w-4 text-purple-600 animate-pulse" />}><p className="text-xs text-gray-600">Loading model into memory…</p></Shell>;
+    }
+    if (status === 'loaded') {
+      return <Shell icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}><p className="text-xs text-gray-600">Model ready on your device.</p></Shell>;
+    }
+    if (status === 'error' && error) {
+      return <Shell icon={<XCircle className="h-4 w-4 text-red-500" />}><p className="text-xs text-red-600">{error}</p></Shell>;
+    }
+    return null;
+  }
+
+  // transformers.js (browser): one shot that both downloads and loads
+  if (gemma.status === 'loading') {
+    return (
+      <Shell icon={<Sparkles className="h-4 w-4 text-purple-600 animate-pulse" />}>
+        {gemma.progress.length > 0 ? (
+          <div className="space-y-1.5">
+            {gemma.progress.map(item => (
+              <div key={item.file}>
+                <div className="flex justify-between text-[11px] text-gray-600 mb-1">
+                  <span className="truncate max-w-[60%]">{item.file}</span>
+                  <span className="font-medium">
+                    {item.status === 'done' ? 'Done' : item.total > 0 ? `${formatBytes(item.loaded)} / ${formatBytes(item.total)}` : `${Math.round(item.progress)}%`}
+                  </span>
+                </div>
+                <Bar pct={item.progress} done={item.status === 'done'} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-600">Downloading & loading…</p>
+        )}
+      </Shell>
+    );
+  }
+  if (gemma.status === 'loaded') {
+    return <Shell icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}><p className="text-xs text-gray-600">Model ready in your browser.</p></Shell>;
+  }
+  if (gemma.status === 'error' && gemma.error) {
+    return <Shell icon={<XCircle className="h-4 w-4 text-red-500" />}><p className="text-xs text-red-600">{gemma.error}</p></Shell>;
+  }
+  return null;
+};
+
+// ===================================================================================
 //  AGENT APPROVAL CARD  (the human gate — a tool whose promise resolves from the UI)
 // ===================================================================================
 interface ApprovalCall { id: string; name: string; args: any; }
@@ -100,7 +208,7 @@ const AgentApprovalCard: React.FC<{
                   <h4 className="font-semibold text-gray-900">{c.args.name || c.args.id}</h4>
                   <p className="text-sm text-gray-600">{c.args.description}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {c.name === 'edit_agent' ? 'edit' : 'create'} · {c.args.model_name} · every {c.args.loop_interval_seconds}s
+                    {c.name === 'edit_agent' ? 'edit' : 'create'} · {c.args.model_name} · every {c.args.loop_interval_seconds ?? 30}s
                   </p>
                 </div>
               </div>
@@ -286,6 +394,7 @@ const MCP: React.FC<MCPProps> = ({
               ))}
             </div>
           )}
+          {toolCalls.some(tc => tc.function.name === 'download_model') && <DownloadModelProgress />}
         </div>
       </div>
     );

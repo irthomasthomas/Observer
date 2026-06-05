@@ -2,7 +2,7 @@
 //
 // The v1 Observer MCP tool set. Each tool is a JSON-Schema parameter spec plus a pure
 // executor over existing app utilities. Executors are React-free and only touch the
-// data layer (agent_database, IterationStore, main_loop, ModelManager, pullModelManager),
+// data layer (agent_database, IterationStore, main_loop, ModelManager, local model managers),
 // so the same registry can later be served from a real MCP server with the transport swapped.
 
 import type { ToolDefinition, ToolResult, WireToolSpec } from './types';
@@ -21,7 +21,7 @@ import {
 } from '@utils/main_loop';
 import { IterationStore, type IterationData } from '@utils/IterationStore';
 import { ModelManager } from '@utils/ModelManager';
-import pullModelManager from '@utils/pullModelManager';
+import { downloadDefaultLocalModel } from './localModel';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -236,10 +236,10 @@ export const TOOLS: ToolDefinition[] = [
         description: { type: 'string', description: 'Short description of what the agent does.' },
         model_name: { type: 'string', description: 'Model to power the agent (see list_models).' },
         system_prompt: { type: 'string', description: 'The system prompt, including any $SENSOR placeholders ($SCREEN, $MEMORY, $CLIPBOARD, ...).' },
-        loop_interval_seconds: { type: 'number', description: 'Seconds between agent iterations.' },
+        loop_interval_seconds: { type: 'number', description: 'Seconds between agent iterations. Optional — defaults to 30. Use shorter (~5–15s) for live screen/camera watchers, longer for periodic checks.' },
         code: { type: 'string', description: 'JavaScript run after each model response (agent-code API: response, sendEmail(), appendMemory(), overlay(), startAgent(), stopAgent(), ...).' },
       },
-      required: ['id', 'name', 'model_name', 'system_prompt', 'loop_interval_seconds', 'code'],
+      required: ['id', 'name', 'model_name', 'system_prompt', 'code'],
     },
     requiresConfirmation: true,
     multimodal: false,
@@ -250,7 +250,7 @@ export const TOOLS: ToolDefinition[] = [
         description: args.description ?? '',
         model_name: args.model_name,
         system_prompt: args.system_prompt,
-        loop_interval_seconds: args.loop_interval_seconds,
+        loop_interval_seconds: args.loop_interval_seconds ?? 30,
       };
       try {
         const saved = await saveAgent(agent, args.code);
@@ -271,10 +271,10 @@ export const TOOLS: ToolDefinition[] = [
         description: { type: 'string', description: 'Short description of what the agent does.' },
         model_name: { type: 'string', description: 'Model to power the agent.' },
         system_prompt: { type: 'string', description: 'The system prompt.' },
-        loop_interval_seconds: { type: 'number', description: 'Seconds between agent iterations.' },
+        loop_interval_seconds: { type: 'number', description: 'Seconds between agent iterations. Optional — omit to keep the agent\'s current interval.' },
         code: { type: 'string', description: 'JavaScript run after each model response (agent-code API).' },
       },
-      required: ['id', 'name', 'model_name', 'system_prompt', 'loop_interval_seconds', 'code'],
+      required: ['id', 'name', 'model_name', 'system_prompt', 'code'],
     },
     requiresConfirmation: true,
     multimodal: false,
@@ -287,7 +287,7 @@ export const TOOLS: ToolDefinition[] = [
         description: args.description ?? '',
         model_name: args.model_name,
         system_prompt: args.system_prompt,
-        loop_interval_seconds: args.loop_interval_seconds,
+        loop_interval_seconds: args.loop_interval_seconds ?? existing.loop_interval_seconds ?? 30,
       };
       try {
         const saved = await saveAgent(agent, args.code);
@@ -334,22 +334,18 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
-    name: 'pull_model',
-    description: 'Download (pull) a model onto a local inference server (e.g. an Ollama server). Progress is shown in the UI.',
-    parameters: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'The model name to pull.' },
-        server: { type: 'string', description: 'The inference server address to pull onto.' },
-      },
-      required: ['name', 'server'],
-    },
-    requiresConfirmation: false,
+    name: 'download_model',
+    description: 'Download and load the default on-device model so agents can run locally with NO cloud and NO API key. Takes no arguments — Observer picks the right Gemma 4 E2B build for the platform (a transformers.js ONNX model in the browser, a llama.cpp GGUF in the desktop app). This BLOCKS while it downloads (a few GB) and loads; progress bars are shown to the user. When it resolves, the returned `model_name` is immediately usable as a `create_agent` model_name. Only one local model is needed; call list_models afterward to confirm. Asks the user to approve.',
+    parameters: { type: 'object', properties: {} },
+    requiresConfirmation: true,
     multimodal: false,
-    execute: async (args): Promise<ToolResult> => {
-      // Fire-and-forget: pullModelManager broadcasts progress via its own subscription.
-      pullModelManager.pullModel(args.name, args.server);
-      return { data: { pulling: true, name: args.name, server: args.server } };
+    execute: async (): Promise<ToolResult> => {
+      try {
+        const result = await downloadDefaultLocalModel();
+        return { data: result };
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : String(e) };
+      }
     },
   },
 ];
