@@ -9,6 +9,7 @@ import { GemmaModelId, LocalLlmMessage } from './localLlm/types';
 import { InferenceParams, DEFAULT_INFERENCE_PARAMS } from '../config/inference-params';
 import { PreProcessorResult } from './pre-processor';
 import { UnauthorizedError } from './sendApi';
+import type { AssistantResponse, WireToolSpec } from '../mcp/types';
 
 export { UnauthorizedError };
 
@@ -760,6 +761,45 @@ export class ModelManager {
     const { fetchResponse } = await import('./sendApi');
     const params = { ...DEFAULT_INFERENCE_PARAMS, ...this.getModelParams(modelName) };
     return fetchResponse(serverAddress, messages, modelName, token, enableStreaming, onStreamChunk, params, onReasoningChunk);
+  }
+
+  /**
+   * Tools-aware send path. Returns the full AssistantResponse (content + tool_calls +
+   * finish_reason) so callers can drive native OpenAI function calling.
+   *
+   * Native function calling requires a capable remote model — local 2B watcher models
+   * are not supported here. Mirrors sendMessages' ghost-model fallback (agent-creator-only
+   * models aren't returned by listModels but are valid on the Observer API).
+   */
+  public async sendToolMessages(
+    modelName: string,
+    messages: Array<{ role: string; content: any }>,
+    tools: WireToolSpec[],
+    token?: string,
+    enableStreaming: boolean = false,
+    onStreamChunk?: (chunk: string) => void,
+    onReasoningChunk?: (chunk: string) => void
+  ): Promise<AssistantResponse> {
+    let modelsResponse = this.listModels();
+    let model = modelsResponse.models.find(m => m.name === modelName);
+    if (!model) {
+      modelsResponse = await this.fetchModels();
+      model = modelsResponse.models.find(m => m.name === modelName);
+    }
+    if (!model && !token) throw new Error(`Model '${modelName}' not found in available models`);
+
+    const serverAddress = model ? model.server : 'https://api.observer-ai.com:443';
+
+    if (this.isLocalModel(serverAddress)) {
+      throw new Error('Tool calling is only available with cloud models. Please use Ob-Server or a remote inference server.');
+    }
+
+    if (serverAddress.includes('api.observer-ai.com') && token) {
+      this.optimisticUpdateQuota();
+    }
+    const { fetchResponse } = await import('./sendApi');
+    const params = { ...DEFAULT_INFERENCE_PARAMS, ...this.getModelParams(modelName) };
+    return fetchResponse(serverAddress, messages, modelName, token, enableStreaming, onStreamChunk, params, onReasoningChunk, tools);
   }
 
   private optimisticUpdateQuota(): void {

@@ -63,7 +63,7 @@ const featureGroups: FeatureGroup[] = [
     rows: [
       { label: 'Alert Builder',            notLoggedIn: false, free: true,        pro: true,         max: true },
       { label: 'Cloud Monitoring',         notLoggedIn: false, free: '1 hr / day', pro: '8 hr / day', max: '24 / 7' },
-      { label: 'AI Studio (Multi-Agent)',  sparkle: true, notLoggedIn: false, free: false, pro: true, max: true },
+      { label: 'MCP (Multi-Agent)',  sparkle: true, notLoggedIn: false, free: false, pro: true, max: true },
     ],
   },
   {
