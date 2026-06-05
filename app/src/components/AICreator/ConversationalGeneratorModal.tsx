@@ -2,7 +2,7 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { X, Sparkles, Bell, FlaskConical } from 'lucide-react';
 import ConversationalGenerator from './ConversationalGenerator';
-import MultiAgentCreator from './MultiAgentCreator';
+import MCP from './MCP';
 // CompleteAgent import removed - no longer needed
 import type { TokenProvider } from '@utils/main_loop';
 
@@ -174,7 +174,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
           {mode === 'single' ? (
             <ConversationalGenerator {...conversationalProps} />
           ) : (
-            <MultiAgentCreator {...multiAgentProps} />
+            <MCP {...multiAgentProps} />
           )}
         </div>
       </div>

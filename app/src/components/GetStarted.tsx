@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Users, FlaskConical, MessageCircle, Plus, Bell } from 'lucide-react';
 import ConversationalGenerator from './AICreator/ConversationalGenerator';
-import MultiAgentCreator from './AICreator/MultiAgentCreator';
+import MCP from './AICreator/MCP';
 // CompleteAgent import removed - no longer needed
 import type { TokenProvider } from '@utils/main_loop';
 
@@ -104,7 +104,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
                   onRefresh={onRefresh}
                 />
               ) : (
-                <MultiAgentCreator
+                <MCP
                   onSaveComplete={() => {/* Agent saved, tutorial will start automatically */}}
                   getToken={getToken}
                   isAuthenticated={isAuthenticated}

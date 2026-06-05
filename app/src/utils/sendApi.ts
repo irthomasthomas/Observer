@@ -1,6 +1,7 @@
 // src/utils/sendApi.ts
 import { platformFetch } from './platform';
 import { InferenceParams } from '../config/inference-params';
+import type { AssistantResponse, ToolCall, WireToolSpec } from '../mcp/types';
 
 
 /**
@@ -69,6 +70,98 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
   return fullContent;
 }
 
+/**
+ * Streaming handler for tool-calling requests. A single turn may interleave prose and
+ * tool-call fragments; prose is forwarded via onStreamChunk while tool_calls are
+ * accumulated by `index` (concatenating function.arguments fragments).
+ */
+async function handleStreamingResponseWithTools(
+  response: Response,
+  onStreamChunk?: (chunk: string) => void,
+  onReasoningChunk?: (chunk: string) => void,
+): Promise<AssistantResponse> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body available for streaming');
+  }
+
+  const decoder = new TextDecoder();
+  let fullContent = '';
+  let finishReason: string | undefined;
+  // Accumulate tool-call fragments keyed by their stream index.
+  const toolCallsByIndex: Record<number, { id?: string; name?: string; arguments: string }> = {};
+
+  const finalize = (): AssistantResponse => {
+    const indices = Object.keys(toolCallsByIndex).map(Number).sort((a, b) => a - b);
+    const tool_calls: ToolCall[] = indices.map(i => ({
+      id: toolCallsByIndex[i].id || `call_${i}`,
+      type: 'function' as const,
+      function: {
+        name: toolCallsByIndex[i].name || '',
+        arguments: toolCallsByIndex[i].arguments || '',
+      },
+    }));
+    return {
+      content: fullContent,
+      tool_calls: tool_calls.length > 0 ? tool_calls : undefined,
+      finish_reason: finishReason,
+    };
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6);
+        if (data === '[DONE]') {
+          return finalize();
+        }
+
+        try {
+          const parsed = JSON.parse(data);
+          const choice = parsed.choices?.[0];
+          if (!choice) continue;
+
+          const delta = choice.delta || {};
+
+          if (delta.reasoning && onReasoningChunk) {
+            onReasoningChunk(delta.reasoning);
+          }
+
+          if (delta.content) {
+            fullContent += delta.content;
+            if (onStreamChunk) onStreamChunk(delta.content);
+          }
+
+          if (Array.isArray(delta.tool_calls)) {
+            for (const tc of delta.tool_calls) {
+              const idx = typeof tc.index === 'number' ? tc.index : 0;
+              if (!toolCallsByIndex[idx]) toolCallsByIndex[idx] = { arguments: '' };
+              if (tc.id) toolCallsByIndex[idx].id = tc.id;
+              if (tc.function?.name) toolCallsByIndex[idx].name = tc.function.name;
+              if (tc.function?.arguments) toolCallsByIndex[idx].arguments += tc.function.arguments;
+            }
+          }
+
+          if (choice.finish_reason) finishReason = choice.finish_reason;
+        } catch (parseError) {
+          // Ignore unparseable fragments (matches non-tool handler behavior)
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return finalize();
+}
+
 export class UnauthorizedError extends Error {
   constructor(message: string) {
     super(message);
@@ -112,6 +205,29 @@ function convertToOpenAIFormat(messages: Array<{role: string, content: any}>): A
   });
 }
 
+// Overloads: passing `tools` switches the return type to the full AssistantResponse
+// (content + tool_calls + finish_reason); omitting it keeps the back-compat string path.
+export async function fetchResponse(
+  serverAddress: string,
+  messages: Array<{role: string, content: any}>,
+  modelName: string,
+  token: string | undefined,
+  enableStreaming: boolean,
+  onStreamChunk: ((chunk: string) => void) | undefined,
+  inferenceParams: InferenceParams | undefined,
+  onReasoningChunk: ((chunk: string) => void) | undefined,
+  tools: WireToolSpec[]
+): Promise<AssistantResponse>;
+export async function fetchResponse(
+  serverAddress: string,
+  messages: Array<{role: string, content: any}>,
+  modelName: string,
+  token?: string,
+  enableStreaming?: boolean,
+  onStreamChunk?: (chunk: string) => void,
+  inferenceParams?: InferenceParams,
+  onReasoningChunk?: (chunk: string) => void
+): Promise<string>;
 export async function fetchResponse(
   serverAddress: string,
   messages: Array<{role: string, content: any}>,
@@ -120,8 +236,9 @@ export async function fetchResponse(
   enableStreaming: boolean = false,
   onStreamChunk?: (chunk: string) => void,
   inferenceParams?: InferenceParams,
-  onReasoningChunk?: (chunk: string) => void
-): Promise<string> {
+  onReasoningChunk?: (chunk: string) => void,
+  tools?: WireToolSpec[]
+): Promise<string | AssistantResponse> {
   try {
     // External API: convert to OpenAI format
     const apiMessages = convertToOpenAIFormat(messages);
@@ -172,6 +289,11 @@ export async function fetchResponse(
       }
     }
 
+    // Attach function tools when provided (native OpenAI function calling)
+    if (tools && tools.length > 0) {
+      requestBodyObj.tools = tools;
+    }
+
     const requestBody = JSON.stringify(requestBodyObj);
 
     const response = await platformFetch(url, {
@@ -203,17 +325,37 @@ export async function fetchResponse(
         throw new Error(errorMessage);
     }
 
+    const usingTools = !!(tools && tools.length > 0);
+
     if (enableStreaming) {
+      if (usingTools) {
+        return await handleStreamingResponseWithTools(response, onStreamChunk, onReasoningChunk);
+      }
       return await handleStreamingResponse(response, onStreamChunk, onReasoningChunk);
     } else {
       const data = await response.json();
+      const message = data.choices?.[0]?.message;
 
-      if (!data.choices || !data.choices[0] || !data.choices[0].message || typeof data.choices[0].message.content === 'undefined') {
+      if (usingTools) {
+        // With tools, content may be null when the model only emits tool_calls.
+        if (!message) {
+          console.error('Unexpected API response structure:', data);
+          throw new Error('Unexpected API response structure');
+        }
+        const result: AssistantResponse = {
+          content: message.content ?? '',
+          tool_calls: message.tool_calls,
+          finish_reason: data.choices?.[0]?.finish_reason,
+        };
+        return result;
+      }
+
+      if (!message || typeof message.content === 'undefined') {
           console.error('Unexpected API response structure:', data);
           throw new Error('Unexpected API response structure');
       }
 
-      return data.choices[0].message.content;
+      return message.content;
     }
 
   } catch (error) {
