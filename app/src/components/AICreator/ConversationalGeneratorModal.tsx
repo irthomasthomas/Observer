@@ -50,7 +50,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
     setMode(newMode);
   };
 
-  // Handle save completion for both Alert Builder and AI-Studio
+  // Handle save completion for both Alert Builder and MCP
   const handleSaveComplete = useCallback(() => {
     // Agent is already saved and refreshed, just close the modal
     // App.tsx will detect first agent and start tutorial automatically
@@ -125,7 +125,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
                     title={!isPro ? 'Pro feature - Upgrade to access Multi-Agent creation' : ''}
                   >
                     <FlaskConical className="h-4 w-4 mr-2" />
-                    AI-Studio
+                    MCP
                   </button>
                 </div>
               </div>
@@ -163,7 +163,7 @@ const ConversationalGeneratorModal: React.FC<ConversationalGeneratorModalProps> 
                 title={!isPro ? 'Pro feature - Upgrade to access Multi-Agent creation' : ''}
               >
                 <FlaskConical className="h-4 w-4 mr-2" />
-                AI-Studio
+                MCP
               </button>
             </div>
           </div>

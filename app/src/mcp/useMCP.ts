@@ -29,10 +29,10 @@ export interface UseMCPOptions {
   modelName?: string;
   /** When true, confirmable tools run without a human gate. */
   skipPermissions?: boolean;
-  /** Fired after any agent-mutating tool completes (create/edit/start/stop) so the
-   *  dashboard can refresh. Receives the tool name that mutated. */
-  onAgentMutated?: (toolName: string) => void;
 }
+
+/** Listener fired after any agent-mutating tool completes. Receives the tool name. */
+export type MutationListener = (toolName: string) => void;
 
 const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
 
@@ -40,12 +40,21 @@ const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
 const MUTATING_TOOLS = new Set(['create_agent', 'edit_agent', 'start_agent', 'stop_agent']);
 
 export function useMCP(options: UseMCPOptions) {
-  const { getToken, isUsingObServer, modelName = DEFAULT_MODEL, skipPermissions, onAgentMutated } = options;
+  const { getToken, isUsingObServer, modelName = DEFAULT_MODEL, skipPermissions } = options;
 
   // The wire always begins with the (hidden) system message.
   const wireRef = useRef<WireMessage[]>([
     { role: 'system', content: getMcpSystemPrompt() },
   ]);
+
+  // Consumers subscribe to agent-mutation events (create/edit/start/stop) so each screen
+  // can react in its own way (refresh the dashboard, close the modal, start a tutorial, …)
+  // without the shared hook baking in one caller's callback.
+  const mutationListeners = useRef<Set<MutationListener>>(new Set());
+  const subscribeMutation = useCallback((listener: MutationListener) => {
+    mutationListeners.current.add(listener);
+    return () => { mutationListeners.current.delete(listener); };
+  }, []);
 
   const [messages, setMessages] = useState<WireMessage[]>([]);
   const [streamingText, setStreamingText] = useState('');
@@ -141,7 +150,7 @@ export function useMCP(options: UseMCPOptions) {
         onStatus: (id, status, meta) => {
           setStatus(id, status, meta);
           if (status === 'done' && meta && MUTATING_TOOLS.has(meta.name)) {
-            onAgentMutated?.(meta.name);
+            mutationListeners.current.forEach(l => l(meta.name));
           }
         },
         requestInteraction,
@@ -154,7 +163,18 @@ export function useMCP(options: UseMCPOptions) {
       setIsRunning(false);
       setStreamingText('');
     }
-  }, [isRunning, isUsingObServer, getToken, modelName, skipPermissions, syncMessages, setStatus, requestInteraction, onAgentMutated]);
+  }, [isRunning, isUsingObServer, getToken, modelName, skipPermissions, syncMessages, setStatus, requestInteraction]);
+
+  /** Reset the conversation back to a fresh system message. No-op while a run is in flight. */
+  const clear = useCallback(() => {
+    if (isRunning) return;
+    pendingResolvers.current.clear();
+    wireRef.current = [{ role: 'system', content: getMcpSystemPrompt() }];
+    setMessages([]);
+    setToolStatus(new Map());
+    setStreamingText('');
+    setPendingApproval(null);
+  }, [isRunning]);
 
   return {
     messages,
@@ -163,6 +183,10 @@ export function useMCP(options: UseMCPOptions) {
     toolStatus,
     pendingApproval,
     resolveInteraction,
+    subscribeMutation,
+    clear,
     send,
   };
 }
+
+export type UseMCPReturn = ReturnType<typeof useMCP>;

@@ -5,10 +5,11 @@
 // OpenAI function calls (see src/mcp/). This component is pure UI over the useMCP hook.
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save } from 'lucide-react';
+import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
-import { useMCP, type ToolStatusEntry } from '../../mcp/useMCP';
+import { type ToolStatusEntry } from '../../mcp/useMCP';
+import { useMCPContext } from '../../mcp/MCPContext';
 import type { WireMessage, ToolCall } from '../../mcp/types';
 
 interface MCPProps {
@@ -160,7 +161,6 @@ const AgentApprovalCard: React.FC<{
 //  MAIN COMPONENT
 // ===================================================================================
 const MCP: React.FC<MCPProps> = ({
-  getToken,
   isAuthenticated,
   isUsingObServer,
   isPro = false,
@@ -169,6 +169,9 @@ const MCP: React.FC<MCPProps> = ({
   onSaveComplete,
   initialMessage,
 }) => {
+  // Conversation state lives in the app-level MCPProvider, so it's shared across every
+  // place the MCP UI is opened (GetStarted, the modal) and survives this component
+  // unmounting mid-run.
   const {
     messages,
     streamingText,
@@ -176,18 +179,19 @@ const MCP: React.FC<MCPProps> = ({
     toolStatus,
     pendingApproval,
     resolveInteraction,
+    subscribeMutation,
+    clear,
     send,
-  } = useMCP({
-    getToken,
-    isUsingObServer,
-    onAgentMutated: (toolName) => {
-      onRefresh?.();
-      // Mirror the old "Save → close modal" UX once an agent is actually persisted.
-      if (toolName === 'create_agent' || toolName === 'edit_agent') {
-        onSaveComplete?.();
-      }
-    },
-  });
+  } = useMCPContext();
+
+  // Each screen reacts to agent mutations in its own way; register this screen's reaction.
+  useEffect(() => subscribeMutation((toolName) => {
+    onRefresh?.();
+    // Mirror the old "Save → close modal" UX once an agent is actually persisted.
+    if (toolName === 'create_agent' || toolName === 'edit_agent') {
+      onSaveComplete?.();
+    }
+  }), [subscribeMutation, onRefresh, onSaveComplete]);
 
   const [userInput, setUserInput] = useState('');
   const [previewImages, setPreviewImages] = useState<string[]>([]);
@@ -292,8 +296,8 @@ const MCP: React.FC<MCPProps> = ({
   const isSendDisabled = isInputDisabled || (!userInput.trim() && previewImages.length === 0);
 
   const getPlaceholder = () => {
-    if (isProGated) return 'Upgrade to Pro to use AI-Studio';
-    if (isUsingObServer && !isAuthenticated) return 'Enable Ob-Server and log in to use Studio';
+    if (isProGated) return 'Upgrade to Pro to use MCP';
+    if (isUsingObServer && !isAuthenticated) return 'Enable Ob-Server and log in to use MCP';
     if (pendingApproval) return 'Approve or deny the proposed action above…';
     return 'Describe the agent you want to build…';
   };
@@ -312,7 +316,7 @@ const MCP: React.FC<MCPProps> = ({
                     <Users className="h-8 w-8 text-purple-600" />
                   </div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">🔒 AI-Studio is a Pro Feature</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">🔒 MCP is a Pro Feature</h3>
                 <p className="text-gray-600 mb-4">Upgrade to Pro to create and manage agents with AI collaboration</p>
                 <button
                   onClick={onUpgrade}
@@ -326,12 +330,28 @@ const MCP: React.FC<MCPProps> = ({
         </>
       )}
 
+      {/* Header — shows a Clear button once a conversation exists */}
+      {messages.length > 0 && (
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-purple-100 bg-white/60 rounded-t-lg">
+          <span className="text-xs font-semibold text-purple-700">MCP</span>
+          <button
+            onClick={clear}
+            disabled={isRunning}
+            title="Clear conversation"
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-500 rounded-md hover:bg-gray-100 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Chat Messages */}
       <div className="flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto">
         {messages.length === 0 && (
           <div className="flex justify-start">
             <div className="max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm">
-              <Markdown text={`Hi! I'm **Observer Studio**. I can build, edit, run, and inspect your agents.\n\nTry: *"Create an agent that emails me when the Observer logo is on screen"* or *"What has my screen_watcher agent done recently?"*`} />
+              <Markdown text={`Hi! I'm **Observer's MCP**. I can build, edit, run, and inspect your agents.\n\nTry: *"Create an agent that emails me when the Observer logo is on screen"* or *"What has my screen_watcher agent done recently?"*`} />
             </div>
           </div>
         )}

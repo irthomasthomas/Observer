@@ -86,7 +86,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
                     }`}
                   >
                     <FlaskConical className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">AI Studio</span>
+                    <span className="hidden md:inline">MCP</span>
                   </button>
                 </div>
               </div>
