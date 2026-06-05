@@ -3,7 +3,7 @@
 import os
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import Response as FastAPIResponse
@@ -21,7 +21,7 @@ from twilio.request_validator import RequestValidator
 
 # Local imports
 from auth import AuthUser
-from quota_manager import increment_usage, check_usage
+from quota_manager import increment_usage, check_usage, get_redis
 
 # Setup
 logging.basicConfig(level=logging.INFO)
@@ -31,21 +31,11 @@ messaging_router = APIRouter()
 # Temp images directory
 TEMP_IMAGES_DIR = Path("temp_images")
 
-# In-memory phone whitelist - for SMS and voice calls
-# Blazing fast, ephemeral by design
-phone_whitelist = {}
-
-# In-memory WhatsApp whitelist - separate due to WhatsApp's 24h messaging window
-# WhatsApp can only send messages to users who messaged them in the last 24h (Twilio error 63016)
-whatsapp_whitelist = {}
-
-# Key-to-phone mapping - allows users to send a message like "pizza" and use that as their key
-# Maps user-chosen keys (message bodies) to normalized phone numbers
-key_to_phone = {}
-
 # In-memory storage for pending voice call messages
 # Maps call_sid -> message text that should be spoken
 pending_voice_calls = {}
+
+WHITELIST_TTL = 86400  # 24 hours in seconds
 
 def normalize_phone(phone: str) -> str:
     """
@@ -105,107 +95,68 @@ def phone_numbers_fuzzy_match(num1: str, num2: str) -> bool:
     else:
         return is_subsequence(digits2, digits1)
 
-def resolve_to_phone(key_or_phone: str) -> str:
+async def resolve_to_phone(key_or_phone: str) -> str:
     """
     Resolve a key or phone number to an actual whitelisted phone number.
 
-    First checks if the input is a key in key_to_phone mapping.
+    First checks if the input is a key in the Redis key_to_phone mapping.
     If not, fuzzy matches against all whitelisted numbers (both phone and WhatsApp).
     If no match found, returns normalized E.164 format.
-
-    This allows API calls like:
-    - to_number: "pizza" → looks up phone number from key
-    - to_number: "+52 811 500 0488" → fuzzy matches to whitelisted "+528115000488"
-    - to_number: "+5218115000488" → fuzzy matches to whitelisted "+528115000488"
     """
-    # Check if it's a key first
-    if key_or_phone in key_to_phone:
-        return key_to_phone[key_or_phone]
+    r = await get_redis()
 
-    # Try to fuzzy match against whitelisted numbers (check both whitelists)
-    all_whitelisted = list(phone_whitelist.keys()) + list(whatsapp_whitelist.keys())
-    for whitelisted_num in all_whitelisted:
+    # Check if it's a key first
+    mapped = await r.get(f"whitelist:key:{key_or_phone}")
+    if mapped:
+        return mapped
+
+    # Fuzzy match against all whitelisted numbers
+    phone_nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:phone:*")]
+    wa_nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:whatsapp:*")]
+    for whitelisted_num in phone_nums + wa_nums:
         if phone_numbers_fuzzy_match(key_or_phone, whitelisted_num):
             return whitelisted_num
 
-    # No match found, normalize and return (Twilio will handle validation)
     return normalize_phone(key_or_phone)
 
-def is_whitelisted(phone_number: str, channel: str = None) -> bool:
+async def is_whitelisted(phone_number: str, channel: str = None) -> bool:
     """
     Check if phone number (or key) is whitelisted for messaging.
-    Uses fuzzy matching to handle formatting variations and country-specific quirks.
-    Cleanup expired entries.
-
-    Args:
-        phone_number: The phone number or key to check
-        channel: Optional channel to check ('whatsapp', 'sms', 'voice').
-                 If 'whatsapp', checks only whatsapp_whitelist (strict - Twilio 24h window).
-                 Otherwise, checks both phone_whitelist AND whatsapp_whitelist.
-
-    Returns:
-        True if whitelisted for the given channel, False otherwise
+    Uses Redis so all workers share the same state.
+    TTL-based expiry is handled by Redis automatically.
     """
-    now = datetime.utcnow()
-
-    # Clean up expired entries during check
-    expired_phone = [num for num, expires_at in phone_whitelist.items() if expires_at < now]
-    for num in expired_phone:
-        del phone_whitelist[num]
-
-    expired_whatsapp = [num for num, expires_at in whatsapp_whitelist.items() if expires_at < now]
-    for num in expired_whatsapp:
-        del whatsapp_whitelist[num]
+    r = await get_redis()
 
     # Check if it's a key first
-    if phone_number in key_to_phone:
-        actual_phone = key_to_phone[phone_number]
-        # Check against appropriate whitelist(s)
-        if channel == "whatsapp":
-            return any(phone_numbers_fuzzy_match(actual_phone, num) for num in whatsapp_whitelist.keys())
-        else:
-            return any(phone_numbers_fuzzy_match(actual_phone, num) for num in list(phone_whitelist.keys()) + list(whatsapp_whitelist.keys()))
+    mapped = await r.get(f"whitelist:key:{phone_number}")
+    actual_phone = mapped if mapped else phone_number
 
-    # Fuzzy match against whitelisted numbers
     if channel == "whatsapp":
-        # WhatsApp: strict check - only whatsapp_whitelist (Twilio 24h window requirement)
-        for whitelisted_num in whatsapp_whitelist.keys():
-            if phone_numbers_fuzzy_match(phone_number, whitelisted_num):
-                return True
+        nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:whatsapp:*")]
     else:
-        # SMS/Voice: lenient check - either whitelist works
-        for whitelisted_num in list(phone_whitelist.keys()) + list(whatsapp_whitelist.keys()):
-            if phone_numbers_fuzzy_match(phone_number, whitelisted_num):
-                return True
+        phone_nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:phone:*")]
+        wa_nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:whatsapp:*")]
+        nums = phone_nums + wa_nums
 
-    return False
+    return any(phone_numbers_fuzzy_match(actual_phone, num) for num in nums)
 
-def add_to_whitelist(phone_number: str, key: str = None, channel: str = "phone") -> None:
+async def add_to_whitelist(phone_number: str, key: str = None, channel: str = "phone") -> None:
     """
-    Add phone number to appropriate whitelist with 24h expiry.
+    Add phone number to appropriate whitelist with 24h expiry in Redis.
     Optionally map a user-chosen key (like "pizza" or "Hey, I'm Roy") to the phone number.
-
-    Args:
-        phone_number: The phone number to whitelist (will be normalized to E.164)
-        key: Optional user-chosen key to map to this phone number
-        channel: Which whitelist to add to ('phone' for SMS/Voice, 'whatsapp' for WhatsApp)
     """
-    expires_at = datetime.utcnow() + timedelta(hours=24)
-
-    # Normalize the phone number to E.164 format
+    r = await get_redis()
     normalized_phone = normalize_phone(phone_number)
 
-    # Add to appropriate whitelist
     if channel == "whatsapp":
-        whatsapp_whitelist[normalized_phone] = expires_at
-        logger.info(f"Added {normalized_phone} (original: {phone_number}) to WhatsApp whitelist, expires at {expires_at}")
+        await r.setex(f"whitelist:whatsapp:{normalized_phone}", WHITELIST_TTL, "1")
+        logger.info(f"Added {normalized_phone} (original: {phone_number}) to WhatsApp whitelist")
     else:
-        phone_whitelist[normalized_phone] = expires_at
-        logger.info(f"Added {normalized_phone} (original: {phone_number}) to phone whitelist (SMS/Voice), expires at {expires_at}")
+        await r.setex(f"whitelist:phone:{normalized_phone}", WHITELIST_TTL, "1")
+        logger.info(f"Added {normalized_phone} (original: {phone_number}) to phone whitelist (SMS/Voice)")
 
-    # If a key is provided, map it to the normalized phone number
     if key and key.strip():
-        key_to_phone[key] = normalized_phone
+        await r.setex(f"whitelist:key:{key}", WHITELIST_TTL, normalized_phone)
         logger.info(f"Mapped key '{key}' to phone number {normalized_phone}")
 
 async def validate_twilio_request(request: Request) -> dict:
@@ -493,14 +444,14 @@ async def send_sms(
 ):
     """Sends an SMS to whitelisted numbers only."""
     # 1. Whitelist Check - unified anti-spam protection
-    if not is_whitelisted(request_data.to_number):
+    if not await is_whitelisted(request_data.to_number):
         raise HTTPException(
             status_code=403,
             detail=f"Number {request_data.to_number} not whitelisted! Send an SMS or WhatsApp message to whatsapp:+1 (555) 783-4727 or call us first to receive messages"
         )
 
     # 1.5. Resolve key or phone number to normalized E.164 format
-    resolved_phone = resolve_to_phone(request_data.to_number)
+    resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (using the "sms" service)
     if await check_usage(current_user.id, "sms", current_user.is_pro, current_user.is_max, current_user.is_plus):
@@ -592,9 +543,9 @@ async def sms_incoming_webhook(
         # Add to phone whitelist (for SMS and voice)
         # Store message body as key for friendly lookup (e.g., "pizza", "Roy", etc.)
         if (len(message_body)>7 and message_body!="Hi! I'd like to whitelist my phone number for Observer"):
-            add_to_whitelist(from_number, key=message_body, channel="phone")
+            await add_to_whitelist(from_number, key=message_body, channel="phone")
         else:
-            add_to_whitelist(from_number, channel="phone")
+            await add_to_whitelist(from_number, channel="phone")
             message_body=None
 
         # Get Twilio config to respond
@@ -632,14 +583,14 @@ async def send_whatsapp(
 ):
     """Sends a WhatsApp message to whitelisted numbers only."""
     # 1. Whitelist Check - WhatsApp-specific (24h messaging window)
-    if not is_whitelisted(request_data.to_number, channel="whatsapp"):
+    if not await is_whitelisted(request_data.to_number, channel="whatsapp"):
         raise HTTPException(
             status_code=403,
             detail=f"Number {request_data.to_number} not whitelisted for WhatsApp! Send a WhatsApp message to +1 (555) 783-4727 first to receive WhatsApp messages"
         )
 
     # 1.5. Resolve key or phone number to normalized E.164 format
-    resolved_phone = resolve_to_phone(request_data.to_number)
+    resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (using the "whatsapp" service)
     if await check_usage(current_user.id, "whatsapp", current_user.is_pro, current_user.is_max, current_user.is_plus):
@@ -712,7 +663,7 @@ async def check_is_whitelisted(
     current_user: AuthUser
 ):
     """Checks if a phone number is currently whitelisted for messaging."""
-    whitelisted = is_whitelisted(request_data.phone_number, channel=request_data.channel)
+    whitelisted = await is_whitelisted(request_data.phone_number, channel=request_data.channel)
     logger.info(f"Whitelist check for user_id: {current_user.id}, number: {request_data.phone_number}, channel: {request_data.channel}, result: {whitelisted}")
     return {
         "phone_number": request_data.phone_number,
@@ -743,9 +694,9 @@ async def whatsapp_incoming_webhook(
         # Add to WhatsApp whitelist - blazing fast in-memory operation
         # Store message body as key for friendly lookup if it's greater than 7 chars
         if (len(message_body)>7 and message_body!="Hi! I'd like to whitelist my phone number for Observer"):
-            add_to_whitelist(from_number, key=message_body, channel="whatsapp")
+            await add_to_whitelist(from_number, key=message_body, channel="whatsapp")
         else:
-            add_to_whitelist(from_number, channel="whatsapp")
+            await add_to_whitelist(from_number, channel="whatsapp")
             message_body = None
 
         # Get Twilio config to respond
@@ -822,14 +773,14 @@ async def make_voice_call(
 ):
     """Initiates an outbound voice call to whitelisted numbers only."""
     # 1. Whitelist Check - unified anti-spam protection
-    if not is_whitelisted(request_data.to_number):
+    if not await is_whitelisted(request_data.to_number):
         raise HTTPException(
             status_code=403,
             detail=f"Number {request_data.to_number} not whitelisted! Send an SMS or WhatsApp message to whatsapp:+1 (555) 783-4727 or call us first to receive messages"
         )
 
     # 1.5. Resolve key or phone number to normalized E.164 format
-    resolved_phone = resolve_to_phone(request_data.to_number)
+    resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (separate voice_call quota)
     if await check_usage(current_user.id, "voice_call", current_user.is_pro, current_user.is_max, current_user.is_plus):
@@ -904,7 +855,7 @@ async def voice_callback(
 
         if direction == "inbound":
             # Someone called YOUR number - whitelist them for phone (SMS/Voice)
-            add_to_whitelist(from_number, channel="phone")
+            await add_to_whitelist(from_number, channel="phone")
             logger.info(f"Auto-whitelisted caller {from_number} via incoming call")
 
             response.say(
