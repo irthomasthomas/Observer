@@ -35,10 +35,10 @@ import PersistentSidebar from '@components/PersistentSidebar';
 import AvailableModels from '@components/AvailableModels';
 import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
+import MCPModal from '@components/AICreator/MCPModal';
 import JupyterServerModal from '@components/JupyterServerModal';
 import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
 import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
-import ConversationalGeneratorModal from '@components/AICreator/ConversationalGeneratorModal';
 import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
 import MemoryStoreTab from '@components/MemoryStoreTab';
@@ -106,7 +106,7 @@ function AppContent() {
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
   const [hasPendingImport, setHasPendingImport] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isConversationalModalOpen, setIsConversationalModalOpen] = useState(false);
+  const [isMCPModalOpen, setIsMCPModalOpen] = useState(false);
   const [aiEditMessage, setAiEditMessage] = useState<string | undefined>();
 
   // Quota error state
@@ -383,7 +383,7 @@ function AppContent() {
 
   const handleAIEditClick = (agentId: string) => {
     setAiEditMessage(`Help me edit this agent @${agentId} `);
-    setIsConversationalModalOpen(true);
+    setIsMCPModalOpen(true);
     Logger.info('APP', `Opening AI Edit modal for agent ${agentId}`);
   };
 
@@ -760,6 +760,7 @@ function AppContent() {
     });
   }, [agents, runningAgents, startingAgents]);
 
+  // Hero (full-width MCP co-pilot) when there are no agents OR all of them are minimized.
   // Show GetStarted when no agents exist OR all are minimized
   const showGetStarted = agents.length === 0 || minimizedAgents.size === agents.length;
 
@@ -841,7 +842,7 @@ function AppContent() {
               activeAgentCount={runningAgents.size}
               isRefreshing={isRefreshing}
               onRefresh={fetchAgents}
-              onGenerateAgent={() => setIsConversationalModalOpen(true)}
+              onGenerateAgent={() => setIsMCPModalOpen(true)}
             />
 
             <div className="flex flex-wrap gap-6 items-start overflow-x-hidden">
@@ -965,21 +966,9 @@ function AppContent() {
         )}
       </main>
 
-      <SimpleCreatorModal
-        isOpen={isSimpleCreatorOpen}
-        onClose={() => setIsSimpleCreatorOpen(false)}
-        onNext={handleSimpleCreatorNext}
-        isAuthenticated={isAuthenticated}
-        hostingContext={hostingContext}
-        userEmail={user?.email}
-      />
-
-      <ConversationalGeneratorModal
-        isOpen={isConversationalModalOpen}
-        onClose={() => {
-          setIsConversationalModalOpen(false);
-          setAiEditMessage(undefined);
-        }}
+      <MCPModal
+        isOpen={isMCPModalOpen}
+        onClose={() => { setIsMCPModalOpen(false); setAiEditMessage(undefined); }}
         getToken={getToken}
         isAuthenticated={isAuthenticated}
         isUsingObServer={isUsingObServer}
@@ -997,6 +986,16 @@ function AppContent() {
           setIsUpgradeModalOpen(true);
         }}
       />
+
+      <SimpleCreatorModal
+        isOpen={isSimpleCreatorOpen}
+        onClose={() => setIsSimpleCreatorOpen(false)}
+        onNext={handleSimpleCreatorNext}
+        isAuthenticated={isAuthenticated}
+        hostingContext={hostingContext}
+        userEmail={user?.email}
+      />
+
 
       {isEditModalOpen && (
         <EditAgentModal

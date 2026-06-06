@@ -29,6 +29,8 @@ interface MCPProps {
   onRefresh?: () => void;
   onSaveComplete?: () => void;
   initialMessage?: string;
+  /** Tailwind height classes for the chat container. Defaults to the hero/sheet sizing. */
+  heightClass?: string;
 }
 
 // ===================================================================================
@@ -278,6 +280,7 @@ const MCP: React.FC<MCPProps> = ({
   onRefresh,
   onSaveComplete,
   initialMessage,
+  heightClass = 'h-[350px] md:h-[450px]',
 }) => {
   // Conversation state lives in the app-level MCPProvider, so it's shared across every
   // place the MCP UI is opened (GetStarted, the modal) and survives this component
@@ -429,7 +432,7 @@ const MCP: React.FC<MCPProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[350px] md:h-[450px] bg-white rounded-lg border border-purple-200 relative">
+    <div className={`flex flex-col ${heightClass} bg-white rounded-lg border border-purple-200 relative`}>
       {/* Pro Feature Overlay */}
       {isProGated && (
         <>
