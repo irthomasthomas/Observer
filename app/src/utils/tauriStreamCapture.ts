@@ -123,6 +123,19 @@ class TauriStreamCapture {
 
   private pendingAcquisitions = new Map<MasterStreamType, Promise<void>>();
 
+  /**
+   * A capture target chosen ahead of time (e.g. by the MCP `select_screen_target` tool),
+   * consumed once by the next display acquisition so it can skip the selector window.
+   * Mirrors how `agentCropConfigs` carries crop state into capture without threading args
+   * through StreamManager. Cleared after a single use; falls back to the selector if unset.
+   */
+  private preselectedTargetId: string | null = null;
+
+  /** Seat a capture target for the next display acquisition (consumed once). */
+  setPreselectedTarget(targetId: string | null): void {
+    this.preselectedTargetId = targetId;
+  }
+
   // Active stream results (for cleanup)
   private videoStreamResult: VideoStreamResult | null = null;
   private audioStreamResult: AudioStreamResult | null = null;
@@ -439,9 +452,10 @@ class TauriStreamCapture {
 
     Logger.info("TAURI_STREAM", `Starting video-only capture stream`);
 
-    // Desktop: Show selector and wait for target selection (unless targetId provided)
-    // iOS: Will trigger ReplayKit picker later
-    let selectedTargetId: string | undefined = targetId;
+    // Desktop: Show selector and wait for target selection (unless a target is provided
+    // explicitly or was pre-seated via setPreselectedTarget). iOS: ReplayKit picker later.
+    let selectedTargetId: string | undefined = targetId ?? this.preselectedTargetId ?? undefined;
+    this.preselectedTargetId = null; // consume once, regardless of platform
     if (isDesktop() && !selectedTargetId) {
       const selected = await this.waitForTargetSelection();
       if (!selected) {
@@ -837,8 +851,10 @@ class TauriStreamCapture {
 
     Logger.info("TAURI_STREAM", `Starting channel-based capture stream`);
 
-    // On desktop, show selector and wait for target selection (unless targetId provided)
-    let selectedTargetId: string | undefined = targetId;
+    // On desktop, show selector and wait for target selection (unless a target is provided
+    // explicitly or was pre-seated via setPreselectedTarget).
+    let selectedTargetId: string | undefined = targetId ?? this.preselectedTargetId ?? undefined;
+    this.preselectedTargetId = null; // consume once
     if (isDesktop() && !selectedTargetId) {
       const selected = await this.waitForTargetSelection();
       if (!selected) {

@@ -23,6 +23,9 @@ import { IterationStore, type IterationData } from '@utils/IterationStore';
 import { ModelManager } from '@utils/ModelManager';
 import { checkPhoneWhitelist } from '@utils/pre-flight';
 import { downloadDefaultLocalModel } from './localModel';
+import { tauriStreamCapture } from '@utils/tauriStreamCapture';
+import { setAgentCrop } from '@utils/screenCapture';
+import { isDesktop } from '@utils/platform';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -404,6 +407,108 @@ export const TOOLS: ToolDefinition[] = [
     execute: async (args): Promise<ToolResult> => {
       await stopAgentLoop(args.id);
       return { data: { stopped: true, id: args.id } };
+    },
+  },
+  {
+    name: 'list_screen_targets',
+    description: 'List the screens (monitors) and windows available to capture for a $SCREEN agent, with a thumbnail image of each so you can SEE them and pick the right one. Call this on desktop BEFORE start_agent for any agent whose system_prompt uses $SCREEN, then select_screen_target the best match. On the web/mobile app this returns a note instead — there the OS picker appears automatically when the agent starts, so just go straight to start_agent. Each target has an id (for select_screen_target), kind (monitor/window), name, appName, and width/height in pixels (the coordinate space for set_screen_crop).',
+    parameters: { type: 'object', properties: {} },
+    requiresConfirmation: false,
+    multimodal: true,
+    execute: async (): Promise<ToolResult> => {
+      if (!isDesktop()) {
+        return {
+          data: {
+            platform: 'web',
+            targets: [],
+            note: 'Screen selection is handled by the OS picker, which appears automatically when the agent starts. Skip select_screen_target and go straight to start_agent.',
+          },
+        };
+      }
+      try {
+        const targets = await tauriStreamCapture.getTargets(true);
+        const toDataUrl = (raw?: string) =>
+          !raw ? undefined : raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
+        return {
+          data: {
+            platform: 'desktop',
+            targets: targets.map(t => ({
+              id: t.id,
+              kind: t.kind,
+              name: t.name,
+              appName: t.appName,
+              width: t.width,
+              height: t.height,
+              isPrimary: t.isPrimary,
+            })),
+          },
+          images: targets.map(t => toDataUrl(t.thumbnail)).filter((u): u is string => !!u),
+        };
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+  },
+  {
+    name: 'select_screen_target',
+    description: 'Pre-select which screen or window a $SCREEN agent will capture, so start_agent runs without popping the desktop screen-selector. Pass a target_id from list_screen_targets. Desktop only. Call this (optionally with set_screen_crop) right before start_agent. If the chosen window has since closed, this fails — re-run list_screen_targets and pick again.',
+    parameters: {
+      type: 'object',
+      properties: {
+        target_id: { type: 'string', description: 'The id of the target to capture (from list_screen_targets).' },
+      },
+      required: ['target_id'],
+    },
+    requiresConfirmation: true,
+    multimodal: false,
+    execute: async (args): Promise<ToolResult> => {
+      if (!isDesktop()) {
+        return { error: 'select_screen_target is desktop-only; on web the OS picker handles selection at start_agent.' };
+      }
+      try {
+        const targets = await tauriStreamCapture.getTargets(false);
+        const match = targets.find(t => t.id === args.target_id);
+        if (!match) {
+          return { error: `Target '${args.target_id}' is no longer available (window may have closed). Re-run list_screen_targets and pick again.` };
+        }
+        tauriStreamCapture.setPreselectedTarget(match.id);
+        return { data: { selected: true, id: match.id, kind: match.kind, name: match.name, width: match.width, height: match.height } };
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+  },
+  {
+    name: 'set_screen_crop',
+    description: 'Crop a $SCREEN agent\'s capture to a rectangular region of its target, so the model only sees (and only spends tokens on) the part that matters — e.g. a download progress bar. Coordinates are in the target\'s pixel space (see width/height from list_screen_targets/select_screen_target): x,y is the top-left corner, width,height the size. Optional — use it only when focusing on a sub-region helps. Pass clear:true to remove an existing crop and capture the full target.',
+    parameters: {
+      type: 'object',
+      properties: {
+        agent_id: { type: 'string', description: 'The agent whose screen capture to crop.' },
+        x: { type: 'integer', description: 'Left edge of the crop, in target pixels.' },
+        y: { type: 'integer', description: 'Top edge of the crop, in target pixels.' },
+        width: { type: 'integer', description: 'Crop width in pixels.' },
+        height: { type: 'integer', description: 'Crop height in pixels.' },
+        clear: { type: 'boolean', description: 'If true, remove any existing crop and capture the full target. Ignores x/y/width/height.' },
+      },
+      required: ['agent_id'],
+    },
+    requiresConfirmation: true,
+    multimodal: false,
+    execute: async (args): Promise<ToolResult> => {
+      if (args.clear) {
+        setAgentCrop(args.agent_id, 'screen', null);
+        return { data: { agent_id: args.agent_id, cropped: false } };
+      }
+      const { x, y, width, height } = args;
+      if ([x, y, width, height].some(v => typeof v !== 'number')) {
+        return { error: 'Provide numeric x, y, width, and height (or clear:true to remove the crop).' };
+      }
+      if (width <= 0 || height <= 0 || x < 0 || y < 0) {
+        return { error: 'Crop must have positive width/height and non-negative x/y.' };
+      }
+      setAgentCrop(args.agent_id, 'screen', { x, y, width, height });
+      return { data: { agent_id: args.agent_id, cropped: true, crop: { x, y, width, height } } };
     },
   },
   {

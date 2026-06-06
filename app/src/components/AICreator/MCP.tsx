@@ -14,6 +14,8 @@ import type { WireMessage, ToolCall } from '../../mcp/types';
 import type { WhitelistChannel } from '@utils/logging';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
 import { isTauri } from '@utils/platform';
+import { tauriStreamCapture, type CaptureTarget } from '@utils/tauriStreamCapture';
+import { Monitor } from 'lucide-react';
 import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 import type { GemmaModelState, NativeModelState } from '@utils/localLlm/types';
@@ -182,12 +184,78 @@ const DownloadModelProgress: React.FC = () => {
 // ===================================================================================
 interface ApprovalCall { id: string; name: string; args: any; }
 
+/**
+ * Preview for select_screen_target / set_screen_crop calls: shows the chosen monitor/window
+ * thumbnail (fetched live from the same source of truth the capture path reads) with the
+ * proposed crop drawn as an overlay box, so the user sees exactly what will be captured.
+ */
+const ScreenCaptureApproval: React.FC<{
+  targetId?: string;
+  crop?: { x: number; y: number; width: number; height: number };
+  clearCrop?: boolean;
+}> = ({ targetId, crop, clearCrop }) => {
+  const [target, setTarget] = useState<CaptureTarget | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    tauriStreamCapture.getTargets(true)
+      .then(targets => { if (!cancelled) setTarget(targets.find(t => t.id === targetId) ?? null); })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [targetId]);
+
+  const thumb = target?.thumbnail
+    ? (target.thumbnail.startsWith('data:') ? target.thumbnail : `data:image/png;base64,${target.thumbnail}`)
+    : null;
+
+  // Crop overlay expressed as % of the target's pixel space, so it tracks the scaled thumbnail.
+  const overlay = crop && target
+    ? {
+        left: `${(crop.x / target.width) * 100}%`,
+        top: `${(crop.y / target.height) * 100}%`,
+        width: `${(crop.width / target.width) * 100}%`,
+        height: `${(crop.height / target.height) * 100}%`,
+      }
+    : null;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-3">
+      <div className="flex items-center mb-2">
+        <Monitor className="h-4 w-4 text-blue-600 mr-2" />
+        <span className="text-sm text-gray-800">
+          Capture {target ? <strong>{target.name}</strong> : <code className="font-mono text-xs">{targetId}</code>}
+          {target?.appName && target.appName !== target.name ? ` (${target.appName})` : ''}
+          {clearCrop ? ' · full screen' : crop ? ` · cropped to ${crop.width}×${crop.height}` : ''}
+        </span>
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      {thumb && (
+        <div className="relative inline-block max-w-full rounded overflow-hidden border border-gray-200">
+          <img src={thumb} alt={target?.name ?? 'screen'} className="block max-h-48 w-auto" />
+          {overlay && (
+            <div
+              className="absolute border-2 border-blue-500 bg-blue-500/20"
+              style={overlay}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AgentApprovalCard: React.FC<{
   calls: ApprovalCall[];
   onDecision: (approved: boolean) => void;
 }> = ({ calls, onDecision }) => {
   const agentBuilds = calls.filter(c => c.name === 'create_agent' || c.name === 'edit_agent');
   const lifecycle = calls.filter(c => c.name === 'start_agent' || c.name === 'stop_agent');
+  const targetSelect = calls.find(c => c.name === 'select_screen_target');
+  const cropCalls = calls.filter(c => c.name === 'set_screen_crop');
+  // Pair a crop with its target so the overlay can be drawn on the right thumbnail.
+  const cropForTarget = cropCalls.find(c => !c.args.clear)?.args;
+  const showScreenCapture = !!targetSelect || cropCalls.length > 0;
 
   return (
     <div className="w-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 md:p-6">
@@ -232,6 +300,29 @@ const AgentApprovalCard: React.FC<{
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {showScreenCapture && (
+        <div className="space-y-2 mb-4">
+          {targetSelect ? (
+            <ScreenCaptureApproval
+              targetId={targetSelect.args.target_id}
+              crop={cropForTarget ? { x: cropForTarget.x, y: cropForTarget.y, width: cropForTarget.width, height: cropForTarget.height } : undefined}
+            />
+          ) : (
+            // Crop without a target in the same batch (e.g. re-cropping a running agent).
+            cropCalls.map(c => (
+              <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center">
+                <Monitor className="h-4 w-4 text-blue-600 mr-2" />
+                <span className="text-sm text-gray-800">
+                  {c.args.clear
+                    ? <>Remove screen crop for <code className="font-mono">{c.args.agent_id}</code></>
+                    : <>Crop <code className="font-mono">{c.args.agent_id}</code> to {c.args.width}×{c.args.height} at ({c.args.x}, {c.args.y})</>}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       )}
 
