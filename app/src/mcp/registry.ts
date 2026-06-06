@@ -411,10 +411,10 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'list_screen_targets',
-    description: 'List the screens (monitors) and windows available to capture for a $SCREEN agent, with a thumbnail image of each so you can SEE them and pick the right one. Call this on desktop BEFORE start_agent for any agent whose system_prompt uses $SCREEN, then select_screen_target the best match. On the web/mobile app this returns a note instead — there the OS picker appears automatically when the agent starts, so just go straight to start_agent. Each target has an id (for select_screen_target), kind (monitor/window), name, appName, and width/height in pixels (the coordinate space for set_screen_crop).',
+    description: 'List the screens (monitors) and windows available to capture for a $SCREEN agent, as a text-only catalog (NO images — a desktop can have many windows, so thumbnails are fetched one at a time with see_screen_target). Call this on desktop BEFORE start_agent for any agent whose system_prompt uses $SCREEN: read the list, see_screen_target the few that plausibly match what the user wants to watch, then select_screen_target the best one. On the web/mobile app this returns a note instead — there the OS picker appears automatically when the agent starts, so just go straight to start_agent. Each target has an id (for see_screen_target / select_screen_target), kind (monitor/window), name, appName, and width/height in pixels (the coordinate space for set_screen_crop).',
     parameters: { type: 'object', properties: {} },
     requiresConfirmation: false,
-    multimodal: true,
+    multimodal: false,
     execute: async (): Promise<ToolResult> => {
       if (!isDesktop()) {
         return {
@@ -426,9 +426,7 @@ export const TOOLS: ToolDefinition[] = [
         };
       }
       try {
-        const targets = await tauriStreamCapture.getTargets(true);
-        const toDataUrl = (raw?: string) =>
-          !raw ? undefined : raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
+        const targets = await tauriStreamCapture.getTargets(false);
         return {
           data: {
             platform: 'desktop',
@@ -442,7 +440,47 @@ export const TOOLS: ToolDefinition[] = [
               isPrimary: t.isPrimary,
             })),
           },
-          images: targets.map(t => toDataUrl(t.thumbnail)).filter((u): u is string => !!u),
+        };
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+  },
+  {
+    name: 'see_screen_target',
+    description: 'Fetch a thumbnail image of ONE capture target so you can actually SEE what is on that monitor/window before committing to it. Pass a target_id from list_screen_targets. Desktop only. Use this to check the one or few candidates that match what the user wants to watch, then select_screen_target the right one. Cheaper than dumping every window\'s image at once — call it per target as needed. If the target has since closed, this fails; re-run list_screen_targets.',
+    parameters: {
+      type: 'object',
+      properties: {
+        target_id: { type: 'string', description: 'The id of the target to preview (from list_screen_targets).' },
+      },
+      required: ['target_id'],
+    },
+    requiresConfirmation: false,
+    multimodal: true,
+    execute: async (args): Promise<ToolResult> => {
+      if (!isDesktop()) {
+        return { error: 'see_screen_target is desktop-only; on web the OS picker shows the screens at start_agent.' };
+      }
+      try {
+        const targets = await tauriStreamCapture.getTargets(true);
+        const match = targets.find(t => t.id === args.target_id);
+        if (!match) {
+          return { error: `Target '${args.target_id}' is no longer available (window may have closed). Re-run list_screen_targets.` };
+        }
+        const raw = match.thumbnail;
+        const url = !raw ? undefined : raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
+        return {
+          data: {
+            id: match.id,
+            kind: match.kind,
+            name: match.name,
+            appName: match.appName,
+            width: match.width,
+            height: match.height,
+            hasThumbnail: !!url,
+          },
+          images: url ? [url] : undefined,
         };
       } catch (e) {
         return { error: e instanceof Error ? e.message : String(e) };
