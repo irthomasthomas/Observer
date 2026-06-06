@@ -7,6 +7,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { TokenProvider } from '@utils/main_loop';
 import { ModelManager } from '@utils/ModelManager';
+import { Logger } from '@utils/logging';
 import type { WireMessage, ToolCallStatus } from './types';
 import { getTool, getToolSpecs } from './registry';
 import getMcpSystemPrompt from './systemPrompt';
@@ -36,6 +37,9 @@ export interface UseMCPOptions {
 export type MutationListener = (toolName: string) => void;
 
 const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
+
+/** Logger source for everything the MCP agentic loop emits. */
+const LOG_SOURCE = 'MCP';
 
 /** Tools that change the dashboard's agent list / running state. */
 const MUTATING_TOOLS = new Set(['create_agent', 'edit_agent', 'start_agent', 'stop_agent']);
@@ -96,6 +100,10 @@ export function useMCP(options: UseMCPOptions) {
   }, []);
 
   const requestInteraction = useCallback((req: InteractionRequest): Promise<InteractionDecision> => {
+    Logger.info(LOG_SOURCE, `Awaiting user approval for ${req.calls.length} tool call(s): ${req.calls.map(c => c.name).join(', ')}`, {
+      batchId: req.batchId,
+      tools: req.calls.map(c => c.name),
+    });
     return new Promise<InteractionDecision>((resolve, reject) => {
       pendingResolvers.current.set(req.batchId, { resolve, reject });
       setPendingApproval(req);
@@ -107,6 +115,7 @@ export function useMCP(options: UseMCPOptions) {
     const settler = pendingResolvers.current.get(batchId);
     if (settler) {
       pendingResolvers.current.delete(batchId);
+      Logger.info(LOG_SOURCE, `User ${decision.approved ? 'approved' : 'denied'} tool batch`, { batchId });
       settler.resolve(decision);
     }
     setPendingApproval(prev => (prev && prev.batchId === batchId ? null : prev));
@@ -114,6 +123,10 @@ export function useMCP(options: UseMCPOptions) {
 
   const send = useCallback(async (userText: string, images?: string[]) => {
     if (isRunning) return;
+
+    Logger.info(LOG_SOURCE, `User message sent (model: ${modelName})`, {
+      imageCount: images?.length ?? 0,
+    });
 
     // Build the user message (multimodal if images were attached).
     let userContent: any = userText;
@@ -176,6 +189,16 @@ export function useMCP(options: UseMCPOptions) {
         onAssistantDelta: chunk => { if (!signal.aborted) setStreamingText(prev => prev + chunk); },
         onStatus: (id, status, meta) => {
           setStatus(id, status, meta);
+          const toolName = meta?.name ?? 'unknown';
+          if (status === 'running') {
+            Logger.info(LOG_SOURCE, `Running tool: ${toolName}`, { toolCallId: id, args: meta?.args });
+          } else if (status === 'done') {
+            Logger.info(LOG_SOURCE, `Tool completed: ${toolName}`, { toolCallId: id });
+          } else if (status === 'error') {
+            Logger.error(LOG_SOURCE, `Tool failed: ${toolName}`, { toolCallId: id });
+          } else if (status === 'denied') {
+            Logger.warn(LOG_SOURCE, `Tool denied by user: ${toolName}`, { toolCallId: id });
+          }
           if (status === 'done' && meta && MUTATING_TOOLS.has(meta.name)) {
             mutationListeners.current.forEach(l => l(meta.name));
           }
@@ -186,10 +209,12 @@ export function useMCP(options: UseMCPOptions) {
       if (isAbortError(err)) {
         // Hard stop: leave the conversation valid (no dangling tool_calls) and silent —
         // the user asked to stop, so no error bubble.
+        Logger.info(LOG_SOURCE, 'Run stopped by user');
         sealDanglingToolCalls(wireRef.current);
         syncMessages();
       } else {
         const text = err instanceof Error ? err.message : 'An unknown error occurred.';
+        Logger.error(LOG_SOURCE, `Run failed: ${text}`, { error: err });
         wireRef.current.push({ role: 'assistant', content: `Sorry, I ran into an error: ${text}` });
         syncMessages();
       }
