@@ -26,6 +26,7 @@ import { downloadDefaultLocalModel } from './localModel';
 import { tauriStreamCapture } from '@utils/tauriStreamCapture';
 import { setAgentCrop } from '@utils/screenCapture';
 import { isDesktop } from '@utils/platform';
+import { browserStreamCapture } from '@utils/browserStreamCapture';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -421,7 +422,7 @@ export const TOOLS: ToolDefinition[] = [
           data: {
             platform: 'web',
             targets: [],
-            note: 'Screen selection is handled by the OS picker, which appears automatically when the agent starts. Skip select_screen_target and go straight to start_agent.',
+            note: 'You are on Observer web — there is nothing to list or select here. Screen selection is handled by the OS picker, which pops automatically at start_agent. Do NOT stop, summarize, or wait for the user: continue the flow in this same run and proceed to start_agent now (it will surface its own approval card). Skip see_screen_target / select_screen_target / set_screen_crop entirely.',
           },
         };
       }
@@ -518,7 +519,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'set_screen_crop',
-    description: 'Crop a $SCREEN agent\'s capture to a rectangular region of its target, so the model only sees (and only spends tokens on) the part that matters — e.g. a download progress bar. Coordinates are in the target\'s pixel space (see width/height from list_screen_targets/select_screen_target): x,y is the top-left corner, width,height the size. Optional — use it only when focusing on a sub-region helps. Pass clear:true to remove an existing crop and capture the full target.',
+    description: 'OPTIONAL. Crop a $SCREEN agent\'s capture to a rectangular sub-region of its target, so the model only sees (and only spends tokens on) the part that matters — e.g. a download progress bar. Skip this entirely to watch the whole screen/window (the default). Coordinates are in the target\'s pixel space (read x,y,width,height from the width/height that list_screen_targets/select_screen_target already gave you — NEVER ask the user for their resolution): x,y is the top-left corner, width,height the size. Pass clear:true to remove an existing crop and capture the full target.',
     parameters: {
       type: 'object',
       properties: {
@@ -550,6 +551,61 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'capture_screen',
+    description: 'Open the browser screen-share picker so the user can select which screen or window to monitor, then capture one preview frame and return it as an image so you can SEE what was selected before building the agent. The stream stays live — start_agent reuses it without prompting again. Use this on web and mobile app instead of list_screen_targets/see_screen_target/select_screen_target. Call it BEFORE create_agent for any agent whose system_prompt uses $SCREEN.',
+    parameters: { type: 'object', properties: {} },
+    requiresConfirmation: false,
+    multimodal: true,
+    execute: async (): Promise<ToolResult> => {
+      if (!navigator?.mediaDevices?.getDisplayMedia) {
+        return { error: 'Screen capture is not supported in this browser. Screen monitoring agents cannot be created here.' };
+      }
+      try {
+        await browserStreamCapture.acquireMasterStream('display');
+        const streams = browserStreamCapture.getStreams();
+        const videoTrack = streams.screenVideoStream?.getVideoTracks()[0];
+        if (!videoTrack) return { error: 'No video track acquired from screen share.' };
+
+        // Grab one frame via a hidden video element (works across all browsers).
+        const video = document.createElement('video');
+        video.srcObject = streams.screenVideoStream!;
+        video.muted = true;
+        await new Promise<void>((resolve, reject) => {
+          video.onloadedmetadata = () => resolve();
+          video.onerror = () => reject(new Error('Video metadata load failed'));
+          video.play().catch(reject);
+        });
+        // Give the first frame a moment to render.
+        await new Promise(r => setTimeout(r, 150));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        canvas.getContext('2d')!.drawImage(video, 0, 0);
+        video.pause();
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const settings = videoTrack.getSettings();
+        return {
+          data: {
+            captured: true,
+            width: settings.width ?? canvas.width,
+            height: settings.height ?? canvas.height,
+            note: 'Stream is live and will be reused by start_agent — no second picker prompt.',
+          },
+          images: [dataUrl],
+        };
+      } catch (e) {
+        // User cancelled the picker or permission was denied.
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('Permission denied') || msg.includes('NotAllowed') || msg.includes('user gesture')) {
+          return { error: 'Screen share was cancelled or denied. Ask the user if they want to try again.' };
+        }
+        return { error: msg };
+      }
+    },
+  },
+  {
     name: 'download_model',
     description: 'Download and load the default on-device model so agents can run locally with NO cloud and NO API key. Takes no arguments — Observer picks the right Gemma 4 E2B build for the platform (a transformers.js ONNX model in the browser, a llama.cpp GGUF in the desktop app). This BLOCKS while it downloads (a few GB) and loads; progress bars are shown to the user. When it resolves, the returned `model_name` is immediately usable as a `create_agent` model_name. Only one local model is needed; call list_models afterward to confirm. Asks the user to approve.',
     parameters: { type: 'object', properties: {} },
@@ -570,17 +626,26 @@ export const TOOLS: ToolDefinition[] = [
 // Registry lookups
 // ---------------------------------------------------------------------------
 
-const TOOL_MAP: Record<string, ToolDefinition> = Object.fromEntries(
-  TOOLS.map(t => [t.name, t])
-);
+/** Desktop-only screen tools — replaced by capture_screen on all other surfaces. */
+const DESKTOP_ONLY_TOOLS = new Set(['list_screen_targets', 'see_screen_target', 'select_screen_target']);
+/** Sub-agentic screen tool — only exposed on web / mobile app / mobile web. */
+const WEB_ONLY_TOOLS = new Set(['capture_screen']);
 
-export function getTool(name: string): ToolDefinition | undefined {
-  return TOOL_MAP[name];
+function getPlatformTools(): ToolDefinition[] {
+  if (isDesktop()) {
+    return TOOLS.filter(t => !WEB_ONLY_TOOLS.has(t.name));
+  }
+  // Web, mobile app, mobile web — sub-agentic: browser picker flow.
+  return TOOLS.filter(t => !DESKTOP_ONLY_TOOLS.has(t.name));
 }
 
-/** Build the OpenAI `tools` request payload from the registry. */
+export function getTool(name: string): ToolDefinition | undefined {
+  return getPlatformTools().find(t => t.name === name);
+}
+
+/** Build the OpenAI `tools` request payload for the current platform. */
 export function getToolSpecs(): WireToolSpec[] {
-  return TOOLS.map(t => ({
+  return getPlatformTools().map(t => ({
     type: 'function' as const,
     function: {
       name: t.name,
