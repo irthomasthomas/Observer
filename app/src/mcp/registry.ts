@@ -263,6 +263,9 @@ export const TOOLS: ToolDefinition[] = [
     requiresConfirmation: true,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
+      if (!/\$(?:SCREEN|CAMERA|MICROPHONE|CLIPBOARD|MEMORY|LOCATION)\b/.test(args.system_prompt)) {
+        return { error: 'The system_prompt must include at least one sensor placeholder (e.g. $SCREEN, $CAMERA, $MICROPHONE, $CLIPBOARD, $MEMORY, $LOCATION). Agents without a sensor have no perception — add one and try again.' };
+      }
       const agent: CompleteAgent = {
         id: args.id,
         name: args.name,
