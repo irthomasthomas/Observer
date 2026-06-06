@@ -21,11 +21,26 @@ import {
 } from '@utils/main_loop';
 import { IterationStore, type IterationData } from '@utils/IterationStore';
 import { ModelManager } from '@utils/ModelManager';
+import { checkPhoneWhitelist } from '@utils/pre-flight';
 import { downloadDefaultLocalModel } from './localModel';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** How often check_whitelist re-checks, and how long it waits before giving up. */
+const WHITELIST_POLL_MS = 5000;
+const WHITELIST_WAIT_MS = 15 * 60 * 1000;
+
+/** Resolve after `ms`, or reject as soon as `signal` aborts (so a blocking wait is cancellable). */
+function sleepOrAbort(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
+    const onAbort = () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); };
+    const timer = setTimeout(() => { signal?.removeEventListener('abort', onAbort); resolve(); }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
 
 /** Count images attached to an iteration without surfacing any base64 payloads. */
 function countIterationImages(it: IterationData): number {
@@ -231,7 +246,7 @@ export const TOOLS: ToolDefinition[] = [
     parameters: {
       type: 'object',
       properties: {
-        id: { type: 'string', description: 'Unique id — letters, numbers, and underscores only.' },
+        id: { type: 'string', description: 'Unique id letters, numbers, and underscores only, no dashes.' },
         name: { type: 'string', description: 'Human-readable agent name.' },
         description: { type: 'string', description: 'Short description of what the agent does.' },
         model_name: { type: 'string', description: 'Model to power the agent (see list_models).' },
@@ -294,6 +309,64 @@ export const TOOLS: ToolDefinition[] = [
         return { data: { saved: true, id: saved.id, name: saved.name } };
       } catch (e) {
         return { error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+  },
+  {
+    name: 'check_whitelist',
+    description: 'Pre-flight gate for the phone-based notification tools (sendSms, call, sendWhatsapp). These tools ONLY deliver to whitelisted numbers, and start_agent FAILS with a whitelist error otherwise — so call this BEFORE start_agent for any agent that uses a phone tool. Pass the phone_number (E.164, e.g. +18632085341) and the channel it will be used for. This BLOCKS: if the number is already whitelisted it returns immediately; if not, the user is shown an inline prompt (with QR codes) and this WAITS until they finish whitelisting, then returns success. Do NOT announce that the number is unwhitelisted or ask the user to whitelist it — the inline prompt handles that. Once this returns, go straight to start_agent.',
+    parameters: {
+      type: 'object',
+      properties: {
+        phone_number: { type: 'string', description: 'The phone number to check, in E.164 format (e.g. +18632085341).' },
+        channel: { type: 'string', enum: ['sms', 'voice', 'whatsapp'], description: 'Which channel the number will be used for: sms (sendSms), voice (call), or whatsapp (sendWhatsapp). WhatsApp has a separate whitelist; sms and voice share one. Defaults to sms.' },
+      },
+      required: ['phone_number'],
+    },
+    requiresConfirmation: false,
+    multimodal: false,
+    execute: async (args, ctx): Promise<ToolResult> => {
+      if (!args.phone_number) return { error: 'Provide a phone_number to check.' };
+
+      // Funnel through the same checkPhoneWhitelist gate start_agent uses by handing it a
+      // one-line snippet — keeps channel handling + the API call in a single place.
+      const fn = args.channel === 'whatsapp' ? 'sendWhatsapp'
+        : args.channel === 'voice' ? 'call'
+        : 'sendSms';
+      const code = `${fn}("${args.phone_number}")`;
+      const channel = args.channel ?? 'sms';
+
+      // Block until the number is whitelisted (the inline pill guides the user), the run is
+      // aborted (Stop), or we give up after WHITELIST_WAIT_MS. Waiting here — instead of
+      // returning "not whitelisted" — is what lets the run resume silently once whitelisting
+      // is done, with no extra model/user messages.
+      const deadline = Date.now() + WHITELIST_WAIT_MS;
+      while (true) {
+        if (ctx.signal?.aborted) return { error: 'Cancelled.' };
+        try {
+          const { phoneNumbers } = await checkPhoneWhitelist(code, ctx.getToken);
+          if (phoneNumbers.length > 0 && phoneNumbers.every(p => p.isWhitelisted)) {
+            return { data: { phoneNumber: args.phone_number, channel, whitelisted: true } };
+          }
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : String(e) };
+        }
+        if (Date.now() >= deadline) {
+          return {
+            data: {
+              phoneNumber: args.phone_number,
+              channel,
+              whitelisted: false,
+              timedOut: true,
+              note: 'Still not whitelisted after a long wait. Ask the user whether to keep waiting or skip starting the agent.',
+            },
+          };
+        }
+        try {
+          await sleepOrAbort(WHITELIST_POLL_MS, ctx.signal);
+        } catch {
+          return { error: 'Cancelled.' };
+        }
       }
     },
   },

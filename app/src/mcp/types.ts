@@ -89,6 +89,8 @@ export interface ToolDefinition {
  */
 export interface ToolContext {
   getToken?: () => Promise<string | undefined>;
+  /** Aborts a long-running/blocking executor (e.g. check_whitelist waiting for the user). */
+  signal?: AbortSignal;
 }
 
 /**

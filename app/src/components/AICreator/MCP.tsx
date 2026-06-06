@@ -11,6 +11,8 @@ import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
 import { useMCPContext } from '../../mcp/MCPContext';
 import type { WireMessage, ToolCall } from '../../mcp/types';
+import type { WhitelistChannel } from '@utils/logging';
+import WhitelistInline from '@components/whitelist/WhitelistInline';
 import { isTauri } from '@utils/platform';
 import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
@@ -396,6 +398,20 @@ const MCP: React.FC<MCPProps> = ({
             </div>
           )}
           {toolCalls.some(tc => tc.function.name === 'download_model') && <DownloadModelProgress />}
+          {toolCalls
+            .filter(tc => tc.function.name === 'check_whitelist')
+            .map(tc => {
+              // The check_whitelist executor BLOCKS while the number isn't whitelisted, so the
+              // pill is shown exactly while that call is in flight ('running'); it unmounts on
+              // its own once the gate resolves and the run continues to start_agent. Args carry
+              // the number/channel (no result exists yet while it's still waiting).
+              const st = toolStatus.get(tc.id);
+              if (st?.status !== 'running') return null;
+              const phoneNumber: string | undefined = st.args?.phone_number;
+              if (!phoneNumber) return null;
+              const channel = st.args?.channel as WhitelistChannel | undefined;
+              return <WhitelistInline key={tc.id} phoneNumber={phoneNumber} channel={channel} />;
+            })}
         </div>
       </div>
     );

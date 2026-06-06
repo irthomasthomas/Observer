@@ -167,7 +167,7 @@ export function useMCP(options: UseMCPOptions) {
       await runConversation(wireRef.current, {
         send: sendToModel,
         getTool,
-        context: { getToken },
+        context: { getToken, signal },
         skipPermissions,
         signal,
         onWireUpdate: syncMessages,

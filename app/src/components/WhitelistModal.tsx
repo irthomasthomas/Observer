@@ -3,6 +3,14 @@ import Modal from '@components/EditAgent/Modal';
 import { Phone, MessageCircle, X, Copy, ExternalLink, CheckCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { WhitelistChannel } from '@utils/logging';
+import {
+  OBSERVER_SMS_CALL,
+  OBSERVER_WHATSAPP,
+  OBSERVER_WHATSAPP_PLAIN,
+  whatsappQRValue,
+  smsQRValue,
+  useWhitelistPolling,
+} from '@components/whitelist/shared';
 
 interface WhitelistModalProps {
   phoneNumbers: Array<{
@@ -17,16 +25,6 @@ interface WhitelistModalProps {
 }
 
 const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPhoneNumbers, onClose, onStartAnyway, onStartAgent, getToken, channel }) => {
-  const OBSERVER_SMS_CALL = '+1 (863) 208-5341';
-  const OBSERVER_WHATSAPP = '+1 (555) 783-4727';
-  const OBSERVER_WHATSAPP_PLAIN = '15557834727';
-  const OBSERVER_SMS_PLAIN = '18632085341';
-
-  // QR code values
-  const whatsappQRValue = `https://wa.me/${OBSERVER_WHATSAPP_PLAIN}?text=${encodeURIComponent("Hi! I'd like to whitelist my phone number for Observer")}`;
-  // Use +1 prefix for SMS to ensure proper international number formatting
-  const smsQRValue = `sms:+${OBSERVER_SMS_PLAIN}?&body=${encodeURIComponent("Hi! I'd like to whitelist my phone number for Observer")}`;
-
   const [copied, setCopied] = React.useState<'sms' | 'whatsapp' | null>(null);
   const [phoneInput, setPhoneInput] = React.useState(() => {
     // Auto-fill with first unwhitelisted number
@@ -36,10 +34,8 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
   const [checkResult, setCheckResult] = React.useState<{ is_whitelisted: boolean } | null>(null);
   const [isChecking, setIsChecking] = React.useState(false);
 
-  // Background polling state
-  const [phoneNumbers, setPhoneNumbers] = React.useState(initialPhoneNumbers);
-  const [pollingStatus, setPollingStatus] = React.useState<'idle' | 'checking' | 'success'>('idle');
-  const pollingIntervalRef = React.useRef<number | null>(null);
+  // Background polling for all phone numbers (shared with the MCP's inline whitelist chip).
+  const { numbers: phoneNumbers, status: pollingStatus } = useWhitelistPolling(initialPhoneNumbers, getToken, channel);
 
   const copyToClipboard = (text: string, type: 'sms' | 'whatsapp') => {
     navigator.clipboard.writeText(text);
@@ -54,83 +50,6 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers: initialPh
   const openSMS = () => {
     window.open(`sms:${OBSERVER_SMS_CALL}`, '_blank');
   };
-
-  // Background polling for all phone numbers
-  React.useEffect(() => {
-    if (!phoneNumbers.length) return;
-
-    const checkAllNumbers = async () => {
-      setPollingStatus('checking');
-
-      try {
-        const token = await getToken();
-        if (!token) {
-          console.error('No auth token available for polling');
-          setPollingStatus('idle');
-          return;
-        }
-
-        const checks = await Promise.all(
-          phoneNumbers.map(async ({ number }) => {
-            try {
-              const response = await fetch('https://api.observer-ai.com/tools/is-whitelisted', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                  phone_number: number,
-                  ...(channel === 'whatsapp' ? { channel: 'whatsapp' } : {})
-                }),
-              });
-
-              if (!response.ok) {
-                return { number, isWhitelisted: false };
-              }
-
-              const data = await response.json();
-              return { number, isWhitelisted: data.is_whitelisted };
-            } catch (error) {
-              console.error(`Error checking ${number}:`, error);
-              return { number, isWhitelisted: false };
-            }
-          })
-        );
-
-        // Update phone numbers with new status
-        setPhoneNumbers(checks);
-
-        // If all whitelisted, stop polling and show success
-        if (checks.every(p => p.isWhitelisted)) {
-          setPollingStatus('success');
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        } else {
-          setPollingStatus('idle');
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-        setPollingStatus('idle');
-      }
-    };
-
-    // Initial check
-    checkAllNumbers();
-
-    // Start polling interval (5 seconds)
-    pollingIntervalRef.current = window.setInterval(checkAllNumbers, 5000);
-
-    // Cleanup on unmount
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [phoneNumbers.length, getToken]);
 
   const checkWhitelistStatus = async () => {
     if (!phoneInput.trim()) return;
