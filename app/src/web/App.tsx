@@ -1,8 +1,8 @@
 import { datadogRum } from '@datadog/browser-rum';
 import { reactPlugin } from '@datadog/browser-rum-react';
 import { Analytics } from '@utils/analytics';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Terminal, MessageSquare, ChevronUp, HelpCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Terminal, MessageSquare, ChevronUp, HelpCircle, Sparkles } from 'lucide-react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { platform as getPlatform } from '@tauri-apps/plugin-os';
 import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
@@ -35,7 +35,7 @@ import PersistentSidebar from '@components/PersistentSidebar';
 import AvailableModels from '@components/AvailableModels';
 import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
-import MCPModal from '@components/AICreator/MCPModal';
+import MCPPanel from '@components/AICreator/MCPPanel';
 import JupyterServerModal from '@components/JupyterServerModal';
 import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
 import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
@@ -106,7 +106,7 @@ function AppContent() {
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
   const [hasPendingImport, setHasPendingImport] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isMCPModalOpen, setIsMCPModalOpen] = useState(false);
+  const [isMCPPanelOpen, setIsMCPPanelOpen] = useState(false);
   const [aiEditMessage, setAiEditMessage] = useState<string | undefined>();
 
   // Quota error state
@@ -383,8 +383,8 @@ function AppContent() {
 
   const handleAIEditClick = (agentId: string) => {
     setAiEditMessage(`Help me edit this agent @${agentId} `);
-    setIsMCPModalOpen(true);
-    Logger.info('APP', `Opening AI Edit modal for agent ${agentId}`);
+    setIsMCPPanelOpen(true);
+    Logger.info('APP', `Opening MCP panel for agent ${agentId}`);
   };
 
   const markOnboardingComplete = () => {
@@ -764,6 +764,17 @@ function AppContent() {
   // Show GetStarted when no agents exist OR all are minimized
   const showGetStarted = agents.length === 0 || minimizedAgents.size === agents.length;
 
+  // When we cross from hero → docked (e.g. the first agent is created), auto-open the
+  // docked MCP panel so the user sees their conversation "moved" to the side rather than
+  // silently vanishing. Only fires on the actual transition, not on loads that start docked.
+  const wasShowingGetStarted = useRef(showGetStarted);
+  useEffect(() => {
+    if (wasShowingGetStarted.current && !showGetStarted) {
+      setIsMCPPanelOpen(true);
+    }
+    wasShowingGetStarted.current = showGetStarted;
+  }, [showGetStarted]);
+
   return (
     <div className="app-container bg-gray-50">
      <MCPProvider getToken={getToken} isUsingObServer={isUsingObServer}>
@@ -842,7 +853,6 @@ function AppContent() {
               activeAgentCount={runningAgents.size}
               isRefreshing={isRefreshing}
               onRefresh={fetchAgents}
-              onGenerateAgent={() => setIsMCPModalOpen(true)}
             />
 
             <div className="flex flex-wrap gap-6 items-start overflow-x-hidden">
@@ -966,26 +976,26 @@ function AppContent() {
         )}
       </main>
 
-      <MCPModal
-        isOpen={isMCPModalOpen}
-        onClose={() => { setIsMCPModalOpen(false); setAiEditMessage(undefined); }}
-        getToken={getToken}
-        isAuthenticated={isAuthenticated}
-        isUsingObServer={isUsingObServer}
-        isPro={isProUser}
-        onSignIn={login}
-        onSwitchToObServer={() => setIsUsingObServer(true)}
-        onUpgrade={() => {
-          setActiveTab('obServer');
-          setIsUsingObServer(true);
-        }}
-        onRefresh={fetchAgents}
-        initialMessage={aiEditMessage}
-        onUpgradeClick={() => {
-          setIsHalfwayWarning(false);
-          setIsUpgradeModalOpen(true);
-        }}
-      />
+      {/* Docked MCP panel — only in non-hero posture (agents exist). In hero posture
+          the GetStarted card is the visible MCP surface; they share one conversation. */}
+      {!showGetStarted && (
+        <MCPPanel
+          isOpen={isMCPPanelOpen}
+          onClose={() => { setIsMCPPanelOpen(false); setAiEditMessage(undefined); }}
+          getToken={getToken}
+          isAuthenticated={isAuthenticated}
+          isUsingObServer={isUsingObServer}
+          isPro={isProUser}
+          onSignIn={login}
+          onSwitchToObServer={() => setIsUsingObServer(true)}
+          onUpgrade={() => {
+            setActiveTab('obServer');
+            setIsUsingObServer(true);
+          }}
+          onRefresh={fetchAgents}
+          initialMessage={aiEditMessage}
+        />
+      )}
 
       <SimpleCreatorModal
         isOpen={isSimpleCreatorOpen}
@@ -1114,25 +1124,43 @@ function AppContent() {
           >
             <ChevronUp size={18} className={`transition-transform duration-300 ${isMobileFooterOpen ? 'rotate-180' : ''}`} />
           </button>
+
+          {/* MCP launcher — single open/close control for the docked panel */}
+          {!showGetStarted && (
+            <button
+              onClick={() => setIsMCPPanelOpen(prev => !prev)}
+              className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-2xl active:scale-90 transition-all duration-200 ${
+                isMCPPanelOpen
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'bg-purple-500 text-white'
+              }`}
+              title="Open MCP assistant"
+            >
+              <Sparkles size={18} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Desktop floating bubble */}
-      <div className="fixed bottom-4 right-4 z-40 hidden md:flex items-center space-x-3 bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 px-4 py-2.5">
-        <div className={`flex items-center gap-1.5 max-w-[40vw] overflow-x-auto ${minimizedAgents.size === 0 ? 'hidden' : ''}`} style={{ scrollbarWidth: 'none' }}>
-          {agents.map(a => (
-            <div key={a.id} className={minimizedAgents.has(a.id) ? '' : 'hidden'}>
-              <AgentChip
-                agent={a}
-                isRunning={runningAgents.has(a.id)}
-                isStarting={startingAgents.has(a.id)}
-                isMinimized={minimizedAgents.has(a.id)}
-                onRestore={() => handleRestore(a.id)}
-              />
-            </div>
-          ))}
-        </div>
-        {minimizedAgents.size > 0 && <div className="w-px h-5 bg-gray-200 flex-shrink-0" />}
+      {/* Desktop floating footer — info bubble plus a prominent standalone MCP pill */}
+      <div className="fixed bottom-4 right-4 z-40 hidden md:flex items-stretch gap-3">
+        {/* Standalone minimized-agents pill — its own surface, left of the footer */}
+        {minimizedAgents.size > 0 && (
+          <div className="flex items-center gap-1.5 max-w-[40vw] overflow-x-auto bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 px-4 py-2.5" style={{ scrollbarWidth: 'none' }}>
+            {agents.map(a => (
+              <div key={a.id} className={minimizedAgents.has(a.id) ? '' : 'hidden'}>
+                <AgentChip
+                  agent={a}
+                  isRunning={runningAgents.has(a.id)}
+                  isStarting={startingAgents.has(a.id)}
+                  isMinimized={minimizedAgents.has(a.id)}
+                  onRestore={() => handleRestore(a.id)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      <div className="flex items-center space-x-3 bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 px-4 py-2.5">
         <button
           onClick={handleReplayTutorial}
           className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full hover:bg-gray-200 transition"
@@ -1173,6 +1201,24 @@ function AppContent() {
         >
           <Terminal className="h-4 w-4" />
         </button>
+      </div>
+
+        {/* Standalone MCP pill — full footer height, made prominent on desktop */}
+        {!showGetStarted && (
+          <button
+            onClick={() => setIsMCPPanelOpen(prev => !prev)}
+            data-tutorial-grid-generate
+            className={`flex items-center gap-2 px-6 rounded-full text-sm font-semibold shadow-lg border transition ${
+              isMCPPanelOpen
+                ? 'bg-purple-600 border-purple-600 text-white'
+                : 'bg-purple-500 border-purple-500 text-white hover:bg-purple-600 hover:border-purple-600'
+            }`}
+            title="Open MCP assistant"
+          >
+            <Sparkles className="h-5 w-5" />
+            <span>MCP</span>
+          </button>
+        )}
       </div>
 
       {showGlobalLogs && (

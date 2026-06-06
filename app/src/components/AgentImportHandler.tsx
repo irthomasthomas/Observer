@@ -1,10 +1,9 @@
 // src/components/AgentImportHandler.tsx
 
-import { PlusCircle, RotateCw, Sparkles } from 'lucide-react';
+import { PlusCircle, RotateCw } from 'lucide-react';
 
 interface AgentImportHandlerProps {
   onAddAgent: () => void;
-  onGenerateAgent: () => void;
   agentCount: number;
   activeAgentCount: number;
   isRefreshing: boolean;
@@ -13,7 +12,6 @@ interface AgentImportHandlerProps {
 
 const AgentImportHandler = ({
   onAddAgent,
-  onGenerateAgent,
   agentCount,
   activeAgentCount,
   isRefreshing,
@@ -35,15 +33,6 @@ const AgentImportHandler = ({
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-3">
-            <button
-              onClick={onGenerateAgent}
-              data-tutorial-grid-generate
-              className="flex items-center space-x-2 px-3 md:px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600"
-            >
-              <Sparkles className="h-5 w-5" />
-              <span className="hidden md:inline">Generate Agent</span>
-            </button>
-
             <button
               onClick={onAddAgent}
               data-tutorial-grid-create
