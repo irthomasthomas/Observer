@@ -16,6 +16,9 @@ class SettingsManager {
     private readonly TRANSCRIPTION_MODE_KEY = 'observer-ai:settings:transcriptionMode';
     private readonly SELF_HOSTED_WHISPER_URL_KEY = 'observer-ai:settings:selfHostedWhisperUrl';
 
+    // --- MCP KEYS ---
+    private readonly MCP_YOLO_MODE_KEY = 'observer-ai:settings:mcpYoloMode';
+
     // --- SENSIBLE DEFAULTS ---
     private readonly DEFAULTS = {
         ocrWorkerPath: 'https://unpkg.com/tesseract.js@6.0.0/dist/worker.min.js',
@@ -164,6 +167,17 @@ class SettingsManager {
 
     public setSelfHostedWhisperUrl(url: string): void {
         localStorage.setItem(this.SELF_HOSTED_WHISPER_URL_KEY, url);
+    }
+
+    // MCP "yolo mode" — when on, the MCP agentic loop runs confirmable tools without a
+    // human approval gate. Read live at each gate (see runner.ts), so toggling takes
+    // effect on the next batch with no reload.
+    public getMcpYoloMode(): boolean {
+        return localStorage.getItem(this.MCP_YOLO_MODE_KEY) === 'true';
+    }
+
+    public setMcpYoloMode(value: boolean): void {
+        localStorage.setItem(this.MCP_YOLO_MODE_KEY, String(value));
     }
 }
 

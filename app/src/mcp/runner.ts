@@ -44,8 +44,10 @@ export interface RunnerDeps {
   getTool: (name: string) => ToolDefinition | undefined;
   /** Ambient context passed to executors (e.g. getToken). */
   context: ToolContext;
-  /** When true, confirmable tools run without a human gate. */
-  skipPermissions?: boolean;
+  /** Read live at each gate. When it returns true, confirmable tools run without a human
+   *  gate ("yolo mode"). A getter (not a boolean) so a runtime toggle takes effect on the
+   *  next batch without rebuilding the loop — same injection idiom as ToolContext.getToken. */
+  skipPermissions?: () => boolean;
   /** Aborts the loop. Checked at each safe boundary; an in-flight `send`/gate should also
    *  reject when this fires so the loop unwinds promptly. */
   signal?: AbortSignal;
@@ -117,7 +119,8 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
 
     const assistant = await deps.send(wire, deps.onAssistantDelta);
 
-    const hasToolCalls = assistant.tool_calls && assistant.tool_calls.length > 0;
+    const toolCalls = assistant.tool_calls ?? [];
+    const hasToolCalls = toolCalls.length > 0;
     // Gemini rejects empty-string content on assistant messages — use null when empty.
     // When there are no tool_calls, use a zero-width space so the message isn't blank.
     const rawContent = assistant.content;
@@ -146,7 +149,7 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
 
     // Validate + classify every requested call. Each tool_call MUST get a result.
     const executable: PreparedCall[] = [];
-    for (const tc of assistant.tool_calls) {
+    for (const tc of toolCalls) {
       const tool = deps.getTool(tc.function.name);
       if (!tool) {
         deps.onStatus?.(tc.id, 'error', { name: tc.function.name, args: {} });
@@ -190,7 +193,7 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
 
     // Confirmable tools: one batched human gate for the whole turn.
     if (confirm.length > 0) {
-      if (deps.skipPermissions) {
+      if (deps.skipPermissions?.()) {
         for (const call of confirm) await runOne(call);
       } else {
         const batchId = nextBatchId();

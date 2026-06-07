@@ -29,8 +29,9 @@ export interface UseMCPOptions {
   isUsingObServer: boolean;
   /** Cloud model that drives function calling. */
   modelName?: string;
-  /** When true, confirmable tools run without a human gate. */
-  skipPermissions?: boolean;
+  /** Read live at each gate. When it returns true, confirmable tools run without a human
+   *  gate ("yolo mode"). A getter so toggling needs no remount/reload. */
+  skipPermissions?: () => boolean;
 }
 
 /** Listener fired after any agent-mutating tool completes. Receives the tool name. */
@@ -223,7 +224,9 @@ export function useMCP(options: UseMCPOptions) {
       setIsRunning(false);
       setStreamingText('');
     }
-  }, [isRunning, isUsingObServer, getToken, modelName, skipPermissions, syncMessages, setStatus, requestInteraction]);
+    // skipPermissions is a stable live getter (read at the gate inside the runner), so it
+    // intentionally stays out of these deps — it never needs to rebuild send().
+  }, [isRunning, isUsingObServer, getToken, modelName, syncMessages, setStatus, requestInteraction]);
 
   /** Hard-stop the in-flight run: kill the loop, abandon any model call, and unwind a
    *  run parked at the approval gate. Leaves the (sealed) conversation intact. */

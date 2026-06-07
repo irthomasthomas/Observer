@@ -11,6 +11,7 @@
 
 import React, { createContext, useContext } from 'react';
 import type { TokenProvider } from '@utils/main_loop';
+import { SensorSettings } from '@utils/settings';
 import { useMCP, type UseMCPReturn } from './useMCP';
 
 const MCPContext = createContext<UseMCPReturn | null>(null);
@@ -22,7 +23,14 @@ interface MCPProviderProps {
 }
 
 export const MCPProvider: React.FC<MCPProviderProps> = ({ getToken, isUsingObServer, children }) => {
-  const mcp = useMCP({ getToken, isUsingObServer });
+  // "Yolo mode" lives in settings (localStorage) and is read live at each approval gate.
+  // This single arrow is the toggle's swap point: replace it with `() => yoloState` from a
+  // store/context when you add a UI control, and nothing else has to change.
+  const mcp = useMCP({
+    getToken,
+    isUsingObServer,
+    skipPermissions: () => SensorSettings.getMcpYoloMode(),
+  });
   return <MCPContext.Provider value={mcp}>{children}</MCPContext.Provider>;
 };
 
