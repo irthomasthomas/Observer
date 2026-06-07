@@ -24,7 +24,6 @@ interface MCPProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
-  isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
   onUpgrade?: () => void;
@@ -366,7 +365,6 @@ const AgentApprovalCard: React.FC<{
 const MCP: React.FC<MCPProps> = ({
   isAuthenticated,
   isUsingObServer,
-  isPro = false,
   onUpgrade,
   onRefresh,
   onSaveComplete,
@@ -510,12 +508,10 @@ const MCP: React.FC<MCPProps> = ({
     );
   };
 
-  const isProGated = !isPro && isUsingObServer;
-  const isInputDisabled = isProGated || isRunning || (isUsingObServer && !isAuthenticated) || !!pendingApproval;
+  const isInputDisabled = isRunning || (isUsingObServer && !isAuthenticated) || !!pendingApproval;
   const isSendDisabled = isInputDisabled || (!userInput.trim() && previewImages.length === 0);
 
   const getPlaceholder = () => {
-    if (isProGated) return 'Upgrade to Pro to use MCP';
     if (isUsingObServer && !isAuthenticated) return 'Enable Ob-Server and log in to use MCP';
     if (pendingApproval) return 'Approve or deny the proposed action above…';
     return 'Describe the agent you want to build…';
@@ -523,33 +519,6 @@ const MCP: React.FC<MCPProps> = ({
 
   return (
     <div className={`flex flex-col ${heightClass} bg-white rounded-lg border border-purple-200 relative`}>
-      {/* Pro Feature Overlay */}
-      {isProGated && (
-        <>
-          <div className="absolute inset-0 z-[5] bg-white opacity-60 pointer-events-none" />
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-            <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md mx-4 border-2 border-purple-300 pointer-events-auto">
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-3">
-                  <div className="bg-purple-100 rounded-full p-3">
-                    <Users className="h-8 w-8 text-purple-600" />
-                  </div>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">🔒 MCP is a Pro Feature</h3>
-                <p className="text-gray-600 mb-4">Upgrade to Pro to create and manage agents with AI collaboration</p>
-                <button
-                  onClick={onUpgrade}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-medium transition-colors shadow-lg"
-                >
-                  Upgrade to Pro
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-
       {/* Chat Messages */}
       <div className="flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto">
         {messages.length === 0 && (

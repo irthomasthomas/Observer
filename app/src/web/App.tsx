@@ -905,7 +905,6 @@ function AppContent() {
               getToken={getToken}
               isAuthenticated={isAuthenticated}
               isUsingObServer={isUsingObServer}
-              isPro={isProUser}
               onSignIn={login}
               onSwitchToObServer={() => setIsUsingObServer(true)}
               onUpgrade={() => {
@@ -985,7 +984,6 @@ function AppContent() {
           getToken={getToken}
           isAuthenticated={isAuthenticated}
           isUsingObServer={isUsingObServer}
-          isPro={isProUser}
           onSignIn={login}
           onSwitchToObServer={() => setIsUsingObServer(true)}
           onUpgrade={() => {

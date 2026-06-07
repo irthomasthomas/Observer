@@ -22,7 +22,6 @@ interface MCPPanelProps {
   getToken: TokenProvider;
   isAuthenticated: boolean;
   isUsingObServer: boolean;
-  isPro?: boolean;
   onSignIn?: () => void;
   onSwitchToObServer?: () => void;
   onUpgrade?: () => void;
@@ -36,7 +35,6 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
   getToken,
   isAuthenticated,
   isUsingObServer,
-  isPro,
   onSignIn,
   onSwitchToObServer,
   onUpgrade,
@@ -116,7 +114,6 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
             getToken={getToken}
             isAuthenticated={isAuthenticated}
             isUsingObServer={isUsingObServer}
-            isPro={isPro}
             onSignIn={onSignIn}
             onSwitchToObServer={onSwitchToObServer}
             onUpgrade={onUpgrade}
