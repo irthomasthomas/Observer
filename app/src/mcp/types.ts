@@ -17,6 +17,14 @@ export interface ToolCall {
     name: string;
     arguments: string;
   };
+  /**
+   * Provider-specific passthrough. Gemini 2.5+ thinking models return an opaque
+   * `thought_signature` here on the OpenAI-compat endpoint and REQUIRE it to be echoed
+   * back verbatim on this same tool call when the conversation history is replayed —
+   * otherwise the next request 400s with "Function call is missing a thought_signature".
+   * We capture it from the stream and carry it on the wire so the replay stays valid.
+   */
+  extra_content?: { google?: { thought_signature?: string } };
 }
 
 /**

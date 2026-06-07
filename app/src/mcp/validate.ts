@@ -32,7 +32,14 @@ export function validateArgs(tool: ToolDefinition, rawArgs: string): ValidationR
   try {
     parsed = rawArgs && rawArgs.trim() ? JSON.parse(rawArgs) : {};
   } catch (e) {
-    return { ok: false, error: `Invalid JSON arguments: ${(e as Error).message}` };
+    // Some models (e.g. Gemini flash) emit concatenated empty objects like "{}{}{}" for
+    // no-parameter tools. If the tool has no required params, fall back to {} silently.
+    const required = tool.parameters.required || [];
+    if (required.length === 0) {
+      parsed = {};
+    } else {
+      return { ok: false, error: `Invalid JSON arguments: ${(e as Error).message}` };
+    }
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {

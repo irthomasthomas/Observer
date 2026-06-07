@@ -71,6 +71,66 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
 }
 
 /**
+ * Scan from offset and return the end index (exclusive) of the first balanced JSON
+ * object/array starting there, accounting for strings and escapes. Returns -1 if there
+ * is no complete value (unbalanced).
+ */
+function endOfFirstJsonValue(s: string, start: number): number {
+  let depth = 0;
+  let inStr = false;
+  let escaped = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === '{' || ch === '[') depth++;
+    else if (ch === '}' || ch === ']') {
+      depth--;
+      if (depth === 0) return i + 1;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Normalize a streamed tool-call `arguments` string into a single valid JSON object string.
+ *
+ * Gemini's OpenAI-compat streaming repeats the FULL arguments object in multiple delta
+ * chunks rather than splitting it into fragments, so naive concatenation yields strings
+ * like `{}{}{}` (zero-arg tools) or `{...}{...}` (repeated payloads). Those are invalid
+ * JSON, and when such an assistant message is replayed in the next request, Gemini 400s
+ * trying to parse the function arguments. We keep concatenation (correct for real OpenAI
+ * fragment streams) and repair the result here: if it doesn't parse, take the first
+ * complete JSON value. Always returns a parseable object string.
+ */
+function normalizeToolArguments(raw: string): string {
+  const s = (raw || '').trim();
+  if (!s) return '{}';
+  try {
+    JSON.parse(s);
+    return s; // already valid (the normal case)
+  } catch {
+    // fall through to repair
+  }
+  const end = endOfFirstJsonValue(s, 0);
+  if (end > 0) {
+    const first = s.slice(0, end);
+    try {
+      JSON.parse(first);
+      return first;
+    } catch {
+      // ignore — fall through
+    }
+  }
+  return '{}';
+}
+
+/**
  * Streaming handler for tool-calling requests. A single turn may interleave prose and
  * tool-call fragments; prose is forwarded via onStreamChunk while tool_calls are
  * accumulated by `index` (concatenating function.arguments fragments).
@@ -89,7 +149,7 @@ async function handleStreamingResponseWithTools(
   let fullContent = '';
   let finishReason: string | undefined;
   // Accumulate tool-call fragments keyed by their stream index.
-  const toolCallsByIndex: Record<number, { id?: string; name?: string; arguments: string }> = {};
+  const toolCallsByIndex: Record<number, { id?: string; name?: string; arguments: string; extra_content?: any }> = {};
 
   const finalize = (): AssistantResponse => {
     const indices = Object.keys(toolCallsByIndex).map(Number).sort((a, b) => a - b);
@@ -98,8 +158,11 @@ async function handleStreamingResponseWithTools(
       type: 'function' as const,
       function: {
         name: toolCallsByIndex[i].name || '',
-        arguments: toolCallsByIndex[i].arguments || '',
+        arguments: normalizeToolArguments(toolCallsByIndex[i].arguments),
       },
+      // Echo back Gemini's thought_signature (and any other provider passthrough) so the
+      // replayed history stays valid for 2.5+ thinking models.
+      ...(toolCallsByIndex[i].extra_content ? { extra_content: toolCallsByIndex[i].extra_content } : {}),
     }));
     return {
       content: fullContent,
@@ -146,6 +209,9 @@ async function handleStreamingResponseWithTools(
               if (tc.id) toolCallsByIndex[idx].id = tc.id;
               if (tc.function?.name) toolCallsByIndex[idx].name = tc.function.name;
               if (tc.function?.arguments) toolCallsByIndex[idx].arguments += tc.function.arguments;
+              // Gemini 2.5+ may deliver the thought_signature in any chunk for this call
+              // (sometimes a content-less one), so capture it whenever it appears.
+              if (tc.extra_content) toolCallsByIndex[idx].extra_content = tc.extra_content;
             }
           }
 
@@ -182,13 +248,40 @@ export class UnauthorizedError extends Error {
  *        - For custom servers: inferenceParams.customApiKey is used as Bearer token
  * @returns The model's response text
  */
+// True when a string is empty or contains only whitespace / zero-width / BOM chars.
+// Gemini maps such an assistant message to a Content with no `parts` and 400s with
+// "contents.parts must not be empty". Note a zero-width space (U+200B) counts as empty:
+// Gemini normalizes Unicode format chars away, so it is NOT a usable non-empty placeholder.
+const EMPTYISH = /^[\s\u200B\u200C\u200D\uFEFF]*$/;
+
+/**
+ * Make assistant messages API-safe. An assistant turn with no tool_calls MUST carry
+ * non-empty text or Gemini's OpenAI-compat endpoint rejects the whole request. Models
+ * (e.g. gemini-flash-lite after a tool result) sometimes return empty content; replace
+ * that with a single space, which Gemini accepts as a non-empty part. Assistant messages
+ * WITH tool_calls are left alone — their functionCall part satisfies the non-empty rule,
+ * so null/empty content there is valid.
+ */
+function sanitizeAssistantContent(messages: Array<{role: string, content: any}>): Array<{role: string, content: any}> {
+  return messages.map(msg => {
+    const hasToolCalls = Array.isArray((msg as any).tool_calls) && (msg as any).tool_calls.length > 0;
+    if (msg.role !== 'assistant' || hasToolCalls) return msg;
+    if (typeof msg.content === 'string' && !EMPTYISH.test(msg.content)) return msg;
+    // Empty string, null, or only-whitespace/zero-width → unusable for Gemini.
+    if (typeof msg.content === 'string' || msg.content == null) {
+      return { ...msg, content: ' ' };
+    }
+    return msg;
+  });
+}
+
 /**
  * Convert native image format to OpenAI format for external APIs.
  * Native: { type: 'image', image: 'data:...' }
  * OpenAI: { type: 'image_url', image_url: { url: 'data:...' } }
  */
 function convertToOpenAIFormat(messages: Array<{role: string, content: any}>): Array<{role: string, content: any}> {
-  return messages.map(msg => {
+  return sanitizeAssistantContent(messages).map(msg => {
     if (typeof msg.content === 'string' || !Array.isArray(msg.content)) {
       return msg;
     }

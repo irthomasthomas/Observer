@@ -92,7 +92,7 @@ export function sealDanglingToolCalls(wire: WireMessage[]): WireMessage[] {
       }
       for (const tc of calls) {
         if (!answered.has(tc.id)) {
-          wire.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ error: 'Stopped by user.' }) });
+          wire.push({ role: 'tool', tool_call_id: tc.id, name: tc.function.name, content: JSON.stringify({ error: 'Stopped by user.' }) });
         }
       }
     }
@@ -105,8 +105,8 @@ export function sealDanglingToolCalls(wire: WireMessage[]): WireMessage[] {
  * Run the agentic loop in place, mutating and returning `wire`.
  */
 export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Promise<WireMessage[]> {
-  const pushTool = (id: string, result: ToolResult) => {
-    wire.push({ role: 'tool', tool_call_id: id, content: toolResultContent(result) });
+  const pushTool = (id: string, result: ToolResult, name?: string) => {
+    wire.push({ role: 'tool', tool_call_id: id, name, content: toolResultContent(result) });
     deps.onWireUpdate?.(wire);
   };
 
@@ -117,14 +117,21 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
 
     const assistant = await deps.send(wire, deps.onAssistantDelta);
 
+    const hasToolCalls = assistant.tool_calls && assistant.tool_calls.length > 0;
+    // Gemini rejects empty-string content on assistant messages — use null when empty.
+    // When there are no tool_calls, use a zero-width space so the message isn't blank.
+    const rawContent = assistant.content;
+    const assistantContent = rawContent
+      ? rawContent
+      : hasToolCalls ? null : '​';
     wire.push({
       role: 'assistant',
-      content: assistant.content ?? '',
+      content: assistantContent,
       tool_calls: assistant.tool_calls,
     });
     deps.onWireUpdate?.(wire);
 
-    if (!assistant.tool_calls || assistant.tool_calls.length === 0) {
+    if (!hasToolCalls) {
       // Natural termination → final prose already on the wire.
       return wire;
     }
@@ -143,13 +150,13 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
       const tool = deps.getTool(tc.function.name);
       if (!tool) {
         deps.onStatus?.(tc.id, 'error', { name: tc.function.name, args: {} });
-        pushTool(tc.id, { error: `Unknown tool: ${tc.function.name}` });
+        pushTool(tc.id, { error: `Unknown tool: ${tc.function.name}` }, tc.function.name);
         continue;
       }
       const validation = validateArgs(tool, tc.function.arguments);
       if (!validation.ok) {
         deps.onStatus?.(tc.id, 'error', { name: tc.function.name, args: {} });
-        pushTool(tc.id, { error: validation.error });
+        pushTool(tc.id, { error: validation.error }, tc.function.name);
         continue;
       }
       deps.onStatus?.(tc.id, tool.requiresConfirmation ? 'pending' : 'approved', {
@@ -171,7 +178,7 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
         result = { error: e instanceof Error ? e.message : String(e) };
       }
       deps.onStatus?.(call.id, result.error ? 'error' : 'done', { name: call.name, args: call.args });
-      pushTool(call.id, result);
+      pushTool(call.id, result, call.name);
       if (result.images && result.images.length > 0) pendingImages.push(...result.images);
     };
 
@@ -196,7 +203,7 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
             await runOne(call);
           } else {
             deps.onStatus?.(call.id, 'denied', { name: call.name, args: call.args });
-            pushTool(call.id, { error: 'User denied this action.' });
+            pushTool(call.id, { error: 'User denied this action.' }, call.name);
           }
         }
       }
