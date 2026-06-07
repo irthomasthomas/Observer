@@ -1,8 +1,10 @@
 // src/components/GetStarted.tsx
-import React from 'react';
-import { Users, MessageCircle, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, MessageCircle, Plus, Trash2 } from 'lucide-react';
 import MCP from './AICreator/MCP';
 import type { TokenProvider } from '@utils/main_loop';
+import { useMCPContext } from '../mcp/MCPContext';
+import { SensorSettings } from '@utils/settings';
 
 
 interface GetStartedProps {
@@ -32,6 +34,15 @@ const GetStarted: React.FC<GetStartedProps> = ({
   onRefresh,
   onUpgradeClick: _onUpgradeClick,
 }) => {
+  const { clear, isRunning } = useMCPContext();
+  const [yolo, setYolo] = useState(() => SensorSettings.getMcpYoloMode());
+
+  const toggleYolo = () => {
+    const next = !yolo;
+    SensorSettings.setMcpYoloMode(next);
+    setYolo(next);
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto">
       <div className="flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-4 lg:gap-6 h-full">
@@ -39,17 +50,39 @@ const GetStarted: React.FC<GetStartedProps> = ({
         <div className="flex flex-col md:col-span-2 order-1" data-tutorial-ai-creator>
           <div className="h-full bg-white shadow-sm flex flex-col border-0 md:border border-gray-200 rounded-none md:rounded-xl">
             <div className="border-b border-gray-200 shrink-0 p-4 md:p-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-50 flex justify-center items-center rounded-lg w-10 h-10 shrink-0">
-                  <MessageCircle className="text-blue-600 w-5 h-5" strokeWidth={2} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-50 flex justify-center items-center rounded-lg w-10 h-10 shrink-0">
+                    <MessageCircle className="text-blue-600 w-5 h-5" strokeWidth={2} />
+                  </div>
+                  <div>
+                    <h2 className="text-gray-900 text-lg font-semibold">
+                      Create Agent
+                    </h2>
+                    <p className="hidden md:block text-gray-600 text-sm">
+                      Describe what you want your agent to do
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-gray-900 text-lg font-semibold">
-                    Create Agent
-                  </h2>
-                  <p className="hidden md:block text-gray-600 text-sm">
-                    Describe what you want your agent to do
-                  </p>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={toggleYolo}
+                    title={yolo ? 'Yolo mode on — auto-approves all actions' : 'Yolo mode off'}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 px-1"
+                  >
+                    Yolo
+                    <span className={`relative inline-flex h-4 w-7 shrink-0 rounded-full transition-colors duration-200 ${yolo ? 'bg-amber-400' : 'bg-gray-200'}`}>
+                      <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200 self-center ${yolo ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                    </span>
+                  </button>
+                  <button
+                    onClick={clear}
+                    disabled={isRunning}
+                    title="Clear conversation"
+                    className="inline-flex items-center gap-1 px-2 py-1.5 text-xs text-gray-400 rounded-md hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </div>

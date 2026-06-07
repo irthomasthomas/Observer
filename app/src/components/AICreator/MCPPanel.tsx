@@ -8,11 +8,13 @@
 // The conversation itself lives in MCPProvider (app root), so this is a thin render
 // slot — the same shared brain as the GetStarted hero <MCP>, just a different posture.
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, Trash2 } from 'lucide-react';
 import MCP from './MCP';
 import type { TokenProvider } from '@utils/main_loop';
+import { useMCPContext } from '../../mcp/MCPContext';
+import { SensorSettings } from '@utils/settings';
 
 interface MCPPanelProps {
   isOpen: boolean;
@@ -41,6 +43,15 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
   onRefresh,
   initialMessage,
 }) => {
+  const { clear, isRunning } = useMCPContext();
+  const [yolo, setYolo] = useState(() => SensorSettings.getMcpYoloMode());
+
+  const toggleYolo = () => {
+    const next = !yolo;
+    SensorSettings.setMcpYoloMode(next);
+    setYolo(next);
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -70,13 +81,33 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
             </div>
             <h2 className="text-base font-semibold text-gray-900">MCP</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
-            title="Close MCP"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleYolo}
+              title={yolo ? 'Yolo mode on — auto-approves all actions' : 'Yolo mode off'}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 px-1"
+            >
+              Yolo
+              <span className={`relative inline-flex h-4 w-7 shrink-0 rounded-full transition-colors duration-200 ${yolo ? 'bg-amber-400' : 'bg-gray-200'}`}>
+                <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200 self-center ${yolo ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+              </span>
+            </button>
+            <button
+              onClick={clear}
+              disabled={isRunning}
+              title="Clear conversation"
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-400 rounded-md hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+              title="Close MCP"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* MCP content — fills remaining height */}
