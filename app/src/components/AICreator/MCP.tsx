@@ -365,7 +365,6 @@ const AgentApprovalCard: React.FC<{
 const MCP: React.FC<MCPProps> = ({
   isAuthenticated,
   isUsingObServer,
-  onUpgrade,
   onRefresh,
   onSaveComplete,
   initialMessage,
