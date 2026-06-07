@@ -9,6 +9,8 @@ websites/landing/node_modules
 websites/landing/.pnp
 websites/status/.vite
 
+websites/partner_dashboard/.vite/
+
 app/mobile/public
 app/mobile/AppStore.md
 
