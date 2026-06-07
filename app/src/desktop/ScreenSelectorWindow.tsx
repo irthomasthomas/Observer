@@ -35,7 +35,11 @@ export default function ScreenSelectorWindow() {
       setTargets(targetsResult);
     } catch (e) {
       console.error('Failed to load capture targets:', e);
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      // Propagate the real error to the main window so it doesn't get
+      // misreported as a user cancellation while this window waits.
+      await emit('screen-capture-target-error', { message });
     } finally {
       setLoading(false);
     }

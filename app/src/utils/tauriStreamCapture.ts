@@ -1223,14 +1223,23 @@ class TauriStreamCapture {
    * Show the selector window and wait for user to pick a target.
    * Returns the selected targetId, or null if cancelled.
    */
+  /**
+   * Wait for the user to pick a capture target in the selector window.
+   * Resolves with the target id on selection, resolves `null` on a genuine
+   * user cancellation, and REJECTS with the underlying error if the selector
+   * fails to open or target enumeration (xcap) fails — so the real cause is
+   * surfaced instead of being misreported as "cancelled by user".
+   */
   private async waitForTargetSelection(): Promise<string | null> {
-    return new Promise(async (resolve) => {
+    return new Promise(async (resolve, reject) => {
       let unlistenSelected: UnlistenFn | null = null;
       let unlistenCancelled: UnlistenFn | null = null;
+      let unlistenError: UnlistenFn | null = null;
 
       const cleanup = () => {
         if (unlistenSelected) unlistenSelected();
         if (unlistenCancelled) unlistenCancelled();
+        if (unlistenError) unlistenError();
       };
 
       try {
@@ -1241,11 +1250,20 @@ class TauriStreamCapture {
           resolve(event.payload.targetId);
         });
 
-        // Listen for cancellation
+        // Listen for cancellation (genuine user action)
         unlistenCancelled = await listen('screen-capture-target-cancelled', () => {
           Logger.info("TAURI_STREAM", `Target selection cancelled`);
           cleanup();
           resolve(null);
+        });
+
+        // Listen for a real error from the selector (e.g. xcap target
+        // enumeration failed). Propagate it instead of treating as cancel.
+        unlistenError = await listen<{ message: string }>('screen-capture-target-error', (event) => {
+          const message = event.payload?.message || 'Unknown selector error';
+          Logger.error("TAURI_STREAM", `Target enumeration failed: ${message}`);
+          cleanup();
+          reject(new Error(`Failed to list capture targets: ${message}`));
         });
 
         // Show the selector window
@@ -1253,7 +1271,7 @@ class TauriStreamCapture {
       } catch (error) {
         Logger.error("TAURI_STREAM", `Error showing selector: ${error}`);
         cleanup();
-        resolve(null);
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
