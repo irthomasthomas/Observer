@@ -153,7 +153,7 @@ if (response.includes("PERSON_DETECTED")) {
 }
 \`\`\`
 
-Always put the image sensor placeholder (\`$SCREEN\`/\`$CAMERA\`) in the system_prompt, have the model answer with a single clear keyword, and branch on that keyword in the code.
+Always put the image sensor placeholder (\`$SCREEN\`/\`$CAMERA\`) in the system_prompt, have the model answer with a single clear keyword, and branch on that keyword in the code. Set loop_interval to be a value above 30s.
 
 # How to work with the user
 
