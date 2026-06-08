@@ -19,6 +19,7 @@ import { Monitor } from 'lucide-react';
 import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 import type { GemmaModelState, NativeModelState } from '@utils/localLlm/types';
+import { ModelManager, type Model } from '@utils/ModelManager';
 
 interface MCPProps {
   getToken: TokenProvider;
@@ -392,6 +393,8 @@ const MCP: React.FC<MCPProps> = ({
     subscribeMutation,
     stop,
     send,
+    modelName,
+    setModelName,
   } = useMCPContext();
 
   // Each screen reacts to agent mutations in its own way; register this screen's reaction.
@@ -408,6 +411,28 @@ const MCP: React.FC<MCPProps> = ({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasInitialMessageSet = useRef(false);
+
+  const getCustomServerModels = (): Model[] =>
+    ModelManager.getInstance().listModels().models.filter(m =>
+      m.server !== ModelManager.BROWSER_LOCAL &&
+      m.server !== ModelManager.LLAMA_CPP_LOCAL &&
+      m.server !== ModelManager.SKIP_MODEL &&
+      !m.server.includes('api.observer-ai.com')
+    );
+
+  const [customModels, setCustomModels] = useState<Model[]>(getCustomServerModels);
+
+  useEffect(() => ModelManager.getInstance().onModelsChange(() => {
+    setCustomModels(getCustomServerModels());
+  }), []);
+
+  useEffect(() => {
+    if (customModels.length === 0) return;
+    const stillAvailable = customModels.some(m => m.name === modelName);
+    if (!stillAvailable && modelName !== 'gemini-2.5-flash-lite-free') {
+      setModelName('gemini-2.5-flash-lite-free');
+    }
+  }, [customModels, modelName, setModelName]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -607,6 +632,20 @@ const MCP: React.FC<MCPProps> = ({
 
       {/* Input Area */}
       <div className="p-2 border-t border-purple-200 bg-white/80 backdrop-blur-sm rounded-b-lg">
+        {customModels.length > 0 && (
+          <div className="flex items-center gap-1.5 px-1 pb-1.5">
+            <Cpu className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
+            <select
+              value={modelName}
+              onChange={e => setModelName(e.target.value)}
+              disabled={isRunning}
+              className="flex-1 text-xs text-gray-600 bg-transparent border-0 focus:ring-0 focus:outline-none cursor-pointer disabled:cursor-not-allowed truncate"
+            >
+              <option value="gemini-2.5-flash-lite-free">Default (cloud)</option>
+              {customModels.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+            </select>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <input
             type="text"

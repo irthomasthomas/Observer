@@ -9,12 +9,19 @@
 //
 // MCP.tsx is a pure consumer via useMCPContext().
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import type { TokenProvider } from '@utils/main_loop';
 import { SensorSettings } from '@utils/settings';
 import { useMCP, type UseMCPReturn } from './useMCP';
 
-const MCPContext = createContext<UseMCPReturn | null>(null);
+const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
+
+interface MCPContextValue extends UseMCPReturn {
+  modelName: string;
+  setModelName: (name: string) => void;
+}
+
+const MCPContext = createContext<MCPContextValue | null>(null);
 
 interface MCPProviderProps {
   getToken: TokenProvider;
@@ -23,6 +30,7 @@ interface MCPProviderProps {
 }
 
 export const MCPProvider: React.FC<MCPProviderProps> = ({ getToken, isUsingObServer, children }) => {
+  const [modelName, setModelName] = useState(DEFAULT_MODEL);
   // "Yolo mode" lives in settings (localStorage) and is read live at each approval gate.
   // This single arrow is the toggle's swap point: replace it with `() => yoloState` from a
   // store/context when you add a UI control, and nothing else has to change.
@@ -30,11 +38,12 @@ export const MCPProvider: React.FC<MCPProviderProps> = ({ getToken, isUsingObSer
     getToken,
     isUsingObServer,
     skipPermissions: () => SensorSettings.getMcpYoloMode(),
+    modelName,
   });
-  return <MCPContext.Provider value={mcp}>{children}</MCPContext.Provider>;
+  return <MCPContext.Provider value={{ ...mcp, modelName, setModelName }}>{children}</MCPContext.Provider>;
 };
 
-export function useMCPContext(): UseMCPReturn {
+export function useMCPContext(): MCPContextValue {
   const ctx = useContext(MCPContext);
   if (!ctx) {
     throw new Error('useMCPContext must be used within an <MCPProvider>');
