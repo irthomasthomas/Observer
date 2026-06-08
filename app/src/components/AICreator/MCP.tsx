@@ -5,7 +5,7 @@
 // OpenAI function calls (see src/mcp/). This component is pure UI over the useMCP hook.
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Download, Cpu, Sparkles } from 'lucide-react';
+import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Download, Cpu, Sparkles, StopCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
@@ -97,6 +97,20 @@ const Bar: React.FC<{ pct: number; done?: boolean }> = ({ pct, done }) => (
  * Subscribes directly to the local-model managers (the same state ModelHub renders) to show
  * live progress for the in-flight `download_model` tool call. Renders nothing when idle.
  */
+const DownloadShell: React.FC<{ icon: React.ReactNode; children: React.ReactNode; onCancel?: () => void }> = ({ icon, children, onCancel }) => (
+  <div className="mt-2 w-full max-w-md p-3 rounded-lg border border-purple-200 bg-white/70">
+    <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-gray-700">
+      {icon}<span>On-device model</span>
+      {onCancel && (
+        <button onClick={onCancel} className="ml-auto flex items-center gap-1 text-red-500 hover:text-red-700 font-medium">
+          <StopCircle size={11} /> Cancel
+        </button>
+      )}
+    </div>
+    {children}
+  </div>
+);
+
 const DownloadModelProgress: React.FC = () => {
   const tauri = isTauri();
   const [gemma, setGemma] = useState<GemmaModelState>(() => GemmaModelManager.getInstance().getState());
@@ -109,20 +123,11 @@ const DownloadModelProgress: React.FC = () => {
     return () => { unsubGemma(); unsubNative(); };
   }, [tauri]);
 
-  const Shell: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({ icon, children }) => (
-    <div className="mt-2 w-full max-w-md p-3 rounded-lg border border-purple-200 bg-white/70">
-      <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-gray-700">
-        {icon}<span>On-device model</span>
-      </div>
-      {children}
-    </div>
-  );
-
   if (tauri) {
     const { status, modelId, downloadProgress, downloadedBytes, totalBytes, error } = native;
     if (status === 'downloading') {
       return (
-        <Shell icon={<Download className="h-4 w-4 text-purple-600 animate-bounce" />}>
+        <DownloadShell icon={<Download className="h-4 w-4 text-purple-600 animate-bounce" />} onCancel={() => NativeLlmManager.getInstance().cancelDownload()}>
           <div className="flex justify-between text-[11px] text-gray-600 mb-1">
             <span className="truncate max-w-[60%]">{modelId ?? 'model'}.gguf</span>
             <span className="font-medium">
@@ -130,17 +135,21 @@ const DownloadModelProgress: React.FC = () => {
             </span>
           </div>
           <Bar pct={downloadProgress} />
-        </Shell>
+        </DownloadShell>
       );
     }
     if (status === 'loading') {
-      return <Shell icon={<Cpu className="h-4 w-4 text-purple-600 animate-pulse" />}><p className="text-xs text-gray-600">Loading model into memory…</p></Shell>;
+      return (
+        <DownloadShell icon={<Cpu className="h-4 w-4 text-purple-600 animate-pulse" />} onCancel={() => NativeLlmManager.getInstance().unloadModel()}>
+          <p className="text-xs text-gray-600">Loading model into memory…</p>
+        </DownloadShell>
+      );
     }
     if (status === 'loaded') {
-      return <Shell icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}><p className="text-xs text-gray-600">Model ready on your device.</p></Shell>;
+      return <DownloadShell icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}><p className="text-xs text-gray-600">Model ready on your device.</p></DownloadShell>;
     }
     if (status === 'error' && error) {
-      return <Shell icon={<XCircle className="h-4 w-4 text-red-500" />}><p className="text-xs text-red-600">{error}</p></Shell>;
+      return <DownloadShell icon={<XCircle className="h-4 w-4 text-red-500" />}><p className="text-xs text-red-600">{error}</p></DownloadShell>;
     }
     return null;
   }
@@ -148,7 +157,7 @@ const DownloadModelProgress: React.FC = () => {
   // transformers.js (browser): one shot that both downloads and loads
   if (gemma.status === 'loading') {
     return (
-      <Shell icon={<Sparkles className="h-4 w-4 text-purple-600 animate-pulse" />}>
+      <DownloadShell icon={<Sparkles className="h-4 w-4 text-purple-600 animate-pulse" />} onCancel={() => GemmaModelManager.getInstance().unloadModel()}>
         {gemma.progress.length > 0 ? (
           <div className="space-y-1.5">
             {gemma.progress.map(item => (
@@ -166,14 +175,14 @@ const DownloadModelProgress: React.FC = () => {
         ) : (
           <p className="text-xs text-gray-600">Downloading & loading…</p>
         )}
-      </Shell>
+      </DownloadShell>
     );
   }
   if (gemma.status === 'loaded') {
-    return <Shell icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}><p className="text-xs text-gray-600">Model ready in your browser.</p></Shell>;
+    return <DownloadShell icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}><p className="text-xs text-gray-600">Model ready in your browser.</p></DownloadShell>;
   }
   if (gemma.status === 'error' && gemma.error) {
-    return <Shell icon={<XCircle className="h-4 w-4 text-red-500" />}><p className="text-xs text-red-600">{gemma.error}</p></Shell>;
+    return <DownloadShell icon={<XCircle className="h-4 w-4 text-red-500" />}><p className="text-xs text-red-600">{gemma.error}</p></DownloadShell>;
   }
   return null;
 };

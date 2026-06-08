@@ -38,6 +38,7 @@ function awaitGemmaLoaded(modelId: GemmaModelId): Promise<void> {
     const check = (s = mgr.getState()) => {
       if (s.status === 'loaded' && s.modelId === modelId) { unsub(); resolve(); }
       else if (s.status === 'error') { unsub(); reject(new Error(s.error || 'Model failed to load.')); }
+      else if (s.status === 'unloaded') { unsub(); reject(new Error('Download cancelled.')); }
     };
     const unsub = mgr.onStateChange(check);
     check(); // settle synchronously if it's already loaded
