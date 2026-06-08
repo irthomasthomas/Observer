@@ -391,10 +391,10 @@ export const InteractiveTutorial: React.FC<InteractiveTutorialProps> = ({
                   </div>
                 </div>
 
-                <div className="space-y-1.5 md:space-y-2 mb-3 md:mb-4 text-xs md:text-sm text-purple-900">
+                <div className="space-y-1.5 md:space-y-2 mb-3 md:mb-4 text-xs md:text-sm text-purple-900 text-left">
                   <div className="flex items-start">
                     <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span><strong>Unlock MCP</strong> - multi-agent configs</span>
+                    <span><strong>Unlimited Agent Builder</strong> autonomous deployment</span>
                   </div>
                   <div className="flex items-start">
                     <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />

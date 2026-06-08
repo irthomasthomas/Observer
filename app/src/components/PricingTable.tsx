@@ -5,6 +5,7 @@ import {
   Loader2, Zap, ExternalLink,
   Check, X, Sparkles, RotateCcw
 } from 'lucide-react';
+import { CreditInfoButton } from './CreditVisualization';
 import { isIOS } from '../utils/platform';
 import { Logger } from '@utils/logging';
 import type { UseApplePaymentsReturn } from '@hooks/useApplePayments';
@@ -35,6 +36,7 @@ interface FeatureRow {
   free: boolean | string;
   pro: boolean | string;
   max: boolean | string;
+  creditInfo?: { free?: number; pro?: number; max?: number };
 }
 
 interface FeatureGroup {
@@ -61,9 +63,8 @@ const featureGroups: FeatureGroup[] = [
   {
     group: 'AI inference',
     rows: [
-      { label: 'Alert Builder',            notLoggedIn: false, free: true,        pro: true,         max: true },
-      { label: 'Cloud Monitoring',         notLoggedIn: false, free: '1 hr / day', pro: '8 hr / day', max: '24 / 7' },
-      { label: 'MCP (Multi-Agent)',  sparkle: true, notLoggedIn: false, free: false, pro: true, max: true },
+      { label: 'Cloud Monitoring',         notLoggedIn: false, free: '1 hr / day', pro: '8 hr / day', max: '24 / 7', creditInfo: { free: 60, pro: 480, max: 2880 } },
+      { label: 'Agent Builder (MCP)',       notLoggedIn: false, free: '3 agents / day*', pro: true, max: true },
     ],
   },
   {
@@ -77,10 +78,17 @@ const featureGroups: FeatureGroup[] = [
 const CheckMark = () => <Check className="h-5 w-5 text-green-500 mx-auto" />;
 const CrossMark = () => <X className="h-5 w-5 text-gray-300 mx-auto" />;
 
-const renderCell = (value: boolean | string) => {
+const renderCell = (value: boolean | string, dailyCredits?: number, tierName?: string) => {
   if (value === true)  return <CheckMark />;
   if (value === false) return <CrossMark />;
-  return <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">{value}</span>;
+  return (
+    <span className="inline-flex items-center justify-center gap-1 text-sm font-semibold text-gray-700">
+      {value}
+      {dailyCredits !== undefined && tierName && (
+        <CreditInfoButton dailyCredits={dailyCredits} tierName={tierName} className="align-middle" />
+      )}
+    </span>
+  );
 };
 
 export const PricingTable: React.FC<PricingTableProps> = ({
@@ -322,14 +330,14 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                     </td>
                     {isAuthenticated ? (
                       <>
-                        <td className={getCellClass('free')}>{renderCell(row.free)}</td>
-                        <td className={getCellClass('pro')}>{renderCell(row.pro)}</td>
-                        <td className={getCellClass('max')}>{renderCell(row.max)}</td>
+                        <td className={getCellClass('free')}>{renderCell(row.free, row.creditInfo?.free, 'Free tier')}</td>
+                        <td className={getCellClass('pro')}>{renderCell(row.pro, row.creditInfo?.pro, 'Pro tier')}</td>
+                        <td className={getCellClass('max')}>{renderCell(row.max, row.creditInfo?.max, 'Max tier')}</td>
                       </>
                     ) : (
                       <>
                         <td className={getCellClass('notLoggedIn')}>{renderCell(row.notLoggedIn)}</td>
-                        <td className={getCellClass('free')}>{renderCell(row.free)}</td>
+                        <td className={getCellClass('free')}>{renderCell(row.free, row.creditInfo?.free, 'Free tier')}</td>
                       </>
                     )}
                   </tr>
@@ -339,6 +347,9 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* ── Footnotes ── */}
+      <p className="text-xs text-gray-400 px-1 mb-3">* ~45 AI calls/day · assumes ~15 calls per agent</p>
 
       {/* ── Error ── */}
       {combinedError && (
