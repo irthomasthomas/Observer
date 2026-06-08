@@ -507,8 +507,16 @@ const MCP: React.FC<MCPProps> = ({
     );
   };
 
+  const SUGGESTIONS = [
+    'Call me when my download is finished',
+    'WhatsApp me when my video finishes rendering',
+    'Log my screen activity every hour',
+    'Notify me when my battery is low',
+  ];
+
   const isInputDisabled = isRunning || (isUsingObServer && !isAuthenticated) || !!pendingApproval;
   const isSendDisabled = isInputDisabled || (!userInput.trim() && previewImages.length === 0);
+  const showSuggestions = messages.length === 0 && !isRunning && !pendingApproval;
 
   const getPlaceholder = () => {
     if (isUsingObServer && !isAuthenticated) return 'Enable Ob-Server and log in to use MCP';
@@ -523,7 +531,7 @@ const MCP: React.FC<MCPProps> = ({
         {messages.length === 0 && (
           <div className="flex justify-start">
             <div className="max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm">
-              <Markdown text={`Hi! I'm **Observer's MCP**. I can build, edit, run, and inspect your agents.\n\nTry: *"Create an agent that emails me when the Observer logo is on screen"* or *"What has my screen_watcher agent done recently?"*`} />
+              <Markdown text={`Hi! I'm **Observer's MCP**. I can create and run Observer agents. `} />
             </div>
           </div>
         )}
@@ -568,6 +576,22 @@ const MCP: React.FC<MCPProps> = ({
                 <XCircle className="h-3.5 w-3.5" />
               </button>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Suggestion chips */}
+      {showSuggestions && (
+        <div className="px-3 pt-2 pb-1 flex flex-wrap justify-center gap-2">
+          {SUGGESTIONS.map(s => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => send(s)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors whitespace-nowrap"
+            >
+              {s}
+            </button>
           ))}
         </div>
       )}
