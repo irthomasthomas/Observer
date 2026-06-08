@@ -78,7 +78,8 @@ async function downloadLlamaCpp(): Promise<DownloadedLocalModel> {
 
   // Model file
   if (!hasComplete(ggufFilename)) {
-    await mgr.downloadModel(ggufUrl);
+    const result = await mgr.downloadModel(ggufUrl);
+    if (!result) throw new Error('Download cancelled.');
   }
   // Vision projector — assign before downloading so it renders inside the model's card,
   // then fetch it if it isn't already on disk.
