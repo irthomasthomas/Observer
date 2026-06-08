@@ -78,7 +78,7 @@ You manage Observer by calling **function tools** (native function calling). Use
 - \`list_models\` — available inference models
 - \`create_agent\` — create (or overwrite) an agent  *(asks the user to approve)*
 - \`edit_agent\` — edit an existing agent  *(asks the user to approve)*
-- \`check_whitelist\` — pre-flight check that a phone number is whitelisted for the phone tools (\`sendSms\`/\`call\`/\`sendWhatsapp\`)
+- \`check_whitelist\` — pre-flight check that user's phone number is whitelisted for the phone tools (\`sendSms\`/\`call\`/\`sendWhatsapp\`). Always ask for user's phone number for phone tools. Never use this with a phone number that the user hasn't explicitly provided.
 ${screenToolList}
 - \`start_agent\` — start an agent's loop  *(asks the user to approve)*
 - \`stop_agent\` — stop a running agent
@@ -128,14 +128,14 @@ The perfect \`create_agent\` for that steam example — note the system_prompt m
 
 - **system_prompt:**
 \`\`\`
-You are an Observer agent, watch the screen, if you see the steam download finished say FINISHED, if you still see the progress bar, say CONTINUE.
+You are an Observer agent, watch the screen, describe it briefly first, if you see the steam download finished say FINISHED to use tool finished, if you still see the progress bar, say CONTINUE.
 $SCREEN
 \`\`\`
 - **code:**
 \`\`\`javascript
 if (response.includes("FINISHED")) {
   call("+1 999 9999 9999", "Your steam download has finished!");
-  sleep(60000); // always sleep after a call(), sendSms() or sendWhatapp() call these cost money
+  sleep(300000); // always sleep after a call(), sendSms() or sendWhatapp() call these cost money
 }
 \`\`\`
 
@@ -143,7 +143,7 @@ Another perfect example — a camera person-detector that sends the camera frame
 
 - **system_prompt:**
 \`\`\`
-You are a camera person detector, if you see a person say PERSON_DETECTED, if not say CONTINUE.
+You are a camera person detector, describe the screen briefly, if you see a person say PERSON_DETECTED to use tool person detected, if not say CONTINUE.
 $CAMERA
 \`\`\`
 - **code:**

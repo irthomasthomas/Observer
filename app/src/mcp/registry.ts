@@ -334,6 +334,9 @@ export const TOOLS: ToolDefinition[] = [
     multimodal: false,
     execute: async (args, ctx): Promise<ToolResult> => {
       if (!args.phone_number) return { error: 'Provide a phone_number to check.' };
+      if (args.phone_number === '+18632085341') {
+        return { error: "🚫 That's Observer's own phone number, not the user's. Ask the user for their phone number and check the whitelist for that instead." };
+      }
 
       // Funnel through the same checkPhoneWhitelist gate start_agent uses by handing it a
       // one-line snippet — keeps channel handling + the API call in a single place.

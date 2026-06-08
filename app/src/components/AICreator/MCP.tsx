@@ -509,7 +509,7 @@ const MCP: React.FC<MCPProps> = ({
               const phoneNumber: string | undefined = st.args?.phone_number;
               if (!phoneNumber) return null;
               const channel = st.args?.channel as WhitelistChannel | undefined;
-              return <WhitelistInline key={tc.id} phoneNumber={phoneNumber} channel={channel} />;
+              return <WhitelistInline key={tc.id} phoneNumber={phoneNumber} channel={channel} onCancel={stop} />;
             })}
         </div>
       </div>

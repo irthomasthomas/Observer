@@ -7,7 +7,7 @@
 // continue straight to start_agent — no messages, no manual resume.
 
 import React, { useState } from 'react';
-import { ChevronRight, MessageCircle, Phone, ExternalLink, AlertTriangle, Loader } from 'lucide-react';
+import { ChevronRight, MessageCircle, Phone, ExternalLink, AlertTriangle, Loader, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { WhitelistChannel } from '@utils/logging';
 import {
@@ -22,6 +22,7 @@ import {
 interface WhitelistInlineProps {
   phoneNumber: string;
   channel?: WhitelistChannel;
+  onCancel?: () => void;
 }
 
 const QrOption: React.FC<{
@@ -52,8 +53,8 @@ const QrOption: React.FC<{
   </div>
 );
 
-const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel }) => {
-  const [expanded, setExpanded] = useState(false);
+const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel, onCancel }) => {
+  const [expanded, setExpanded] = useState(true);
 
   const showWhatsApp = channel === 'whatsapp' || channel === undefined;
   const showSms = channel !== 'whatsapp';
@@ -61,19 +62,31 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel 
   return (
     <div className="mt-2 w-full max-w-md rounded-lg border border-amber-200 bg-amber-50 overflow-hidden">
       {/* Collapsed pill — click to expand */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-900 hover:bg-amber-100/60 transition-colors"
-      >
-        <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-        <span className="flex-1 text-left font-medium">
-          <span className="font-mono">{phoneNumber}</span> — whitelist to continue
-        </span>
-        <span className="text-xs text-amber-700 flex items-center gap-0.5">
-          {expanded ? 'Hide' : 'Show how'}
-          <ChevronRight className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
-        </span>
-      </button>
+      <div className="flex items-center gap-2 px-3 py-2">
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="flex-1 flex items-center gap-2 text-sm text-amber-900 hover:opacity-80 transition-opacity text-left"
+        >
+          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <span className="flex-1 font-medium">
+            Checking your number: <span className="font-mono">{phoneNumber}</span>
+          </span>
+          <span className="text-xs text-amber-700 flex items-center gap-0.5">
+            {expanded ? 'Hide' : 'Show how'}
+            <ChevronRight className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+          </span>
+        </button>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            title="Cancel — stop if this number looks wrong"
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition-colors flex-shrink-0"
+          >
+            <X className="h-3 w-3" />
+            Cancel
+          </button>
+        )}
+      </div>
 
       {expanded && (
         <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-amber-200/70">
