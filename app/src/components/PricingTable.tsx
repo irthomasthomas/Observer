@@ -349,7 +349,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       </div>
 
       {/* ── Footnotes ── */}
-      <p className="text-xs text-gray-400 px-1 mb-3">* ~45 AI calls/day · assumes ~15 calls per agent</p>
+      <p className="text-xs text-gray-400 px-1 mb-3">* 45 messages in Agent Builder (MCP)</p>
 
       {/* ── Error ── */}
       {combinedError && (
