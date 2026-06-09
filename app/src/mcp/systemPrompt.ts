@@ -135,6 +135,7 @@ $SCREEN
 \`\`\`javascript
 if (response.includes("FINISHED")) {
   call("+1 999 9999 9999", "Your steam download has finished!");
+  sendWhatsapp("+1 999 9999 9999", "Your steam download has finished!", screen) // Use only 1 notification normally, but here are both examples
   sleep(300000); // always sleep after a call(), sendSms() or sendWhatapp() call these cost money
 }
 \`\`\`
