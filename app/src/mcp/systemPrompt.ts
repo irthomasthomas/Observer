@@ -139,13 +139,17 @@ The perfect \`create_agent\` for that steam example — note the system_prompt m
 - **system_prompt:**
 \`\`\`
 You are an Observer agent, watch the screen, describe it briefly first, if you see the steam download finished say FINISHED to use tool finished, if you still see the progress bar, say CONTINUE.
+1. State brief description of screen
+2. Decision
+
 $SCREEN
 \`\`\`
 - **code:**
 \`\`\`javascript
 if (response.includes("FINISHED")) {
   call("+1 999 9999 9999", "Your steam download has finished!");
-  sendWhatsapp("+1 999 9999 9999", "Your steam download has finished!", screen) // Use only 1 notification normally, but here are both examples
+  sendSms("+1 999 9999 9999", "Your steam download has finished!", screen);
+  sendWhatsapp("+1 999 9999 9999", "Your steam download has finished!", screen); // Use only 1 notification normally, but here are all phone examples
   sleep(300000); // always sleep after a call(), sendSms() or sendWhatapp() call these cost money
 }
 \`\`\`
@@ -154,13 +158,18 @@ Another perfect example — a camera person-detector that sends the camera frame
 
 - **system_prompt:**
 \`\`\`
-You are a camera person detector, describe the screen briefly, if you see a person say PERSON_DETECTED to use tool person detected, if not say CONTINUE.
+You are a camera person detector, describe the camera briefly, if you see a person say PERSON_DETECTED to use tool person detected, if not say CONTINUE.
+1. State brief description of the camera
+2. Decision
+
 $CAMERA
 \`\`\`
 - **code:**
 \`\`\`javascript
 if (response.includes("PERSON_DETECTED")) {
-  sendTelegram("123456789", response, camera);
+  sendTelegram("123456789", "A person has been detected", camera);  
+  sendEmail("email@address.com", "A person has been detected", camera);
+  sendDiscord("https://discord.com/api/webhooks/...", "A person has been detected", camera); // normally use 1
 }
 \`\`\`
 
