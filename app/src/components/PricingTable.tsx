@@ -6,6 +6,7 @@ import {
   Check, X, Sparkles, RotateCcw
 } from 'lucide-react';
 import { CreditInfoButton } from './CreditVisualization';
+import { InfoTooltip } from './InfoTooltip';
 import { isIOS } from '../utils/platform';
 import { Logger } from '@utils/logging';
 import type { UseApplePaymentsReturn } from '@hooks/useApplePayments';
@@ -37,6 +38,7 @@ interface FeatureRow {
   pro: boolean | string;
   max: boolean | string;
   creditInfo?: { free?: number; pro?: number; max?: number };
+  info?: { notLoggedIn?: string; free?: string; pro?: string; max?: string };
 }
 
 interface FeatureGroup {
@@ -57,14 +59,23 @@ const featureGroups: FeatureGroup[] = [
     group: 'Notifications',
     rows: [
       { label: 'Telegram, Email & Pushover', notLoggedIn: false, free: true,      pro: true,        max: true },
-      { label: 'SMS, Phone & WhatsApp',      notLoggedIn: false, free: '5 / day', pro: 'Unlimited', max: 'Unlimited' },
+      { label: 'SMS, Phone & WhatsApp',      notLoggedIn: false, free: '5 / day', pro: true,        max: true,
+        info: {
+          pro: "Practically unlimited 100/day as a guard against abuse. I use Observer every day and have never come close. Need more for a legit use case? Just email me, it's a solo project and I'm happy to help.",
+          max: "Practically unlimited 100/day as a guard against abuse. I use Observer every day and have never come close. Need more for a legit use case? Just email me, it's a solo project and I'm happy to help.",
+        } },
     ],
   },
   {
     group: 'AI inference',
     rows: [
       { label: 'Cloud Monitoring',         notLoggedIn: false, free: '1 hr / day', pro: '8 hr / day', max: '24 / 7', creditInfo: { free: 60, pro: 480, max: 2880 } },
-      { label: 'Agent Builder (MCP)',       notLoggedIn: false, free: '3 agents / day*', pro: true, max: true },
+      { label: 'Agent Builder (MCP)',       notLoggedIn: false, free: '3 agents / day', pro: true, max: true,
+        info: {
+          free: 'Building an agent takes ~15 messages on average, and the free tier gives you 45/day, about 3 full agent builds. Plenty to design and iterate.',
+          pro: "1,000 messages/day, roughly 67 agent builds in a single day. If you genuinely need to spin up more than 67 agents a day, one subscription was never going to cover that 😅. Reach out and we'll figure it out.",
+          max: "1,000 messages/day, roughly 67 agent builds in a single day. If you genuinely need to spin up more than 67 agents a day, one subscription was never going to cover that 😅. Reach out and we'll figure it out.",
+        } },
     ],
   },
   {
@@ -78,8 +89,16 @@ const featureGroups: FeatureGroup[] = [
 const CheckMark = () => <Check className="h-5 w-5 text-green-500 mx-auto" />;
 const CrossMark = () => <X className="h-5 w-5 text-gray-300 mx-auto" />;
 
-const renderCell = (value: boolean | string, dailyCredits?: number, tierName?: string) => {
-  if (value === true)  return <CheckMark />;
+const renderCell = (value: boolean | string, dailyCredits?: number, tierName?: string, info?: string) => {
+  const infoBtn = info ? <InfoTooltip body={info} className="align-middle" /> : null;
+  if (value === true) {
+    return (
+      <span className="inline-flex items-center justify-center gap-1">
+        <CheckMark />
+        {infoBtn}
+      </span>
+    );
+  }
   if (value === false) return <CrossMark />;
   return (
     <span className="inline-flex items-center justify-center gap-1 text-sm font-semibold text-gray-700">
@@ -87,6 +106,7 @@ const renderCell = (value: boolean | string, dailyCredits?: number, tierName?: s
       {dailyCredits !== undefined && tierName && (
         <CreditInfoButton dailyCredits={dailyCredits} tierName={tierName} className="align-middle" />
       )}
+      {infoBtn}
     </span>
   );
 };
@@ -330,14 +350,14 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                     </td>
                     {isAuthenticated ? (
                       <>
-                        <td className={getCellClass('free')}>{renderCell(row.free, row.creditInfo?.free, 'Free tier')}</td>
-                        <td className={getCellClass('pro')}>{renderCell(row.pro, row.creditInfo?.pro, 'Pro tier')}</td>
-                        <td className={getCellClass('max')}>{renderCell(row.max, row.creditInfo?.max, 'Max tier')}</td>
+                        <td className={getCellClass('free')}>{renderCell(row.free, row.creditInfo?.free, 'Free tier', row.info?.free)}</td>
+                        <td className={getCellClass('pro')}>{renderCell(row.pro, row.creditInfo?.pro, 'Pro tier', row.info?.pro)}</td>
+                        <td className={getCellClass('max')}>{renderCell(row.max, row.creditInfo?.max, 'Max tier', row.info?.max)}</td>
                       </>
                     ) : (
                       <>
                         <td className={getCellClass('notLoggedIn')}>{renderCell(row.notLoggedIn)}</td>
-                        <td className={getCellClass('free')}>{renderCell(row.free, row.creditInfo?.free, 'Free tier')}</td>
+                        <td className={getCellClass('free')}>{renderCell(row.free, row.creditInfo?.free, 'Free tier', row.info?.free)}</td>
                       </>
                     )}
                   </tr>
@@ -347,9 +367,6 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           </tbody>
         </table>
       </div>
-
-      {/* ── Footnotes ── */}
-      <p className="text-xs text-gray-400 px-1 mb-3">* 45 messages in Agent Builder (MCP)</p>
 
       {/* ── Error ── */}
       {combinedError && (
