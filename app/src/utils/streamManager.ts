@@ -6,7 +6,7 @@ import { isWeb } from './platform';
 import { browserStreamCapture } from './browserStreamCapture';
 import { tauriStreamCapture, PCMCallback } from './tauriStreamCapture';
 import { PCMAudioCapture, createPCMAudioCapture } from './audio/PCMAudioCapture';
-import { getAgentCrop } from './screenCapture';
+import { getAgentCrop, type CropConfig } from './screenCapture';
 
 // --- Core Type Definitions ---
 export type AudioStreamType = 'screenAudio' | 'microphone' | 'allAudio';
@@ -26,6 +26,24 @@ export interface StreamState {
   allAudioStream: MediaStream | null;
 }
 type StreamListener = (state: StreamState) => void;
+
+/**
+ * Resolve a normalized (0–1) crop against an actual frame's pixel dimensions,
+ * clamped to the frame and guaranteed at least 1px in each axis. This is the
+ * single place crop fractions become pixels, so the same crop is correct no
+ * matter what resolution the underlying capture happens to produce.
+ */
+function resolveCrop(
+  crop: CropConfig,
+  frameWidth: number,
+  frameHeight: number,
+): { x: number; y: number; width: number; height: number } {
+  const x = Math.max(0, Math.min(Math.round(crop.x * frameWidth), frameWidth - 1));
+  const y = Math.max(0, Math.min(Math.round(crop.y * frameHeight), frameHeight - 1));
+  const width = Math.max(1, Math.min(Math.round(crop.width * frameWidth), frameWidth - x));
+  const height = Math.max(1, Math.min(Math.round(crop.height * frameHeight), frameHeight - y));
+  return { x, y, width, height };
+}
 
 class Manager {
   // --- Clean Pseudo-Stream State ---
@@ -385,26 +403,23 @@ class Manager {
         return rawFrame;
       }
 
-      // Apply crop by decoding, cropping, and re-encoding
+      // Apply crop by decoding, cropping, and re-encoding.
+      // crop is normalized (0–1); resolve it against the real frame pixels here.
       try {
         const blob = await fetch(`data:image/jpeg;base64,${rawFrame}`).then(r => r.blob());
         const bitmap = await createImageBitmap(blob);
 
+        const px = resolveCrop(crop, bitmap.width, bitmap.height);
         const canvas = document.createElement('canvas');
-        canvas.width = crop.width;
-        canvas.height = crop.height;
+        canvas.width = px.width;
+        canvas.height = px.height;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           bitmap.close();
           return rawFrame; // Fallback to uncropped
         }
 
-        const safeX = Math.min(crop.x, bitmap.width - 1);
-        const safeY = Math.min(crop.y, bitmap.height - 1);
-        const safeWidth = Math.min(crop.width, bitmap.width - safeX);
-        const safeHeight = Math.min(crop.height, bitmap.height - safeY);
-
-        ctx.drawImage(bitmap, safeX, safeY, safeWidth, safeHeight, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, px.x, px.y, px.width, px.height, 0, 0, canvas.width, canvas.height);
         bitmap.close();
 
         return canvas.toDataURL('image/png').split(',')[1];
@@ -427,9 +442,12 @@ class Manager {
     const canvas = document.createElement('canvas');
     const crop = agentId ? getAgentCrop(agentId, streamType) : null;
 
-    if (crop) {
-      canvas.width = crop.width;
-      canvas.height = crop.height;
+    // crop is normalized (0–1); resolve it against the live frame pixels.
+    const px = crop ? resolveCrop(crop, video.videoWidth, video.videoHeight) : null;
+
+    if (px) {
+      canvas.width = px.width;
+      canvas.height = px.height;
     } else {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -439,12 +457,8 @@ class Manager {
     if (!ctx) return null;
 
     // Draw with crop support
-    if (crop) {
-      const safeX = Math.min(crop.x, video.videoWidth - 1);
-      const safeY = Math.min(crop.y, video.videoHeight - 1);
-      const safeWidth = Math.min(crop.width, video.videoWidth - safeX);
-      const safeHeight = Math.min(crop.height, video.videoHeight - safeY);
-      ctx.drawImage(video, safeX, safeY, safeWidth, safeHeight, 0, 0, canvas.width, canvas.height);
+    if (px) {
+      ctx.drawImage(video, px.x, px.y, px.width, px.height, 0, 0, canvas.width, canvas.height);
     } else {
       ctx.drawImage(video, 0, 0);
     }

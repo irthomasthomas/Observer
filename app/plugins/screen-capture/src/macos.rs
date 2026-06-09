@@ -358,8 +358,11 @@ fn ensure_capture_running(
     let displays = content.displays();
     let windows = content.windows();
 
-    // Build content filter
-    let filter = if let Some(id) = &target_id {
+    // Build content filter and pick an output size that matches the source's
+    // aspect ratio. A fixed 1920x1080 output makes ScreenCaptureKit letterbox any
+    // non-16:9 source with black bars — which both wastes tokens and throws off the
+    // crop coordinates the model picks off the frame — so size the buffer to the source.
+    let (filter, out_width, out_height) = if let Some(id) = &target_id {
         if let Ok((kind, numeric_id)) = targets::parse_target_id(id) {
             match kind {
                 TargetKind::Monitor => {
@@ -368,14 +371,16 @@ fn ensure_capture_running(
                         .find(|d| d.display_id() == numeric_id)
                         .ok_or_else(|| Error::Platform(format!("Display {} not found", numeric_id)))?;
 
+                    let frame = display.frame();
                     log::info!(
-                        "[ScreenCapture] Capturing display: {} ({}x{})",
+                        "[ScreenCapture] Capturing display: {} ({}x{} pts)",
                         display.display_id(),
-                        display.width(),
-                        display.height()
+                        frame.width,
+                        frame.height
                     );
 
-                    SCContentFilter::create().with_display(display).build()
+                    let (w, h) = output_dimensions(frame.width, frame.height);
+                    (SCContentFilter::create().with_display(display).build(), w, h)
                 }
                 TargetKind::Window => {
                     let window = windows
@@ -383,12 +388,16 @@ fn ensure_capture_running(
                         .find(|w| w.window_id() == numeric_id)
                         .ok_or_else(|| Error::Platform(format!("Window {} not found", numeric_id)))?;
 
+                    let frame = window.frame();
                     log::info!(
-                        "[ScreenCapture] Capturing window: {:?}",
-                        window.title()
+                        "[ScreenCapture] Capturing window: {:?} ({}x{} pts)",
+                        window.title(),
+                        frame.width,
+                        frame.height
                     );
 
-                    SCContentFilter::create().with_window(window).build()
+                    let (w, h) = output_dimensions(frame.width, frame.height);
+                    (SCContentFilter::create().with_window(window).build(), w, h)
                 }
             }
         } else {
@@ -399,21 +408,29 @@ fn ensure_capture_running(
             .first()
             .ok_or_else(|| Error::Platform("No displays found".to_string()))?;
 
+        let frame = display.frame();
         log::info!(
-            "[ScreenCapture] Capturing primary display: {} ({}x{})",
+            "[ScreenCapture] Capturing primary display: {} ({}x{} pts)",
             display.display_id(),
-            display.width(),
-            display.height()
+            frame.width,
+            frame.height
         );
 
-        SCContentFilter::create().with_display(display).build()
+        let (w, h) = output_dimensions(frame.width, frame.height);
+        (SCContentFilter::create().with_display(display).build(), w, h)
     };
+
+    log::info!(
+        "[ScreenCapture] Output buffer sized to {}x{} (aspect-matched, no letterbox)",
+        out_width,
+        out_height
+    );
 
     // Configure stream for BOTH video and audio
     let frame_interval = CMTime::new(1, TARGET_FPS);
     let config = SCStreamConfiguration::new()
-        .with_width(1920)
-        .with_height(1080)
+        .with_width(out_width)
+        .with_height(out_height)
         .with_minimum_frame_interval(&frame_interval)
         .with_pixel_format(PixelFormat::BGRA)
         .with_shows_cursor(true)
@@ -694,6 +711,31 @@ fn maybe_stop_capture(state: &Arc<UnifiedCaptureState>) {
     }
 
     log::info!("[ScreenCapture] Unified capture stopped");
+}
+
+/// Pick an output buffer size that preserves the source's aspect ratio while
+/// capping the width at MAX_WIDTH. Matching the source aspect ratio is what keeps
+/// ScreenCaptureKit from padding frames with black bars. Dimensions are rounded to
+/// even numbers to stay friendly to the capture pipeline.
+fn output_dimensions(src_width: f64, src_height: f64) -> (u32, u32) {
+    if !(src_width > 0.0) || !(src_height > 0.0) {
+        return (1280, 720); // sensible 16:9 fallback if the source size is unknown
+    }
+
+    let (w, h) = if src_width > MAX_WIDTH as f64 {
+        let scale = MAX_WIDTH as f64 / src_width;
+        (MAX_WIDTH as f64, src_height * scale)
+    } else {
+        (src_width, src_height)
+    };
+
+    // Round to even so width/height never produce an odd-stride buffer.
+    let to_even = |v: f64| -> u32 {
+        let r = v.round().max(2.0) as u32;
+        r & !1
+    };
+
+    (to_even(w), to_even(h))
 }
 
 /// Process a frame and return FrameData

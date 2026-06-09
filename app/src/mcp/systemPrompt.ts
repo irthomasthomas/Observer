@@ -26,8 +26,8 @@ export default function getMcpSystemPrompt(): string {
 - \`set_screen_crop\` — crop a \`$SCREEN\` agent's capture to a sub-region (e.g. just a progress bar)  *(asks the user to approve)*`;
 
   const screenFlow = desktop
-    ? `If an agent's system_prompt uses \`$SCREEN\`, perceive the screen BEFORE you \`create_agent\`, then configure capture AFTER: first \`list_screen_targets\` for the text catalog of monitors/windows, then \`see_screen_target\` the one (or few) that plausibly match what the user wants to watch — don't preview all of them, just the likely candidates. Looking at that thumbnail, decide which target it is AND whether a sub-region matters (e.g. only a download bar, a chat panel, a video player), reading the crop coordinates off the target's pixel \`width\`/\`height\`. Now \`create_agent\` with a system_prompt grounded in what you actually saw ("watch this download progress bar"). The crop is decided here but can only be APPLIED once the agent exists, so AFTER \`create_agent\`: \`select_screen_target\` to seat the choice (always use \`select_screen_target\` before \`start_agent\` so it won't pop the desktop selector) and, if you decided a sub-region matters, \`set_screen_crop\` that agent's \`agent_id\` to that region. Cropping is OPTIONAL and only for narrowing to a sub-region — watching the whole screen/window is the default and needs NO crop. NEVER ask the user for their monitor resolution or any pixel dimensions: read \`width\`/\`height\` from the target in the list, and derive crop coordinates from there.`
-    : `If an agent's system_prompt uses \`$SCREEN\`, call \`capture_screen\` BEFORE \`create_agent\`. It opens the browser screen-share picker — the user picks what to share — and returns a preview image so you can see exactly what was selected. Use that image to write a grounded system_prompt ("watch this download progress bar"). If only a sub-region matters (e.g. a progress bar, a chat panel), call \`set_screen_crop\` after \`create_agent\` with the pixel coordinates you read from the preview. Cropping is OPTIONAL — skip it to watch the full shared area. NEVER ask the user for screen dimensions; read them from the \`width\`/\`height\` returned by \`capture_screen\`. The stream stays live — \`start_agent\` reuses it without prompting again. If \`capture_screen\` fails with "not supported", screen monitoring is unavailable in this browser — tell the user and suggest a different notification method.`;
+    ? `If an agent's system_prompt uses \`$SCREEN\`, perceive the screen BEFORE you \`create_agent\`, then configure capture AFTER: first \`list_screen_targets\` for the text catalog of monitors/windows, then \`see_screen_target\` the one (or few) that plausibly match what the user wants to watch — don't preview all of them, just the likely candidates. Looking at that thumbnail, decide which target it is AND whether a sub-region matters (e.g. only a download bar, a chat panel, a video player), reading the crop region straight off the thumbnail as a \`box_2d\` ([ymin, xmin, ymax, xmax] normalized 0–1000 — the same grid you use for object detection). Now \`create_agent\` with a system_prompt grounded in what you actually saw ("watch this download progress bar"). The crop is decided here but can only be APPLIED once the agent exists, so AFTER \`create_agent\`: \`select_screen_target\` to seat the choice (always use \`select_screen_target\` before \`start_agent\` so it won't pop the desktop selector) and, if you decided a sub-region matters, \`set_screen_crop\` that agent's \`agent_id\` to that region. Cropping is OPTIONAL and only for narrowing to a sub-region — watching the whole screen/window is the default and needs NO crop. NEVER ask the user for their monitor resolution or any pixel dimensions: read the \`box_2d\` straight off the thumbnail — \`set_screen_crop\` stores it normalized and resolves it against the live frame, so no pixel/resolution numbers are needed.`
+    : `If an agent's system_prompt uses \`$SCREEN\`, call \`capture_screen\` BEFORE \`create_agent\`. It opens the browser screen-share picker — the user picks what to share — and returns a preview image so you can see exactly what was selected. Use that image to write a grounded system_prompt ("watch this download progress bar"). If only a sub-region matters (e.g. a progress bar, a chat panel), call \`set_screen_crop\` after \`create_agent\` with a \`box_2d\` ([ymin, xmin, ymax, xmax] normalized 0–1000) read straight off the preview. Cropping is OPTIONAL — skip it to watch the full shared area. NEVER ask the user for screen dimensions or pixel numbers; the crop is stored normalized and resolved against the live frame. The stream stays live — \`start_agent\` reuses it without prompting again. If \`capture_screen\` fails with "not supported", screen monitoring is unavailable in this browser — tell the user and suggest a different notification method.`;
 
   const goldenPath = desktop
     ? `# Golden Path — Desktop app (fully agentic)
@@ -59,6 +59,7 @@ MCP: download_model
 MCP: create_agent // write prompt grounded in what you saw; optionally decide to crop
 MCP: set_screen_crop 'agent_id' // only if a sub-region matters, if not sure about coordinates use capture_screen again
 MCP: start_agent`;
+
 
   const proactiveTools = desktop
     ? 'use list_agents, list_models, list_screen_targets, see_screen_target proactively to gain information and ground agent generation.'
@@ -123,6 +124,15 @@ App tools (Observer desktop app only): \`ask(question, title?)\`, \`message(mess
 - **Default model:** use gemma-4-26b-a4b-it, which is multimodal so use $SCREEN and $CAMERA mainly, don't use their OCR counterparts.
 
 ${goldenPath}
+
+MCP: get_iteration see_screen_target // If you used crop, check first agent iteration to double check you cropped the correct region.
+// If you made a cropping mistake:
+MCP: stop_agent 
+MCP: see_screen_target 
+MCP: select_screen_target
+MCP: set_screen_crop 'agent_id' 
+MCP: start_agent // Then check again last iteration... repeat if wrong
+
 
 The perfect \`create_agent\` for that steam example — note the system_prompt makes the model emit a keyword, and the code branches on it and passes the captured \`screen\` image to the notification:
 

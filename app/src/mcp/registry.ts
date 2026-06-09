@@ -418,7 +418,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'list_screen_targets',
-    description: 'List the screens (monitors) and windows available to capture for a $SCREEN agent, as a text-only catalog (NO images — a desktop can have many windows, so thumbnails are fetched one at a time with see_screen_target). Call this on desktop BEFORE start_agent for any agent whose system_prompt uses $SCREEN: read the list, see_screen_target the few that plausibly match what the user wants to watch, then select_screen_target the best one. On the web/mobile app this returns a note instead — there the OS picker appears automatically when the agent starts, so just go straight to start_agent. Each target has an id (for see_screen_target / select_screen_target), kind (monitor/window), name, appName, and width/height in pixels (the coordinate space for set_screen_crop).',
+    description: 'List the screens (monitors) and windows available to capture for a $SCREEN agent, as a text-only catalog (NO images — a desktop can have many windows, so thumbnails are fetched one at a time with see_screen_target). Call this on desktop BEFORE start_agent for any agent whose system_prompt uses $SCREEN: read the list, see_screen_target the few that plausibly match what the user wants to watch, then select_screen_target the best one. On the web/mobile app this returns a note instead — there the OS picker appears automatically when the agent starts, so just go straight to start_agent. Each target has an id (for see_screen_target / select_screen_target), kind (monitor/window), name, appName, and width/height in pixels (for context; set_screen_crop takes a normalized box_2d, not these pixels).',
     parameters: { type: 'object', properties: {} },
     requiresConfirmation: false,
     multimodal: false,
@@ -525,7 +525,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'set_screen_crop',
-    description: 'OPTIONAL. Crop a $SCREEN agent\'s capture to a rectangular sub-region of its target, so the model only sees (and only spends tokens on) the part that matters — e.g. a download progress bar. Skip this entirely to watch the whole screen/window (the default). Give the region as box_2d = [ymin, xmin, ymax, xmax] in the SAME normalized 0–1000 coordinate space you use for object detection: top-left origin, y first, every value 0–1000 regardless of the screen\'s real resolution. Read box_2d straight off the image you saw in see_screen_target / capture_screen — do NOT convert to pixels yourself; this tool descales it. Also pass target_width and target_height: the target\'s real pixel size, which list_screen_targets / select_screen_target / capture_screen already gave you (NEVER ask the user for their resolution). Pass clear:true to remove an existing crop and capture the full target.',
+    description: 'OPTIONAL. Crop a $SCREEN agent\'s capture to a rectangular sub-region of its target, so the model only sees (and only spends tokens on) the part that matters — e.g. a download progress bar. Skip this entirely to watch the whole screen/window (the default). Give the region as box_2d = [ymin, xmin, ymax, xmax] in the SAME normalized 0–1000 coordinate space you use for object detection: top-left origin, y first, every value 0–1000 regardless of the screen\'s real resolution. Read box_2d straight off the image you saw in see_screen_target / capture_screen — do NOT convert to pixels yourself, and do NOT pass the target\'s resolution; the crop is stored normalized and resolved against the live frame at capture time. Pass clear:true to remove an existing crop and capture the full target.',
     parameters: {
       type: 'object',
       properties: {
@@ -537,9 +537,7 @@ export const TOOLS: ToolDefinition[] = [
           maxItems: 4,
           description: 'The crop region as [ymin, xmin, ymax, xmax], normalized to 0–1000 (top-left origin, y first) — the same format you emit for bounding boxes.',
         },
-        target_width: { type: 'integer', description: 'The target\'s real width in pixels (from list_screen_targets / select_screen_target / capture_screen).' },
-        target_height: { type: 'integer', description: 'The target\'s real height in pixels (from list_screen_targets / select_screen_target / capture_screen).' },
-        clear: { type: 'boolean', description: 'If true, remove any existing crop and capture the full target. Ignores box_2d / target dimensions.' },
+        clear: { type: 'boolean', description: 'If true, remove any existing crop and capture the full target. Ignores box_2d.' },
       },
       required: ['agent_id'],
     },
@@ -563,23 +561,19 @@ export const TOOLS: ToolDefinition[] = [
         return { error: 'box_2d must satisfy xmax > xmin and ymax > ymin (it is [ymin, xmin, ymax, xmax]).' };
       }
 
-      const tw = args.target_width;
-      const th = args.target_height;
-      if (typeof tw !== 'number' || typeof th !== 'number' || tw <= 0 || th <= 0) {
-        return { error: 'Provide target_width and target_height (the target\'s real pixel size from list_screen_targets / select_screen_target / capture_screen).' };
-      }
+      // Store the crop as fractions of the frame (0–1) — resolution-independent.
+      // It is resolved to pixels against the real capture frame at capture time, so it
+      // stays correct regardless of the target's resolution or the capture pipeline's
+      // scaling (the previous descale-to-target-pixels step mismatched the actual frame).
+      const crop = {
+        x: xmin / 1000,
+        y: ymin / 1000,
+        width: (xmax - xmin) / 1000,
+        height: (ymax - ymin) / 1000,
+      };
 
-      // Descale Gemini's resolution-independent 0–1000 grid to the target's actual pixels.
-      const x = Math.round((xmin / 1000) * tw);
-      const y = Math.round((ymin / 1000) * th);
-      const width = Math.round(((xmax - xmin) / 1000) * tw);
-      const height = Math.round(((ymax - ymin) / 1000) * th);
-      if (width <= 0 || height <= 0) {
-        return { error: 'The crop descaled to zero pixels — widen box_2d.' };
-      }
-
-      setAgentCrop(args.agent_id, 'screen', { x, y, width, height });
-      return { data: { agent_id: args.agent_id, cropped: true, box_2d: [ymin, xmin, ymax, xmax], crop: { x, y, width, height } } };
+      setAgentCrop(args.agent_id, 'screen', crop);
+      return { data: { agent_id: args.agent_id, cropped: true, box_2d: [ymin, xmin, ymax, xmax], crop } };
     },
   },
   {

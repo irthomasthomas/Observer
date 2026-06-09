@@ -107,7 +107,7 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, exist
       const width = Math.abs(pos.x - firstCorner.x);
       const height = Math.abs(pos.y - firstCorner.y);
 
-      // Convert to video coordinates
+      // Convert to video pixel coordinates
       const videoCrop = {
         x: Math.max(0, Math.round(x * scaleX)),
         y: Math.max(0, Math.round(y * scaleY)),
@@ -115,10 +115,17 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, exist
         height: Math.round(height * scaleY)
       };
 
-      // Only accept if the crop area is large enough
-      if (videoCrop.width > 10 && videoCrop.height > 10) {
-        setCurrentCrop(videoCrop);
-        onCropSelect(videoCrop);
+      // Only accept if the crop area is large enough, then store it normalized
+      // (0–1 of the frame) so it stays correct across capture resolutions.
+      if (videoCrop.width > 10 && videoCrop.height > 10 && videoElement && videoElement.videoWidth > 0) {
+        const normalized: CropConfig = {
+          x: videoCrop.x / videoElement.videoWidth,
+          y: videoCrop.y / videoElement.videoHeight,
+          width: videoCrop.width / videoElement.videoWidth,
+          height: videoCrop.height / videoElement.videoHeight,
+        };
+        setCurrentCrop(normalized);
+        onCropSelect(normalized);
       }
 
       // Reset for next crop
@@ -202,15 +209,21 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, exist
   };
 
   const renderCropRect = () => {
-    if (!currentCrop || !overlayRef.current || firstCorner) return null;
+    if (!currentCrop || !overlayRef.current || firstCorner || !videoElement) return null;
 
     const { scaleX, scaleY, offsetX, offsetY } = getVideoScale();
 
+    // currentCrop is normalized (0–1); convert to video pixels for display.
+    const pxX = currentCrop.x * videoElement.videoWidth;
+    const pxY = currentCrop.y * videoElement.videoHeight;
+    const pxW = Math.round(currentCrop.width * videoElement.videoWidth);
+    const pxH = Math.round(currentCrop.height * videoElement.videoHeight);
+
     const style = {
-      left: `${currentCrop.x / scaleX + offsetX}px`,
-      top: `${currentCrop.y / scaleY + offsetY}px`,
-      width: `${currentCrop.width / scaleX}px`,
-      height: `${currentCrop.height / scaleY}px`,
+      left: `${pxX / scaleX + offsetX}px`,
+      top: `${pxY / scaleY + offsetY}px`,
+      width: `${pxW / scaleX}px`,
+      height: `${pxH / scaleY}px`,
     };
 
     return (
@@ -219,7 +232,7 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ isActive, onCropSelect, exist
         style={style}
       >
         <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 rounded">
-          {currentCrop.width}×{currentCrop.height}
+          {pxW}×{pxH}
         </div>
       </div>
     );
@@ -586,7 +599,7 @@ const VideoStream: React.FC<{
           {currentCrop && (
             <>
               <div className="bg-black bg-opacity-70 text-white text-xs px-1.5 py-1 rounded">
-                {currentCrop.width}×{currentCrop.height}
+                {Math.round(currentCrop.width * 100)}%×{Math.round(currentCrop.height * 100)}%
               </div>
               <button
                 onClick={handleClearCrop}

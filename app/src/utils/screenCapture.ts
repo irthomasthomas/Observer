@@ -1,10 +1,18 @@
 import { StreamManager } from './streamManager';
 
+/**
+ * A crop region stored as fractions of the captured frame (0–1), NOT pixels.
+ * Keeping it resolution-independent is what lets the same crop apply correctly
+ * regardless of the live capture's actual pixel size — which differs from the
+ * "target" dimensions reported by the OS (especially on the macOS/Tauri path,
+ * where ScreenCaptureKit's frame size is unrelated to xcap's logical dims).
+ * It is resolved to pixels against the real frame at capture time.
+ */
 export interface CropConfig {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  x: number;      // left edge, 0–1 of frame width
+  y: number;      // top edge, 0–1 of frame height
+  width: number;  // 0–1 of frame width
+  height: number; // 0–1 of frame height
 }
 
 export interface AgentCropConfig {
