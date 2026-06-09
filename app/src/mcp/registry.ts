@@ -25,7 +25,7 @@ import { checkPhoneWhitelist } from '@utils/pre-flight';
 import { downloadDefaultLocalModel } from './localModel';
 import { tauriStreamCapture } from '@utils/tauriStreamCapture';
 import { setAgentCrop } from '@utils/screenCapture';
-import { isDesktop } from '@utils/platform';
+import { isDesktop, isWeb } from '@utils/platform';
 import { browserStreamCapture } from '@utils/browserStreamCapture';
 
 // ---------------------------------------------------------------------------
@@ -87,6 +87,106 @@ async function findIteration(iterationId: string, agentId?: string): Promise<Ite
     }
   }
   return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// capture_screen helpers — return one preview frame and leave a live stream that
+// start_agent reuses. The platform split mirrors StreamManager (streamManager.ts):
+// isWeb() → browser getDisplayMedia; Tauri → the native screen-capture plugin, which
+// is itself platform-agnostic (iOS broadcast vs Android MediaProjection handled behind
+// one `start_capture_cmd`), so this layer needs no iOS/Android branching.
+// ---------------------------------------------------------------------------
+
+/** Web / mobile web: getDisplayMedia picker, grab one frame via a hidden <video>. */
+async function captureScreenWeb(): Promise<ToolResult> {
+  if (!navigator?.mediaDevices?.getDisplayMedia) {
+    return { error: 'Screen capture is not supported in this browser. Screen monitoring agents cannot be created here.' };
+  }
+  try {
+    await browserStreamCapture.acquireMasterStream('display');
+    const streams = browserStreamCapture.getStreams();
+    const videoTrack = streams.screenVideoStream?.getVideoTracks()[0];
+    if (!videoTrack) return { error: 'No video track acquired from screen share.' };
+
+    // Grab one frame via a hidden video element (works across all browsers).
+    const video = document.createElement('video');
+    video.srcObject = streams.screenVideoStream!;
+    video.muted = true;
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => reject(new Error('Video metadata load failed'));
+      video.play().catch(reject);
+    });
+    // Give the first frame a moment to render.
+    await new Promise(r => setTimeout(r, 150));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    canvas.getContext('2d')!.drawImage(video, 0, 0);
+    video.pause();
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const settings = videoTrack.getSettings();
+    return {
+      data: {
+        captured: true,
+        width: settings.width ?? canvas.width,
+        height: settings.height ?? canvas.height,
+        note: 'Stream is live and will be reused by start_agent — no second picker prompt.',
+      },
+      images: [dataUrl],
+    };
+  } catch (e) {
+    // User cancelled the picker or permission was denied.
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('Permission denied') || msg.includes('NotAllowed') || msg.includes('user gesture')) {
+      return { error: 'Screen share was cancelled or denied. Ask the user if they want to try again.' };
+    }
+    return { error: msg };
+  }
+}
+
+/**
+ * Mobile app (Tauri iOS/Android): trigger the native picker via tauriStreamCapture — the
+ * same singleton the agent loop acquires, so the live stream is reused by start_agent.
+ * Frames arrive asynchronously (on iOS the user taps "Start Broadcast" + a short countdown),
+ * so poll the latest raw frame until one lands or we time out, rather than grabbing
+ * synchronously like the browser path.
+ */
+async function captureScreenTauri(): Promise<ToolResult> {
+  try {
+    await tauriStreamCapture.acquireMasterStream('display');
+  } catch (e) {
+    // Android surfaces a real rejection on denial; iOS dismissal just yields no frames.
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/denied|cancel|NotAllowed/i.test(msg)) {
+      return { error: 'Screen capture was cancelled or denied. Ask the user if they want to try again.' };
+    }
+    return { error: msg };
+  }
+
+  const FRAME_TIMEOUT_MS = 15000;
+  const POLL_MS = 200;
+  const deadline = Date.now() + FRAME_TIMEOUT_MS;
+  let raw: string | null = null;
+  while (Date.now() < deadline) {
+    raw = tauriStreamCapture.getLatestBase64Frame();
+    if (raw) break;
+    await new Promise(r => setTimeout(r, POLL_MS));
+  }
+
+  if (!raw) {
+    return { error: 'Screen capture started but no frame has arrived yet. On iOS, make sure you tapped "Start Broadcast" in the system sheet, then call capture_screen again.' };
+  }
+
+  return {
+    data: {
+      captured: true,
+      note: 'Native screen capture is live (whole screen) and will be reused by start_agent — no second prompt.',
+    },
+    images: [`data:image/jpeg;base64,${raw}`],
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -578,58 +678,12 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'capture_screen',
-    description: 'Open the browser screen-share picker so the user can select which screen or window to monitor, then capture one preview frame and return it as an image so you can SEE what was selected before building the agent. The stream stays live — start_agent reuses it without prompting again. Use this on web and mobile app instead of list_screen_targets/see_screen_target/select_screen_target. Call it BEFORE create_agent for any agent whose system_prompt uses $SCREEN.',
+    description: 'Trigger a screen-share preview so you can SEE what will be monitored before building the agent, then return one captured frame as an image. On web / mobile web this opens the browser screen-share picker (pick a screen, window, or tab). On the mobile app it triggers the OS screen-capture picker and captures the WHOLE screen (iOS broadcast / Android screen-record permission): the user must approve the system prompt, and on iOS there can be a few seconds of delay before the first frame — if this returns a "no frame yet" message, just call it again. The stream stays live — start_agent reuses it without prompting again. Use this on web and mobile app instead of list_screen_targets/see_screen_target/select_screen_target. Call it BEFORE create_agent for any agent whose system_prompt uses $SCREEN.',
     parameters: { type: 'object', properties: {} },
     requiresConfirmation: false,
     multimodal: true,
-    execute: async (): Promise<ToolResult> => {
-      if (!navigator?.mediaDevices?.getDisplayMedia) {
-        return { error: 'Screen capture is not supported in this browser. Screen monitoring agents cannot be created here.' };
-      }
-      try {
-        await browserStreamCapture.acquireMasterStream('display');
-        const streams = browserStreamCapture.getStreams();
-        const videoTrack = streams.screenVideoStream?.getVideoTracks()[0];
-        if (!videoTrack) return { error: 'No video track acquired from screen share.' };
-
-        // Grab one frame via a hidden video element (works across all browsers).
-        const video = document.createElement('video');
-        video.srcObject = streams.screenVideoStream!;
-        video.muted = true;
-        await new Promise<void>((resolve, reject) => {
-          video.onloadedmetadata = () => resolve();
-          video.onerror = () => reject(new Error('Video metadata load failed'));
-          video.play().catch(reject);
-        });
-        // Give the first frame a moment to render.
-        await new Promise(r => setTimeout(r, 150));
-
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 1280;
-        canvas.height = video.videoHeight || 720;
-        canvas.getContext('2d')!.drawImage(video, 0, 0);
-        video.pause();
-
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        const settings = videoTrack.getSettings();
-        return {
-          data: {
-            captured: true,
-            width: settings.width ?? canvas.width,
-            height: settings.height ?? canvas.height,
-            note: 'Stream is live and will be reused by start_agent — no second picker prompt.',
-          },
-          images: [dataUrl],
-        };
-      } catch (e) {
-        // User cancelled the picker or permission was denied.
-        const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes('Permission denied') || msg.includes('NotAllowed') || msg.includes('user gesture')) {
-          return { error: 'Screen share was cancelled or denied. Ask the user if they want to try again.' };
-        }
-        return { error: msg };
-      }
-    },
+    // Same platform split as StreamManager: browser → getDisplayMedia; Tauri → native plugin.
+    execute: async (): Promise<ToolResult> => isWeb() ? captureScreenWeb() : captureScreenTauri(),
   },
   {
     name: 'download_model',
