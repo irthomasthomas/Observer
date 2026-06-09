@@ -18,7 +18,7 @@ const TermsOfService = () => {
       <main className="py-16">
         <div className="container mx-auto px-6 max-w-4xl">
           <h1 className="text-4xl font-bold mb-4 text-black">Terms of Service</h1>
-          <p className="text-black mb-8">Last updated: April 2026</p>
+          <p className="text-black mb-8">Last updated: June 2026</p>
 
           <div className="space-y-6 text-gray-700">
             <p>
@@ -120,9 +120,8 @@ const TermsOfService = () => {
             <h3 className="text-lg font-medium mt-6 mb-2 text-gray-800">Credit Allocation by Tier</h3>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Free tier:</strong> 60 credits per day</li>
-              <li><strong>Plus tier:</strong> Unlimited local monitoring; cloud features use Free tier quotas</li>
               <li><strong>Pro tier:</strong> 480 credits per day</li>
-              <li><strong>Max tier:</strong> Unlimited credits</li>
+              <li><strong>Max tier:</strong> 2,880 credits per day (effectively unlimited at 30-second loop intervals)</li>
             </ul>
             <h3 className="text-lg font-medium mt-6 mb-2 text-gray-800">How Credits Translate to Monitoring Time</h3>
             <p>
@@ -152,23 +151,15 @@ const TermsOfService = () => {
             <h4 className="font-medium mt-4 mb-2 text-gray-800">Free Tier Daily Limits</h4>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Cloud Monitoring:</strong> 60 credits</li>
-              <li><strong>Agent Configurations:</strong> 50</li>
+              <li><strong>Agent Builder (MCP) messages:</strong> 45</li>
               <li><strong>SMS, WhatsApp, Voice Calls:</strong> 5 each</li>
-              <li><strong>Email, Telegram, Pushover:</strong> 2,880 each</li>
-            </ul>
-
-            <h4 className="font-medium mt-4 mb-2 text-gray-800">Plus Tier Daily Limits</h4>
-            <ul className="list-disc pl-6 space-y-1">
-              <li><strong>Cloud Monitoring:</strong> 60 credits</li>
-              <li><strong>Agent Configurations:</strong> 1,000</li>
-              <li><strong>SMS, WhatsApp, Voice Calls:</strong> 100 each</li>
               <li><strong>Email, Telegram, Pushover:</strong> 2,880 each</li>
             </ul>
 
             <h4 className="font-medium mt-4 mb-2 text-gray-800">Pro Tier Daily Limits</h4>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Cloud Monitoring:</strong> 480 credits</li>
-              <li><strong>Agent Configurations:</strong> 1,000</li>
+              <li><strong>Agent Builder (MCP) messages:</strong> 1,000</li>
               <li><strong>SMS, WhatsApp, Voice Calls:</strong> 100 each</li>
               <li><strong>Email, Telegram, Pushover:</strong> 2,880 each</li>
             </ul>
@@ -176,7 +167,7 @@ const TermsOfService = () => {
             <h4 className="font-medium mt-4 mb-2 text-gray-800">Max Tier Daily Limits</h4>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Cloud Monitoring:</strong> 2,880 credits (effectively unlimited at 30-second intervals)</li>
-              <li><strong>Agent Configurations:</strong> 1,000</li>
+              <li><strong>Agent Builder (MCP) messages:</strong> 1,000</li>
               <li><strong>SMS, WhatsApp, Voice Calls:</strong> 100 each</li>
               <li><strong>Email, Telegram, Pushover:</strong> 2,880 each</li>
             </ul>
