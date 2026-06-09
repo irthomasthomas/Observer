@@ -89,6 +89,40 @@ async function findIteration(iterationId: string, agentId?: string): Promise<Ite
   return undefined;
 }
 
+/**
+ * An iteration is "settled" once the micro-agent finished a full pass — the model has
+ * responded (or the pass was skipped). Until then its screenshot/response may be missing,
+ * so get_iteration waits for this before returning (e.g. when verifying a crop right after
+ * start_agent, where the first pass hasn't completed yet).
+ */
+function isIterationSettled(it: IterationData): boolean {
+  return it.modelResponse !== undefined || it.isSkipped === true;
+}
+
+/** Build the full multimodal ToolResult (summary + prompt + sensor list + images) for one iteration. */
+function iterationToResult(it: IterationData): ToolResult {
+  // Collect images (model images + screenshot/camera sensors) as data-URLs.
+  const images: string[] = [];
+  const toDataUrl = (raw: string) => raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
+  if (it.modelImages) images.push(...it.modelImages.map(toDataUrl));
+  for (const sensor of it.sensors) {
+    if (sensor.type === 'screenshot' || sensor.type === 'camera') {
+      const content: any = sensor.content;
+      if (typeof content === 'string') images.push(toDataUrl(content));
+      else if (content?.data) images.push(toDataUrl(content.data));
+    }
+  }
+
+  return {
+    data: {
+      ...summarizeIteration(it),
+      modelPrompt: it.modelPrompt,
+      sensors: it.sensors.map(s => ({ type: s.type, timestamp: s.timestamp, source: s.source })),
+    },
+    images,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // capture_screen helpers — return one preview frame and leave a live stream that
 // start_agent reuses. The platform split mirrors StreamManager (streamManager.ts):
@@ -287,41 +321,52 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_iteration',
-    description: 'Get the full detail of a single iteration by its id, INCLUDING the screenshot/camera images that were captured. Use this when you need to actually see what an agent saw. Provide agent_id as well so historical iterations can be located.',
+    description: 'Get the full detail of one agent iteration, INCLUDING the screenshot/camera images it captured — use it to actually see what an agent saw. Two ways to call it: (1) pass iteration_id (from get_runs) to fetch that specific iteration, plus agent_id so historical iterations can be located; (2) pass ONLY agent_id to get that agent\'s most recent completed iteration. In mode (2), if the agent was just started and has not finished its first pass yet, this BLOCKS (polling) until the first iteration completes, then returns it — so you can call it right after start_agent to verify a crop without racing the first run. It waits up to 2 minutes; if nothing has completed by then it returns an error and you can get_status / stop_agent to investigate a stuck agent.',
     parameters: {
       type: 'object',
       properties: {
-        iteration_id: { type: 'string', description: 'The iteration id (from get_runs).' },
-        agent_id: { type: 'string', description: 'The owning agent id (needed for historical iterations).' },
+        iteration_id: { type: 'string', description: 'The iteration id (from get_runs). Omit to get the agent\'s latest completed iteration, waiting for the first one if the agent was just started.' },
+        agent_id: { type: 'string', description: 'The owning agent id. Required when iteration_id is omitted; also needed to locate historical iterations.' },
       },
-      required: ['iteration_id'],
     },
     requiresConfirmation: false,
     multimodal: true,
-    execute: async (args): Promise<ToolResult> => {
-      const it = await findIteration(args.iteration_id, args.agent_id);
-      if (!it) return { error: `Iteration '${args.iteration_id}' not found. For historical iterations, include agent_id.` };
-
-      // Collect images (model images + screenshot/camera sensors) as data-URLs.
-      const images: string[] = [];
-      const toDataUrl = (raw: string) => raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
-      if (it.modelImages) images.push(...it.modelImages.map(toDataUrl));
-      for (const sensor of it.sensors) {
-        if (sensor.type === 'screenshot' || sensor.type === 'camera') {
-          const content: any = sensor.content;
-          if (typeof content === 'string') images.push(toDataUrl(content));
-          else if (content?.data) images.push(toDataUrl(content.data));
-        }
+    execute: async (args, ctx): Promise<ToolResult> => {
+      if (!args.iteration_id && !args.agent_id) {
+        return { error: 'Provide iteration_id, or agent_id to wait for and return the agent\'s latest iteration.' };
       }
 
-      return {
-        data: {
-          ...summarizeIteration(it),
-          modelPrompt: it.modelPrompt,
-          sensors: it.sensors.map(s => ({ type: s.type, timestamp: s.timestamp, source: s.source })),
-        },
-        images,
-      };
+      // The micro-agent's first pass can take a while (model load, slow remote model, long
+      // loop_interval), so block here until an iteration settles — but cap the wait so the
+      // MCP loop isn't blocked forever on a stuck agent (it can then get_status / stop_agent).
+      const POLL_MS = 2000;
+      const WAIT_MS = 2 * 60 * 1000;
+      const deadline = Date.now() + WAIT_MS;
+
+      while (true) {
+        if (ctx.signal?.aborted) return { error: 'Cancelled.' };
+
+        if (args.iteration_id) {
+          const it = await findIteration(args.iteration_id, args.agent_id);
+          // A genuinely unknown id won't appear later — fail fast rather than waiting it out.
+          if (!it) return { error: `Iteration '${args.iteration_id}' not found. For historical iterations, include agent_id.` };
+          if (isIterationSettled(it) || Date.now() >= deadline) return iterationToResult(it);
+        } else {
+          // agent_id only → newest settled iteration of the current session; wait for the first.
+          const current = IterationStore.getIterationsForAgent(args.agent_id);
+          const settled = [...current].reverse().find(isIterationSettled);
+          if (settled) return iterationToResult(settled);
+          if (Date.now() >= deadline) {
+            return { error: `No completed iteration for agent '${args.agent_id}' after waiting 2 min. The agent may be stuck or its loop_interval may be longer than that — call get_status, then stop_agent if it's wedged.` };
+          }
+        }
+
+        try {
+          await sleepOrAbort(POLL_MS, ctx.signal);
+        } catch {
+          return { error: 'Cancelled.' };
+        }
+      }
     },
   },
   {

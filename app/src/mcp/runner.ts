@@ -17,7 +17,11 @@ import type {
 } from './types';
 import { validateArgs } from './validate';
 
-export const MAX_ITERATIONS = 10;
+// High enough to cover a full agentic build with the post-start crop-verification loop
+// (create → crop → start → get_iteration → re-crop → start → get_iteration → …), which on
+// its own can run ~15+ turns. get_iteration blocks while a pass completes; it does NOT burn
+// a turn waiting, so this caps model turns, not wall-clock time.
+export const MAX_ITERATIONS = 30;
 
 /** A validated, ready-to-run tool call. */
 export interface PreparedCall {

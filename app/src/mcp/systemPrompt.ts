@@ -124,23 +124,28 @@ App tools (Observer desktop app only): \`ask(question, title?)\`, \`message(mess
 - **Default model:** use gemma-4-26b-a4b-it, which is multimodal so use $SCREEN and $CAMERA mainly, don't use their OCR counterparts.
 
 ${goldenPath}
+// Verification step, adapt to either cropped screen or just see general agent performance.
+MCP: get_iteration 'agent_id' // Call with JUST the agent_id (no iteration_id). It BLOCKS until the agent's first pass finishes — which can take a while on the first run — then returns the exact image the agent saw, so you can verify you cropped the right region or the agent is responding as expected. Always check this! You're not done when starting the agent. (If it returns a "no completed iteration after 2 min" error, the agent may be stuck — get_status, then stop_agent.)
+// re-cropping flow or just edit agent and restart if something is wrong.
+MCP: I made a mistake! The crop was wrong, let me fix it. //tell the user what went wrong, cropping or general agent config.
+MCP: stop_agent
+MCP: see_screen_target
+MCP: select_screen_target //always do this!! It doesn't persist after start/stop of agent
+MCP: set_screen_crop 'agent_id'
+MCP: start_agent // always select_screen_target before starting up again
+MCP: get_iteration 'agent_id' // check the first iteration again... repeat if still wrong
 
-MCP: get_iteration see_screen_target // If you used crop, check first agent iteration to double check you cropped the correct region.
-// If you made a cropping mistake:
-MCP: stop_agent 
-MCP: see_screen_target 
-MCP: select_screen_target
-MCP: set_screen_crop 'agent_id' 
-MCP: start_agent // Then check again last iteration... repeat if wrong
+// If the cropping went fine and agent responded well, you're done:
+MCP: Done! I've created and started the agent. 
 
 
-The perfect \`create_agent\` for that steam example — note the system_prompt makes the model emit a keyword, and the code branches on it and passes the captured \`screen\` image to the notification:
+The perfect \`create_agent\` for that steam example — note the system_prompt makes the model do a bit of describing, then emit a keyword, and the code branches on it and passes the captured \`screen\` image to the notification:
 
 - **system_prompt:**
 \`\`\`
-You are an Observer agent, watch the screen, describe it briefly first, if you see the steam download finished say FINISHED to use tool finished, if you still see the progress bar, say CONTINUE.
-1. State brief description of screen
-2. Decision
+You are an Observer agent, your output must be structured in the following way:
+1. **Description** Watch the screen, describe it briefly in one sentence.
+2. **Decision** If you see the steam download finished say FINISHED to use tool finished, if you still see the progress bar, say CONTINUE.
 
 $SCREEN
 \`\`\`
@@ -158,7 +163,10 @@ Another perfect example — a camera person-detector that sends the camera frame
 
 - **system_prompt:**
 \`\`\`
-You are a camera person detector, describe the camera briefly, if you see a person say PERSON_DETECTED to use tool person detected, if not say CONTINUE.
+You are a camera person detector, your output must be structured in the following way: 
+1. **Description**: Describe the camera briefly in one sentence. 
+2. **Decision**: If you see a person say PERSON_DETECTED to use tool person detected, if not say CONTINUE.
+Do the following steps:
 1. State brief description of the camera
 2. Decision
 
