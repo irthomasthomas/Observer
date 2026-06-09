@@ -188,8 +188,12 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
     const auto = executable.filter(c => !c.tool.requiresConfirmation);
     const confirm = executable.filter(c => c.tool.requiresConfirmation);
 
-    // Auto (read/benign) tools run immediately.
-    for (const call of auto) await runOne(call);
+    // Auto (read/benign) tools run in parallel: the model issued them as one independent
+    // batch (the common opener is list_agents + list_models), and nothing here depends on
+    // ordering — each runOne appends its own result keyed by tool_call_id (the API only
+    // requires every id be answered, not in call order) and the UI keys each chip's status
+    // by id too. Results land in completion order, so chips resolve as each read finishes.
+    await Promise.all(auto.map(c => runOne(c)));
 
     // Confirmable tools: one batched human gate for the whole turn.
     if (confirm.length > 0) {
