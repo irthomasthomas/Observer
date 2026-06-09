@@ -525,16 +525,21 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'set_screen_crop',
-    description: 'OPTIONAL. Crop a $SCREEN agent\'s capture to a rectangular sub-region of its target, so the model only sees (and only spends tokens on) the part that matters — e.g. a download progress bar. Skip this entirely to watch the whole screen/window (the default). Coordinates are in the target\'s pixel space (read x,y,width,height from the width/height that list_screen_targets/select_screen_target already gave you — NEVER ask the user for their resolution): x,y is the top-left corner, width,height the size. Pass clear:true to remove an existing crop and capture the full target.',
+    description: 'OPTIONAL. Crop a $SCREEN agent\'s capture to a rectangular sub-region of its target, so the model only sees (and only spends tokens on) the part that matters — e.g. a download progress bar. Skip this entirely to watch the whole screen/window (the default). Give the region as box_2d = [ymin, xmin, ymax, xmax] in the SAME normalized 0–1000 coordinate space you use for object detection: top-left origin, y first, every value 0–1000 regardless of the screen\'s real resolution. Read box_2d straight off the image you saw in see_screen_target / capture_screen — do NOT convert to pixels yourself; this tool descales it. Also pass target_width and target_height: the target\'s real pixel size, which list_screen_targets / select_screen_target / capture_screen already gave you (NEVER ask the user for their resolution). Pass clear:true to remove an existing crop and capture the full target.',
     parameters: {
       type: 'object',
       properties: {
         agent_id: { type: 'string', description: 'The agent whose screen capture to crop.' },
-        x: { type: 'integer', description: 'Left edge of the crop, in target pixels.' },
-        y: { type: 'integer', description: 'Top edge of the crop, in target pixels.' },
-        width: { type: 'integer', description: 'Crop width in pixels.' },
-        height: { type: 'integer', description: 'Crop height in pixels.' },
-        clear: { type: 'boolean', description: 'If true, remove any existing crop and capture the full target. Ignores x/y/width/height.' },
+        box_2d: {
+          type: 'array',
+          items: { type: 'number' },
+          minItems: 4,
+          maxItems: 4,
+          description: 'The crop region as [ymin, xmin, ymax, xmax], normalized to 0–1000 (top-left origin, y first) — the same format you emit for bounding boxes.',
+        },
+        target_width: { type: 'integer', description: 'The target\'s real width in pixels (from list_screen_targets / select_screen_target / capture_screen).' },
+        target_height: { type: 'integer', description: 'The target\'s real height in pixels (from list_screen_targets / select_screen_target / capture_screen).' },
+        clear: { type: 'boolean', description: 'If true, remove any existing crop and capture the full target. Ignores box_2d / target dimensions.' },
       },
       required: ['agent_id'],
     },
@@ -545,15 +550,36 @@ export const TOOLS: ToolDefinition[] = [
         setAgentCrop(args.agent_id, 'screen', null);
         return { data: { agent_id: args.agent_id, cropped: false } };
       }
-      const { x, y, width, height } = args;
-      if ([x, y, width, height].some(v => typeof v !== 'number')) {
-        return { error: 'Provide numeric x, y, width, and height (or clear:true to remove the crop).' };
+
+      const box = args.box_2d;
+      if (!Array.isArray(box) || box.length !== 4 || box.some((v: unknown) => typeof v !== 'number')) {
+        return { error: 'Provide box_2d as four numbers [ymin, xmin, ymax, xmax] normalized 0–1000 (or clear:true to remove the crop).' };
       }
-      if (width <= 0 || height <= 0 || x < 0 || y < 0) {
-        return { error: 'Crop must have positive width/height and non-negative x/y.' };
+      const [ymin, xmin, ymax, xmax] = box as number[];
+      if ([ymin, xmin, ymax, xmax].some(v => v < 0 || v > 1000)) {
+        return { error: 'box_2d values must be normalized to 0–1000.' };
       }
+      if (xmax <= xmin || ymax <= ymin) {
+        return { error: 'box_2d must satisfy xmax > xmin and ymax > ymin (it is [ymin, xmin, ymax, xmax]).' };
+      }
+
+      const tw = args.target_width;
+      const th = args.target_height;
+      if (typeof tw !== 'number' || typeof th !== 'number' || tw <= 0 || th <= 0) {
+        return { error: 'Provide target_width and target_height (the target\'s real pixel size from list_screen_targets / select_screen_target / capture_screen).' };
+      }
+
+      // Descale Gemini's resolution-independent 0–1000 grid to the target's actual pixels.
+      const x = Math.round((xmin / 1000) * tw);
+      const y = Math.round((ymin / 1000) * th);
+      const width = Math.round(((xmax - xmin) / 1000) * tw);
+      const height = Math.round(((ymax - ymin) / 1000) * th);
+      if (width <= 0 || height <= 0) {
+        return { error: 'The crop descaled to zero pixels — widen box_2d.' };
+      }
+
       setAgentCrop(args.agent_id, 'screen', { x, y, width, height });
-      return { data: { agent_id: args.agent_id, cropped: true, crop: { x, y, width, height } } };
+      return { data: { agent_id: args.agent_id, cropped: true, box_2d: [ymin, xmin, ymax, xmax], crop: { x, y, width, height } } };
     },
   },
   {
