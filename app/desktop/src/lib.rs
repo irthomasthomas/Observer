@@ -64,7 +64,24 @@ struct OverlayState {
     messages: Mutex<Vec<OverlayMessage>>,
 }
 
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, oneshot};
+
+/// Outcome of a screen/window picker interaction, delivered from the
+/// screen-selector window back to the awaiting main-window request.
+enum TargetSelection {
+    Selected(String),
+    Cancelled,
+    Error(String),
+}
+
+/// Holds the sender half of the one-shot channel for the in-flight target
+/// selection. The selector handshake is routed through plain app commands
+/// (not the ACL-gated `event` plugin) because on Linux/WebKitGTK the per-launch
+/// capability binding for `plugin:event|listen` is racy and intermittently
+/// denies the main window; app commands are not ACL-gated and are immune.
+struct SelectionState {
+    sender: Mutex<Option<oneshot::Sender<TargetSelection>>>,
+}
 
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct CommandMessage {
@@ -220,6 +237,174 @@ async fn hide_overlay(app_handle: tauri::AppHandle) -> Result<(), String> {
     } else {
         Err("Overlay window not found".to_string())
     }
+}
+
+// ============================================================================
+// Screen-selector handshake (app commands, NOT the ACL-gated event plugin)
+// ============================================================================
+
+/// Arm a fresh selection channel, show + focus the screen-selector window from
+/// Rust, then await the user's pick. Called by the main window in place of the
+/// old `listen('screen-capture-target-selected')` handshake.
+///
+/// Returns `Ok(Some(id))` on selection, `Ok(None)` on user cancel, and `Err(msg)`
+/// if target enumeration failed in the selector. Showing the window from Rust
+/// keeps the main window's hot path free of any ACL-gated IPC.
+#[tauri::command]
+async fn await_target_selection(
+    app_handle: AppHandle,
+    state: State<'_, SelectionState>,
+) -> Result<Option<String>, String> {
+    let (tx, rx) = oneshot::channel();
+
+    // Replace any stale sender from an abandoned prior request. Dropping the old
+    // sender wakes its receiver with a RecvError, resolving that request cleanly.
+    {
+        *state.sender.lock().unwrap() = Some(tx);
+    }
+
+    match app_handle.get_webview_window("screen-selector") {
+        Some(window) => {
+            window.show().map_err(|e| e.to_string())?;
+            let _ = window.set_focus();
+        }
+        None => {
+            // Clear the sender we just stored so we don't leak it.
+            state.sender.lock().unwrap().take();
+            return Err("Screen selector window not found".to_string());
+        }
+    }
+
+    match rx.await {
+        Ok(TargetSelection::Selected(id)) => Ok(Some(id)),
+        Ok(TargetSelection::Cancelled) => Ok(None),
+        Ok(TargetSelection::Error(msg)) => Err(msg),
+        Err(_) => Err("Selection channel closed before a choice was made".to_string()),
+    }
+}
+
+/// Hide the selector window and complete the awaiting request with a selection.
+fn finish_selection(app_handle: &AppHandle, state: &SelectionState, outcome: TargetSelection) {
+    if let Some(window) = app_handle.get_webview_window("screen-selector") {
+        let _ = window.hide();
+    }
+    if let Some(tx) = state.sender.lock().unwrap().take() {
+        let _ = tx.send(outcome);
+    }
+}
+
+#[tauri::command]
+async fn submit_target_selection(
+    app_handle: AppHandle,
+    state: State<'_, SelectionState>,
+    target_id: String,
+) -> Result<(), String> {
+    log::info!("Target selected: {}", target_id);
+    finish_selection(&app_handle, &state, TargetSelection::Selected(target_id));
+    Ok(())
+}
+
+#[tauri::command]
+async fn cancel_target_selection(
+    app_handle: AppHandle,
+    state: State<'_, SelectionState>,
+) -> Result<(), String> {
+    log::info!("Target selection cancelled");
+    finish_selection(&app_handle, &state, TargetSelection::Cancelled);
+    Ok(())
+}
+
+#[tauri::command]
+async fn report_target_selection_error(
+    app_handle: AppHandle,
+    state: State<'_, SelectionState>,
+    message: String,
+) -> Result<(), String> {
+    log::error!("Target enumeration failed: {}", message);
+    finish_selection(&app_handle, &state, TargetSelection::Error(message));
+    Ok(())
+}
+
+// ============================================================================
+// Screen-capture command wrappers (app commands, NOT ACL-gated)
+//
+// The plugin's own `plugin:screen-capture|*` commands are ACL-gated. On
+// Linux/WebKitGTK the main window intermittently loses its plugin-command ACL
+// binding for an entire launch (the same per-launch race that hit
+// `plugin:event|listen`), so `start_video_stream_cmd` & friends get denied with
+// "not allowed by ACL". These thin app commands call the plugin's public desktop
+// functions directly; app commands are not ACL-gated, so they work regardless of
+// the binding race. They deliberately mirror the cfg structure of the plugin's
+// own command layer (macOS = unified `desktop` module incl. audio; Windows/Linux
+// = separate `audio` module).
+// ============================================================================
+
+#[tauri::command]
+async fn sc_start_video_stream(
+    target_id: Option<String>,
+    on_frame: Channel<tauri_plugin_screen_capture::desktop::FrameData>,
+) -> Result<(), String> {
+    tauri_plugin_screen_capture::desktop::start_capture_stream(target_id, on_frame)
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+async fn sc_start_audio_stream(
+    on_audio: Channel<tauri_plugin_screen_capture::desktop::AudioData>,
+) -> Result<(), String> {
+    tauri_plugin_screen_capture::desktop::start_audio_stream(on_audio).map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+async fn sc_start_audio_stream(
+    on_audio: Channel<tauri_plugin_screen_capture::audio::AudioData>,
+) -> Result<(), String> {
+    tauri_plugin_screen_capture::audio::start_audio_stream(on_audio).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn sc_stop_video() -> Result<(), String> {
+    tauri_plugin_screen_capture::desktop::stop_capture()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+async fn sc_stop_audio() -> Result<(), String> {
+    tauri_plugin_screen_capture::desktop::stop_audio().map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+async fn sc_stop_audio() -> Result<(), String> {
+    tauri_plugin_screen_capture::audio::stop_audio().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn sc_stop_capture() -> Result<(), String> {
+    // Stop audio (best-effort) then video, mirroring the plugin's stop_capture_cmd.
+    #[cfg(target_os = "macos")]
+    {
+        let _ = tauri_plugin_screen_capture::desktop::stop_audio();
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = tauri_plugin_screen_capture::audio::stop_audio();
+    }
+    tauri_plugin_screen_capture::desktop::stop_capture()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn sc_get_capture_targets(
+    include_thumbnails: Option<bool>,
+) -> Result<Vec<tauri_plugin_screen_capture::CaptureTarget>, String> {
+    tauri_plugin_screen_capture::desktop::get_capture_targets(include_thumbnails.unwrap_or(true))
+        .map_err(|e| e.to_string())
 }
 
 // Shortcut commands moved to shortcuts module
@@ -1094,6 +1279,11 @@ pub fn run() {
                 ollama_url: Mutex::new(loaded_config.ollama_url.clone()),
             });
 
+            // Holds the in-flight screen-selector handshake channel.
+            app.manage(SelectionState {
+                sender: Mutex::new(None),
+            });
+
             {
                 app.manage(OverlayState {
                     messages: Mutex::new(Vec::new()),
@@ -1278,27 +1468,14 @@ pub fn run() {
                 }
             }
 
-            // Create the screen selector window (hidden by default)
-            match WebviewWindowBuilder::new(
-                app,
-                "screen-selector",
-                WebviewUrl::App("/screen-selector".into()),
-            )
-            .title("Select Screen or Window")
-            .inner_size(900.0, 650.0)
-            .center()
-            .decorations(true)
-            .transparent(false)
-            .resizable(true)
-            .visible(false)
-            .build() {
-                Ok(_window) => {
-                    log::info!("Screen selector window created successfully");
-                }
-                Err(e) => {
-                    log::error!("Failed to create screen selector window: {}", e);
-                }
-            }
+            // The screen selector window is defined statically in tauri.conf.json
+            // (label "screen-selector", hidden by default). It must NOT be created
+            // at runtime here: on Linux, capabilities are not reliably applied to
+            // runtime-created WebviewWindowBuilder windows. Defining it statically
+            // binds the screen-selector capability at startup. The selection
+            // handshake itself goes through non-ACL-gated app commands (see
+            // await_target_selection / submit_target_selection below) rather than
+            // the ACL-gated event plugin, which intermittently failed on Linux.
 
             // Register shortcuts (config already loaded at app initialization)
             #[cfg(desktop)]
@@ -1339,6 +1516,16 @@ pub fn run() {
             show_overlay,
             hide_overlay,
             get_broadcast_status,
+            await_target_selection,
+            submit_target_selection,
+            cancel_target_selection,
+            report_target_selection_error,
+            sc_start_video_stream,
+            sc_start_audio_stream,
+            sc_stop_video,
+            sc_stop_audio,
+            sc_stop_capture,
+            sc_get_capture_targets,
             shortcuts::get_shortcut_config,
             shortcuts::get_registered_shortcuts,
             shortcuts::set_shortcut_config,

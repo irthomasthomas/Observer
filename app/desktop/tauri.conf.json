@@ -10,17 +10,30 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Observer",
         "width": 1200,
         "height": 1000,
         "resizable": true,
         "fullscreen": false,
         "dragDropEnabled": false
+      },
+      {
+        "label": "screen-selector",
+        "url": "/screen-selector",
+        "title": "Select Screen or Window",
+        "width": 900,
+        "height": 650,
+        "center": true,
+        "decorations": true,
+        "transparent": false,
+        "resizable": true,
+        "visible": false
       }
     ],
     "security": {
       "csp": null,
-      "capabilities": ["default", "overlay"]
+      "capabilities": ["default", "overlay", "screen-selector"]
     },
     "withGlobalTauri": true,
     "macOSPrivateApi": true

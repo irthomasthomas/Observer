@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { emit } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Monitor, AppWindow, RefreshCw, X, CheckCircle, ImageOff, Loader } from 'lucide-react';
 
@@ -29,7 +28,8 @@ export default function ScreenSelectorWindow() {
     setLoading(true);
     setError(null);
     try {
-      const targetsResult = await invoke<CaptureTarget[]>('plugin:screen-capture|get_capture_targets_cmd', {
+      // Non-ACL-gated app-command wrapper (see sc_get_capture_targets in lib.rs).
+      const targetsResult = await invoke<CaptureTarget[]>('sc_get_capture_targets', {
         includeThumbnails: true
       });
       setTargets(targetsResult);
@@ -37,9 +37,10 @@ export default function ScreenSelectorWindow() {
       console.error('Failed to load capture targets:', e);
       const message = e instanceof Error ? e.message : String(e);
       setError(message);
-      // Propagate the real error to the main window so it doesn't get
-      // misreported as a user cancellation while this window waits.
-      await emit('screen-capture-target-error', { message });
+      // Propagate the real error to the awaiting main-window request so it isn't
+      // misreported as a user cancellation. Uses a plain app command (not the
+      // ACL-gated event plugin) to dodge the Linux capability-binding race.
+      await invoke('report_target_selection_error', { message });
     } finally {
       setLoading(false);
     }
@@ -100,13 +101,11 @@ export default function ScreenSelectorWindow() {
     setSelectedTarget(targetId);
     setStarting(true);
     try {
-      // Emit event with selected target - the main window will handle starting capture
-      await emit('screen-capture-target-selected', { targetId });
-      // Close the selector window
-      const currentWindow = getCurrentWindow();
-      await currentWindow.hide();
+      // Hand the choice to the awaiting main-window request via an app command
+      // (not the ACL-gated event plugin). Rust hides this window for us.
+      await invoke('submit_target_selection', { targetId });
     } catch (e) {
-      console.error('Failed to emit target selection:', e);
+      console.error('Failed to submit target selection:', e);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setStarting(false);
@@ -114,10 +113,8 @@ export default function ScreenSelectorWindow() {
   };
 
   const handleCancel = async () => {
-    // Emit cancel event so the main window knows selection was cancelled
-    await emit('screen-capture-target-cancelled', {});
-    const currentWindow = getCurrentWindow();
-    await currentWindow.hide();
+    // Tell the awaiting main-window request the user cancelled. Rust hides this window.
+    await invoke('cancel_target_selection');
   };
 
   const handleRefresh = () => {

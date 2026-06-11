@@ -1,5 +1,4 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri, isDesktop } from './platform';
 import { Logger } from '@utils/logging';
 import { decodeBase64PCM, PCM_SAMPLE_RATE } from './audio/pcmUtils';
@@ -567,8 +566,10 @@ class TauriStreamCapture {
 
     // Start video-only capture
     if (isDesktop()) {
-      // Desktop: Use screen-capture plugin
-      await invoke('plugin:screen-capture|start_video_stream_cmd', {
+      // Desktop: non-ACL-gated app-command wrapper (see sc_start_video_stream in
+      // desktop/src/lib.rs) — the plugin command is ACL-gated and intermittently
+      // denied for the main window on Linux.
+      await invoke('sc_start_video_stream', {
         targetId: selectedTargetId || null,
         onFrame: frameChannel,
       });
@@ -606,7 +607,7 @@ class TauriStreamCapture {
         }
 
         if (isDesktop()) {
-          await invoke('plugin:screen-capture|stop_video_cmd');
+          await invoke('sc_stop_video');
         } else {
           // iOS: Stop capture stream and broadcast
           try {
@@ -778,8 +779,8 @@ class TauriStreamCapture {
 
     // Start audio-only capture
     if (isDesktop()) {
-      // Desktop: Use screen-capture plugin
-      await invoke('plugin:screen-capture|start_audio_stream_cmd', {
+      // Desktop: non-ACL-gated app-command wrapper (see sc_start_audio_stream).
+      await invoke('sc_start_audio_stream', {
         onAudio: audioChannel,
       });
     } else {
@@ -808,7 +809,7 @@ class TauriStreamCapture {
         this.latestAudioData = null;
 
         if (isDesktop()) {
-          await invoke('plugin:screen-capture|stop_audio_cmd');
+          await invoke('sc_stop_audio');
         } else {
           // iOS: Stop audio stream and broadcast
           try {
@@ -1123,10 +1124,13 @@ class TauriStreamCapture {
     // Start the capture stream
     try {
       if (isDesktop()) {
-        // Desktop: Use the screen-capture plugin with selected target and audio
-        await invoke('plugin:screen-capture|start_capture_stream_cmd', {
+        // Desktop: non-ACL-gated app-command wrappers (video + audio started
+        // independently, mirroring acquireMasterStream). See sc_* in lib.rs.
+        await invoke('sc_start_video_stream', {
           targetId: selectedTargetId || null,
           onFrame: frameChannel,
+        });
+        await invoke('sc_start_audio_stream', {
           onAudio: audioChannel,
         });
       } else {
@@ -1226,54 +1230,27 @@ class TauriStreamCapture {
   /**
    * Wait for the user to pick a capture target in the selector window.
    * Resolves with the target id on selection, resolves `null` on a genuine
-   * user cancellation, and REJECTS with the underlying error if the selector
-   * fails to open or target enumeration (xcap) fails — so the real cause is
-   * surfaced instead of being misreported as "cancelled by user".
+   * user cancellation, and REJECTS with the underlying error if target
+   * enumeration (xcap) fails — so the real cause is surfaced instead of being
+   * misreported as "cancelled by user".
+   *
+   * Implemented as a single non-ACL-gated app command. The Rust side arms a
+   * one-shot channel, shows + focuses the selector window, and resolves when the
+   * selector invokes submit/cancel/report_target_selection_error. This replaces
+   * the old `emit`/`listen` handshake which intermittently failed on Linux with
+   * "Command plugin:event|listen not allowed by ACL" — a per-launch WebKitGTK
+   * capability-binding race. App commands are not ACL-gated, so they are immune.
    */
   private async waitForTargetSelection(): Promise<string | null> {
-    return new Promise(async (resolve, reject) => {
-      let unlistenSelected: UnlistenFn | null = null;
-      let unlistenCancelled: UnlistenFn | null = null;
-      let unlistenError: UnlistenFn | null = null;
-
-      const cleanup = () => {
-        if (unlistenSelected) unlistenSelected();
-        if (unlistenCancelled) unlistenCancelled();
-        if (unlistenError) unlistenError();
-      };
-
-      try {
-        // Listen for target selection
-        unlistenSelected = await listen<{ targetId: string }>('screen-capture-target-selected', (event) => {
-          Logger.info("TAURI_STREAM", `Target selected: ${event.payload.targetId}`);
-          cleanup();
-          resolve(event.payload.targetId);
-        });
-
-        // Listen for cancellation (genuine user action)
-        unlistenCancelled = await listen('screen-capture-target-cancelled', () => {
-          Logger.info("TAURI_STREAM", `Target selection cancelled`);
-          cleanup();
-          resolve(null);
-        });
-
-        // Listen for a real error from the selector (e.g. xcap target
-        // enumeration failed). Propagate it instead of treating as cancel.
-        unlistenError = await listen<{ message: string }>('screen-capture-target-error', (event) => {
-          const message = event.payload?.message || 'Unknown selector error';
-          Logger.error("TAURI_STREAM", `Target enumeration failed: ${message}`);
-          cleanup();
-          reject(new Error(`Failed to list capture targets: ${message}`));
-        });
-
-        // Show the selector window
-        await this.showSelector();
-      } catch (error) {
-        Logger.error("TAURI_STREAM", `Error showing selector: ${error}`);
-        cleanup();
-        reject(error instanceof Error ? error : new Error(String(error)));
-      }
-    });
+    // Rust returns the target id, or null on cancel; it throws (rejects) with the
+    // enumeration error message, which we re-wrap to match the previous contract.
+    try {
+      return await invoke<string | null>('await_target_selection');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      Logger.error("TAURI_STREAM", `Target selection failed: ${message}`);
+      throw new Error(`Failed to list capture targets: ${message}`);
+    }
   }
 
   async startCapture(): Promise<boolean> {
@@ -1309,7 +1286,11 @@ class TauriStreamCapture {
     }
 
     try {
-      await invoke('plugin:screen-capture|stop_capture_cmd');
+      if (isDesktop()) {
+        await invoke('sc_stop_capture');
+      } else {
+        await invoke('plugin:screen-capture|stop_capture_cmd');
+      }
       this.capturing = false;
     } catch (error) {
       throw error;
@@ -1327,7 +1308,7 @@ class TauriStreamCapture {
 
     try {
       if (isDesktop()) {
-        await invoke('plugin:screen-capture|stop_video_cmd');
+        await invoke('sc_stop_video');
       } else {
         // iOS: Stop capture stream and broadcast
         await invoke('stop_capture_stream_cmd');
@@ -1352,7 +1333,7 @@ class TauriStreamCapture {
 
     try {
       if (isDesktop()) {
-        await invoke('plugin:screen-capture|stop_audio_cmd');
+        await invoke('sc_stop_audio');
       } else {
         // iOS: Stop audio stream and broadcast
         await invoke('stop_audio_stream_cmd');
@@ -1412,7 +1393,10 @@ class TauriStreamCapture {
       throw new Error('Target selection only available on desktop');
     }
 
-    return invoke<CaptureTarget[]>('plugin:screen-capture|get_capture_targets_cmd', {
+    // Non-ACL-gated app-command wrapper (see sc_get_capture_targets). Called from
+    // MCP tools in the main window, where the gated plugin command would be denied
+    // on a bad Linux launch.
+    return invoke<CaptureTarget[]>('sc_get_capture_targets', {
       includeThumbnails
     });
   }
