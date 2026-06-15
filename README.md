@@ -19,7 +19,7 @@ All while keeping your data **100% private and secure**.
 
 ---
 
-## 👁️ How Observer Agents Work
+## How Observer Agents Work
 
 <div align="center">
 
@@ -82,7 +82,7 @@ All while keeping your data **100% private and secure**.
 
 ---
 
-## 🤖 Base Agent Example 
+## Base Agent Example 
 Sends an email when the Observer logo is on screen
 
 System Prompt (uses $SCREEN for multimodal screen input)
@@ -100,13 +100,13 @@ if(response.includes("OBSERVER")){
 
 ---
 
-## 🎯 What Observer AI Does Best
+## What Observer AI Does Best
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-### 📊 **Intelligent Logging**
+### **Intelligent Logging**
 
 🧠 **Text & Visual Memory**
 
@@ -115,7 +115,7 @@ if(response.includes("OBSERVER")){
 </td>
 <td width="50%" valign="top">
 
-### 🚨 **Powerful Notifications**
+### **Powerful Notifications**
 
 📧 **Email** • 💬 **Discord** • 📱 **Telegram**
 📞 **SMS** • 💚 **WhatsApp** • **Pushover**  
@@ -127,7 +127,7 @@ if(response.includes("OBSERVER")){
 
 ---
 
-# 🏗️ Building Your Own Agent
+# Building Your Own Agent
 
 Creating your own Observer AI consist of three things:
 
@@ -226,7 +226,7 @@ if(response.includes("word")){
 ```
 
 
-# 🚀 Getting Started with Local Inference
+# Getting Started with Local Inference
 
 
 There are a few ways to get Observer up and running with local inference. I recommend the Observer App. 
@@ -266,7 +266,7 @@ For Jupyter server setup instructions, see [app/JUPYTER.md](app/JUPYTER.md).
 
 Save your agent, test it from the dashboard, and upload to community to share with others!
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions from the community! Here's how you can help:
 
@@ -276,7 +276,7 @@ We welcome contributions from the community! Here's how you can help:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the AGPLv3 License - see the [LICENSE](LICENSE) file for details.
 
