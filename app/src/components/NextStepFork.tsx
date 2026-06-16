@@ -128,35 +128,35 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
 
       {/* Card */}
       <div
-        className="fixed z-[201] bg-white rounded-2xl shadow-2xl p-5 pointer-events-auto"
+        className="fixed z-[201] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-5 pointer-events-auto"
         style={{ maxWidth: 'calc(100vw - 32px)', ...cardStyle }}
       >
         <button
           onClick={handleSnooze}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-3 right-3 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           aria-label="Close"
         >
           <CloseIcon className="h-4 w-4" />
         </button>
 
-        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">What comes next?</p>
-        <h3 className="text-lg font-bold text-gray-900 mb-1 pr-6">Two ways to build your first real agent</h3>
-        <p className="text-sm text-gray-600 mb-4">Pick the path that fits you, you can always switch later.</p>
+        <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">What comes next?</p>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1 pr-6">Two ways to build your first real agent</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Pick the path that fits you, you can always switch later.</p>
 
         <div className="space-y-2 mb-3">
           <button
             onClick={handleAiCreator}
-            className="w-full flex items-start gap-3 p-3 rounded-xl border-2 border-blue-200 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-400 transition-all text-left group"
+            className="w-full flex items-start gap-3 p-3 rounded-xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:border-blue-400 dark:hover:border-blue-600 transition-all text-left group"
           >
-            <div className="shrink-0 w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-blue-600" />
+            <div className="shrink-0 w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-gray-900 text-sm">Use AI Creator</span>
-                <ArrowRight className="h-4 w-4 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Use AI Creator</span>
+                <ArrowRight className="h-4 w-4 text-blue-500 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
               </div>
-              <p className="text-xs text-gray-600 leading-relaxed mt-0.5">
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mt-0.5">
                 Describe what you want, get an agent in seconds.
               </p>
             </div>
@@ -164,17 +164,17 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
 
           <button
             onClick={handleBuildIt}
-            className="w-full flex items-start gap-3 p-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all text-left group"
+            className="w-full flex items-start gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all text-left group"
           >
-            <div className="shrink-0 w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
-              <Wrench className="h-5 w-5 text-purple-600" />
+            <div className="shrink-0 w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+              <Wrench className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-gray-900 text-sm">Build it yourself</span>
-                <ArrowRight className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Build it yourself</span>
+                <ArrowRight className="h-4 w-4 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
               </div>
-              <p className="text-xs text-gray-600 leading-relaxed mt-0.5">
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mt-0.5">
                 Download a local model and create one manually.
               </p>
             </div>
@@ -184,7 +184,7 @@ const NextStepFork: React.FC<NextStepForkProps> = ({
         <div className="text-center">
           <button
             onClick={handleSkip}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             Skip — I'll explore on my own
           </button>

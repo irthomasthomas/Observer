@@ -87,7 +87,7 @@ const featureGroups: FeatureGroup[] = [
 ];
 
 const CheckMark = () => <Check className="h-5 w-5 text-green-500 mx-auto" />;
-const CrossMark = () => <X className="h-5 w-5 text-gray-300 mx-auto" />;
+const CrossMark = () => <X className="h-5 w-5 text-gray-300 dark:text-gray-600 mx-auto" />;
 
 const renderCell = (value: boolean | string, dailyCredits?: number, tierName?: string, info?: string) => {
   const infoBtn = info ? <InfoTooltip body={info} className="align-middle" /> : null;
@@ -101,7 +101,7 @@ const renderCell = (value: boolean | string, dailyCredits?: number, tierName?: s
   }
   if (value === false) return <CrossMark />;
   return (
-    <span className="inline-flex items-center justify-center gap-1 text-sm font-semibold text-gray-700">
+    <span className="inline-flex items-center justify-center gap-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
       {value}
       {dailyCredits !== undefined && tierName && (
         <CreditInfoButton dailyCredits={dailyCredits} tierName={tierName} className="align-middle" />
@@ -185,33 +185,33 @@ export const PricingTable: React.FC<PricingTableProps> = ({
 
   const getHeaderClass = (tier: 'free' | 'pro' | 'max') => {
     const current = effectiveStatus === tier;
-    if (tier === 'pro') return `${headerBase} rounded-t-lg ${current ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-900'}`;
-    if (tier === 'max') return `${headerBase} rounded-t-lg ${current ? 'bg-amber-500  text-white' : 'bg-amber-50  text-amber-900'}`;
-    return `${headerBase} bg-gray-50 text-gray-600`;
+    if (tier === 'pro') return `${headerBase} rounded-t-lg ${current ? 'bg-purple-600 text-white dark:bg-purple-700' : 'bg-purple-50 text-purple-900 dark:bg-purple-900/30 dark:text-purple-200'}`;
+    if (tier === 'max') return `${headerBase} rounded-t-lg ${current ? 'bg-amber-500  text-white dark:bg-amber-600' : 'bg-amber-50  text-amber-900 dark:bg-amber-900/30 dark:text-amber-200'}`;
+    return `${headerBase} bg-gray-50 text-gray-600 dark:bg-gray-900 dark:text-gray-400`;
   };
 
   const getCellClass = (tier: 'notLoggedIn' | 'free' | 'pro' | 'max') => {
     const current = tier !== 'notLoggedIn' && effectiveStatus === tier;
-    if (tier === 'pro') return `${cellBase} ${current ? 'bg-purple-50/60' : ''}`;
-    if (tier === 'max') return `${cellBase} ${current ? 'bg-amber-50/60'  : ''}`;
+    if (tier === 'pro') return `${cellBase} ${current ? 'bg-purple-50/60 dark:bg-purple-900/20' : ''}`;
+    if (tier === 'max') return `${cellBase} ${current ? 'bg-amber-50/60 dark:bg-amber-900/20'  : ''}`;
     return cellBase;
   };
 
   const dataColCount = isAuthenticated ? 4 : 3; // label + data columns
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-3 md:p-5 bg-white rounded-none md:rounded-lg">
+    <div className="w-full max-w-4xl mx-auto p-3 md:p-5 bg-white dark:bg-gray-800 rounded-none md:rounded-lg">
 
       {/* ── Header ── */}
       <div className="flex items-start gap-3 mb-3 md:mb-4">
         <Zap className={`flex-shrink-0 mt-0.5 text-purple-500 ${isTriggeredByQuotaError ? 'h-8 w-8' : 'h-6 w-6'}`} />
         <div>
-          <h1 className={`font-bold text-gray-800 tracking-tight ${isTriggeredByQuotaError ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'}`}>
+          <h1 className={`font-bold text-gray-800 dark:text-gray-100 tracking-tight ${isTriggeredByQuotaError ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'}`}>
             {headline}
           </h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{subheadline}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">{subheadline}</p>
           {isTriggeredByQuotaError && (
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
+            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400 dark:text-gray-500">
               <span>🚀 2k+ users</span>
               <span>•</span>
               <span>⭐ 1k+ GitHub stars</span>
@@ -223,11 +223,11 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       </div>
 
       {/* ── Comparison Table with pricing + CTA embedded in headers ── */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm mb-3 md:mb-4">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-3 md:mb-4">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-50 w-2/5">
+            <tr className="border-b border-gray-200 dark:border-gray-700">
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900 w-2/5">
                 Features
               </th>
               {isAuthenticated ? (
@@ -235,13 +235,13 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                   {/* Free column */}
                   <th className={getHeaderClass('free')}>
                     <div>Quick Start</div>
-                    <div className="text-xs font-normal text-gray-400 mt-0.5">$0 / mo</div>
+                    <div className="text-xs font-normal text-gray-400 dark:text-gray-500 mt-0.5">$0 / mo</div>
                     {effectiveStatus === 'free' ? (
-                      <span className="mt-2 block text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                      <span className="mt-2 block text-xs bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-medium">
                         Current
                       </span>
                     ) : (
-                      <button disabled className="mt-2 w-full py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">
+                      <button disabled className="mt-2 w-full py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700/50 cursor-not-allowed">
                         Free Forever
                       </button>
                     )}
@@ -254,13 +254,13 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                     </div>
                     {effectiveStatus === 'pro' ? (
                       <>
-                        <span className="mt-2 block text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                        <span className="mt-2 block text-xs bg-purple-200 text-purple-700 dark:bg-purple-800 dark:text-purple-200 px-2 py-0.5 rounded-full font-medium">
                           Current
                         </span>
                         <button
                           onClick={handleManageSubscription}
                           disabled={combinedLoading}
-                          className="mt-1.5 w-full py-1.5 rounded-lg border border-purple-300 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                          className="mt-1.5 w-full py-1.5 rounded-lg border border-purple-300 dark:border-purple-700 text-sm font-medium text-purple-700 dark:text-purple-200 bg-purple-100 dark:bg-purple-900/40 hover:bg-purple-200 dark:hover:bg-purple-900/60 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
                         >
                           {combinedLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
                           Manage
@@ -285,13 +285,13 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                     </div>
                     {effectiveStatus === 'max' ? (
                       <>
-                        <span className="mt-2 block text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                        <span className="mt-2 block text-xs bg-amber-200 text-amber-700 dark:bg-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-full font-medium">
                           Current
                         </span>
                         <button
                           onClick={handleManageSubscription}
                           disabled={combinedLoading}
-                          className="mt-1.5 w-full py-1.5 rounded-lg border border-amber-300 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                          className="mt-1.5 w-full py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-sm font-medium text-amber-700 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
                         >
                           {combinedLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
                           Manage
@@ -311,10 +311,10 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                 </>
               ) : (
                 <>
-                  <th className={`${headerBase} bg-gray-50 text-gray-500`}>Not Logged In</th>
-                  <th className={`${headerBase} bg-purple-50 text-purple-900 rounded-t-lg`}>
+                  <th className={`${headerBase} bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400`}>Not Logged In</th>
+                  <th className={`${headerBase} bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 rounded-t-lg`}>
                     <div>Quick Start</div>
-                    <div className="text-xs font-normal text-purple-500 mt-0.5">Free</div>
+                    <div className="text-xs font-normal text-purple-500 dark:text-purple-300 mt-0.5">Free</div>
                     <button
                       onClick={onLogin}
                       className="mt-2 w-full py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 hover:scale-105 transition-all shadow-md ring-2 ring-purple-300"
@@ -329,23 +329,23 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <tbody>
             {featureGroups.map((group) => (
               <React.Fragment key={group.group}>
-                <tr className="bg-gray-50/80">
+                <tr className="bg-gray-50/80 dark:bg-gray-900/50">
                   <td colSpan={dataColCount} className="px-4 py-1 md:py-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                       {group.group}
                     </span>
                   </td>
                 </tr>
                 {group.rows.filter(row => isAuthenticated || !row.sparkle).map((row, i) => (
-                  <tr key={row.label} className={`border-t border-gray-100 ${row.sparkle ? 'bg-purple-200/60' : i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                  <tr key={row.label} className={`border-t border-gray-100 dark:border-gray-700 ${row.sparkle ? 'bg-purple-200/60 dark:bg-purple-900/30' : i % 2 === 1 ? 'bg-gray-50/30 dark:bg-gray-900/30' : ''}`}>
                     <td className="px-4 py-3 text-sm font-medium">
                       {row.sparkle ? (
-                        <span className="inline-flex items-center gap-1.5 text-gray-700 font-medium">
+                        <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-300 font-medium">
                           {row.label}
                           <Sparkles className="h-4 w-4 text-purple-500 flex-shrink-0" />
                         </span>
                       ) : (
-                        <span className="text-gray-700">{row.label}</span>
+                        <span className="text-gray-700 dark:text-gray-300">{row.label}</span>
                       )}
                     </td>
                     {isAuthenticated ? (
@@ -371,7 +371,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       {/* ── Error ── */}
       {combinedError && (
         <div className="text-center mt-3">
-          <p className="text-sm text-red-600 font-semibold">{combinedError}</p>
+          <p className="text-sm text-red-600 dark:text-red-400 font-semibold">{combinedError}</p>
         </div>
       )}
 
@@ -382,7 +382,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
             <button
               onClick={applePayments.loadProducts}
               disabled={combinedLoading}
-              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-300 font-medium"
+              className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:text-gray-300 dark:disabled:text-gray-600 font-medium"
             >
               <Sparkles className="h-4 w-4 mr-1" />
               Load Products
@@ -391,7 +391,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
           <button
             onClick={handleAppleRestore}
             disabled={combinedLoading}
-            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+            className="inline-flex items-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:text-gray-300 dark:disabled:text-gray-600"
           >
             <RotateCcw className="h-4 w-4 mr-1" />
             Restore Purchases
@@ -400,24 +400,24 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       )}
 
       {/* ── Terms (required for App Store) ── */}
-      <div className="text-center mt-3 pt-3 border-t border-gray-100">
-        <p className="text-xs text-gray-400">
+      <div className="text-center mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+        <p className="text-xs text-gray-400 dark:text-gray-500">
           By subscribing, you agree to our{' '}
           {isIOS() ? (
             <>
-              <button onClick={() => openUrl('https://observer-ai.com/#/Terms')} className="text-blue-500 hover:text-blue-700 underline">
+              <button onClick={() => openUrl('https://observer-ai.com/#/Terms')} className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline">
                 Terms of Service
               </button>
               {' '}and{' '}
-              <button onClick={() => openUrl('https://observer-ai.com/#/Privacy')} className="text-blue-500 hover:text-blue-700 underline">
+              <button onClick={() => openUrl('https://observer-ai.com/#/Privacy')} className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline">
                 Privacy Policy
               </button>
             </>
           ) : (
             <>
-              <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 underline">Terms of Service</a>
+              <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline">Terms of Service</a>
               {' '}and{' '}
-              <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 underline">Privacy Policy</a>
+              <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline">Privacy Policy</a>
             </>
           )}
           .
