@@ -1,16 +1,51 @@
+import { env } from '@huggingface/transformers';
 import { WhisperModelConfig } from './types';
+
+// Share the same browser Cache API bucket as the Gemma worker so models persist
+// across reloads, and never look for local model files (we always fetch from HF).
+env.useBrowserCache = true;
+env.cacheKey = 'observer-transformers-cache';
+env.allowLocalModels = false;
 
 const TASK = 'automatic-speech-recognition';
 
-// WhisperTextStreamer will be loaded dynamically with transformers module
+// transformers.js APIs are imported lazily so the heavy library is only pulled
+// in when a whisper worker is actually spun up.
+let transformersModule: any = null;
+let pipeline: any = null;
 let WhisperTextStreamer: any = null;
+
+async function loadTransformers() {
+  if (!transformersModule) {
+    transformersModule = await import('@huggingface/transformers');
+    pipeline = transformersModule.pipeline;
+    WhisperTextStreamer = transformersModule.WhisperTextStreamer;
+  }
+  return transformersModule;
+}
+
+// Resolve per-module dtypes.
+//
+// transformers.js v4 bundles a newer onnxruntime-web whose QDQ graph optimizer
+// crashes on the legacy `Xenova/whisper-*` q8 decoders:
+//   "Missing required scale ... TransposeDQWeightsForMatMulNBits".
+// The `onnx-community/whisper-*` repos ship clean per-dtype ONNX files, so we
+// select them explicitly instead of relying on the wasm default (which is q8
+// for every module and re-triggers the same path):
+//   - encoder stays fp32 (accuracy-sensitive; fp16/q8 degrade or break on wasm)
+//   - decoder uses q4 when quantization is requested, else fp32
+function resolveDtype(quantized: boolean) {
+  return {
+    encoder_model: 'fp32',
+    decoder_model_merged: quantized ? 'q4' : 'fp32',
+  };
+}
 
 class WhisperPipelineFactory {
   static task = TASK;
   static model: string | null = null;
   static config: WhisperModelConfig | null = null;
   static instance: any = null;
-  static transformersModule: any = null;
 
   static configure(config: WhisperModelConfig) {
     this.model = config.modelId;
@@ -18,36 +53,15 @@ class WhisperPipelineFactory {
     this.instance = null;
   }
 
-  static async loadTransformers() {
-    if (!this.transformersModule) {
-      // Dynamic import - only loads when actually needed!
-      this.transformersModule = await import('@huggingface/transformers');
-      this.transformersModule.env.allowLocalModels = false;
-      // Load WhisperTextStreamer for streaming interim results
-      WhisperTextStreamer = this.transformersModule.WhisperTextStreamer;
-    }
-    return this.transformersModule;
-  }
-
   static async getInstance(progress_callback?: (data: any) => void) {
     if (this.instance === null && this.model && this.config) {
       try {
-        // Load transformers library dynamically
-        const { pipeline } = await this.loadTransformers();
-
-        const pipelineOptions: any = {
+        await loadTransformers();
+        this.instance = await pipeline(this.task, this.model, {
           progress_callback,
           device: 'wasm',
-          dtype: this.config.quantized ? 'q8' : undefined
-        };
-
-        // For medium models, use no_attentions revision to avoid memory issues
-        if (this.model.includes('whisper-medium')) {
-          pipelineOptions.revision = 'no_attentions';
-        }
-
-        this.instance = await pipeline(this.task, this.model, pipelineOptions);
-        return this.instance;
+          dtype: resolveDtype(this.config.quantized),
+        });
       } catch (error) {
         this.instance = null;
         throw error;
@@ -68,10 +82,10 @@ self.onmessage = async (event) => {
 
   try {
     switch (type) {
-      case 'configure':
+      case 'configure': {
         const config = data as WhisperModelConfig;
         WhisperPipelineFactory.configure(config);
-        
+
         await WhisperPipelineFactory.getInstance((progress) => {
           self.postMessage({
             type: 'progress',
@@ -81,8 +95,9 @@ self.onmessage = async (event) => {
 
         self.postMessage({ type: 'ready' });
         break;
+      }
 
-      case 'transcribe':
+      case 'transcribe': {
         const { audio, chunkId } = data;
 
         const instance = await WhisperPipelineFactory.getInstance();
@@ -107,7 +122,7 @@ self.onmessage = async (event) => {
           }
 
           // Set default chunking for different model types
-          const isDistilWhisper = currentConfig.modelId.startsWith('distil-whisper/');
+          const isDistilWhisper = currentConfig.modelId.includes('distil');
           transcribeOptions.chunk_length_s = isDistilWhisper ? 20 : 30;
           transcribeOptions.stride_length_s = isDistilWhisper ? 3 : 5;
         }
@@ -156,6 +171,7 @@ self.onmessage = async (event) => {
           });
         }
         break;
+      }
 
       default:
         throw new Error(`Unknown message type: ${type}`);

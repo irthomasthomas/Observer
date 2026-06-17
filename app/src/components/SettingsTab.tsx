@@ -968,7 +968,7 @@ const SettingsTab = () => {
               ))}
             </datalist>
             <p className="text-xs text-gray-500 mt-1">
-              Examples: Xenova/whisper-small.en (English only), Xenova/whisper-small (multilingual)
+              Examples: onnx-community/whisper-small.en (English only), onnx-community/whisper-small (multilingual)
             </p>
           </div>
 

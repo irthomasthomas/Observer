@@ -1,21 +1,34 @@
 import { LanguageCode, WhisperSettings } from '../utils/whisper/types';
 
-// Suggested models for autocomplete
+// Suggested models for autocomplete.
+// We use the onnx-community/* exports: they ship clean per-dtype ONNX files that
+// work with transformers.js v4 + onnxruntime-web (the legacy Xenova/* q8 files
+// crash the new QDQ graph optimizer).
 export const SUGGESTED_MODELS = [
-  'Xenova/whisper-tiny.en',
-  'Xenova/whisper-base.en',
-  'Xenova/whisper-small.en', 
-  'Xenova/whisper-medium.en',
-  'Xenova/whisper-tiny',
-  'Xenova/whisper-base',
-  'Xenova/whisper-small',
-  'Xenova/whisper-medium',
-  'Xenova/whisper-large',
-  'Xenova/whisper-large-v2',
-  'Xenova/whisper-large-v3',
-  'distil-whisper/distil-medium.en',
-  'distil-whisper/distil-large-v2'
+  'onnx-community/whisper-tiny.en',
+  'onnx-community/whisper-base.en',
+  'onnx-community/whisper-small.en',
+  'onnx-community/whisper-tiny',
+  'onnx-community/whisper-base',
+  'onnx-community/whisper-small',
+  'onnx-community/whisper-large-v3-turbo'
 ];
+
+// Maps legacy Xenova/* model IDs to their onnx-community/* equivalents.
+// Only the variants known to exist on onnx-community are remapped; anything else
+// (custom IDs, distil-whisper, etc.) is left untouched.
+const WHISPER_MODEL_MIGRATION: Record<string, string> = {
+  'Xenova/whisper-tiny.en': 'onnx-community/whisper-tiny.en',
+  'Xenova/whisper-tiny': 'onnx-community/whisper-tiny',
+  'Xenova/whisper-base.en': 'onnx-community/whisper-base.en',
+  'Xenova/whisper-base': 'onnx-community/whisper-base',
+  'Xenova/whisper-small.en': 'onnx-community/whisper-small.en',
+  'Xenova/whisper-small': 'onnx-community/whisper-small',
+};
+
+export function migrateWhisperModelId(modelId: string): string {
+  return WHISPER_MODEL_MIGRATION[modelId] ?? modelId;
+}
 
 // Language name mapping
 export const LANGUAGE_NAMES: Record<LanguageCode, string> = {
@@ -132,7 +145,7 @@ export const AVAILABLE_LANGUAGES: LanguageInfo[] = Object.entries(LANGUAGE_NAMES
 
 export function getDefaultWhisperSettings(): WhisperSettings {
   return {
-    modelId: 'Xenova/whisper-tiny.en',
+    modelId: 'onnx-community/whisper-tiny.en',
     quantized: true,
     chunkDurationMs: 5000,
   };

@@ -2,7 +2,7 @@
 
 // NOTE: No imports are needed from your config files anymore.
 import { WhisperSettings, TranscriptionMode } from './whisper/types';
-import { getDefaultWhisperSettings } from '../config/whisper-models';
+import { getDefaultWhisperSettings, migrateWhisperModelId } from '../config/whisper-models';
 
 class SettingsManager {
     // --- PRIVATE CONSTANTS FOR LOCALSTORAGE KEYS ---
@@ -67,7 +67,14 @@ class SettingsManager {
                 if (parsed.modelSize && parsed.language && !parsed.modelId) {
                     return this.migrateOldWhisperSettings(parsed);
                 }
-                return { ...this.DEFAULTS.whisperSettings, ...parsed };
+                const settings = { ...this.DEFAULTS.whisperSettings, ...parsed };
+                // Migrate legacy Xenova/* model IDs to their onnx-community/* equivalents
+                const migratedModelId = migrateWhisperModelId(settings.modelId);
+                if (migratedModelId !== settings.modelId) {
+                    settings.modelId = migratedModelId;
+                    this.setWhisperSettings(settings);
+                }
+                return settings;
             } catch (error) {
                 console.warn('Failed to parse whisper settings, using defaults:', error);
                 return this.DEFAULTS.whisperSettings;
@@ -80,8 +87,8 @@ class SettingsManager {
         // Migrate old format to new direct configuration
         const isEnglishOnly = oldSettings.language === 'en';
         const modelId = isEnglishOnly
-            ? `Xenova/whisper-${oldSettings.modelSize}.en`
-            : `Xenova/whisper-${oldSettings.modelSize}`;
+            ? `onnx-community/whisper-${oldSettings.modelSize}.en`
+            : `onnx-community/whisper-${oldSettings.modelSize}`;
 
         const newSettings: WhisperSettings = {
             modelId,
