@@ -361,6 +361,13 @@ const SettingsTab = () => {
     SensorSettings.setWhisperQuantized(e.target.checked);
   };
 
+  const handleDeviceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const device = e.target.value as 'webgpu' | 'wasm';
+    const newSettings = { ...whisperSettings, device };
+    setWhisperSettings(newSettings);
+    SensorSettings.setWhisperDevice(device);
+  };
+
   const handleChunkDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDuration = parseInt(e.target.value, 10);
     const newSettings = { ...whisperSettings, chunkDurationMs: newDuration };
@@ -1024,6 +1031,26 @@ const SettingsTab = () => {
             <label htmlFor="quantized" className="ml-2 text-sm font-medium text-gray-700">
               Quantized (smaller file sizes, faster loading)
             </label>
+          </div>
+
+          {/* Compute Backend */}
+          <div>
+            <label htmlFor="whisper-device" className="block text-sm font-medium text-gray-700 mb-2">
+              Compute Backend
+            </label>
+            <select
+              id="whisper-device"
+              value={whisperSettings.device || 'wasm'}
+              onChange={handleDeviceChange}
+              disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
+              className="block w-full px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
+            >
+              <option value="wasm">WASM (CPU — works everywhere)</option>
+              <option value="webgpu">WebGPU (GPU — faster, needs browser support)</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              WebGPU is much faster for larger models but isn't available in every browser. If the model fails to load, switch back to WASM.
+            </p>
           </div>
           </>
           )}

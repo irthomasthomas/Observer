@@ -1,7 +1,7 @@
 // src/utils/settings.ts
 
 // NOTE: No imports are needed from your config files anymore.
-import { WhisperSettings, TranscriptionMode } from './whisper/types';
+import { WhisperSettings, TranscriptionMode, WhisperDevice } from './whisper/types';
 import { getDefaultWhisperSettings, migrateWhisperModelId } from '../config/whisper-models';
 
 class SettingsManager {
@@ -141,6 +141,12 @@ class SettingsManager {
     public setWhisperQuantized(quantized: boolean): void {
         const settings = this.getWhisperSettings();
         settings.quantized = quantized;
+        this.setWhisperSettings(settings);
+    }
+
+    public setWhisperDevice(device: WhisperDevice): void {
+        const settings = this.getWhisperSettings();
+        settings.device = device;
         this.setWhisperSettings(settings);
     }
 

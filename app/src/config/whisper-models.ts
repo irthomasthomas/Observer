@@ -148,6 +148,7 @@ export function getDefaultWhisperSettings(): WhisperSettings {
     modelId: 'onnx-community/whisper-tiny.en',
     quantized: true,
     chunkDurationMs: 5000,
+    device: 'wasm',
   };
 }
 

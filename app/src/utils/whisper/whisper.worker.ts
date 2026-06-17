@@ -57,9 +57,11 @@ class WhisperPipelineFactory {
     if (this.instance === null && this.model && this.config) {
       try {
         await loadTransformers();
+        // Device is opt-in via settings; default to wasm for broad compatibility.
+        // The dtype config (fp32 encoder + q4/fp32 decoder) is valid on both backends.
         this.instance = await pipeline(this.task, this.model, {
           progress_callback,
-          device: 'wasm',
+          device: this.config.device ?? 'wasm',
           dtype: resolveDtype(this.config.quantized),
         });
       } catch (error) {

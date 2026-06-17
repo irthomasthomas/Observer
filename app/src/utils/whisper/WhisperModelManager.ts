@@ -69,7 +69,8 @@ export class WhisperModelManager {
         modelId: settings.modelId,
         task: settings.task,
         language: settings.language,
-        quantized: settings.quantized
+        quantized: settings.quantized,
+        device: settings.device
       };
 
       this.currentConfig = config;
