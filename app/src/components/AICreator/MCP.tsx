@@ -5,13 +5,15 @@
 // OpenAI function calls (see src/mcp/). This component is pure UI over the useMCP hook.
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Download, Cpu, Sparkles, StopCircle } from 'lucide-react';
+import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Download, Cpu, Sparkles, StopCircle, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
 import { useMCPContext } from '../../mcp/MCPContext';
 import type { WireMessage, ToolCall } from '../../mcp/types';
-import type { WhitelistChannel } from '@utils/logging';
+import { Logger, type WhitelistChannel } from '@utils/logging';
+import { StreamManager } from '@utils/streamManager';
+import { useSubscriberText } from '@hooks/useTranscriptionState';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
 import { isTauri } from '@utils/platform';
 import { tauriStreamCapture, type CaptureTarget } from '@utils/tauriStreamCapture';
@@ -20,6 +22,12 @@ import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 import type { GemmaModelState, NativeModelState } from '@utils/localLlm/types';
 import { ModelManager, type Model } from '@utils/ModelManager';
+
+// Synthetic owner id for voice dictation. Mirrors SettingsTab's TEST_AGENT_ID pattern:
+// StreamManager treats it like any agent, so transcription routes through the same
+// TranscriptionRouter path and honors the user's global mode (cloud / local / self-hosted)
+// for free — changing the mode in Settings changes dictation too.
+const MCP_MIC_ID = 'mcp-creator-mic';
 
 interface MCPProps {
   getToken: TokenProvider;
@@ -412,6 +420,66 @@ const MCP: React.FC<MCPProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasInitialMessageSet = useRef(false);
 
+  // --- Voice dictation -------------------------------------------------------
+  // Reuses the exact transcription path agents use (StreamManager → TranscriptionRouter),
+  // so it automatically honors the transcription mode chosen in Settings. The live
+  // transcript streams into the input on top of whatever the user already typed.
+  const { fullText: micTranscript } = useSubscriberText(MCP_MIC_ID, 'microphone');
+  const [isRecording, setIsRecording] = useState(false);
+  const [micStarting, setMicStarting] = useState(false);
+  const micBaseRef = useRef('');
+  // Bumped on every stop so an in-flight start (e.g. a slow local model load) knows it was
+  // cancelled and tears down instead of flipping us back into recording.
+  const micGenRef = useRef(0);
+
+  // Mirror the streaming transcript into the input while recording.
+  useEffect(() => {
+    if (!isRecording) return;
+    const base = micBaseRef.current;
+    setUserInput(base && micTranscript ? `${base} ${micTranscript}` : base + micTranscript);
+  }, [micTranscript, isRecording]);
+
+  // Always tear the mic down on unmount so closing the modal mid-dictation can't leave a
+  // hot mic / open WebSocket behind. Release + destroy are safe to call when already idle.
+  useEffect(() => () => {
+    StreamManager.releaseStreamsForAgent(MCP_MIC_ID);
+    StreamManager.destroySubscribersForAgent(MCP_MIC_ID);
+  }, []);
+
+  const stopMic = () => {
+    // Cancel any in-flight start, then flip the flag first so the reflect effect won't
+    // overwrite the dictated text when the released service clears its subscriber.
+    micGenRef.current++;
+    setIsRecording(false);
+    setMicStarting(false);
+    StreamManager.releaseStreamsForAgent(MCP_MIC_ID);
+    StreamManager.destroySubscribersForAgent(MCP_MIC_ID);
+  };
+
+  const startMic = async () => {
+    micBaseRef.current = userInput.trim();
+    setMicStarting(true);
+    const gen = ++micGenRef.current;
+    try {
+      // Acquires the mic, starts the mode-appropriate service, wires PCM capture, and
+      // creates our subscriber — all keyed on MCP_MIC_ID.
+      await StreamManager.requestStreamsForAgent(MCP_MIC_ID, ['microphone']);
+      // Stopped (or a message was sent) while we were still spinning up: tear down what we
+      // just acquired instead of resurrecting recording.
+      if (micGenRef.current !== gen) {
+        StreamManager.releaseStreamsForAgent(MCP_MIC_ID);
+        StreamManager.destroySubscribersForAgent(MCP_MIC_ID);
+        return;
+      }
+      setIsRecording(true);
+    } catch (e) {
+      Logger.error('MCP', `Voice dictation failed to start: ${e}`);
+      stopMic();
+    } finally {
+      if (micGenRef.current === gen) setMicStarting(false);
+    }
+  };
+
   const getCustomServerModels = (): Model[] =>
     ModelManager.getInstance().listModels().models.filter(m =>
       m.server !== ModelManager.BROWSER_LOCAL &&
@@ -450,6 +518,9 @@ const MCP: React.FC<MCPProps> = ({
     if ((!userInput.trim() && previewImages.length === 0) || isRunning) return;
     const text = userInput.trim() || `[${previewImages.length} image${previewImages.length > 1 ? 's' : ''}]`;
     const images = previewImages;
+    // Stop dictation so the reflect effect can't re-populate the box we're about to clear.
+    stopMic();
+    micBaseRef.current = '';
     setUserInput('');
     setPreviewImages([]);
     await send(text, images.length > 0 ? images : undefined);
@@ -646,14 +717,23 @@ const MCP: React.FC<MCPProps> = ({
             </select>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        {(isRecording || micStarting) && (
+          <div className="flex items-center gap-2 px-1 pb-1.5 text-xs font-medium text-red-600">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+            </span>
+            <span>{micStarting ? 'Starting microphone…' : 'Listening… tap the mic to stop'}</span>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="flex items-center gap-1.5 md:gap-2">
           <input
             type="text"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             placeholder={getPlaceholder()}
             disabled={isInputDisabled}
-            className="flex-1 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            className="flex-1 min-w-0 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           />
 
           <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
@@ -661,10 +741,27 @@ const MCP: React.FC<MCPProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isInputDisabled}
-            className="p-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center"
+            className="p-2 md:p-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
             title="Upload Image"
           >
             <Plus className="h-5 w-5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => (isRecording ? stopMic() : startMic())}
+            disabled={micStarting || (!isRecording && isInputDisabled)}
+            className={`p-2 md:p-3 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+              isRecording
+                ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
+                : 'bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed'
+            }`}
+            title={isRecording ? 'Stop voice input' : 'Speak to fill the message'}
+            aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
+          >
+            {micStarting
+              ? <Loader2 className="h-5 w-5 animate-spin" />
+              : <Mic className="h-5 w-5" />}
           </button>
 
           {isRunning ? (
