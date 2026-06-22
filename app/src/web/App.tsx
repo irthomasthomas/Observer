@@ -1002,6 +1002,7 @@ function AppContent() {
         isAuthenticated={isAuthenticated}
         hostingContext={hostingContext}
         userEmail={user?.email}
+        isProUser={isProUser}
       />
 
 

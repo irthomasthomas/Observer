@@ -176,9 +176,9 @@ const CloudPrivacyNotice: React.FC<CloudPrivacyNoticeProps> = ({ detectedData, p
 
 // --- MAIN WIZARD COMPONENT ---
 interface SimpleCreatorModalProps {
-  isOpen: boolean; onClose: () => void; onNext: (config: any) => void; isAuthenticated: boolean; hostingContext?: 'official-web' | 'self-hosted'; userEmail?: string;
+  isOpen: boolean; onClose: () => void; onNext: (config: any) => void; isAuthenticated: boolean; hostingContext?: 'official-web' | 'self-hosted'; userEmail?: string; isProUser?: boolean;
 }
-const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose, onNext, isAuthenticated, hostingContext, userEmail }) => {
+const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose, onNext, isAuthenticated, hostingContext, userEmail, isProUser = false }) => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [agentId, setAgentId] = useState('');
@@ -487,15 +487,19 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
               <div data-tutorial="model-grid" className="flex-grow border border-gray-200 rounded-lg bg-gray-50 p-3 overflow-y-auto">
                 {loadingModels && <div className="p-4 text-center text-gray-500 flex items-center justify-center h-full"><Loader2 className="h-5 w-5 mr-2 animate-spin"/>Loading...</div>}
                 <div className="flex flex-wrap gap-2">
-                    {!loadingModels && availableModels.map((m) => (
-                        <button key={m.name} onClick={() => setModel(m.name)} className={`relative group px-3 py-2 rounded-md border text-sm font-medium flex items-center space-x-2 transition-all duration-150 ${model === m.name ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}>
-                            {model === m.name && <CheckCircle2 className="h-4 w-4" />}
+                    {!loadingModels && availableModels.map((m) => {
+                        const isProLocked = m.pro && !isProUser;
+                        return (
+                        <button key={m.name} onClick={() => !isProLocked && setModel(m.name)} disabled={isProLocked} title={isProLocked ? 'Pro plan required' : undefined} className={`relative group px-3 py-2 rounded-md border text-sm font-medium flex items-center space-x-2 transition-all duration-150 ${isProLocked ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-60' : model === m.name ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}>
+                            {model === m.name && !isProLocked && <CheckCircle2 className="h-4 w-4" />}
                             <span className="truncate">{m.name}</span>
-                            {m.multimodal && (<span title="Vision Model"><Eye className="h-4 w-4 text-purple-400 group-hover:text-purple-500" /></span>)}
+                            {isProLocked && <span className="text-[10px] font-semibold text-purple-600 bg-purple-100 px-1 py-0.5 rounded">PRO</span>}
+                            {m.multimodal && !isProLocked && (<span title="Vision Model"><Eye className="h-4 w-4 text-purple-400 group-hover:text-purple-500" /></span>)}
                             {m.server === SKIP_MODEL_SENTINEL && (<span title="No model call"><MinusCircle className="h-4 w-4 text-gray-400 group-hover:text-gray-500" /></span>)}
                             {!m.server.includes('api.observer-ai.com') && m.server !== SKIP_MODEL_SENTINEL && (<span title="Running Locally"><Server className="h-4 w-4 text-gray-400 group-hover:text-gray-500" /></span>)}
                         </button>
-                    ))}
+                        );
+                    })}
                 </div>
               </div>
             </div>
