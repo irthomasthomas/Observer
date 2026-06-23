@@ -87,6 +87,42 @@ export function useLastTools(
 }
 
 /**
+ * Hook to get the frame + prompt actually sent to the model on the last iteration.
+ * Mirrors useLastTools: only holds the latest capture and only re-renders when a new
+ * one lands (keyed on id + image presence, so it updates when the image arrives shortly
+ * after iteration-start). Avoids useIterations, which returns every base64 image per poll.
+ */
+export interface LastCapture {
+  image?: string;
+  prompt?: string;
+}
+
+export function useLastCapture(
+  agentId: string,
+  pollInterval = DEFAULT_POLL_INTERVAL
+): LastCapture {
+  const [capture, setCapture] = useState<LastCapture>({});
+  const keyRef = useRef('');
+
+  useEffect(() => {
+    const fetchCapture = () => {
+      const iterations = IterationStore.getIterationsForAgent(agentId);
+      const last = iterations[iterations.length - 1];
+      const key = last ? `${last.id}-${last.modelImages?.length ?? 0}` : '';
+      if (key === keyRef.current) return;
+      keyRef.current = key;
+      setCapture(last ? { image: last.modelImages?.[0], prompt: last.modelPrompt } : {});
+    };
+
+    fetchCapture();
+    const interval = setInterval(fetchCapture, pollInterval);
+    return () => clearInterval(interval);
+  }, [agentId, pollInterval]);
+
+  return capture;
+}
+
+/**
  * Hook to get historical sessions for an agent
  * Polls less frequently since historical data changes rarely
  */

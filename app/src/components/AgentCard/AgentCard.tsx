@@ -446,6 +446,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               sleepDurationMs={sleepDurationMs}
               skipReason={skipReason}
               isOverrun={isOverrun}
+              onActivity={onActivity}
             />
           ) : (
             // FIX: Pass the 'code' prop down to StaticAgentView

@@ -4,7 +4,7 @@ import { Clock, Power, Activity, Eye, Moon, Sun } from 'lucide-react';
 import { wakeAgentLoop } from '@utils/main_loop';
 import { StreamState, StreamManager } from '@utils/streamManager';
 import { CompleteAgent } from '@utils/agent_database';
-import { useLastTools } from '@hooks/useIterations';
+import { useLastTools, useLastCapture } from '@hooks/useIterations';
 import { DetectionMode } from '@utils/change_detector';
 import { isMobile } from '@utils/platform';
 import ToolStatus from '@components/AgentCard/ToolStatus';
@@ -67,18 +67,20 @@ const SleepIcon: React.FC<{ onWake?: () => void }> = ({ onWake }) => {
   );
 };
 
-const StateTicker: React.FC<{
+const ModelStatePanel: React.FC<{
   status: AgentLiveStatus;
+  capture?: { image?: string; prompt?: string };
   changeDetectionData?: ChangeDetectionData | null;
   onSettingsClick?: (threshold: 'text' | 'dhash' | 'pixel' | 'suspicious') => void;
   onWake?: () => void;
+  onClick?: () => void;
   loopProgress?: number;
   sleepProgress?: number;
   loopDurationMs?: number;
   sleepDurationMs?: number;
   skipReason?: 'same_inputs' | 'network_error' | null;
   isOverrun?: boolean;
-}> = ({ status, changeDetectionData, onSettingsClick, onWake, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, skipReason, isOverrun }) => {
+}> = ({ status, capture, changeDetectionData, onSettingsClick, onWake, onClick, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, skipReason, isOverrun }) => {
   const statusInfo = useMemo(() => {
     switch (status) {
       case 'STARTING': return { icon: <Power className="w-5 h-5" />, text: 'Agent is starting...', color: 'text-yellow-600' };
@@ -93,29 +95,63 @@ const StateTicker: React.FC<{
       default: return { icon: <div />, text: 'Idle', color: 'text-gray-400' };
     }
   }, [status, skipReason]);
+  // modelImages are stored as raw base64; add the data URL prefix unless already present
+  // (mirrors toDataUrl in mcp/registry.ts). Empty for text-only sensors / before first capture.
+  const src = capture?.image
+    ? (capture.image.startsWith('data:') ? capture.image : `data:image/png;base64,${capture.image}`)
+    : undefined;
+
   return (
-    <div className={`flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 ${statusInfo.color}`}>
-      <div className="flex-shrink-0">
-        {status === 'SLEEPING' ? <SleepIcon onWake={onWake} /> : statusInfo.icon}
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      title={onClick ? 'View activity log' : undefined}
+      className={`flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-2 ${onClick ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''}`}
+    >
+      {/* Left: the still frame the model actually reasoned about (contrasts with the live
+          feed on the left of the card — shows the agent snapshots a frame, not video). */}
+      {src && (
+        <img
+          src={src}
+          alt="Frame sent to the model"
+          className="h-16 w-16 md:h-20 md:w-20 rounded object-cover flex-shrink-0 border border-gray-200"
+        />
+      )}
+      {/* Right: live status, then the prompt that went with the frame. */}
+      <div className="flex-1 min-w-0">
+        <div className={`flex items-center gap-2 ${statusInfo.color}`}>
+          {/* Sleep/wake is interactive — don't let it bubble up to the activity modal. */}
+          <div className="flex-shrink-0" onClick={status === 'SLEEPING' ? (e) => e.stopPropagation() : undefined}>
+            {status === 'SLEEPING' ? <SleepIcon onWake={onWake} /> : statusInfo.icon}
+          </div>
+          <span className="font-medium text-sm">{statusInfo.text}</span>
+          {/* Pie timer for WAITING, SLEEPING, or overrun states */}
+          {(status === 'WAITING' || status === 'SLEEPING' || isOverrun) && (loopProgress || sleepProgress) && (
+            <PieTimer
+              progress={status === 'SLEEPING' ? (sleepProgress || 0) : (loopProgress || 0)}
+              color={status === 'SLEEPING' ? 'blue' : isOverrun ? 'orange' : 'green'}
+              totalDurationMs={status === 'SLEEPING' ? sleepDurationMs : loopDurationMs}
+              isFilling={status !== 'SLEEPING'}
+              size={20}
+            />
+          )}
+          {changeDetectionData && (
+            // Settings indicator opens its own modal — stop it from also firing the activity modal.
+            <span onClick={(e) => e.stopPropagation()}>
+              <ChangeDetectionIndicator
+                data={changeDetectionData}
+                onSettingsClick={onSettingsClick}
+              />
+            </span>
+          )}
+          {(status === 'THINKING' || status === 'RESPONDING' || status === 'STARTING') && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin ml-auto" />}
+        </div>
+        {src && capture?.prompt && (
+          <p className="text-xs text-gray-500 line-clamp-3 mt-1.5">{capture.prompt}</p>
+        )}
       </div>
-      <span className="font-medium text-sm">{statusInfo.text}</span>
-      {/* Pie timer for WAITING, SLEEPING, or overrun states */}
-      {(status === 'WAITING' || status === 'SLEEPING' || isOverrun) && (loopProgress || sleepProgress) && (
-        <PieTimer
-          progress={status === 'SLEEPING' ? (sleepProgress || 0) : (loopProgress || 0)}
-          color={status === 'SLEEPING' ? 'blue' : isOverrun ? 'orange' : 'green'}
-          totalDurationMs={status === 'SLEEPING' ? sleepDurationMs : loopDurationMs}
-          isFilling={status !== 'SLEEPING'}
-          size={20}
-        />
-      )}
-      {changeDetectionData && (
-        <ChangeDetectionIndicator
-          data={changeDetectionData}
-          onSettingsClick={onSettingsClick}
-        />
-      )}
-      {(status === 'THINKING' || status === 'RESPONDING' || status === 'STARTING') && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin ml-auto" />}
     </div>
   );
 };
@@ -305,6 +341,7 @@ interface ActiveAgentViewProps {
     sleepDurationMs?: number;
     skipReason?: 'same_inputs' | 'network_error' | null;
     isOverrun?: boolean;
+    onActivity?: (agentId: string) => void;
 }
 
 const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
@@ -319,13 +356,15 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
     loopDurationMs,
     sleepDurationMs,
     skipReason,
-    isOverrun
+    isOverrun,
+    onActivity
 }) => {
     const [streamingResponse, setStreamingResponse] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
     const [thinkingContent, setThinkingContent] = useState('');
     const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
     const lastTools = useLastTools(agentId);
+    const lastCapture = useLastCapture(agentId);
     const [changeDetectionData, setChangeDetectionData] = useState<ChangeDetectionData | null>(null);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [focusedThreshold, setFocusedThreshold] = useState<'text' | 'dhash' | 'pixel' | 'suspicious' | undefined>(undefined);
@@ -434,8 +473,10 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
 
             {/* Right Column: Status and Response */}
             <div className="space-y-4 flex flex-col justify-start overflow-visible">
-                <StateTicker
+                <ModelStatePanel
                     status={liveStatus}
+                    capture={lastCapture}
+                    onClick={onActivity ? () => onActivity(agentId) : undefined}
                     changeDetectionData={changeDetectionData}
                     onSettingsClick={(threshold) => {
                         setFocusedThreshold(threshold);
