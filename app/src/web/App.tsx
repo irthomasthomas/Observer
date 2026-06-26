@@ -52,10 +52,8 @@ import AgentActivityModal from '@components/AgentCard/AgentActivityModal';
 import FeedbackDialog from '@components/FeedbackDialog';
 import { startCommandSSE, updateCommandSSEToken } from '@utils/commandSSE';
 import WhitelistModal from '@components/WhitelistModal';
-import InteractiveTutorial from '@components/InteractiveTutorial';
 import LocalOnboardingTutorial from '@components/LocalOnboardingTutorial';
 import AgentChip from '@components/AgentChip';
-import { PERSON_DETECTOR_AGENT, PERSON_DETECTOR_CODE, PERSON_DETECTOR_ID } from '@utils/personDetectorAgent';
 import LiveStream from '@components/LiveStream';
 import { MCPProvider } from '../mcp/MCPContext';
 
@@ -147,13 +145,6 @@ function AppContent() {
   const [showLocalModeWarning, setShowLocalModeWarning] = useState(false);
   const [isLocalOnboardingActive, setIsLocalOnboardingActive] = useState(false);
 
-  // Tutorial modal state
-  const [tutorialModalInfo, setTutorialModalInfo] = useState<{
-    agentName: string;
-    agentId: string;
-    hasPhoneTools: boolean;
-  } | null>(null);
-  const [tutorialReplayKey, setTutorialReplayKey] = useState(0);
 
   // Minimized agents — persisted to localStorage
   const [minimizedAgents, setMinimizedAgents] = useState<Set<string>>(() => {
@@ -342,7 +333,6 @@ function AppContent() {
 
   const handleReplayTutorial = () => {
     localStorage.removeItem('observer_creator_tutorial_seen');
-    setTutorialReplayKey(k => k + 1);
     setIsLocalOnboardingActive(true);
   };
 
@@ -391,19 +381,6 @@ function AppContent() {
     if (user && 'sub' in user && user.sub) {
       localStorage.setItem(`observer_onboarding_complete_${user.sub}`, 'true');
     }
-  };
-
-  const handleTutorialComplete = (_completedAgentId: string) => {
-    Logger.info('TUTORIAL', 'Onboarding completed');
-    Analytics.tutorialCompleted();
-    markOnboardingComplete();
-    setTutorialModalInfo(null);
-  };
-
-  const handleTutorialDismiss = () => {
-    Logger.info('TUTORIAL', 'Onboarding dismissed');
-    markOnboardingComplete();
-    setTutorialModalInfo(null);
   };
 
   const handleDeleteClick = async (agentId: string) => {
@@ -801,7 +778,7 @@ function AppContent() {
         isOpen={isAcceptToSOpen}
         onAccept={() => {
           setIsAcceptToSOpen(false);
-          setTutorialModalInfo({ agentName: '', agentId: '', hasPhoneTools: false });
+          markOnboardingComplete();
         }}
       />
 
@@ -1263,7 +1240,6 @@ function AppContent() {
       />
 
       <LocalOnboardingTutorial
-        key={tutorialReplayKey}
         isActive={isLocalOnboardingActive}
         onDismiss={() => setIsLocalOnboardingActive(false)}
       />
@@ -1313,21 +1289,7 @@ function AppContent() {
 
       <LiveStream />
 
-      {tutorialModalInfo && (
-        <InteractiveTutorial
-          isActive={true}
-          onComplete={handleTutorialComplete}
-          onDismiss={handleTutorialDismiss}
-          agentId={tutorialModalInfo.agentId}
-          onImportAgent={async () => {
-            await saveAgent(PERSON_DETECTOR_AGENT, PERSON_DETECTOR_CODE);
-            await fetchAgents();
-            setTutorialModalInfo(prev => prev ? { ...prev, agentId: PERSON_DETECTOR_ID } : prev);
-          }}
-          onViewAllTiers={() => setActiveTab('obServer')}
-          onChooseLocalOnboarding={() => setIsLocalOnboardingActive(true)}
-        />
-      )}
+
      </MCPProvider>
     </div>
   );
