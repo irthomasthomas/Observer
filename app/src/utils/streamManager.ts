@@ -2,7 +2,7 @@ import { Logger } from './logging';
 import { TranscriptionRouter } from './whisper/TranscriptionRouter';
 import { TranscriptionSubscriber, TranscriptionSubscriberImpl } from './whisper/TranscriptionSubscriber';
 import { UnifiedTranscriptionService } from './whisper/UnifiedTranscriptionService';
-import { isWeb } from './platform';
+import { isWeb, isMobile } from './platform';
 import { browserStreamCapture } from './browserStreamCapture';
 import { tauriStreamCapture, PCMCallback } from './tauriStreamCapture';
 import { PCMAudioCapture, createPCMAudioCapture } from './audio/PCMAudioCapture';
@@ -484,8 +484,11 @@ class Manager {
 
   private async acquireMasterStream(type: MasterStreamType, captureImpl: typeof browserStreamCapture | typeof tauriStreamCapture): Promise<void> {
     try {
-      // Set up PiP overlay if using Tauri and acquiring display stream
-      if (!isWeb() && type === 'display') {
+      // Set up PiP overlay only on mobile, where the status/timer indicator is baked into
+      // a separate display stream. On desktop the overlay status is never set (see the
+      // isMobile() guard in ActiveAgentView), so the drawer would be a per-frame no-op and
+      // the desktop capture path skips the PiP canvas entirely.
+      if (isMobile() && type === 'display') {
         tauriStreamCapture.setPipOverlayDrawer((ctx, width, height) => {
           if (this.pipOverlayStatus) {
             this.drawPipOverlay(ctx, width, height);

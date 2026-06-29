@@ -9,6 +9,11 @@ mod error;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod audio_pipeline;
 
+// Runtime-tunable capture quality config (max width / JPEG quality / FPS), shared by all
+// desktop capture backends and set from the frontend before capture starts.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod capture_config;
+
 // Audio module - only needed for Windows/Linux (macOS uses unified desktop module)
 #[cfg(all(
     not(any(target_os = "android", target_os = "ios")),

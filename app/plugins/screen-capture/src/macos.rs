@@ -8,18 +8,17 @@
 //! running separate video and audio SCStreams.
 
 use crate::audio_pipeline::{SharedResampler, TARGET_SAMPLE_RATE};
+use crate::capture_config;
 use crate::error::{Error, Result};
 use crate::targets::{self, CaptureTarget, TargetKind};
 use base64::{engine::general_purpose::STANDARD, Engine};
-use image::codecs::jpeg::JpegEncoder;
-use image::imageops::FilterType;
-use image::{ImageBuffer, RgbaImage};
+use jpeg_encoder::{ColorType, Encoder};
 use parking_lot::{Mutex, RwLock};
 use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
+use screencapturekit::shareable_content::SCShareableContentInfo;
 use screencapturekit::stream::delegate_trait::StreamCallbacks;
 use serde::Serialize;
-use std::io::Cursor;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tauri::ipc::Channel;
@@ -55,10 +54,9 @@ pub struct AudioData {
     pub chunk_count: u64,
 }
 
-// Capture settings
-const JPEG_QUALITY: u8 = 50;
-const MAX_WIDTH: u32 = 1280;
-const TARGET_FPS: i32 = 10;
+// Capture quality (max width / JPEG quality / FPS) is runtime-tunable — pushed from the
+// frontend before capture starts and read from `capture_config` when we build the stream
+// and encode frames. See that module for defaults and rationale.
 const AUDIO_SAMPLE_RATE: u32 = 48000;
 
 /// Unified capture state for both video and audio
@@ -358,11 +356,11 @@ fn ensure_capture_running(
     let displays = content.displays();
     let windows = content.windows();
 
-    // Build content filter and pick an output size that matches the source's
-    // aspect ratio. A fixed 1920x1080 output makes ScreenCaptureKit letterbox any
-    // non-16:9 source with black bars — which both wastes tokens and throws off the
-    // crop coordinates the model picks off the frame — so size the buffer to the source.
-    let (filter, out_width, out_height) = if let Some(id) = &target_id {
+    // Build the content filter and remember the source's size in POINTS (used only as a
+    // fallback if the native pixel size isn't available). The actual buffer is sized in
+    // pixels below — SCStreamConfiguration is pixel-based, and sizing it from points
+    // captures Retina sources at half resolution (the root cause of soft/pixelated frames).
+    let (filter, frame_w_pts, frame_h_pts) = if let Some(id) = &target_id {
         if let Ok((kind, numeric_id)) = targets::parse_target_id(id) {
             match kind {
                 TargetKind::Monitor => {
@@ -379,8 +377,7 @@ fn ensure_capture_running(
                         frame.height
                     );
 
-                    let (w, h) = output_dimensions(frame.width, frame.height);
-                    (SCContentFilter::create().with_display(display).build(), w, h)
+                    (SCContentFilter::create().with_display(display).build(), frame.width, frame.height)
                 }
                 TargetKind::Window => {
                     let window = windows
@@ -396,8 +393,7 @@ fn ensure_capture_running(
                         frame.height
                     );
 
-                    let (w, h) = output_dimensions(frame.width, frame.height);
-                    (SCContentFilter::create().with_window(window).build(), w, h)
+                    (SCContentFilter::create().with_window(window).build(), frame.width, frame.height)
                 }
             }
         } else {
@@ -416,9 +412,11 @@ fn ensure_capture_running(
             frame.height
         );
 
-        let (w, h) = output_dimensions(frame.width, frame.height);
-        (SCContentFilter::create().with_display(display).build(), w, h)
+        (SCContentFilter::create().with_display(display).build(), frame.width, frame.height)
     };
+
+    // Size the capture buffer to the source's NATIVE PIXEL resolution (capped at MAX_WIDTH).
+    let (out_width, out_height) = capture_pixel_dimensions(&filter, frame_w_pts, frame_h_pts);
 
     log::info!(
         "[ScreenCapture] Output buffer sized to {}x{} (aspect-matched, no letterbox)",
@@ -427,7 +425,7 @@ fn ensure_capture_running(
     );
 
     // Configure stream for BOTH video and audio
-    let frame_interval = CMTime::new(1, TARGET_FPS);
+    let frame_interval = CMTime::new(1, capture_config::target_fps() as i32);
     let config = SCStreamConfiguration::new()
         .with_width(out_width)
         .with_height(out_height)
@@ -514,32 +512,15 @@ fn ensure_capture_running(
             let bytes_per_row = guard.bytes_per_row();
             let data = guard.as_slice();
 
-            // Convert BGRA to RGBA
-            let mut rgba_data = Vec::with_capacity(width * height * 4);
-            for y in 0..height {
-                let row_start = y * bytes_per_row;
-                for x in 0..width {
-                    let pixel_offset = row_start + x * 4;
-                    if pixel_offset + 3 < data.len() {
-                        let b = data[pixel_offset];
-                        let g = data[pixel_offset + 1];
-                        let r = data[pixel_offset + 2];
-                        let a = data[pixel_offset + 3];
-                        rgba_data.push(r);
-                        rgba_data.push(g);
-                        rgba_data.push(b);
-                        rgba_data.push(a);
-                    }
-                }
-            }
-
-            let image: RgbaImage = match ImageBuffer::from_raw(width as u32, height as u32, rgba_data) {
-                Some(img) => img,
-                None => return,
-            };
-
-            // Process and encode
-            if let Some(frame_data) = process_frame(&image, &state_for_video) {
+            // Encode straight from the BGRA buffer ScreenCaptureKit handed us. SCK has
+            // already scaled the frame to our configured output size, so there's no
+            // resize to do here — we skip the old BGRA→RGBA→RGB copy passes entirely and
+            // let the SIMD JPEG encoder read the BGRA bytes directly. Keeping this handler
+            // cheap is what stops frames backing up on SCK's dispatch queue (the cause of
+            // the growing capture-to-screen latency).
+            if let Some(frame_data) =
+                encode_bgra_frame(data, width as u32, height as u32, bytes_per_row, &state_for_video)
+            {
                 if let Err(e) = channel.send(frame_data) {
                     log::error!("[ScreenCapture] Failed to send video frame: {:?}", e);
                 }
@@ -713,8 +694,36 @@ fn maybe_stop_capture(state: &Arc<UnifiedCaptureState>) {
     log::info!("[ScreenCapture] Unified capture stopped");
 }
 
-/// Pick an output buffer size that preserves the source's aspect ratio while
-/// capping the width at MAX_WIDTH. Matching the source aspect ratio is what keeps
+/// Determine the capture buffer size in PIXELS for a given content filter.
+///
+/// `SCStreamConfiguration` sizes are in pixels, but `SCDisplay`/`SCWindow` frames are
+/// in points. On a Retina display points are half the real pixels, so sizing the buffer
+/// from frame points captures at half resolution — that downscale is what made frames
+/// look soft/pixelated regardless of JPEG quality. macOS 14+ exposes the exact
+/// point→pixel scale via `SCShareableContentInfo`, so we use it to capture at native
+/// resolution. On older macOS the info isn't available (`for_filter` returns `None` via
+/// the bridge's `@available` guard), so we fall back to the point dimensions — no
+/// regression versus the previous behavior.
+fn capture_pixel_dimensions(filter: &SCContentFilter, frame_w_pts: f64, frame_h_pts: f64) -> (u32, u32) {
+    if let Some(info) = SCShareableContentInfo::for_filter(filter) {
+        let (px_w, px_h) = info.pixel_size();
+        if px_w > 0 && px_h > 0 {
+            log::info!(
+                "[ScreenCapture] Native pixel size {}x{} (point→pixel scale {:.1})",
+                px_w,
+                px_h,
+                info.point_pixel_scale()
+            );
+            return output_dimensions(px_w as f64, px_h as f64);
+        }
+    }
+
+    log::info!("[ScreenCapture] Native pixel size unavailable (macOS <14); using point dimensions");
+    output_dimensions(frame_w_pts, frame_h_pts)
+}
+
+/// Pick an output buffer size that preserves the source's aspect ratio while capping the
+/// width at the configured max width. Matching the source aspect ratio is what keeps
 /// ScreenCaptureKit from padding frames with black bars. Dimensions are rounded to
 /// even numbers to stay friendly to the capture pipeline.
 fn output_dimensions(src_width: f64, src_height: f64) -> (u32, u32) {
@@ -722,9 +731,10 @@ fn output_dimensions(src_width: f64, src_height: f64) -> (u32, u32) {
         return (1280, 720); // sensible 16:9 fallback if the source size is unknown
     }
 
-    let (w, h) = if src_width > MAX_WIDTH as f64 {
-        let scale = MAX_WIDTH as f64 / src_width;
-        (MAX_WIDTH as f64, src_height * scale)
+    let max_width = capture_config::max_width() as f64;
+    let (w, h) = if src_width > max_width {
+        let scale = max_width / src_width;
+        (max_width, src_height * scale)
     } else {
         (src_width, src_height)
     };
@@ -738,37 +748,45 @@ fn output_dimensions(src_width: f64, src_height: f64) -> (u32, u32) {
     (to_even(w), to_even(h))
 }
 
-/// Process a frame and return FrameData
-fn process_frame(image: &RgbaImage, state: &Arc<UnifiedCaptureState>) -> Option<FrameData> {
-    let width = image.width();
-    let height = image.height();
+/// Encode a captured BGRA frame straight to JPEG.
+///
+/// ScreenCaptureKit delivers frames already scaled to our configured output size,
+/// so there is no downscale step on macOS. We feed the BGRA bytes (respecting the
+/// buffer's row stride) directly into the SIMD JPEG encoder — no intermediate
+/// RGBA/RGB copies — which is what keeps the 10fps capture loop from backing up.
+fn encode_bgra_frame(
+    bgra: &[u8],
+    width: u32,
+    height: u32,
+    bytes_per_row: usize,
+    state: &Arc<UnifiedCaptureState>,
+) -> Option<FrameData> {
+    let w = width as usize;
+    let h = height as usize;
+    let row_bytes = w * 4;
 
-    // Downscale if too large
-    let resized = if width > MAX_WIDTH {
-        let scale = MAX_WIDTH as f32 / width as f32;
-        let new_height = (height as f32 * scale) as u32;
-        image::imageops::resize(image, MAX_WIDTH, new_height, FilterType::Nearest)
-    } else {
-        image.clone()
-    };
-
-    let final_width = resized.width();
-    let final_height = resized.height();
-
-    // Convert RGBA to RGB
-    let rgba_bytes = resized.as_raw();
-    let mut rgb_bytes = Vec::with_capacity((final_width * final_height * 3) as usize);
-    for chunk in rgba_bytes.chunks_exact(4) {
-        rgb_bytes.push(chunk[0]);
-        rgb_bytes.push(chunk[1]);
-        rgb_bytes.push(chunk[2]);
+    if bgra.len() < bytes_per_row * h {
+        log::error!("[ScreenCapture] BGRA buffer smaller than expected, skipping frame");
+        return None;
     }
 
-    // Encode to JPEG
-    let mut jpeg_buffer = Cursor::new(Vec::new());
-    let mut encoder = JpegEncoder::new_with_quality(&mut jpeg_buffer, JPEG_QUALITY);
+    // jpeg-encoder wants tightly packed rows. CVPixelBuffer rows are frequently
+    // padded for alignment, so compact only when there's real padding — unpadded
+    // buffers are encoded in place with zero copies.
+    let packed: std::borrow::Cow<[u8]> = if bytes_per_row == row_bytes {
+        std::borrow::Cow::Borrowed(&bgra[..row_bytes * h])
+    } else {
+        let mut v = Vec::with_capacity(row_bytes * h);
+        for y in 0..h {
+            let start = y * bytes_per_row;
+            v.extend_from_slice(&bgra[start..start + row_bytes]);
+        }
+        std::borrow::Cow::Owned(v)
+    };
 
-    if let Err(e) = encoder.encode(&rgb_bytes, final_width, final_height, image::ExtendedColorType::Rgb8) {
+    let mut jpeg_bytes = Vec::new();
+    let encoder = Encoder::new(&mut jpeg_bytes, capture_config::jpeg_quality());
+    if let Err(e) = encoder.encode(&packed, width as u16, height as u16, ColorType::Bgra) {
         log::error!("[ScreenCapture] Failed to encode JPEG: {:?}", e);
         return None;
     }
@@ -778,9 +796,9 @@ fn process_frame(image: &RgbaImage, state: &Arc<UnifiedCaptureState>) -> Option<
     if current_frame == 0 {
         log::info!(
             "[ScreenCapture] First video frame processed ({}x{}, {} bytes)",
-            final_width,
-            final_height,
-            jpeg_buffer.get_ref().len()
+            width,
+            height,
+            jpeg_bytes.len()
         );
     }
 
@@ -788,7 +806,6 @@ fn process_frame(image: &RgbaImage, state: &Arc<UnifiedCaptureState>) -> Option<
         log::info!("[ScreenCapture] Video stream alive: {} frames", current_frame);
     }
 
-    let jpeg_bytes = jpeg_buffer.into_inner();
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -797,8 +814,8 @@ fn process_frame(image: &RgbaImage, state: &Arc<UnifiedCaptureState>) -> Option<
     Some(FrameData {
         frame: jpeg_bytes,
         timestamp,
-        width: final_width,
-        height: final_height,
+        width,
+        height,
         frame_count: current_frame,
     })
 }

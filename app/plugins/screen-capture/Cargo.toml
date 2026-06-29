@@ -19,6 +19,7 @@ thiserror = "2.0"
 # Desktop-only dependencies (shared across all desktop platforms)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
+jpeg-encoder = "0.6" # Pure-Rust SIMD JPEG encoder; encodes BGRA/RGBA directly (much faster than image's encoder)
 base64 = "0.21.0"
 tokio = { version = "1", features = ["sync", "time"] }
 parking_lot = "0.12"
@@ -33,7 +34,7 @@ rubato = "0.15"  # Audio resampling for PCM pipeline (48kHz -> 16kHz)
 
 # macOS-specific dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
-screencapturekit = "1.5.0"  # macOS ScreenCaptureKit for video and audio capture
+screencapturekit = { version = "1.5.0", features = ["macos_14_0"] }  # macOS ScreenCaptureKit; macos_14_0 unlocks SCShareableContentInfo for native pixel sizing
 xcap = "0.8.2"  # Still used for target enumeration (can be replaced with SCShareableContent later)
 rubato = "0.15"  # Audio resampling for PCM pipeline (48kHz -> 16kHz)
 

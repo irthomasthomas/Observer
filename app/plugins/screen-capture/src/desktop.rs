@@ -1,3 +1,4 @@
+use crate::capture_config;
 use crate::error::Result;
 use crate::targets::{self, CaptureTarget, TargetKind};
 use image::codecs::jpeg::JpegEncoder;
@@ -30,10 +31,9 @@ pub struct FrameData {
     pub frame_count: u64,
 }
 
-// Capture settings - optimized for performance
-const TARGET_FPS: u64 = 10; // 10fps is plenty for screen capture
-const JPEG_QUALITY: u8 = 50; // Lower quality for smaller files
-const MAX_WIDTH: u32 = 1280; // Max width for captured frames
+// Capture quality (max width / JPEG quality / FPS) is runtime-tunable via `capture_config`
+// — pushed from the frontend before capture starts and read when the capture loop begins
+// and as each frame is encoded.
 
 /// Shared capture state accessible across async contexts
 struct CaptureState {
@@ -204,7 +204,7 @@ fn run_capture_loop_with_channel(
     target: Option<(TargetKind, u32)>,
     on_frame: Channel<FrameData>,
 ) -> Result<()> {
-    let target_frame_time = Duration::from_millis(1000 / TARGET_FPS);
+    let target_frame_time = Duration::from_millis(1000 / capture_config::target_fps().max(1) as u64);
 
     enum CaptureSource {
         Monitor(Monitor),
@@ -252,7 +252,7 @@ fn run_capture_loop_with_channel(
                 monitor.name().unwrap_or_default(),
                 monitor.width().unwrap_or(0),
                 monitor.height().unwrap_or(0),
-                TARGET_FPS
+                capture_config::target_fps()
             );
             CaptureSource::Monitor(monitor)
         }
@@ -324,10 +324,11 @@ fn process_frame_for_channel(image: &RgbaImage, frame_count: u64) -> Option<Fram
     let height = image.height();
 
     // Downscale if too large
-    let resized = if width > MAX_WIDTH {
-        let scale = MAX_WIDTH as f32 / width as f32;
+    let max_width = capture_config::max_width();
+    let resized = if width > max_width {
+        let scale = max_width as f32 / width as f32;
         let new_height = (height as f32 * scale) as u32;
-        image::imageops::resize(image, MAX_WIDTH, new_height, FilterType::Nearest)
+        image::imageops::resize(image, max_width, new_height, FilterType::Nearest)
     } else {
         image.clone()
     };
@@ -346,7 +347,7 @@ fn process_frame_for_channel(image: &RgbaImage, frame_count: u64) -> Option<Fram
 
     // Encode to JPEG
     let mut jpeg_buffer = Cursor::new(Vec::new());
-    let mut encoder = JpegEncoder::new_with_quality(&mut jpeg_buffer, JPEG_QUALITY);
+    let mut encoder = JpegEncoder::new_with_quality(&mut jpeg_buffer, capture_config::jpeg_quality());
 
     if let Err(e) = encoder.encode(&rgb_bytes, final_width, final_height, image::ExtendedColorType::Rgb8) {
         log::error!("[ScreenCapture] Failed to encode JPEG for channel: {:?}", e);

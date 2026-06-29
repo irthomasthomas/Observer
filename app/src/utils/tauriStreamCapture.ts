@@ -2,6 +2,7 @@ import { invoke, Channel } from '@tauri-apps/api/core';
 import { isTauri, isDesktop } from './platform';
 import { Logger } from '@utils/logging';
 import { decodeBase64PCM, PCM_SAMPLE_RATE } from './audio/pcmUtils';
+import { SensorSettings } from './settings';
 
 /** Callback type for receiving PCM samples from unified pipeline */
 export type PCMCallback = (samples: Float32Array, streamType: 'screenAudio' | 'microphone') => void;
@@ -133,6 +134,21 @@ class TauriStreamCapture {
   /** Seat a capture target for the next display acquisition (consumed once). */
   setPreselectedTarget(targetId: string | null): void {
     this.preselectedTargetId = targetId;
+  }
+
+  /**
+   * Push the persisted capture quality (max width / JPEG quality / FPS) to the Rust
+   * backend. Called right before each desktop capture starts so the stream is built with
+   * the current settings — no app restart or live stream-restart needed; just toggle the
+   * screen sensor to apply a changed value.
+   */
+  private async pushCaptureConfig(): Promise<void> {
+    const { maxWidth, jpegQuality, fps } = SensorSettings.getCaptureQuality();
+    try {
+      await invoke('sc_set_capture_config', { maxWidth, jpegQuality, fps });
+    } catch (e) {
+      Logger.warn("TAURI_STREAM", `Failed to push capture config: ${e}`);
+    }
   }
 
   // Active stream results (for cleanup)
@@ -465,32 +481,82 @@ class TauriStreamCapture {
 
     Logger.info("TAURI_STREAM", `Starting video capture with target: ${selectedTargetId || 'iOS broadcast'}`);
 
-    // Create two canvases: clean (for AI) and pip (for display with overlay)
-    const canvasClean = document.createElement('canvas');
-    const canvasPip = document.createElement('canvas');
+    // Clean canvas (for AI/recording/preview). The PiP canvas only exists on mobile,
+    // where the status/timer overlay is baked into a separate stream. On desktop the
+    // overlay never draws (it's mobile-only), so a PiP canvas would be a pixel-identical
+    // copy of clean — a wasted per-frame drawImage plus a second canvas.captureStream()
+    // read-back. So on desktop we skip it and reuse the clean stream for the with-pip slot.
+    const usePip = !isDesktop();
 
+    const canvasClean = document.createElement('canvas');
     canvasClean.width = 1920;
     canvasClean.height = 1080;
-    canvasPip.width = 1920;
-    canvasPip.height = 1080;
-
     const ctxClean = canvasClean.getContext('2d');
-    const ctxPip = canvasPip.getContext('2d');
+    if (!ctxClean) {
+      throw new Error('Failed to create canvas context');
+    }
 
-    if (!ctxClean || !ctxPip) {
-      throw new Error('Failed to create canvas contexts');
+    const canvasPip = usePip ? document.createElement('canvas') : null;
+    const ctxPip = canvasPip ? canvasPip.getContext('2d') : null;
+    if (canvasPip) {
+      canvasPip.width = 1920;
+      canvasPip.height = 1080;
+      if (!ctxPip) {
+        throw new Error('Failed to create PiP canvas context');
+      }
     }
 
     const cleanStream = canvasClean.captureStream(30);
-    const pipStream = canvasPip.captureStream(30);
+    const pipStream = canvasPip ? canvasPip.captureStream(30) : cleanStream;
 
     let canvasSizeInitialized = false;
     let frameCount = 0;
     let isActive = true;
-    const cachedImage = new Image();
 
     const frameChannel = new Channel<FrameData>();
-    let previousObjectUrl: string | null = null;
+
+    // Coalescing decode pump: we only ever hold the NEWEST undecoded frame and decode
+    // one at a time. If frames arrive faster than we can decode+draw, the intermediate
+    // ones are dropped instead of queuing — so latency stays at ~one frame no matter how
+    // hard Rust pushes. (Decoding every frame is what let a multi-second backlog build.)
+    let pendingFrame: Uint8Array | null = null;
+    let draining = false;
+
+    const drainFrames = async () => {
+      draining = true;
+      while (pendingFrame && isActive) {
+        const bytes = pendingFrame;
+        pendingFrame = null; // frames arriving during this decode overwrite the slot
+        try {
+          const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+          if (!isActive) { bitmap.close(); break; }
+
+          if (!canvasSizeInitialized && bitmap.width > 0) {
+            canvasClean.width = bitmap.width;
+            canvasClean.height = bitmap.height;
+            if (canvasPip) {
+              canvasPip.width = bitmap.width;
+              canvasPip.height = bitmap.height;
+            }
+            canvasSizeInitialized = true;
+            Logger.info("TAURI_STREAM", `Video canvas adapted to ${bitmap.width}x${bitmap.height}`);
+          }
+
+          ctxClean.drawImage(bitmap, 0, 0);
+
+          if (ctxPip && canvasPip) {
+            ctxPip.drawImage(bitmap, 0, 0);
+            if (this.pipOverlayDrawer) {
+              this.pipOverlayDrawer(ctxPip, canvasPip.width, canvasPip.height);
+            }
+          }
+          bitmap.close();
+        } catch (e) {
+          Logger.error("TAURI_STREAM", `Image decode error: ${e}`);
+        }
+      }
+      draining = false;
+    };
 
     frameChannel.onmessage = (frameData: FrameData) => {
       if (!isActive) return;
@@ -502,11 +568,6 @@ class TauriStreamCapture {
       }
       if (frameCount % 100 === 0) {
         Logger.debug("TAURI_STREAM", `Received ${frameCount} video frames`);
-      }
-
-      // Revoke previous object URL to prevent memory leak
-      if (previousObjectUrl) {
-        URL.revokeObjectURL(previousObjectUrl);
       }
 
       // Ensure we have a proper Uint8Array for Blob creation
@@ -524,48 +585,19 @@ class TauriStreamCapture {
         frameBytes = new Uint8Array(rawFrame as ArrayBufferLike);
       }
 
-      // Create blob and object URL from raw JPEG bytes
-      const blob = new Blob([frameBytes], { type: 'image/jpeg' });
-      const objectUrl = URL.createObjectURL(blob);
-      previousObjectUrl = objectUrl;
-
       // Store converted bytes for getLatestFrame() - base64 computed lazily when needed
       this.latestFrameBytes = frameBytes;
       this.latestBase64Frame = null; // Clear cached base64, will be recomputed on demand
 
-      if (frameCount === 1) {
-        Logger.info("TAURI_STREAM", `Created blob URL: ${objectUrl}, blob size: ${blob.size}`);
-      }
-
-      cachedImage.onerror = (e) => {
-        Logger.error("TAURI_STREAM", `Image load error: ${e}`);
-      };
-
-      cachedImage.onload = () => {
-        if (!isActive) return;
-
-        if (!canvasSizeInitialized && cachedImage.naturalWidth > 0) {
-          canvasClean.width = cachedImage.naturalWidth;
-          canvasClean.height = cachedImage.naturalHeight;
-          canvasPip.width = cachedImage.naturalWidth;
-          canvasPip.height = cachedImage.naturalHeight;
-          canvasSizeInitialized = true;
-          Logger.info("TAURI_STREAM", `Video canvas adapted to ${cachedImage.naturalWidth}x${cachedImage.naturalHeight}`);
-        }
-
-        ctxClean.drawImage(cachedImage, 0, 0);
-        ctxPip.drawImage(cachedImage, 0, 0);
-
-        if (this.pipOverlayDrawer) {
-          this.pipOverlayDrawer(ctxPip, canvasPip.width, canvasPip.height);
-        }
-      };
-
-      cachedImage.src = objectUrl;
+      // Hand the freshest frame to the decode pump (drops any older undecoded frame).
+      pendingFrame = frameBytes;
+      if (!draining) void drainFrames();
     };
 
     // Start video-only capture
     if (isDesktop()) {
+      // Apply the current capture quality settings before the stream is built.
+      await this.pushCaptureConfig();
       // Desktop: non-ACL-gated app-command wrapper (see sc_start_video_stream in
       // desktop/src/lib.rs) — the plugin command is ACL-gated and intermittently
       // denied for the main window on Linux.
@@ -601,10 +633,6 @@ class TauriStreamCapture {
         this.capturing = false;
         this.latestFrameBytes = null;
         this.latestBase64Frame = null;
-        if (previousObjectUrl) {
-          URL.revokeObjectURL(previousObjectUrl);
-          previousObjectUrl = null;
-        }
 
         if (isDesktop()) {
           await invoke('sc_stop_video');
@@ -619,7 +647,9 @@ class TauriStreamCapture {
         }
 
         cleanStream.getTracks().forEach(track => track.stop());
-        pipStream.getTracks().forEach(track => track.stop());
+        if (pipStream !== cleanStream) {
+          pipStream.getTracks().forEach(track => track.stop());
+        }
 
         Logger.info("TAURI_STREAM", `Video stream stopped after ${frameCount} frames`);
       },
@@ -866,37 +896,44 @@ class TauriStreamCapture {
 
     Logger.info("TAURI_STREAM", `Starting capture with target: ${selectedTargetId || 'default'}`);
 
-    // Create two canvases: clean (for AI) and pip (for display with overlay)
-    const canvasClean = document.createElement('canvas');
-    const canvasPip = document.createElement('canvas');
+    // Clean canvas (for AI/recording/preview). The PiP canvas only exists on mobile,
+    // where the status/timer overlay is baked into a separate stream. On desktop the
+    // overlay never draws (it's mobile-only), so a PiP canvas would be a pixel-identical
+    // copy of clean — a wasted per-frame drawImage plus a second canvas.captureStream()
+    // read-back. So on desktop we skip it and reuse the clean stream for the with-pip slot.
+    const usePip = !isDesktop();
 
+    const canvasClean = document.createElement('canvas');
     // Initial size - will be adapted to actual frame dimensions
     canvasClean.width = 1920;
     canvasClean.height = 1080;
-    canvasPip.width = 1920;
-    canvasPip.height = 1080;
-
     const ctxClean = canvasClean.getContext('2d');
-    const ctxPip = canvasPip.getContext('2d');
+    if (!ctxClean) {
+      throw new Error('Failed to create canvas context');
+    }
 
-    if (!ctxClean || !ctxPip) {
-      throw new Error('Failed to create canvas contexts');
+    const canvasPip = usePip ? document.createElement('canvas') : null;
+    const ctxPip = canvasPip ? canvasPip.getContext('2d') : null;
+    if (canvasPip) {
+      canvasPip.width = 1920;
+      canvasPip.height = 1080;
+      if (!ctxPip) {
+        throw new Error('Failed to create PiP canvas context');
+      }
     }
 
     // Create MediaStreams from canvases
     const cleanStream = canvasClean.captureStream(30);
-    const pipStream = canvasPip.captureStream(30);
+    const pipStream = canvasPip ? canvasPip.captureStream(30) : cleanStream;
 
     let canvasSizeInitialized = false;
     let frameCount = 0;
     let isActive = true;
-    const cachedImage = new Image();
 
     // Create channels to receive frames and audio from Rust
     const frameChannel = new Channel<FrameData>();
     const audioChannel = new Channel<AudioData>();
     let audioChunkCount = 0;
-    let previousObjectUrl: string | null = null;
 
     // Set up audio processing to convert PCM to MediaStream
     let audioContext: AudioContext | null = null;
@@ -1007,6 +1044,52 @@ class TauriStreamCapture {
     // Initialize audio upfront
     await initializeAudio();
 
+    // Coalescing decode pump: hold only the NEWEST undecoded frame and decode one at a
+    // time, dropping intermediates under load so latency stays at ~one frame. See the
+    // matching pump in startVideoStream for the rationale.
+    let pendingFrame: Uint8Array | null = null;
+    let draining = false;
+
+    const drainFrames = async () => {
+      draining = true;
+      while (pendingFrame && isActive) {
+        const bytes = pendingFrame;
+        pendingFrame = null; // frames arriving during this decode overwrite the slot
+        try {
+          const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+          if (!isActive) { bitmap.close(); break; }
+
+          // Adapt canvas size on first frame
+          if (!canvasSizeInitialized && bitmap.width > 0) {
+            canvasClean.width = bitmap.width;
+            canvasClean.height = bitmap.height;
+            if (canvasPip) {
+              canvasPip.width = bitmap.width;
+              canvasPip.height = bitmap.height;
+            }
+            canvasSizeInitialized = true;
+            Logger.info("TAURI_STREAM", `Canvas adapted to ${bitmap.width}x${bitmap.height}`);
+          }
+
+          // Draw to clean canvas (no overlay)
+          ctxClean.drawImage(bitmap, 0, 0);
+
+          // Draw to PiP canvas (with overlay for iOS background mode) — mobile only
+          if (ctxPip && canvasPip) {
+            ctxPip.drawImage(bitmap, 0, 0);
+            // Draw PiP overlay if set (used on iOS for background indicator)
+            if (this.pipOverlayDrawer) {
+              this.pipOverlayDrawer(ctxPip, canvasPip.width, canvasPip.height);
+            }
+          }
+          bitmap.close();
+        } catch (e) {
+          Logger.error("TAURI_STREAM", `Image decode error: ${e}`);
+        }
+      }
+      draining = false;
+    };
+
     frameChannel.onmessage = (frameData: FrameData) => {
       if (!isActive) return;
 
@@ -1017,11 +1100,6 @@ class TauriStreamCapture {
       }
       if (frameCount % 100 === 0) {
         Logger.debug("TAURI_STREAM", `Received ${frameCount} frames via channel`);
-      }
-
-      // Revoke previous object URL to prevent memory leak
-      if (previousObjectUrl) {
-        URL.revokeObjectURL(previousObjectUrl);
       }
 
       // Ensure we have a proper Uint8Array for Blob creation
@@ -1043,45 +1121,9 @@ class TauriStreamCapture {
       this.latestFrameBytes = frameBytes;
       this.latestBase64Frame = null; // Clear cached base64, will be recomputed on demand
 
-      // Create blob and object URL from raw JPEG bytes
-      const blob = new Blob([frameBytes], { type: 'image/jpeg' });
-      const objectUrl = URL.createObjectURL(blob);
-      previousObjectUrl = objectUrl;
-
-      if (frameCount === 1) {
-        Logger.info("TAURI_STREAM", `Created blob URL: ${objectUrl}, blob size: ${blob.size}`);
-      }
-
-      cachedImage.onerror = (e) => {
-        Logger.error("TAURI_STREAM", `Image load error: ${e}`);
-      };
-
-      cachedImage.onload = () => {
-        if (!isActive) return;
-
-        // Adapt canvas size on first frame
-        if (!canvasSizeInitialized && cachedImage.naturalWidth > 0) {
-          canvasClean.width = cachedImage.naturalWidth;
-          canvasClean.height = cachedImage.naturalHeight;
-          canvasPip.width = cachedImage.naturalWidth;
-          canvasPip.height = cachedImage.naturalHeight;
-          canvasSizeInitialized = true;
-          Logger.info("TAURI_STREAM", `Canvas adapted to ${cachedImage.naturalWidth}x${cachedImage.naturalHeight}`);
-        }
-
-        // Draw to clean canvas (no overlay)
-        ctxClean.drawImage(cachedImage, 0, 0);
-
-        // Draw to PiP canvas (with overlay for iOS background mode)
-        ctxPip.drawImage(cachedImage, 0, 0);
-
-        // Draw PiP overlay if set (used on iOS for background indicator)
-        if (this.pipOverlayDrawer) {
-          this.pipOverlayDrawer(ctxPip, canvasPip.width, canvasPip.height);
-        }
-      };
-
-      cachedImage.src = objectUrl;
+      // Hand the freshest frame to the decode pump (drops any older undecoded frame).
+      pendingFrame = frameBytes;
+      if (!draining) void drainFrames();
     };
 
     audioChannel.onmessage = (audioData: AudioData) => {
@@ -1124,6 +1166,8 @@ class TauriStreamCapture {
     // Start the capture stream
     try {
       if (isDesktop()) {
+        // Apply the current capture quality settings before the stream is built.
+        await this.pushCaptureConfig();
         // Desktop: non-ACL-gated app-command wrappers (video + audio started
         // independently, mirroring acquireMasterStream). See sc_* in lib.rs.
         await invoke('sc_start_video_stream', {
@@ -1178,10 +1222,6 @@ class TauriStreamCapture {
         this.latestFrameBytes = null;
         this.latestBase64Frame = null;
         this.latestAudioData = null;
-        if (previousObjectUrl) {
-          URL.revokeObjectURL(previousObjectUrl);
-          previousObjectUrl = null;
-        }
 
         if (isDesktop()) {
           // Desktop: Stop the xcap capture (also stops audio)
@@ -1203,7 +1243,9 @@ class TauriStreamCapture {
 
         // Stop canvas streams
         cleanStream.getTracks().forEach(track => track.stop());
-        pipStream.getTracks().forEach(track => track.stop());
+        if (pipStream !== cleanStream) {
+          pipStream.getTracks().forEach(track => track.stop());
+        }
 
         // Stop audio stream and close context
         if (screenAudioStream) {

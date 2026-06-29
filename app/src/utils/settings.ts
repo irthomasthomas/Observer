@@ -192,6 +192,27 @@ class SettingsManager {
     public setMcpYoloMode(value: boolean): void {
         localStorage.setItem(this.MCP_YOLO_MODE_KEY, String(value));
     }
+
+    // --- DESKTOP SCREEN CAPTURE QUALITY ---
+    // Tunable max width / JPEG quality / FPS, pushed to the Rust capture backend
+    // (sc_set_capture_config) right before each capture starts. Defaults = "Low" tier:
+    // light and fast, sharper-per-pixel than the old build thanks to pixel-correct sizing.
+    private readonly CAPTURE_QUALITY_KEY = 'observer-ai:settings:captureQuality';
+    private readonly CAPTURE_QUALITY_DEFAULTS = { maxWidth: 1280, jpegQuality: 55, fps: 10 };
+
+    public getCaptureQuality(): { maxWidth: number; jpegQuality: number; fps: number } {
+        const stored = localStorage.getItem(this.CAPTURE_QUALITY_KEY);
+        if (!stored) return { ...this.CAPTURE_QUALITY_DEFAULTS };
+        try {
+            return { ...this.CAPTURE_QUALITY_DEFAULTS, ...JSON.parse(stored) };
+        } catch {
+            return { ...this.CAPTURE_QUALITY_DEFAULTS };
+        }
+    }
+
+    public setCaptureQuality(value: { maxWidth: number; jpegQuality: number; fps: number }): void {
+        localStorage.setItem(this.CAPTURE_QUALITY_KEY, JSON.stringify(value));
+    }
 }
 
 // Export a single instance

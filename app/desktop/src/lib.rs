@@ -407,6 +407,18 @@ async fn sc_get_capture_targets(
         .map_err(|e| e.to_string())
 }
 
+/// Set the runtime capture quality knobs. Pushed by the frontend before capture starts;
+/// read when the stream is (re)built, so a change takes effect on the next capture start.
+#[tauri::command]
+async fn sc_set_capture_config(
+    max_width: u32,
+    jpeg_quality: u8,
+    fps: u32,
+) -> Result<(), String> {
+    tauri_plugin_screen_capture::capture_config::set(max_width, jpeg_quality, fps);
+    Ok(())
+}
+
 // Shortcut commands moved to shortcuts module
 
 // Shortcut helper functions moved to shortcuts module
@@ -1526,6 +1538,7 @@ pub fn run() {
             sc_stop_audio,
             sc_stop_capture,
             sc_get_capture_targets,
+            sc_set_capture_config,
             shortcuts::get_shortcut_config,
             shortcuts::get_registered_shortcuts,
             shortcuts::set_shortcut_config,

@@ -81,6 +81,15 @@ const SettingsTab = () => {
   const [showMoveShortcuts, setShowMoveShortcuts] = useState(false);
   const [showResizeShortcuts, setShowResizeShortcuts] = useState(false);
 
+  // --- SCREEN CAPTURE QUALITY STATE (Desktop Only) ---
+  const [captureQuality, setCaptureQuality] = useState(SensorSettings.getCaptureQuality());
+
+  const handleCaptureQualityChange = (field: 'maxWidth' | 'jpegQuality' | 'fps', value: number) => {
+    const updated = { ...captureQuality, [field]: value };
+    setCaptureQuality(updated);
+    SensorSettings.setCaptureQuality(updated);
+  };
+
   // --- AUDIO TEST STATE ---
   type AudioTestSource = 'microphone' | 'screenAudio' | 'allAudio';
   interface TranscriptionRecord {
@@ -856,6 +865,61 @@ const SettingsTab = () => {
                   Overlay shortcuts require an app restart to take effect. Agent shortcuts are applied immediately.
                 </p>
               </div>
+            </div>
+          </div>
+          {/* --- Screen Capture Quality Card --- */}
+          <div className="bg-white shadow-md rounded-lg mb-6">
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-semibold flex items-center">
+                <Monitor className="h-5 w-5 mr-2 text-purple-500" />
+                Screen Capture Quality
+              </h3>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="cap-max-width" className="block text-sm font-medium text-gray-700 mb-1">Max width (px)</label>
+                  <input
+                    id="cap-max-width"
+                    type="number"
+                    min={160}
+                    max={7680}
+                    step={2}
+                    value={captureQuality.maxWidth}
+                    onChange={(e) => handleCaptureQualityChange('maxWidth', parseInt(e.target.value, 10) || 0)}
+                    className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="cap-jpeg-quality" className="block text-sm font-medium text-gray-700 mb-1">JPEG quality (1–100)</label>
+                  <input
+                    id="cap-jpeg-quality"
+                    type="number"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={captureQuality.jpegQuality}
+                    onChange={(e) => handleCaptureQualityChange('jpegQuality', parseInt(e.target.value, 10) || 0)}
+                    className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="cap-fps" className="block text-sm font-medium text-gray-700 mb-1">FPS</label>
+                  <input
+                    id="cap-fps"
+                    type="number"
+                    min={1}
+                    max={120}
+                    step={1}
+                    value={captureQuality.fps}
+                    onChange={(e) => handleCaptureQualityChange('fps', parseInt(e.target.value, 10) || 0)}
+                    className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Higher values are sharper but use more CPU. Changes apply the next time screen capture starts — toggle the screen sensor off and on to re-tune. Defaults: 1280 / 55 / 10.
+              </p>
             </div>
           </div>
         </>
