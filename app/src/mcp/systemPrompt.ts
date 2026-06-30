@@ -122,6 +122,7 @@ App tools (Observer desktop app only): \`ask(question, title?)\`, \`message(mess
 - **State in the prompt, decisions in the code:** have the model output a small structured signal (e.g. a keyword or number on the last line) and branch on it in \`code\`.
 - **Be proactive with read tools:** ${proactiveTools}
 - **Default model:** use gemma-4-26b-a4b-it, which is multimodal so use $SCREEN and $CAMERA mainly, don't use their OCR counterparts.
+- **Chain of Thought:** Always ask the model to describe what it sees and follow the 1. Describe, 2. Decide steps, never zero-shot decisions.
 
 ${goldenPath}
 // Verification step, adapt to either cropped screen or just see general agent performance.
@@ -153,7 +154,7 @@ $SCREEN
 \`\`\`javascript
 if (response.includes("FINISHED")) {
   call("+1 999 9999 9999", "Your steam download has finished!");
-  sendSms("+1 999 9999 9999", "Your steam download has finished!", screen);
+  sendSms("+1 999 9999 9999", "Your steam download has finished!", screen); // ALWAYS append the screen if the screen sensor was used and if the tool supports it.
   sendWhatsapp("+1 999 9999 9999", "Your steam download has finished!", screen); // Use only 1 notification normally, but here are all phone examples
   sleep(300000); // always sleep after a call(), sendSms() or sendWhatapp() call these cost money
 }
@@ -175,7 +176,7 @@ $CAMERA
 - **code:**
 \`\`\`javascript
 if (response.includes("PERSON_DETECTED")) {
-  sendTelegram("123456789", "A person has been detected", camera);  
+  sendTelegram("123456789", "A person has been detected", camera);  // ALWAYS append the camera if the camera sensor was used and if the tool supports it. 
   sendEmail("email@address.com", "A person has been detected", camera);
   sendDiscord("https://discord.com/api/webhooks/...", "A person has been detected", camera); // normally use 1
 }
