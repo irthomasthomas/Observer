@@ -83,6 +83,38 @@ const ToolChip: React.FC<{ call: ToolCall; status?: ToolStatusEntry }> = ({ call
   </div>
 );
 
+// How long a `check_whitelist` call must stay 'running' before we show the QR pill. The
+// executor's very first poll is often already a hit (number was whitelisted earlier), which
+// resolves in one network round-trip — without this grace period the pill would mount then
+// immediately unmount, flashing the QR codes for no reason.
+const WHITELIST_PILL_DELAY_MS = 600;
+
+/** Gates WhitelistInline behind WHITELIST_PILL_DELAY_MS of sustained 'running' status. */
+const CheckWhitelistGate: React.FC<{
+  toolCallId: string;
+  status?: ToolStatusEntry;
+  onCancel: () => void;
+}> = ({ toolCallId, status, onCancel }) => {
+  const isRunning = status?.status === 'running';
+  const [showPill, setShowPill] = useState(false);
+
+  useEffect(() => {
+    if (!isRunning) {
+      setShowPill(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowPill(true), WHITELIST_PILL_DELAY_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, toolCallId]);
+
+  if (!showPill) return null;
+  const phoneNumber: string | undefined = status?.args?.phone_number;
+  if (!phoneNumber) return null;
+  const channel = status?.args?.channel as WhitelistChannel | undefined;
+  return <WhitelistInline phoneNumber={phoneNumber} channel={channel} onCancel={onCancel} />;
+};
+
 // ===================================================================================
 //  DOWNLOAD-MODEL PROGRESS  (live bars while download_model runs)
 // ===================================================================================
@@ -595,18 +627,9 @@ const MCP: React.FC<MCPProps> = ({
           {toolCalls.some(tc => tc.function.name === 'download_model') && <DownloadModelProgress />}
           {toolCalls
             .filter(tc => tc.function.name === 'check_whitelist')
-            .map(tc => {
-              // The check_whitelist executor BLOCKS while the number isn't whitelisted, so the
-              // pill is shown exactly while that call is in flight ('running'); it unmounts on
-              // its own once the gate resolves and the run continues to start_agent. Args carry
-              // the number/channel (no result exists yet while it's still waiting).
-              const st = toolStatus.get(tc.id);
-              if (st?.status !== 'running') return null;
-              const phoneNumber: string | undefined = st.args?.phone_number;
-              if (!phoneNumber) return null;
-              const channel = st.args?.channel as WhitelistChannel | undefined;
-              return <WhitelistInline key={tc.id} phoneNumber={phoneNumber} channel={channel} onCancel={stop} />;
-            })}
+            .map(tc => (
+              <CheckWhitelistGate key={tc.id} toolCallId={tc.id} status={toolStatus.get(tc.id)} onCancel={stop} />
+            ))}
         </div>
       </div>
     );
