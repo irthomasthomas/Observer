@@ -17,30 +17,10 @@ export const Analytics = {
   localModeSignIn: () => track('local_mode_sign_in_clicked'),
   localModeContinue: () => track('local_mode_continue_clicked'),
 
-  // ── Tutorial ────────────────────────────────────────────────────────────────
-  tutorialStarted: () => track('tutorial_started'),
-  tutorialDismissed: (atStep: string) => track('tutorial_dismissed_early', { at_step: atStep }),
-  tutorialCompleted: () => track('tutorial_completed'),
-
-  // ── Upsell ──────────────────────────────────────────────────────────────────
-  upsellShown: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('upsell_shown', { source }),
-  upsellFreeTrial: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('upsell_free_trial_clicked', { source }),
-  upsellGithub: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('upsell_github_clicked', { source }),
-  upsellContinueFree: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('upsell_continue_free_clicked', { source }),
-  upsellViewTiers: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('upsell_view_tiers_clicked', { source }),
-
-  // ── Next-step fork ──────────────────────────────────────────────────────────
-  forkShown: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('fork_shown', { source }),
-  forkAiCreator: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('fork_ai_creator_clicked', { source }),
-  forkBuildIt: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('fork_build_it_clicked', { source }),
-  forkDismissed: (source: 'tutorial_complete' | 'tutorial_dismissed') =>
-    track('fork_dismissed', { source }),
+  // ── Upsell (shown in WelcomeModal right after ToS acceptance) ────────────────
+  upsellShown: (source: 'welcome') => track('upsell_shown', { source }),
+  upsellFreeTrial: (source: 'welcome') => track('upsell_free_trial_clicked', { source }),
+  upsellGithub: (source: 'welcome') => track('upsell_github_clicked', { source }),
+  upsellContinueFree: (source: 'welcome') => track('upsell_continue_free_clicked', { source }),
+  upsellViewTiers: (source: 'welcome') => track('upsell_view_tiers_clicked', { source }),
 };

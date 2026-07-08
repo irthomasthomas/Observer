@@ -142,6 +142,7 @@ function AppContent() {
 
   // AcceptToS modal state
   const [isAcceptToSOpen, setIsAcceptToSOpen] = useState(false);
+  const [isWelcomeUpsellOpen, setIsWelcomeUpsellOpen] = useState(false);
   const [showLocalModeWarning, setShowLocalModeWarning] = useState(false);
   const [isLocalOnboardingActive, setIsLocalOnboardingActive] = useState(false);
 
@@ -778,8 +779,18 @@ function AppContent() {
         isOpen={isAcceptToSOpen}
         onAccept={() => {
           setIsAcceptToSOpen(false);
+          setIsWelcomeUpsellOpen(true);
+        }}
+      />
+
+      <WelcomeModal
+        isOpen={isWelcomeUpsellOpen}
+        onClose={() => {
+          setIsWelcomeUpsellOpen(false);
           markOnboardingComplete();
         }}
+        onViewAllTiers={() => setActiveTab('obServer')}
+        mode="upsell"
       />
 
       <AppHeader
@@ -1234,9 +1245,8 @@ function AppContent() {
         isOpen={showLocalModeWarning}
         onClose={() => setShowLocalModeWarning(false)}
         onViewAllTiers={() => setActiveTab('obServer')}
-        intent="local"
-        tier={null}
-        onPrivacyAccepted={() => setIsLocalOnboardingActive(true)}
+        mode="local"
+        onContinueLocal={() => setIsLocalOnboardingActive(true)}
       />
 
       <LocalOnboardingTutorial
