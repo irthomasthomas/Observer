@@ -17,7 +17,7 @@ interface WelcomeModalProps {
   onContinueLocal?: () => void; // local mode only: called when user confirms they know what they're doing
 }
 
-export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onViewAllTiers, mode, onContinueLocal }) => {
+export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mode, onContinueLocal }) => {
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
