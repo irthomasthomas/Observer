@@ -278,9 +278,9 @@ We welcome contributions from the community! Here's how you can help:
 
 ## Sponsors
 
-| | |
-|---|---|
-| <img src="https://signpath.org/assets/logo.svg" width="200" height="32" alt="SignPath"/> | Free Open Source Software code signing on Windows provided by [SignPath.io](https://signpath.io/), certificate by [SignPath Foundation](https://signpath.org/) |
+[<img src="https://signpath.org/assets/logo.svg" width="150" alt="SignPath"/>](https://signpath.org/)
+
+Free Open Source Software code signing on Windows provided by [SignPath.io](https://signpath.io/), certificate by [SignPath Foundation](https://signpath.org/)
 
 ## License
 
