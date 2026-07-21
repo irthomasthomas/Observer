@@ -15,9 +15,12 @@ interface WelcomeModalProps {
   onViewAllTiers: () => void;
   mode: 'local' | 'upsell';
   onContinueLocal?: () => void; // local mode only: called when user confirms they know what they're doing
+  /** Upsell framing: 'onboarding' (right after ToS) vs 'activation' (celebratory, after first agent starts). */
+  variant?: 'onboarding' | 'activation';
 }
 
-export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mode, onContinueLocal }) => {
+export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mode, onContinueLocal, variant = 'onboarding' }) => {
+  const upsellSource = variant === 'activation' ? 'activation' : 'welcome';
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -214,12 +217,16 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
             <div className="text-center mb-4 pb-4 md:mb-6 md:pb-6 border-b-2 border-gray-200">
               <div className="flex justify-center items-center mb-2 md:mb-3">
                 <img src="/eye-logo-black.svg" alt="Observer AI Logo" className="h-10 w-10 md:h-16 md:w-16 mr-2 md:mr-3" />
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">Welcome to Observer!</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">
+                  {variant === 'activation' ? 'You did it! 🎉' : 'Welcome to Observer!'}
+                </h1>
               </div>
 
               {/* Hidden on mobile for compactness */}
               <p className="hidden md:block text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                Local micro-agents that watch, log, and react.
+                {variant === 'activation'
+                  ? 'You have a running agent. Keep it running with Observer Pro — or continue free.'
+                  : 'Local micro-agents that watch, log, and react.'}
               </p>
             </div>
 
@@ -288,7 +295,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
 
                 <button
                   onClick={() => {
-                    Analytics.upsellFreeTrial('welcome');
+                    Analytics.upsellFreeTrial(upsellSource);
                     if (isAppleDevice) handleApplePurchasePro(); else handleProCheckout();
                   }}
                   disabled={isButtonLoading || isAppleLoading}
@@ -314,7 +321,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
               {/* Action Buttons - Stacked on mobile, inline on desktop */}
               <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3">
                 <button
-                  onClick={() => { Analytics.upsellGithub('welcome'); handleStarGithub(); }}
+                  onClick={() => { Analytics.upsellGithub(upsellSource); handleStarGithub(); }}
                   className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium flex items-center gap-2 group shadow-md text-sm md:text-base"
                 >
                   <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 group-hover:scale-110 transition-transform" />
@@ -325,7 +332,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                 <div className="hidden md:block text-gray-300">|</div>
 
                 <button
-                  onClick={() => { Analytics.upsellContinueFree('welcome'); handleClose(); }}
+                  onClick={() => { Analytics.upsellContinueFree(upsellSource); handleClose(); }}
                   className="text-xs md:text-sm text-gray-600 hover:text-gray-800 hover:underline transition-colors font-medium"
                 >
                   Continue with free tier →

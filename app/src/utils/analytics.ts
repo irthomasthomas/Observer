@@ -17,10 +17,16 @@ export const Analytics = {
   localModeSignIn: () => track('local_mode_sign_in_clicked'),
   localModeContinue: () => track('local_mode_continue_clicked'),
 
-  // ── Upsell (shown in WelcomeModal right after ToS acceptance) ────────────────
-  upsellShown: (source: 'welcome') => track('upsell_shown', { source }),
-  upsellFreeTrial: (source: 'welcome') => track('upsell_free_trial_clicked', { source }),
-  upsellGithub: (source: 'welcome') => track('upsell_github_clicked', { source }),
-  upsellContinueFree: (source: 'welcome') => track('upsell_continue_free_clicked', { source }),
-  upsellViewTiers: (source: 'welcome') => track('upsell_view_tiers_clicked', { source }),
+  // ── Recipe builder (IFTTT onboarding hero) ──────────────────────────────────
+  recipeShown: () => track('recipe_builder_shown'),
+  recipeBuilt: (trigger: string, action: string) => track('recipe_built', { trigger, action }),
+
+  // ── Upsell (WelcomeModal — 'welcome' after ToS, 'activation' after first agent starts)
+  upsellShown: (source: UpsellSource) => track('upsell_shown', { source }),
+  upsellFreeTrial: (source: UpsellSource) => track('upsell_free_trial_clicked', { source }),
+  upsellGithub: (source: UpsellSource) => track('upsell_github_clicked', { source }),
+  upsellContinueFree: (source: UpsellSource) => track('upsell_continue_free_clicked', { source }),
+  upsellViewTiers: (source: UpsellSource) => track('upsell_view_tiers_clicked', { source }),
 };
+
+type UpsellSource = 'welcome' | 'activation';

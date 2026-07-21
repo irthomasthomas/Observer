@@ -53,6 +53,15 @@
   100% { opacity: 0; }
 }
 
+/* OptionWheel — vertical slot picker used by the onboarding RecipeSplash */
+/* Soft fade at the top/bottom edges of the wheel viewport. */
+/* Center-peaked mask: full opacity at the middle row, fading toward the edges. Text
+   scrolls through it, so opacity animates smoothly with motion (no keyframes needed). */
+.wheel-mask {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 2%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.55) 34%, black 50%, rgba(0,0,0,0.55) 66%, rgba(0,0,0,0.12) 80%, transparent 98%);
+  mask-image: linear-gradient(to bottom, transparent 2%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.55) 34%, black 50%, rgba(0,0,0,0.55) 66%, rgba(0,0,0,0.12) 80%, transparent 98%);
+}
+
 /* iOS WebView scroll fix: Prevent body scroll, use inner scroll container */
 html, body {
   height: 100%;

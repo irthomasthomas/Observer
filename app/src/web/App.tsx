@@ -36,6 +36,7 @@ import AvailableModels from '@components/AvailableModels';
 import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
 import MCPPanel from '@components/AICreator/MCPPanel';
+import RecipeSplash from '@components/AICreator/RecipeSplash';
 import JupyterServerModal from '@components/JupyterServerModal';
 import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
 import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
@@ -143,6 +144,8 @@ function AppContent() {
   // AcceptToS modal state
   const [isAcceptToSOpen, setIsAcceptToSOpen] = useState(false);
   const [isWelcomeUpsellOpen, setIsWelcomeUpsellOpen] = useState(false);
+  const [welcomeUpsellVariant, setWelcomeUpsellVariant] = useState<'onboarding' | 'activation'>('onboarding');
+  const [isRecipeSplashOpen, setIsRecipeSplashOpen] = useState(false);
   const [showLocalModeWarning, setShowLocalModeWarning] = useState(false);
   const [isLocalOnboardingActive, setIsLocalOnboardingActive] = useState(false);
 
@@ -382,6 +385,18 @@ function AppContent() {
     if (user && 'sub' in user && user.sub) {
       localStorage.setItem(`observer_onboarding_complete_${user.sub}`, 'true');
     }
+  };
+
+  // Fired when the user's first agent actually starts running (start_agent succeeds).
+  // Shows the celebratory "You did it!" upsell — once ever, and never to paying users.
+  const handleAgentActivated = () => {
+    if (isProUser) return;
+    const sub = user && 'sub' in user ? user.sub : undefined;
+    const key = `observer_activation_upsell_shown_${sub ?? 'anon'}`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, 'true');
+    setWelcomeUpsellVariant('activation');
+    setIsWelcomeUpsellOpen(true);
   };
 
   const handleDeleteClick = async (agentId: string) => {
@@ -778,9 +793,17 @@ function AppContent() {
       <AcceptToS
         isOpen={isAcceptToSOpen}
         onAccept={() => {
+          // Value first: land the user on the recipe splash (the guided one-line builder).
+          // The upsell now fires later, once their first agent actually starts.
           setIsAcceptToSOpen(false);
-          setIsWelcomeUpsellOpen(true);
+          markOnboardingComplete();
+          setIsRecipeSplashOpen(true);
         }}
+      />
+
+      <RecipeSplash
+        isOpen={isRecipeSplashOpen}
+        onClose={() => setIsRecipeSplashOpen(false)}
       />
 
       <WelcomeModal
@@ -791,6 +814,7 @@ function AppContent() {
         }}
         onViewAllTiers={() => setActiveTab('obServer')}
         mode="upsell"
+        variant={welcomeUpsellVariant}
       />
 
       <AppHeader
@@ -904,6 +928,8 @@ function AppContent() {
                 setIsHalfwayWarning(false);
                 setIsUpgradeModalOpen(true);
               }}
+              onAgentActivated={handleAgentActivated}
+              onOpenRecipe={() => setIsRecipeSplashOpen(true)}
             />
           )}
         </div>
@@ -979,6 +1005,7 @@ function AppContent() {
             setIsUsingObServer(true);
           }}
           onRefresh={fetchAgents}
+          onAgentActivated={handleAgentActivated}
           initialMessage={aiEditMessage}
         />
       )}

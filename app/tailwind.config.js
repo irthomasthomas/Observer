@@ -11,6 +11,10 @@ export default {
         'header-break': '900px', // Example: a custom breakpoint at 900px
         'wide': '1400px',
       },
+      fontFamily: {
+        // Official Observer font; applied scoped (e.g. the onboarding splash), not globally.
+        golos: ['"Golos Text"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
         // Custom dark mode colors
         dark: {

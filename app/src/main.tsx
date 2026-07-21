@@ -4,6 +4,12 @@ import ReactDOM from 'react-dom/client';
 // Import the shared CSS
 import '@/index.css';
 
+// Official Observer font (self-hosted via @fontsource — no external request)
+import '@fontsource/golos-text/400.css';
+import '@fontsource/golos-text/500.css';
+import '@fontsource/golos-text/600.css';
+import '@fontsource/golos-text/700.css';
+
 // Import the three possible application entry points
 import App from './web/App'; // Your existing App.tsx, now the "WebApp"
 //import LauncherShell from './desktop/LauncherShell'; // The new "DesktopApp"
