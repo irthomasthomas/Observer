@@ -182,6 +182,7 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
               value={triggerId}
               onChange={setTriggerId}
               ariaLabel="Choose a trigger"
+              widthClass="w-[15rem] md:w-[19rem]"
             />
             <span className="text-4xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">then</span>
             <OptionWheel
@@ -190,6 +191,7 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
               onChange={setActionId}
               onInteract={() => setActionChosen(true)}
               ariaLabel="Choose an action"
+              widthClass="w-[11rem] md:w-[13rem]"
             />
             <button
               onClick={openEditor}

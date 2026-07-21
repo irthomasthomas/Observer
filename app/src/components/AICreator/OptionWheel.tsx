@@ -31,6 +31,8 @@ interface OptionWheelProps {
   /** Fires once, on the user's first interaction (stops auto-cycling). */
   onInteract?: () => void;
   ariaLabel: string;
+  /** Tailwind width classes for the scroll column. Defaults to the original size. */
+  widthClass?: string;
 }
 
 const CYCLE_MS = 2100;         // auto-cycle cadence
@@ -57,6 +59,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   autoCycle = true,
   onInteract,
   ariaLabel,
+  widthClass = 'w-[13rem] md:w-[16rem]',
 }) => {
   const startIndex = Math.max(0, options.findIndex(o => o.id === value));
   const [index, setIndex] = useState(startIndex);
@@ -185,7 +188,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
       </div>
 
       <div
-        className="wheel-mask relative overflow-hidden w-[13rem] md:w-[16rem] touch-none select-none cursor-grab active:cursor-grabbing"
+        className={`wheel-mask relative overflow-hidden ${widthClass} touch-none select-none cursor-grab active:cursor-grabbing`}
         style={{ height: `${ROW_REM * VISIBLE}rem` }}
         onPointerDown={onPointerDown}
       >
