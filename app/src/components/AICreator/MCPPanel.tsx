@@ -26,7 +26,6 @@ interface MCPPanelProps {
   onSwitchToObServer?: () => void;
   onUpgrade?: () => void;
   onRefresh?: () => void;
-  onAgentActivated?: () => void;
   initialMessage?: string;
 }
 
@@ -40,7 +39,6 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
   onSwitchToObServer,
   onUpgrade,
   onRefresh,
-  onAgentActivated,
   initialMessage,
 }) => {
   const { clear, isRunning } = useMCPContext();
@@ -120,7 +118,6 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
             onSwitchToObServer={onSwitchToObServer}
             onUpgrade={onUpgrade}
             onRefresh={onRefresh}
-            onAgentActivated={onAgentActivated}
             initialMessage={initialMessage}
             heightClass="h-full"
           />

@@ -18,7 +18,6 @@ interface GetStartedProps {
   onUpgrade?: () => void;
   onRefresh?: () => void;
   onUpgradeClick?: () => void;
-  onAgentActivated?: () => void;
   onOpenRecipe?: () => void;
 }
 
@@ -33,7 +32,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
   onUpgrade,
   onRefresh,
   onUpgradeClick: _onUpgradeClick,
-  onAgentActivated,
   onOpenRecipe,
 }) => {
   const { clear, isRunning } = useMCPContext();
@@ -108,7 +106,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
                 onSwitchToObServer={onSwitchToObServer}
                 onUpgrade={onUpgrade}
                 onRefresh={onRefresh}
-                onAgentActivated={onAgentActivated}
               />
             </div>
           </div>

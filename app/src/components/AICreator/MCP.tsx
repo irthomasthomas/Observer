@@ -38,8 +38,6 @@ interface MCPProps {
   onUpgrade?: () => void;
   onRefresh?: () => void;
   onSaveComplete?: () => void;
-  /** Fired when an agent actually starts running (start_agent succeeds). Drives the activation upsell. */
-  onAgentActivated?: () => void;
   /** Hide the built-in generic suggestion chips (e.g. when the RecipeBuilder hero is shown above). */
   hideSuggestions?: boolean;
   initialMessage?: string;
@@ -421,7 +419,6 @@ const MCP: React.FC<MCPProps> = ({
   isUsingObServer,
   onRefresh,
   onSaveComplete,
-  onAgentActivated,
   hideSuggestions,
   initialMessage,
   heightClass = 'h-[350px] md:h-[450px]',
@@ -450,11 +447,7 @@ const MCP: React.FC<MCPProps> = ({
     if (toolName === 'create_agent' || toolName === 'edit_agent') {
       onSaveComplete?.();
     }
-    // Activation event: an agent actually started running. Drives the "You did it!" upsell.
-    if (toolName === 'start_agent') {
-      onAgentActivated?.();
-    }
-  }), [subscribeMutation, onRefresh, onSaveComplete, onAgentActivated]);
+  }), [subscribeMutation, onRefresh, onSaveComplete]);
 
   const [userInput, setUserInput] = useState('');
   const [previewImages, setPreviewImages] = useState<string[]>([]);
