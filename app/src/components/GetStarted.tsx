@@ -1,6 +1,6 @@
 // src/components/GetStarted.tsx
 import React, { useState } from 'react';
-import { Users, MessageCircle, Plus, Trash2, Sparkles } from 'lucide-react';
+import { Users, MessageCircle, Plus, Trash2 } from 'lucide-react';
 import MCP from './AICreator/MCP';
 import type { TokenProvider } from '@utils/main_loop';
 import { useMCPContext } from '../mcp/MCPContext';
@@ -65,16 +65,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {onOpenRecipe && (
-                    <button
-                      onClick={onOpenRecipe}
-                      title="Build an agent in one line"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-800 px-2 py-1.5 rounded-md hover:bg-purple-50 transition-colors"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">When... Then...</span>
-                    </button>
-                  )}
                   <button
                     onClick={toggleYolo}
                     title={yolo ? 'Yolo mode on — auto-approves all actions' : 'Yolo mode off'}
@@ -106,6 +96,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
                 onSwitchToObServer={onSwitchToObServer}
                 onUpgrade={onUpgrade}
                 onRefresh={onRefresh}
+                onOpenRecipe={onOpenRecipe}
               />
             </div>
           </div>

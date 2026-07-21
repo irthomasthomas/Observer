@@ -22,6 +22,7 @@ import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 import type { GemmaModelState, NativeModelState } from '@utils/localLlm/types';
 import { ModelManager, type Model } from '@utils/ModelManager';
+import RecipeMini from './RecipeMini';
 
 // Synthetic owner id for voice dictation. Mirrors SettingsTab's TEST_AGENT_ID pattern:
 // StreamManager treats it like any agent, so transcription routes through the same
@@ -41,6 +42,8 @@ interface MCPProps {
   /** Hide the built-in generic suggestion chips (e.g. when the RecipeBuilder hero is shown above). */
   hideSuggestions?: boolean;
   initialMessage?: string;
+  /** Opens the full "When... Then..." recipe builder modal; renders a teaser chip when set. */
+  onOpenRecipe?: () => void;
   /** Tailwind height classes for the chat container. Defaults to the hero/sheet sizing. */
   heightClass?: string;
 }
@@ -421,6 +424,7 @@ const MCP: React.FC<MCPProps> = ({
   onSaveComplete,
   hideSuggestions,
   initialMessage,
+  onOpenRecipe,
   heightClass = 'h-[350px] md:h-[450px]',
 }) => {
   // Conversation state lives in the app-level MCPProvider, so it's shared across every
@@ -714,6 +718,7 @@ const MCP: React.FC<MCPProps> = ({
       {/* Suggestion chips */}
       {showSuggestions && (
         <div className="px-3 pt-2 pb-1 flex flex-wrap justify-center gap-2">
+          {onOpenRecipe && <RecipeMini onClick={onOpenRecipe} />}
           {SUGGESTIONS.map(s => (
             <button
               key={s}

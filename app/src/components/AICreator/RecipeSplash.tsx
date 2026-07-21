@@ -23,21 +23,21 @@ import type { WhitelistChannel } from '@utils/logging';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
 import OptionWheel, { type WheelOption } from './OptionWheel';
 
-type ContactKind = 'phone' | 'email' | 'telegram' | 'discord' | 'none';
+export type ContactKind = 'phone' | 'email' | 'telegram' | 'discord' | 'none';
 
-interface TriggerOption extends WheelOption {
+export interface TriggerOption extends WheelOption {
   sensor: '$SCREEN' | '$CAMERA';
   promptFragment: string;
 }
 
-interface ActionOption extends WheelOption {
+export interface ActionOption extends WheelOption {
   contact: ContactKind;
   actionFragment: string;
   /** For phone contacts: which whitelist QR to show. */
   channel?: WhitelistChannel;
 }
 
-const TRIGGERS: TriggerOption[] = [
+export const TRIGGERS: TriggerOption[] = [
   { id: 'download_done',   label: 'my download is finished',    sensor: '$SCREEN', promptFragment: 'my download finishes' },
   { id: 'person_camera',   label: 'a person is on camera',      sensor: '$CAMERA', promptFragment: 'a person appears on my camera' },
   { id: 'render_fails',    label: 'my render fails',            sensor: '$SCREEN', promptFragment: 'my render fails or errors out' },
@@ -49,7 +49,7 @@ const TRIGGERS: TriggerOption[] = [
   { id: 'hour_passes',     label: 'an hour passes',             sensor: '$SCREEN', promptFragment: 'an hour passes (log what is on my screen)' },
 ];
 
-const ACTIONS: ActionOption[] = [
+export const ACTIONS: ActionOption[] = [
   { id: 'email',    label: 'send me an email',    contact: 'email',    actionFragment: 'send me an email' },
   { id: 'whatsapp', label: 'send me a WhatsApp',  contact: 'phone',    actionFragment: 'send me a WhatsApp message', channel: 'whatsapp' },
   { id: 'sms',      label: 'send me an SMS',      contact: 'phone',    actionFragment: 'send me an SMS', channel: 'sms' },
@@ -59,7 +59,7 @@ const ACTIONS: ActionOption[] = [
   { id: 'log',      label: 'log it',              contact: 'none',     actionFragment: 'log it to memory' },
 ];
 
-const CONTACT_PLACEHOLDER: Record<ContactKind, string> = {
+export const CONTACT_PLACEHOLDER: Record<ContactKind, string> = {
   phone: '+1 555 123 4567',
   email: 'you@email.com',
   telegram: 'Telegram chat_id',
@@ -67,7 +67,7 @@ const CONTACT_PLACEHOLDER: Record<ContactKind, string> = {
   none: '',
 };
 
-function contactValid(kind: ContactKind, value: string): boolean {
+export function contactValid(kind: ContactKind, value: string): boolean {
   const v = value.trim();
   switch (kind) {
     case 'none':
@@ -76,6 +76,28 @@ function contactValid(kind: ContactKind, value: string): boolean {
     case 'telegram': return v.length > 0;
     case 'discord': return /^https?:\/\/.+/.test(v);
   }
+}
+
+/** Composes the one-sentence MCP prompt from a trigger/action/contact combo. Shared by
+ *  RecipeSplash (full onboarding) and RecipeMini (inline builder in the chat suggestions). */
+export function composeRecipePrompt(
+  trigger: TriggerOption | undefined,
+  action: ActionOption | undefined,
+  contact: string,
+  authEmail: string,
+): string {
+  const sensor = trigger?.sensor ?? '$SCREEN';
+  const watchWhat = sensor === '$CAMERA' ? 'my camera' : 'my screen';
+  const triggerFrag = trigger?.promptFragment ?? '';
+  const actionFrag = action?.actionFragment ?? '';
+  const contactKind = action?.contact ?? 'none';
+  const v = contact.trim();
+  let phrase = '';
+  if (contactKind === 'phone') phrase = ` at ${v}`;
+  else if (contactKind === 'email') phrase = authEmail ? ` at ${authEmail}` : '';
+  else if (contactKind === 'telegram') phrase = ` to Telegram chat_id ${v}`;
+  else if (contactKind === 'discord') phrase = ` via the Discord webhook ${v}`;
+  return `Watch ${watchWhat}. When ${triggerFrag}, ${actionFrag}${phrase}. Use a cloud model.`;
 }
 
 interface RecipeSplashProps {
@@ -107,19 +129,7 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
   const showSetup = !editingMessage && actionChosen &&
     (contactKind === 'phone' || contactKind === 'telegram' || contactKind === 'discord');
 
-  const composePrompt = (): string => {
-    const sensor = trigger?.sensor ?? '$SCREEN';
-    const watchWhat = sensor === '$CAMERA' ? 'my camera' : 'my screen';
-    const triggerFrag = trigger?.promptFragment ?? '';
-    const actionFrag = action?.actionFragment ?? '';
-    const v = contact.trim();
-    let phrase = '';
-    if (contactKind === 'phone') phrase = ` at ${v}`;
-    else if (contactKind === 'email') phrase = authEmail ? ` at ${authEmail}` : '';
-    else if (contactKind === 'telegram') phrase = ` to Telegram chat_id ${v}`;
-    else if (contactKind === 'discord') phrase = ` via the Discord webhook ${v}`;
-    return `Watch ${watchWhat}. When ${triggerFrag}, ${actionFrag}${phrase}. Use a cloud model.`;
-  };
+  const composePrompt = (): string => composeRecipePrompt(trigger, action, contact, authEmail);
 
   const openEditor = () => { setMessageDraft(composePrompt()); setEditingMessage(true); };
   const revertEditor = () => setEditingMessage(false);
