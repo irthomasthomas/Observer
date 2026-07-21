@@ -82,7 +82,9 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel,
 
   const verified = selfPolling && allWhitelisted;
 
-  const showWhatsApp = channel === 'whatsapp' || channel === undefined;
+  // WhatsApp's "first message" rule means a WhatsApp-only flow can only show the WhatsApp QR.
+  // SMS/call mode (and the unset default) show every channel, including WhatsApp.
+  const showWhatsApp = true;
   const showSms = channel !== 'whatsapp';
 
   return (
