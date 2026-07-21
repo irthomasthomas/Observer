@@ -74,7 +74,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
                       className="inline-flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-800 px-2 py-1.5 rounded-md hover:bg-purple-50 transition-colors"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">Quick build</span>
+                      <span className="hidden md:inline">When... Then...</span>
                     </button>
                   )}
                   <button
