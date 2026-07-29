@@ -47,6 +47,7 @@ export const TRIGGERS: TriggerOption[] = [
   { id: 'printer_fails',   label: 'my 3D printer fails',        sensor: '$CAMERA', promptFragment: 'my 3D print fails (spaghetti, detached print, or a clog)' },
   { id: 'battery_low',     label: 'my battery is low',          sensor: '$SCREEN', promptFragment: 'my battery indicator shows low battery' },
   { id: 'hour_passes',     label: 'an hour passes',             sensor: '$SCREEN', promptFragment: 'an hour passes (log what is on my screen)' },
+  { id: 'tickets_available', label: 'tickets are available',    sensor: '$SCREEN', promptFragment: 'tickets become available on the page I have open' },
 ];
 
 export const ACTIONS: ActionOption[] = [
