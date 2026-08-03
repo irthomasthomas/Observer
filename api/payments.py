@@ -2,10 +2,13 @@
 
 import stripe
 import hashlib
+import hmac
 import os
+import time
 import logging
 import re
-from fastapi import APIRouter, Request, Header, HTTPException, Depends
+from fastapi import APIRouter, Request, Header, HTTPException, Depends, Security
+from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel, EmailStr
 
 # --- Project-specific Imports ---
@@ -240,6 +243,129 @@ async def create_trial_link(
     except Exception as e:
         logger.error(f"Trial link creation failed for {email}: {e}")
         raise HTTPException(status_code=500, detail="Could not create trial session.")
+
+
+# --- Partner Discount Program ---
+# Each partner gets their own Stripe coupon (e.g. 50% off, duration=once) plus a
+# secret auth code. The code -> coupon mapping is built from env vars, so adding
+# a partner is a config change (new env pair + a Stripe coupon), not a code change.
+#
+# Tracking lives entirely in Stripe — no app-side state. List promotion codes by
+# a partner's coupon to get: generated = count, conversions = sum(times_redeemed),
+# and each code's `created` timestamp for the generation timeline.
+#
+# Partners are loaded by convention from env vars, so no brand names live in this
+# (open-source) file and adding a partner needs only an .env change + API restart:
+#
+#   OBSERVER_PARTNER_<ID>_CODE=<secret auth code the partner panel sends>
+#   OBSERVER_PARTNER_<ID>_COUPON=<Stripe coupon ID>
+#
+# <ID> is any token (a codename or a number) and becomes the partner label stored
+# in promo-code metadata. Each partner gets a distinct coupon, so per-partner stats
+# fall out of PromotionCode.list(coupon=<that coupon>).
+PARTNERS: dict[str, dict[str, str]] = {}
+
+_PARTNER_CODE_RE = re.compile(r"^OBSERVER_PARTNER_(.+)_CODE$")
+
+
+def _load_partners() -> None:
+    """Build the code -> partner-config map from OBSERVER_PARTNER_<ID>_* env vars."""
+    for env_key, code in os.environ.items():
+        match = _PARTNER_CODE_RE.match(env_key)
+        if not match:
+            continue
+        raw_id = match.group(1)
+        coupon_id = os.environ.get(f"OBSERVER_PARTNER_{raw_id}_COUPON")
+        partner_id = raw_id.lower()
+        if not code or not coupon_id:
+            logger.warning(f"Partner '{partner_id}' skipped: missing CODE or COUPON env var.")
+            continue
+        PARTNERS[code] = {"id": partner_id, "coupon_id": coupon_id}
+        logger.info(f"Partner discount program enabled for '{partner_id}'.")
+
+    logger.info(f"Loaded {len(PARTNERS)} partner(s) for the discount program.")
+
+
+_load_partners()
+
+# How long a generated promo code stays valid before it expires.
+PARTNER_CODE_TTL_DAYS = 60
+
+partner_key_header = APIKeyHeader(name="X-Partner-Key", auto_error=False)
+
+
+async def get_partner(key: str = Security(partner_key_header)) -> dict:
+    """
+    Dependency that validates the X-Partner-Key header and returns the matching
+    partner config ({"slug", "coupon_id"}). Uses constant-time comparison.
+    """
+    if key:
+        for code, partner in PARTNERS.items():
+            if hmac.compare_digest(key, code):
+                return partner
+    raise HTTPException(status_code=403, detail="You are not authorized to access this resource.")
+
+
+@payments_router.post(
+    "/partner/generate-code",
+    summary="[Partner] Generate a single-use discount promotion code",
+    tags=["Partner"]
+)
+async def generate_partner_code(partner: dict = Depends(get_partner)):
+    """
+    Generate a unique, single-use Stripe promotion code for a partner's lead.
+
+    Auth: X-Partner-Key header (the partner's secret auth code).
+
+    Each generated code:
+    - Applies the partner's coupon (e.g. 50% off the first month)
+    - Can be redeemed exactly once (max_redemptions=1) — so it cannot be shared/farmed
+    - Expires after PARTNER_CODE_TTL_DAYS
+
+    The lead redeems it in the normal checkout via "Add promotion code" (already
+    enabled on the Pro/Max checkout sessions). No app frontend changes required.
+
+    Tracking is Stripe-native: PromotionCode.list(coupon=<partner coupon>) gives
+    generated count (len) and conversions (sum of times_redeemed).
+    """
+    coupon_id = partner["coupon_id"]
+    partner_id = partner["id"]
+
+
+    try:
+        # Newer Stripe API versions nest the coupon under `promotion` instead of a
+        # top-level `coupon` param (the latter now 400s as "unknown parameter").
+        promo = stripe.PromotionCode.create(
+            promotion={"type": "coupon", "coupon": coupon_id},
+            max_redemptions=1,
+            expires_at=int(time.time()) + PARTNER_CODE_TTL_DAYS * 24 * 60 * 60,
+            metadata={"partner": partner_id},
+        )
+
+        # Report the actual discount from the coupon when available (don't hardcode 50%).
+        # Handle both shapes: legacy `promo.coupon` and newer `promo.promotion.coupon`.
+        discount_label = None
+        coupon_obj = getattr(promo, "coupon", None)
+        if coupon_obj is None:
+            promotion_obj = getattr(promo, "promotion", None)
+            coupon_obj = getattr(promotion_obj, "coupon", None) if promotion_obj is not None else None
+        percent_off = getattr(coupon_obj, "percent_off", None) if coupon_obj is not None else None
+        if percent_off:
+            discount_label = f"{percent_off:g}% off first month"
+
+        logger.info(f"Generated promo code {promo.code} for partner '{partner_id}' (coupon {coupon_id})")
+        return {
+            "code": promo.code,
+            "partner": partner_id,
+            "discount": discount_label,
+            "expires_in_days": PARTNER_CODE_TTL_DAYS,
+            "message": "Share this single-use code with your lead. They enter it at checkout.",
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to generate promo code for partner '{partner_id}': {e}")
+        raise HTTPException(status_code=500, detail="Could not generate promotion code.")
+
 
 
 def _get_subscription_from_metadata(user: AuthUser) -> tuple[bool, str | None, str | None, str | None]:
@@ -532,7 +658,7 @@ async def sync_user_from_stripe(stripe_customer_id: str) -> dict:
     # 1. Get the email from the triggering Stripe customer (source of truth)
     try:
         customer = stripe.Customer.retrieve(stripe_customer_id)
-        customer_email = customer.get('email')
+        customer_email = customer.email
     except Exception as e:
         logger.error(f"Could not retrieve Stripe customer {stripe_customer_id}: {e}")
         return {"status": "error", "detail": "Failed to retrieve Stripe customer"}
@@ -711,14 +837,14 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
     # Handle checkout.session.completed — safety net for email mismatches.
     # If Stripe Link changed the customer email, fix it using client_reference_id (Auth0 user ID).
     if event_type == 'checkout.session.completed':
-        stripe_customer_id = event_data.get('customer')
-        client_ref_id = event_data.get('client_reference_id')
+        stripe_customer_id = getattr(event_data, 'customer', None)
+        client_ref_id = getattr(event_data, 'client_reference_id', None)
         if stripe_customer_id and client_ref_id:
             try:
                 customer = stripe.Customer.retrieve(stripe_customer_id)
                 # Look up the Auth0 user's email from client_reference_id
                 auth0_email = (get_email_by_id(client_ref_id) or '').lower()
-                customer_email = (customer.get('email') or '').lower()
+                customer_email = (customer.email or '').lower()
 
                 if auth0_email and customer_email and auth0_email != customer_email:
                     logger.warning(
@@ -735,16 +861,17 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         # have name/address until the user fills them in during checkout.
         if stripe_customer_id:
             try:
-                customer_details = event_data.get('customer_details', {})
+                customer_details = getattr(event_data, 'customer_details', None)
                 update_fields = {}
 
-                name = customer_details.get('name')
-                if name:
-                    update_fields['name'] = name
+                if customer_details:
+                    name = getattr(customer_details, 'name', None)
+                    if name:
+                        update_fields['name'] = name
 
-                address = customer_details.get('address')
-                if address:
-                    update_fields['address'] = address
+                    address = getattr(customer_details, 'address', None)
+                    if address:
+                        update_fields['address'] = address
 
                 if update_fields:
                     stripe.Customer.modify(stripe_customer_id, **update_fields)
@@ -759,7 +886,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         return {"status": "success"}
 
     # Get customer ID from event
-    stripe_customer_id = event_data.get('customer')
+    stripe_customer_id = getattr(event_data, 'customer', None)
 
     if event_type in SYNC_EVENTS and stripe_customer_id:
         result = await sync_user_from_stripe(stripe_customer_id)
