@@ -1,478 +1,163 @@
 #!/usr/bin/env python3
 import os
 import json
-import time
-import re
-import base64
-import secrets
 import logging
-import httpx # Use httpx for async requests
+import httpx
 from fastapi.responses import StreamingResponse
 
-# Import base class and custom exceptions
 from api_handlers import BaseAPIHandler, ConfigError, BackendAPIError, HandlerError, get_http_client
 
 logger = logging.getLogger("gemini_handler")
-# Assuming logging is configured elsewhere (e.g., in main FastAPI app)
+
+GEMINI_OPENAI_COMPAT_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+
 
 class GeminiAPIHandler(BaseAPIHandler):
-    """
-    Asynchronous handler for Google Gemini API requests using httpx.
-    """
+    """Thin proxy to Google's OpenAI-compatible Gemini endpoint."""
+
     def __init__(self):
         super().__init__("gemini")
-        
-        # --- Model Mapping (like OpenRouter) ---
-        # Maps display names to actual Gemini model IDs
+
         self.model_map = {
             "gemma-4-26b-a4b-it": {
                 "model_id": "gemma-4-26b-a4b-it",
                 "parameters": "26BA4",
                 "multimodal": True,
-                "pro": False
+                "pro": False,
             },
             "gemma-4-31b-it": {
                 "model_id": "gemma-4-31b-it",
                 "parameters": "31B",
                 "multimodal": True,
-                "pro": True
-            },
-            "gemma-3-4b-it": {
-                "model_id": "gemma-4-26b-a4b-it",
-                "parameters": "4B",
-                "multimodal": True,
-                "pro": False
-            },
-            "gemma-3-12b-it": {
-                "model_id": "gemma-4-26b-a4b-it", 
-                "parameters": "12B",
-                "multimodal": True,
-                "pro": False
+                "pro": False,
             },
             # Hidden model for agent creator (free users)
             "gemini-2.0-flash-lite-free": {
-                "model_id": "gemini-2.5-flash-lite",
+                "model_id": "gemini-flash-lite-latest",
                 "parameters": "N/A",
                 "multimodal": True,
-                "pro": False
+                "pro": False,
             },
             # Hidden model for agent creator (pro users)
             "gemini-2.5-flash-lite-free": {
-                "model_id": "gemini-2.5-flash-lite",
+                "model_id": "gemini-flash-lite-latest",
                 "parameters": "N/A",
                 "multimodal": True,
-                "pro": True
-            },
-            "gemini-2.5-flash-lite": {
-                "model_id": "gemini-2.5-flash-lite",
-                "parameters": "N/A",
-                "multimodal": True,
-                "pro": True
-            },
-            "gemma-3-27b-it": {
-                "model_id": "gemma-4-26b-a4b-it",
-                "parameters": "27B",
-                "multimodal": True,
-                "pro": True
-            },
-            "gemma-4-26B-a4b-it": {
-                "model_id": "gemma-4-26b-a4b-it",
-                "parameters": "26BA4",
-                "multimodal": True,
-                "pro": False
+                "pro": False,
             },
         }
-        
-        # Define supported models using the display names from the map
+
         self.models = [
             {
-                "name": display_name, 
-                "parameters": model_info.get("parameters", "N/A"),
-                "multimodal": model_info.get("multimodal", False), 
-                "pro": model_info.get("pro", False),
+                "name": display_name,
+                "parameters": info.get("parameters", "N/A"),
+                "multimodal": info.get("multimodal", False),
+                "pro": info.get("pro", False),
             }
-            for display_name, model_info in self.model_map.items()
+            for display_name, info in self.model_map.items()
         ]
+
         self.api_key = os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
-            logger.error("GEMINI_API_KEY environment variable not set. Gemini handler will fail.")
-            # Don't raise here, let handle_request fail clearly if called
+            logger.error("GEMINI_API_KEY environment variable not set.")
 
         logger.info("GeminiAPIHandler registered models: %s", [m["name"] for m in self.models])
 
-    async def handle_request(self, request_data: dict):
-        """
-        Process a /v1/chat/completions request asynchronously for Gemini models.
-        Returns either dict (non-streaming) or StreamingResponse (streaming).
-        """
-        if not self.api_key:
-             raise ConfigError("GEMINI_API_KEY is not configured on the server.")
+    def _headers(self):
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+            "User-Agent": "ObserverAI-FastAPI-Client/1.0",
+        }
 
-        # --- Request Data Validation and Processing ---
+    def _build_payload(self, request_data: dict, target_model: str) -> dict:
+        payload = dict(request_data)
+        payload["model"] = target_model
+        if target_model in ("gemma-4-26b-a4b-it", "gemma-4-31b-it"):
+            payload.setdefault("extra_body", {}).setdefault("google", {})["thinking_config"] = {"thinking_level": "minimal"}
+        return payload
+
+    async def handle_request(self, request_data: dict):
+        if not self.api_key:
+            raise ConfigError("GEMINI_API_KEY is not configured on the server.")
+
         model_name = request_data.get("model")
         if not model_name:
-             raise ValueError("Request data must include a 'model' field.")
+            raise ValueError("Request data must include a 'model' field.")
 
-        # Map display name to actual Gemini model ID
-        if model_name in self.model_map:
-            target_model = self.model_map[model_name]["model_id"]
-        else:
-            target_model = model_name  # Fallback to direct name
+        target_model = self.model_map.get(model_name, {}).get("model_id", model_name)
+        payload = self._build_payload(request_data, target_model)
 
-        messages = request_data.get("messages", [])
-        if not messages:
-            raise ValueError("Request body must contain a 'messages' array")
-
-        # Check for streaming
         if request_data.get("stream", False):
             return StreamingResponse(
-                self._stream_gemini_response(request_data, target_model),
-                media_type="text/event-stream"
+                self._stream_response(payload),
+                media_type="text/event-stream",
             )
 
-        # --- Convert OpenAI format messages to Gemini format ---
-        system_instruction, contents = self._convert_messages_to_gemini_format(messages)
-
-        if not contents:
-            raise ValueError("No valid content found to send to Gemini.")
-
-        # --- Prepare Gemini API Call ---
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent"
-
-        # Build payload with converted contents
-        payload = {"contents": contents}
-
-        # Add system_instruction if present
-        if system_instruction:
-            payload["system_instruction"] = system_instruction
-
-        # Add generationConfig if needed from request_data (temperature, max_tokens etc.)
-        generation_config = {}
-        if "temperature" in request_data: generation_config["temperature"] = request_data["temperature"]
-        if "max_tokens" in request_data: generation_config["maxOutputTokens"] = request_data["max_tokens"]
-        if generation_config: payload["generationConfig"] = generation_config
-
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": self.api_key,
-            "User-Agent": "ObserverAI-FastAPI-Client/1.0"
-        }
-
-        logger.info(f"Calling Gemini API: model={target_model}, messages={len(contents)}, system_instruction={system_instruction is not None}")
-
-        # --- Make API Call using httpx ---
         try:
             client = get_http_client()
-            response = await client.post(gemini_url, headers=headers, json=payload)
-            response.raise_for_status() # Raises HTTPStatusError for 4xx/5xx responses
-            response_data = response.json()
-
+            response = await client.post(GEMINI_OPENAI_COMPAT_URL, headers=self._headers(), json=payload)
+            response.raise_for_status()
+            data = response.json()
+            for choice in data.get("choices", []):
+                msg = choice.get("message", {})
+                if "reasoning_content" in msg:
+                    msg["reasoning"] = msg.pop("reasoning_content")
+            return data
         except httpx.RequestError as exc:
-            logger.error(f"Gemini API request failed (network/connection): {exc}")
-            raise BackendAPIError(f"Could not connect to Gemini API: {exc}", status_code=503) from exc # 503 Service Unavailable
+            logger.error("Gemini API request failed: %s", exc)
+            raise BackendAPIError(f"Could not connect to Gemini API: {exc}", status_code=503) from exc
         except httpx.HTTPStatusError as exc:
-            error_body = exc.response.text
             status_code = exc.response.status_code
-            logger.error(f"Gemini API returned error {status_code}: {error_body[:500]}")
-            # Try to parse Gemini error message
             try:
-                error_json = exc.response.json()
-                message = error_json.get("error", {}).get("message", error_body)
-            except json.JSONDecodeError:
-                message = error_body
+                message = exc.response.json().get("error", {}).get("message", exc.response.text)
+            except Exception:
+                message = exc.response.text
+            logger.error("Gemini API error %s: %s", status_code, message[:500])
             raise BackendAPIError(f"Gemini API Error ({status_code}): {message}", status_code=status_code) from exc
         except Exception as exc:
-            logger.exception(f"An unexpected error occurred during Gemini API call for model {target_model}")
+            logger.exception("Unexpected error during Gemini API call for model %s", target_model)
             raise HandlerError(f"Unexpected error processing Gemini request: {exc}") from exc
 
-
-        # --- Process Gemini Response ---
-        generated_text = ""
-        reasoning_text = ""
-        finish_reason = "stop" # Default
-
-        try:
-            # Safer access to potentially missing keys
-            candidates = response_data.get("candidates", [])
-            if candidates:
-                 candidate = candidates[0]
-                 content = candidate.get("content", {})
-                 parts = content.get("parts", [])
-                 if parts:
-                      for part in parts:
-                          if part.get("thought", False):
-                              reasoning_text += part.get("text", "")
-                          else:
-                              generated_text += part.get("text", "")
-                      generated_text = generated_text.strip()
-                      reasoning_text = reasoning_text.strip()
-
-                 # Map finish reason
-                 finish_reason_gemini = candidate.get("finishReason", "STOP").upper()
-                 # OpenAI reasons: stop, length, content_filter, tool_calls, function_call
-                 if finish_reason_gemini == "MAX_TOKENS":
-                      finish_reason = "length"
-                 elif finish_reason_gemini == "SAFETY":
-                      finish_reason = "content_filter"
-                 elif finish_reason_gemini not in ["STOP", "UNSPECIFIED"]:
-                      # Keep other reasons like RECITATION, etc. or map them if needed
-                      finish_reason = finish_reason_gemini.lower()
-                      logger.warning(f"Unhandled Gemini finish reason: {finish_reason_gemini}")
-            else:
-                 logger.warning("Gemini response did not contain candidates.")
-                 # Check for promptFeedback for blocked prompts
-                 prompt_feedback = response_data.get("promptFeedback")
-                 if prompt_feedback and prompt_feedback.get("blockReason"):
-                      block_reason = prompt_feedback.get("blockReason")
-                      logger.error(f"Gemini request blocked. Reason: {block_reason}")
-                      generated_text = f"[Request blocked due to: {block_reason}]"
-                      finish_reason = "content_filter" # Treat blocked prompt as content filter finish
-
-        except (AttributeError, KeyError, IndexError, TypeError) as e:
-            logger.error(f"Error parsing Gemini response structure: {e}", exc_info=True)
-            generated_text = "[Error parsing Gemini response]"
-            # Keep finish_reason as 'stop' or set to an error state?
-
-        # --- Conversation logging now handled centrally in compute.py ---
-
-        # --- Format Response (OpenAI Style) ---
-        openai_response = {
-            "id": "gemini-chatcmpl-" + secrets.token_hex(12),
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": target_model, # Return the model actually used
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": generated_text, **({"reasoning": reasoning_text} if reasoning_text else {})},
-                    "finish_reason": finish_reason
-                }
-            ],
-            "usage": {
-                 # Gemini API (v1beta) often returns token counts in usageMetadata
-                 "prompt_tokens": response_data.get("usageMetadata", {}).get("promptTokenCount", 0),
-                 "completion_tokens": response_data.get("usageMetadata", {}).get("candidatesTokenCount", 0),
-                 "total_tokens": response_data.get("usageMetadata", {}).get("totalTokenCount", 0)
-            },
-            # Add system_fingerprint if available/needed
-        }
-
-        logger.info(f"Successfully processed Gemini request for {target_model}. Response length: {len(generated_text)}")
-        return openai_response
-
-    async def _stream_gemini_response(self, request_data: dict, target_model: str):
-        """Stream Gemini API response and convert to OpenAI SSE format."""
-        # Convert messages to Gemini format
-        messages = request_data.get("messages", [])
-        system_instruction, contents = self._convert_messages_to_gemini_format(messages)
-
-        # Prepare Gemini API call
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:streamGenerateContent?alt=sse"
-        payload = {"contents": contents}
-
-        # Add system_instruction if present
-        if system_instruction:
-            payload["system_instruction"] = system_instruction
-
-        # Add generationConfig if needed
-        generation_config = {}
-        if "temperature" in request_data: generation_config["temperature"] = request_data["temperature"]
-        if "max_tokens" in request_data: generation_config["maxOutputTokens"] = request_data["max_tokens"]
-        if generation_config: payload["generationConfig"] = generation_config
-
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": self.api_key,
-            "User-Agent": "ObserverAI-FastAPI-Client/1.0"
-        }
-
-        logger.info(f"Streaming Gemini API: model={target_model}, messages={len(contents)}, system_instruction={system_instruction is not None}")
-
+    async def _stream_response(self, payload: dict):
         try:
             client = get_http_client()
-            async with client.stream("POST", gemini_url, headers=headers, json=payload) as response:
-                response.raise_for_status()
-
-                chunk_id = "gemini-chatcmpl-" + secrets.token_hex(12)
-                chunk_index = 0
-
+            async with client.stream("POST", GEMINI_OPENAI_COMPAT_URL, headers=self._headers(), json=payload) as response:
+                if response.status_code >= 400:
+                    # Read error body while still inside the context manager (stream open).
+                    try:
+                        body = await response.aread()
+                        detail = body.decode("utf-8", "replace")
+                    except Exception:
+                        detail = "<no body>"
+                    logger.error("Gemini streaming API error %s: %s", response.status_code, detail[:1000])
+                    yield f"data: {json.dumps({'error': f'API error ({response.status_code}): {detail[:500]}'})}\n\n"
+                    return
                 async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        chunk_data = line[6:]  # Remove "data: " prefix
-                        if chunk_data.strip():
-                            try:
-                                gemini_chunk = json.loads(chunk_data)
-                                # Convert Gemini chunk to OpenAI format
-                                openai_chunk = self._convert_gemini_chunk_to_openai(
-                                    gemini_chunk, chunk_id, chunk_index, target_model
-                                )
-                                if openai_chunk:
-                                    yield f"data: {json.dumps(openai_chunk)}\n\n"
-                                    chunk_index += 1
-                            except json.JSONDecodeError:
-                                # Skip invalid JSON chunks
-                                continue
-
-                # Send [DONE] when finished
-                yield f"data: [DONE]\n\n"
-
+                    if not line:
+                        continue
+                    if line.startswith("data: ") and line != "data: [DONE]":
+                        try:
+                            chunk = json.loads(line[6:])
+                            for choice in chunk.get("choices", []):
+                                delta = choice.get("delta", {})
+                                # compat endpoint signals thought chunks via extra_content.google.thought
+                                is_thought = delta.get("extra_content", {}).get("google", {}).get("thought", False)
+                                if is_thought and "content" in delta:
+                                    text = delta.pop("content").strip("<thought>").strip("</thought>")
+                                    delta["reasoning"] = text
+                                    delta.pop("extra_content", None)
+                                # also handle reasoning_content field (future-proofing)
+                                elif "reasoning_content" in delta:
+                                    delta["reasoning"] = delta.pop("reasoning_content")
+                            yield f"data: {json.dumps(chunk)}\n\n"
+                            continue
+                        except (json.JSONDecodeError, KeyError):
+                            pass
+                    yield line + "\n\n"
         except httpx.RequestError as exc:
-            logger.error(f"Gemini streaming API request failed: {exc}")
+            logger.error("Gemini streaming request failed: %s", exc)
             yield f"data: {json.dumps({'error': f'Connection error: {exc}'})}\n\n"
-        except httpx.HTTPStatusError as exc:
-            error_body = exc.response.text
-            logger.error(f"Gemini streaming API error {exc.response.status_code}: {error_body[:500]}")
-            yield f"data: {json.dumps({'error': f'API error ({exc.response.status_code}): {error_body}'})}\n\n"
         except Exception as exc:
-            logger.exception(f"Unexpected error in Gemini streaming for model {target_model}")
+            logger.exception("Unexpected error in Gemini streaming")
             yield f"data: {json.dumps({'error': f'Unexpected error: {exc}'})}\n\n"
-
-    def _convert_messages_to_gemini_format(self, messages: list):
-        """
-        Convert OpenAI format messages to Gemini API format.
-
-        Returns: (system_instruction_dict or None, contents_list)
-        """
-        system_instruction = None
-        contents = []
-
-        for msg in messages:
-            role = msg.get("role")
-            content = msg.get("content")
-
-            if not content:
-                continue
-
-            # Handle system messages - convert to system_instruction
-            if role == "system":
-                if isinstance(content, str):
-                    system_instruction = {
-                        "parts": [{"text": content.strip()}]
-                    }
-                continue
-
-            # Map roles: assistant -> model, user -> user
-            gemini_role = "model" if role == "assistant" else "user"
-
-            # Process content using existing helper
-            gemini_parts, _, _ = self._prepare_gemini_content(content)
-
-            if not gemini_parts:
-                continue
-
-            # Check if we need to merge with previous message (same role)
-            if contents and contents[-1]["role"] == gemini_role:
-                # Merge parts with previous message of same role
-                contents[-1]["parts"].extend(gemini_parts)
-            else:
-                # Add new message
-                contents.append({
-                    "role": gemini_role,
-                    "parts": gemini_parts
-                })
-
-        return system_instruction, contents
-
-    def _prepare_gemini_content(self, content):
-        """
-        Extract and prepare content for Gemini API from OpenAI message content.
-
-        Args:
-            content: Either a string or a list of content items (text/image_url)
-
-        Returns:
-            tuple: (gemini_parts, combined_text_prompt, image_count)
-        """
-        gemini_parts = []
-        combined_text_prompt = ""
-        image_count = 0
-
-        if isinstance(content, str):
-            text = content.strip()
-            if text:
-                gemini_parts.append({"text": text})
-                combined_text_prompt = text
-        elif isinstance(content, list):
-            text_parts_log = []
-            for item in content:
-                if not isinstance(item, dict): continue
-                item_type = item.get("type")
-                if item_type == "text":
-                    text = item.get("text", "").strip()
-                    if text:
-                        gemini_parts.append({"text": text})
-                        text_parts_log.append(text)
-                elif item_type == "image_url":
-                    image_url_data = item.get("image_url")
-                    if isinstance(image_url_data, dict) and "url" in image_url_data:
-                        url = image_url_data["url"]
-                        if url.startswith("data:"):
-                            try:
-                                header, base64_data = url.split(",", 1)
-                                mime_match = re.match(r"data:(image\/[a-zA-Z+.-]+);base64", header)
-                                if mime_match:
-                                    mime_type = mime_match.group(1)
-                                    gemini_parts.append({
-                                        "inline_data": {"mime_type": mime_type, "data": base64_data}
-                                    })
-                                    image_count += 1
-                            except Exception as e:
-                                logger.error(f"Error processing data URI image: {e}")
-            combined_text_prompt = " ".join(text_parts_log) + f" ({image_count} images)" if image_count else " ".join(text_parts_log)
-        
-        return gemini_parts, combined_text_prompt, image_count
-
-    def _convert_gemini_chunk_to_openai(self, gemini_chunk: dict, chunk_id: str, index: int, model: str):
-        """Convert a Gemini streaming chunk to OpenAI format."""
-        candidates = gemini_chunk.get("candidates", [])
-        if not candidates:
-            return None
-            
-        candidate = candidates[0]
-        content = candidate.get("content", {})
-        parts = content.get("parts", [])
-        
-        # Route thought parts to reasoning, regular parts to content (mirrors Ollama)
-        text_content = ""
-        reasoning_content = ""
-        for part in parts:
-            if "text" in part:
-                if part.get("thought", False):
-                    reasoning_content += part["text"]
-                else:
-                    text_content += part["text"]
-
-        # Check for finish reason
-        finish_reason = None
-        finish_reason_gemini = candidate.get("finishReason")
-        if finish_reason_gemini:
-            if finish_reason_gemini == "MAX_TOKENS":
-                finish_reason = "length"
-            elif finish_reason_gemini == "SAFETY":
-                finish_reason = "content_filter"
-            else:
-                finish_reason = "stop"
-
-        # Build OpenAI chunk
-        openai_chunk = {
-            "id": chunk_id,
-            "object": "chat.completion.chunk",
-            "created": int(time.time()),
-            "model": model,
-            "choices": [{
-                "index": 0,
-                "delta": {}
-            }]
-        }
-
-        # Add content/reasoning if present (matches Ollama delta.reasoning / delta.content pattern)
-        if text_content:
-            openai_chunk["choices"][0]["delta"]["content"] = text_content
-        if reasoning_content:
-            openai_chunk["choices"][0]["delta"]["reasoning"] = reasoning_content
-
-        # Add finish reason if present
-        if finish_reason:
-            openai_chunk["choices"][0]["finish_reason"] = finish_reason
-
-        return openai_chunk

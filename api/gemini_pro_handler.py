@@ -25,12 +25,6 @@ class GeminiProAPIHandler(BaseAPIHandler):
         # --- Model Mapping (like OpenRouter) ---
         # Maps display names to actual Gemini model IDs
         self.model_map = {
-            "gemma-3-27b-it": {
-                "model_id": "gemma-3-27b-it",
-                "parameters": "N/A",
-                "multimodal": True,
-                "pro": True
-            },
             "gemini-2.5-flash-lite": {
                 "model_id": "gemini-2.5-flash-lite",
                 "parameters": "N/A",
