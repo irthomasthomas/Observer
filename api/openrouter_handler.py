@@ -39,7 +39,7 @@ class OpenRouterAPIHandler(BaseAPIHandler):
                 "model_id": "qwen/qwen3-vl-8b-instruct", 
                 "parameters": "8B",
                 "multimodal": True,
-                "pro": True,
+                "pro": False,
             },
 
             "OpenAI GPT-5": {
@@ -70,16 +70,6 @@ class OpenRouterAPIHandler(BaseAPIHandler):
                 "model_id": "nvidia/nemotron-nano-12b-v2-vl:free",
                 "parameters": "12B",
                 "multimodal": True
-            },
-             "OpenAI gpt-oss-20b": {
-                 "model_id": "openai/gpt-oss-20b:free", # Example qwen/qwen3-next-80b-a3b-instruct:free
-                 "parameters": "20B",
-                 "multimodal": False
-            },
-            "meta-llama-3.3-8b": {
-                "model_id": "meta-llama/llama-3.3-8b-instruct:free",
-                "parameters": "70b",
-                "multimodal": False
             }
             # "Skip Model Call": {
             #     "model_id": "deepseek/deepseek-chat-v3.1:free", # Example

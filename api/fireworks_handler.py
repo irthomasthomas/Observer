@@ -24,10 +24,17 @@ class FireworksAPIHandler(BaseAPIHandler):
         # Dictionary mapping display names to actual model IDs and parameters
         self.model_map = {
             # Simple mapping with just two models
-            "Meta llama4-scout": {
-                "model_id": "accounts/fireworks/models/llama4-scout-instruct-basic",
-                "parameters": "109B",
-                "multimodal": True
+            "Kimi K2.5": {
+                "model_id": "accounts/fireworks/models/kimi-k2p5",
+                "parameters": "1.02T",
+                "multimodal": True,
+                "pro": True
+            },
+            "Qwen3.6 Plus": {
+                "model_id": "accounts/fireworks/models/qwen3p6-plus",
+                "parameters": "36B",
+                "multimodal": True,
+                "pro": True
             },
             # "llama4-maverick": {
             #     "model_id": "accounts/fireworks/models/llama4-maverick-instruct-basic",
@@ -49,7 +56,7 @@ class FireworksAPIHandler(BaseAPIHandler):
         # Define supported models for display using the pretty names from the map
         self.models = [
             {"name": display_name, "parameters": model_info.get("parameters", "N/A"),
-            "multimodal": model_info.get("multimodal", False), "pro": True}
+            "multimodal": model_info.get("multimodal", False), "pro": model_info.get("pro", False)}
             for display_name, model_info in self.model_map.items()
         ]
         # --- End Model Mapping ---
