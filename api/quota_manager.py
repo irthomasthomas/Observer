@@ -11,7 +11,7 @@ logger = logging.getLogger('quota_manager')
 # --- Configuration ---
 QUOTA_LIMITS = {
     "monitor": 60,
-    "agent_creator": 50,
+    "agent_creator": 45,   # 3 agent sessions × ~15 msgs
     "sms": 5,
     "whatsapp": 5,
     "email": 2880,
@@ -26,7 +26,7 @@ QUOTA_LIMITS = {
 # Plus user limits (unlimited alerts, limited chat)
 PLUS_QUOTA_LIMITS = {
     "monitor": 60,
-    "agent_creator": 1000,
+    "agent_creator": 1000,  # plus legacy tier
     "sms": 100,
     "whatsapp": 100,
     "email": 2880,
@@ -56,7 +56,7 @@ PRO_QUOTA_LIMITS = {
 # Max user limits (highest tier)
 MAX_QUOTA_LIMITS = {
     "monitor": 2880, # 30s interval for 24h = 2/minx60x24=2880
-    "agent_creator": 2880,
+    "agent_creator": 1000,
     "sms": 100,
     "whatsapp": 100,
     "email": 2880,
@@ -69,7 +69,7 @@ MAX_QUOTA_LIMITS = {
 }
 
 # Rate limiting configuration (requests per minute)
-RATE_LIMIT_PER_MINUTE = 20
+RATE_LIMIT_PER_MINUTE = 30
 
 # Audio second limits per provider per tier
 CHIRP_SECOND_LIMITS = {

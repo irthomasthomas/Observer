@@ -248,4 +248,4 @@ if __name__ == "__main__":
     print(f"  Compute quota: http://localhost:{args.port}/quota")
     print(f"  Proxy forwarding to: {args.proxy_target}")
 
-    uvicorn.run(app, host="0.0.0.0", port=args.port)
+    uvicorn.run("api:app", host="0.0.0.0", port=args.port, workers=4)
