@@ -3,6 +3,8 @@
 import os
 import logging
 import uuid
+import secrets
+from urllib.parse import quote
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -31,11 +33,37 @@ messaging_router = APIRouter()
 # Temp images directory
 TEMP_IMAGES_DIR = Path("temp_images")
 
-# In-memory storage for pending voice call messages
-# Maps call_sid -> message text that should be spoken
-pending_voice_calls = {}
-
 WHITELIST_TTL = 86400  # 24 hours in seconds
+VOICE_CALL_TTL = 3600  # 1 hour — how long a pending call message stays retrievable
+
+DEFAULT_VOICE_MESSAGE = "Alert from Observer A I"
+
+
+async def stash_voice_message(message: str) -> str:
+    """
+    Store the text a voice call should speak and return an opaque token for it.
+
+    Lives in Redis rather than process memory so any uvicorn worker (or any
+    server) can serve the callback. The token is minted *before* the Twilio call
+    is created and travels in the callback URL, so the message is always in place
+    by the time Twilio requests TwiML — and because Twilio signs the full URL
+    including the query string, the token can't be tampered with.
+    """
+    r = await get_redis()
+    token = secrets.token_urlsafe(16)
+    await r.setex(f"voicecall:{token}", VOICE_CALL_TTL, message)
+    return token
+
+
+async def pop_voice_message(token: str) -> str | None:
+    """Fetch and consume a stashed voice message. Returns None if unknown/expired."""
+    if not token:
+        return None
+    r = await get_redis()
+    message = await r.get(f"voicecall:{token}")
+    if message is not None:
+        await r.delete(f"voicecall:{token}")
+    return message
 
 def normalize_phone(phone: str) -> str:
     """
@@ -804,8 +832,14 @@ async def make_voice_call(
     try:
         client = Client(config.account_sid, config.auth_token)
 
+        # Stash the message first, so it is retrievable no matter how fast
+        # Twilio comes back for the TwiML.
+        token = await stash_voice_message(request_data.message or DEFAULT_VOICE_MESSAGE)
+
         # The callback URL that Twilio will request when the call connects
-        callback_url = "https://api.observer-ai.com/webhooks/voice-callback"
+        callback_url = (
+            f"https://api.observer-ai.com/webhooks/voice-callback?token={quote(token)}"
+        )
 
         # Create the call
         call = client.calls.create(
@@ -815,9 +849,6 @@ async def make_voice_call(
             method='POST',
             status_callback="https://api.observer-ai.com/webhooks/voice-status"
         )
-
-        # Store the message in memory so the webhook can retrieve it (with default if not provided)
-        pending_voice_calls[call.sid] = request_data.message or "Alert from Observer A I"
 
         logger.info(f"Voice call initiated successfully. SID: {call.sid}")
         return {
@@ -868,13 +899,13 @@ async def voice_callback(
                 language='en-US'
             )
         else:
-            # Outgoing call - speak the message from AI
-            message_text = pending_voice_calls.get(call_sid, "Alert from Observer AI")
+            # Outgoing call - speak the message from AI, looked up by the token
+            # we minted when the call was created (see stash_voice_message).
+            message_text = await pop_voice_message(request.query_params.get("token", ""))
+            if message_text is None:
+                logger.warning(f"No stashed message for call {call_sid}; using default")
+                message_text = DEFAULT_VOICE_MESSAGE
             response.say(message_text, voice='alice', language='en-US')
-
-            # Clean up the stored message
-            if call_sid in pending_voice_calls:
-                del pending_voice_calls[call_sid]
 
         # Return TwiML as XML
         return FastAPIResponse(content=str(response), media_type="application/xml")
