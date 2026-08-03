@@ -406,6 +406,12 @@ function AppContent() {
     }
   };
 
+  const markTutorialSeen = () => {
+    if (user && 'sub' in user && user.sub) {
+      localStorage.setItem(`observer_tutorial_seen_${user.sub}`, 'true');
+    }
+  };
+
   const handleDeleteClick = async (agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     if (!agent) return;
@@ -721,6 +727,14 @@ function AppContent() {
         return;
       }
 
+      // Returning user who never actually saw the tutorial — e.g. they upgraded to
+      // Pro straight from the post-ToS modal, which redirects to Stripe before
+      // RecipeSplash gets a chance to open. Catch them here, once.
+      const tutorialSeen = localStorage.getItem(`observer_tutorial_seen_${sub}`);
+      if (!tutorialSeen) {
+        setIsRecipeSplashOpen(true);
+      }
+
       // Returning user: clear any leftover login intent
       sessionStorage.removeItem('observer_login_intent');
     }
@@ -800,17 +814,18 @@ function AppContent() {
       <AcceptToS
         isOpen={isAcceptToSOpen}
         onAccept={() => {
-          // Value first: land the user on the recipe splash (the guided one-line builder).
-          // The upsell now fires later, once their first agent actually starts.
+          // Show the Pro trial pitch right after ToS, while attention is highest.
+          // Once dismissed, land the user on the recipe splash (the guided one-line builder).
           setIsAcceptToSOpen(false);
           markOnboardingComplete();
-          setIsRecipeSplashOpen(true);
+          setWelcomeUpsellVariant('onboarding');
+          setIsWelcomeUpsellOpen(true);
         }}
       />
 
       <RecipeSplash
         isOpen={isRecipeSplashOpen}
-        onClose={() => setIsRecipeSplashOpen(false)}
+        onClose={() => { setIsRecipeSplashOpen(false); markTutorialSeen(); }}
       />
 
       <WelcomeModal
@@ -818,6 +833,9 @@ function AppContent() {
         onClose={() => {
           setIsWelcomeUpsellOpen(false);
           markOnboardingComplete();
+          if (welcomeUpsellVariant === 'onboarding') {
+            setIsRecipeSplashOpen(true);
+          }
         }}
         onViewAllTiers={() => setActiveTab('obServer')}
         mode="upsell"

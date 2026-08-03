@@ -225,111 +225,32 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
               {/* Hidden on mobile for compactness */}
               <p className="hidden md:block text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
                 {variant === 'activation'
-                  ? 'You have a running agent. Keep it running with Observer Pro — or continue free.'
+                  ? 'You have a running agent. Help Observer grow — or continue free.'
                   : 'Local micro-agents that watch, log, and react.'}
               </p>
             </div>
 
-            {/* ============ SUPPORT SECTION (Bottom 40%) ============ */}
-            <div className="text-center mb-4 md:mb-6">
-              <p className="text-sm md:text-base text-gray-700 mb-1 flex items-center justify-center gap-2">
-                <Heart className="h-4 w-4 md:h-5 md:w-5 text-pink-500" />
-                <span className="font-semibold">Built by a solo developer</span>
-              </p>
-              <p className="text-xs md:text-sm text-gray-600 mb-4 md:mb-6">
-                Try Observer Pro - give feedback and help development
-              </p>
-
-              {/* Observer Pro - Hero Free Trial Option */}
-              <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-xl p-4 md:p-6 max-w-md mx-auto mb-4 hover:shadow-xl transition-all duration-200 relative">
-                {!isAppleDevice && (
-                  <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap shadow-lg">
-                      Free Trial
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4 mt-2">
-                  <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-purple-500" />
-                  <div className="text-left">
-                    <h3 className="text-lg md:text-xl font-bold text-purple-900">Observer Pro</h3>
-                    <p className="text-sm text-purple-700">
-                      {isAppleDevice ? (
-                        <span className="text-xl md:text-2xl font-bold text-purple-900">${'22.99'}/month</span>
-                      ) : (
-                        <>
-                          <span className="text-xl md:text-2xl font-bold text-purple-900">7 days free</span>
-                          <span className="text-xs ml-1">then $20/month</span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 md:space-y-2 mb-3 md:mb-4 text-xs md:text-sm text-purple-900 text-left">
-                  <div className="flex items-start">
-                    <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span><strong>Unlock Agent Builder</strong> autonomous deployment</span>
-                  </div>
-                  <div className="flex items-start">
-                    <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span>
-                      <strong>8 hours/day</strong> cloud monitoring
-                      <CreditInfoButton dailyCredits={480} tierName="Pro tier" className="ml-1 align-middle" />
-                    </span>
-                  </div>
-                  <div className="flex items-start">
-                    <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span><strong>Unlock </strong>Voice Call, Whatsapp and SMS notifications</span>
-                  </div>   
-                  <div className="flex items-start">
-                    <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span><strong>Premium AI models</strong> access</span>
-                  </div>
-                  <div className="flex items-start">
-                    <Heart className="h-3.5 w-3.5 md:h-4 md:w-4 text-pink-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span><strong>Support open source</strong> development</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    Analytics.upsellFreeTrial(upsellSource);
-                    if (isAppleDevice) handleApplePurchasePro(); else handleProCheckout();
-                  }}
-                  disabled={isButtonLoading || isAppleLoading}
-                  className="w-full px-4 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all duration-200 font-semibold text-sm md:text-base shadow-md hover:shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {isButtonLoading || isAppleLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                  Start Free Trial
-                </button>
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms</a>
-                  {' · '}
-                  <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy</a>
+            {variant === 'activation' ? (
+              /* ============ ACTIVATION: Star + Invite (no repeat Pro pitch) ============ */
+              <div className="text-center mb-4 md:mb-6">
+                <p className="text-sm md:text-base text-gray-700 mb-1 flex items-center justify-center gap-2">
+                  <Heart className="h-4 w-4 md:h-5 md:w-5 text-pink-500" />
+                  <span className="font-semibold">Built by a solo developer</span>
                 </p>
-              </div>
+                <p className="text-xs md:text-sm text-gray-600 mb-4 md:mb-6">
+                  Your agent worked — help more people find Observer
+                </p>
 
-              {/* Error Display */}
-              {(error || appleError) && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2 md:p-3 mb-3 md:mb-4 text-center max-w-md mx-auto">
-                  <p className="text-xs md:text-sm text-red-700">{error || appleError}</p>
+                <div className="flex justify-center mb-4">
+                  <button
+                    onClick={() => { Analytics.upsellGithub(upsellSource); handleStarGithub(); }}
+                    className="px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium flex items-center justify-center gap-2 group shadow-md text-sm md:text-base"
+                  >
+                    <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 group-hover:scale-110 transition-transform" />
+                    <span>Star on GitHub</span>
+                    <span className="text-xs opacity-80">(1.6k)</span>
+                  </button>
                 </div>
-              )}
-
-              {/* Action Buttons - Stacked on mobile, inline on desktop */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3">
-                <button
-                  onClick={() => { Analytics.upsellGithub(upsellSource); handleStarGithub(); }}
-                  className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium flex items-center gap-2 group shadow-md text-sm md:text-base"
-                >
-                  <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 group-hover:scale-110 transition-transform" />
-                  <span>Star on GitHub</span>
-                  <span className="text-xs opacity-80">(1.4k)</span>
-                </button>
-
-                <div className="hidden md:block text-gray-300">|</div>
 
                 <button
                   onClick={() => { Analytics.upsellContinueFree(upsellSource); handleClose(); }}
@@ -338,7 +259,117 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                   Continue with free tier →
                 </button>
               </div>
-            </div>
+            ) : (
+              /* ============ ONBOARDING: Observer Pro Free Trial ============ */
+              <div className="text-center mb-4 md:mb-6">
+                <p className="text-sm md:text-base text-gray-700 mb-1 flex items-center justify-center gap-2">
+                  <Heart className="h-4 w-4 md:h-5 md:w-5 text-pink-500" />
+                  <span className="font-semibold">Built by a solo developer</span>
+                </p>
+                <p className="text-xs md:text-sm text-gray-600 mb-4 md:mb-6">
+                  Try Observer Pro - give feedback and help development
+                </p>
+
+                {/* Observer Pro - Hero Free Trial Option */}
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-xl p-4 md:p-6 max-w-md mx-auto mb-4 hover:shadow-xl transition-all duration-200 relative">
+                  {!isAppleDevice && (
+                    <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
+                      <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap shadow-lg">
+                        Free Trial
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4 mt-2">
+                    <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-purple-500" />
+                    <div className="text-left">
+                      <h3 className="text-lg md:text-xl font-bold text-purple-900">Observer Pro</h3>
+                      <p className="text-sm text-purple-700">
+                        {isAppleDevice ? (
+                          <span className="text-xl md:text-2xl font-bold text-purple-900">${'22.99'}/month</span>
+                        ) : (
+                          <>
+                            <span className="text-xl md:text-2xl font-bold text-purple-900">7 days free</span>
+                            <span className="text-xs ml-1">then $20/month</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 md:space-y-2 mb-3 md:mb-4 text-xs md:text-sm text-purple-900 text-left">
+                    <div className="flex items-start">
+                      <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <span><strong>Unlock Agent Builder</strong> autonomous deployment</span>
+                    </div>
+                    <div className="flex items-start">
+                      <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <span>
+                        <strong>8 hours/day</strong> cloud monitoring
+                        <CreditInfoButton dailyCredits={480} tierName="Pro tier" className="ml-1 align-middle" />
+                      </span>
+                    </div>
+                    <div className="flex items-start">
+                      <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <span><strong>Unlock </strong>Voice Call, Whatsapp and SMS notifications</span>
+                    </div>
+                    <div className="flex items-start">
+                      <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <span><strong>Premium AI models</strong> access</span>
+                    </div>
+                    <div className="flex items-start">
+                      <Heart className="h-3.5 w-3.5 md:h-4 md:w-4 text-pink-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <span><strong>Support open source</strong> development</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      Analytics.upsellFreeTrial(upsellSource);
+                      if (isAppleDevice) handleApplePurchasePro(); else handleProCheckout();
+                    }}
+                    disabled={isButtonLoading || isAppleLoading}
+                    className="w-full px-4 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all duration-200 font-semibold text-sm md:text-base shadow-md hover:shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isButtonLoading || isAppleLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                    Start Free Trial
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms</a>
+                    {' · '}
+                    <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy</a>
+                  </p>
+                </div>
+
+                {/* Error Display */}
+                {(error || appleError) && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-2 md:p-3 mb-3 md:mb-4 text-center max-w-md mx-auto">
+                    <p className="text-xs md:text-sm text-red-700">{error || appleError}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons - Stacked on mobile, inline on desktop */}
+                <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3">
+                  <button
+                    onClick={() => { Analytics.upsellGithub(upsellSource); handleStarGithub(); }}
+                    className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium flex items-center gap-2 group shadow-md text-sm md:text-base"
+                  >
+                    <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 group-hover:scale-110 transition-transform" />
+                    <span>Star on GitHub</span>
+                    <span className="text-xs opacity-80">(1.6k)</span>
+                  </button>
+
+                  <div className="hidden md:block text-gray-300">|</div>
+
+                  <button
+                    onClick={() => { Analytics.upsellContinueFree(upsellSource); handleClose(); }}
+                    className="text-xs md:text-sm text-gray-600 hover:text-gray-800 hover:underline transition-colors font-medium"
+                  >
+                    Continue with free tier →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
