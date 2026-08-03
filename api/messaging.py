@@ -183,9 +183,13 @@ async def validate_twilio_request(request: Request) -> dict:
     # Get form data (FastAPI's FormData object)
     form_data = await request.form()
 
-    # Use the exact URL from the request
-    # Twilio signs the URL exactly as configured in their console
+    # Reconstruct the public URL as Twilio signed it.
+    # Behind a reverse proxy, request.url uses the internal scheme (http),
+    # but Twilio signs the external HTTPS URL. Use X-Forwarded-Proto if present.
+    forwarded_proto = request.headers.get("X-Forwarded-Proto", "")
     url = str(request.url)
+    if forwarded_proto == "https" and url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
 
     # Debug logging
     logger.info(f"Validating Twilio request: URL={url}, Signature={signature[:20]}..., Form keys={list(form_data.keys())}")
