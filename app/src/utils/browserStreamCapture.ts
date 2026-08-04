@@ -31,6 +31,14 @@ class BrowserStreamCapture {
   private pendingAcquisitions = new Map<MasterStreamType, Promise<void>>();
   private mockCameraAnimationId: number | null = null;
 
+  /**
+   * Called when a master stream dies on its own (user hit "Stop sharing",
+   * device unplugged). StreamManager sets this so it can drop its mirrored
+   * stream references — otherwise it keeps handing out a dead MediaStream and
+   * agents silently capture frozen frames.
+   */
+  public onStreamEnd: ((type: MasterStreamType) => void) | null = null;
+
   private createMockCameraStream(): MediaStream {
     const W = 640, H = 480;
     const canvas = document.createElement('canvas');
@@ -233,6 +241,11 @@ class BrowserStreamCapture {
         const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.streams.masterMicrophoneStream = micStream;
         this.streams.microphoneStream = micStream;
+
+        micStream.getAudioTracks()[0]?.addEventListener('ended', () => {
+          Logger.warn("BrowserCapture", "Microphone stream ended unexpectedly");
+          this.handleStreamEnd('microphone');
+        });
         break;
     }
 
@@ -291,7 +304,7 @@ class BrowserStreamCapture {
    */
   private handleStreamEnd(type: MasterStreamType): void {
     Logger.warn("BrowserCapture", `Master ${type} stream ended unexpectedly`);
-    // Notify streamManager (will be handled via callback)
+    this.onStreamEnd?.(type);
   }
 
   /**

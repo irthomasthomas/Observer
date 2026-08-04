@@ -88,6 +88,28 @@ class Manager {
   constructor() {
     const allStreamTypes: PseudoStreamType[] = ['camera', 'screenVideo', 'screenAudio', 'microphone', 'allAudio'];
     allStreamTypes.forEach(type => this.userSets.set(type, new Set()));
+
+    // A master stream can die without us asking (user hits "Stop sharing", device
+    // unplugged). Run the normal teardown so our mirrored state, the persistent
+    // video element and the UI all drop the dead stream; the next agent iteration
+    // then fails loudly in the pre-processor instead of capturing a frozen frame.
+    browserStreamCapture.onStreamEnd = (type) => {
+      Logger.warn("StreamManager", `Master '${type}' stream died externally, tearing down.`);
+      switch (type) {
+        case 'display':
+        case 'screenAudio':
+          // Browser screen audio lives on the display stream, so both die together.
+          this.teardownScreenAudioStream();
+          this.teardownDisplayStream();
+          break;
+        case 'camera':
+          this.teardownCameraStream();
+          break;
+        case 'microphone':
+          this.teardownMicrophoneStream();
+          break;
+      }
+    };
   }
 
   // --- Public API ---
