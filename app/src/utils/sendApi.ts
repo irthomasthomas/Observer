@@ -18,6 +18,40 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
 
   const decoder = new TextDecoder();
   let fullContent = '';
+  let buffer = '';
+
+  /** Apply one complete SSE line. Returns true when the stream signalled [DONE]. */
+  const consume = (line: string): boolean => {
+    if (!line.startsWith('data: ')) return false;
+    const data = line.slice(6); // Remove 'data: ' prefix
+
+    if (data === '[DONE]') {
+      //console.log('🏁 Stream finished');
+      return true;
+    }
+
+    try {
+      const parsed = JSON.parse(data);
+      const content = parsed.choices?.[0]?.delta?.content;
+      const reasoning = parsed.choices?.[0]?.delta?.reasoning;
+
+      if (reasoning && onReasoningChunk) {
+        onReasoningChunk(reasoning);
+      }
+
+      if (content) {
+        //console.log('📝 Token:', content);
+        fullContent += content;
+        // Call the callback with the new content if provided
+        if (onStreamChunk) {
+          onStreamChunk(content);
+        }
+      }
+    } catch (parseError) {
+      //console.warn('Failed to parse streaming chunk:', data);
+    }
+    return false;
+  };
 
   try {
     while (true) {
@@ -25,42 +59,18 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
 
       if (done) {
         //console.log('🎯 Stream completed');
+        // A stream that ends without a trailing newline leaves its last event buffered.
+        buffer += decoder.decode();
+        if (buffer.trim() !== '') consume(buffer.replace(/\r$/, '').trim());
         break;
       }
 
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+      buffer += decoder.decode(value, { stream: true });
+      const { lines, rest } = takeCompleteLines(buffer);
+      buffer = rest;
 
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6); // Remove 'data: ' prefix
-
-          if (data === '[DONE]') {
-            //console.log('🏁 Stream finished');
-            return fullContent;
-          }
-
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            const reasoning = parsed.choices?.[0]?.delta?.reasoning;
-
-            if (reasoning && onReasoningChunk) {
-              onReasoningChunk(reasoning);
-            }
-
-            if (content) {
-              //console.log('📝 Token:', content);
-              fullContent += content;
-              // Call the callback with the new content if provided
-              if (onStreamChunk) {
-                onStreamChunk(content);
-              }
-            }
-          } catch (parseError) {
-            //console.warn('Failed to parse streaming chunk:', data);
-          }
-        }
+        if (consume(line)) return fullContent;
       }
     }
   } finally {
@@ -68,6 +78,24 @@ async function handleStreamingResponse(response: Response, onStreamChunk?: (chun
   }
 
   return fullContent;
+}
+
+/**
+ * Split an SSE buffer into COMPLETE lines, leaving any trailing partial line behind.
+ *
+ * A network read is not aligned to line boundaries: a single `data: {...}` event — Gemini
+ * emits whole tool calls in one line, easily several KB — is routinely split across two
+ * reads. Parsing each read in isolation makes both halves unparseable JSON, and since the
+ * parse error is swallowed the event vanishes: the model's tool call never reaches the
+ * runner and the turn looks like the model stopped saying nothing. Keeping the remainder
+ * buffered until its newline arrives is what makes the stream lossless.
+ */
+function takeCompleteLines(buffer: string): { lines: string[]; rest: string } {
+  const parts = buffer.split('\n');
+  const rest = parts.pop() ?? '';
+  // \r survives on CRLF streams and would break the `data: [DONE]` compare.
+  const lines = parts.map(l => l.replace(/\r$/, '')).filter(l => l.trim() !== '');
+  return { lines, rest };
 }
 
 /**
@@ -133,7 +161,8 @@ function normalizeToolArguments(raw: string): string {
 /**
  * Streaming handler for tool-calling requests. A single turn may interleave prose and
  * tool-call fragments; prose is forwarded via onStreamChunk while tool_calls are
- * accumulated by `index` (concatenating function.arguments fragments).
+ * accumulated per call (concatenating function.arguments fragments), keyed by `index`
+ * when the provider sends one and by `id` when it doesn't (Gemini).
  */
 async function handleStreamingResponseWithTools(
   response: Response,
@@ -148,21 +177,51 @@ async function handleStreamingResponseWithTools(
   const decoder = new TextDecoder();
   let fullContent = '';
   let finishReason: string | undefined;
-  // Accumulate tool-call fragments keyed by their stream index.
-  const toolCallsByIndex: Record<number, { id?: string; name?: string; arguments: string; extra_content?: any }> = {};
+  let buffer = '';
+
+  // One accumulator per tool call, in the order the calls first appeared on the stream.
+  type CallAccumulator = { id?: string; name?: string; arguments: string; extra_content?: any };
+  const calls: CallAccumulator[] = [];
+  const callByKey = new Map<string, CallAccumulator>();
+
+  /**
+   * Route a tool_call delta to its accumulator. OpenAI keys fragments by `index`; Gemini's
+   * compat endpoint omits `index` entirely (it lives on the choice) and instead sends each
+   * call whole with a unique `id` — so keying on index alone collapsed two parallel calls
+   * into one slot and concatenated their arguments into unparseable JSON.
+   */
+  const accumulatorFor = (tc: any): CallAccumulator => {
+    const key = typeof tc.index === 'number' ? `i:${tc.index}` : tc.id ? `id:${tc.id}` : null;
+    if (key === null) {
+      // Neither key present: a bare follow-up chunk (Gemini sometimes ships the
+      // thought_signature this way) belongs to the call already in flight.
+      if (calls.length === 0) {
+        const fresh: CallAccumulator = { arguments: '' };
+        calls.push(fresh);
+        return fresh;
+      }
+      return calls[calls.length - 1];
+    }
+    let acc = callByKey.get(key);
+    if (!acc) {
+      acc = { arguments: '' };
+      callByKey.set(key, acc);
+      calls.push(acc);
+    }
+    return acc;
+  };
 
   const finalize = (): AssistantResponse => {
-    const indices = Object.keys(toolCallsByIndex).map(Number).sort((a, b) => a - b);
-    const tool_calls: ToolCall[] = indices.map(i => ({
-      id: toolCallsByIndex[i].id || `call_${i}`,
+    const tool_calls: ToolCall[] = calls.map((acc, i) => ({
+      id: acc.id || `call_${i}`,
       type: 'function' as const,
       function: {
-        name: toolCallsByIndex[i].name || '',
-        arguments: normalizeToolArguments(toolCallsByIndex[i].arguments),
+        name: acc.name || '',
+        arguments: normalizeToolArguments(acc.arguments),
       },
       // Echo back Gemini's thought_signature (and any other provider passthrough) so the
       // replayed history stays valid for 2.5+ thinking models.
-      ...(toolCallsByIndex[i].extra_content ? { extra_content: toolCallsByIndex[i].extra_content } : {}),
+      ...(acc.extra_content ? { extra_content: acc.extra_content } : {}),
     }));
     return {
       content: fullContent,
@@ -171,54 +230,65 @@ async function handleStreamingResponseWithTools(
     };
   };
 
+  /** Apply one complete SSE line. Returns true when the stream signalled [DONE]. */
+  const consume = (line: string): boolean => {
+    if (!line.startsWith('data: ')) return false;
+    const data = line.slice(6);
+    if (data === '[DONE]') return true;
+
+    try {
+      const parsed = JSON.parse(data);
+      const choice = parsed.choices?.[0];
+      if (!choice) return false;
+
+      const delta = choice.delta || {};
+
+      if (delta.reasoning && onReasoningChunk) {
+        onReasoningChunk(delta.reasoning);
+      }
+
+      if (delta.content) {
+        fullContent += delta.content;
+        if (onStreamChunk) onStreamChunk(delta.content);
+      }
+
+      if (Array.isArray(delta.tool_calls)) {
+        for (const tc of delta.tool_calls) {
+          const acc = accumulatorFor(tc);
+          if (tc.id) acc.id = tc.id;
+          if (tc.function?.name) acc.name = tc.function.name;
+          if (tc.function?.arguments) acc.arguments += tc.function.arguments;
+          // Gemini 2.5+ may deliver the thought_signature in any chunk for this call
+          // (sometimes a content-less one), so capture it whenever it appears.
+          if (tc.extra_content) acc.extra_content = tc.extra_content;
+        }
+      }
+
+      if (choice.finish_reason) finishReason = choice.finish_reason;
+    } catch (parseError) {
+      // A complete line that still won't parse is a real anomaly now that partial
+      // lines are buffered — surface it instead of silently losing the event.
+      console.warn('Dropped unparseable stream event:', data.slice(0, 200));
+    }
+    return false;
+  };
+
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        // A stream that ends without a trailing newline leaves its last event buffered.
+        buffer += decoder.decode();
+        if (buffer.trim() !== '') consume(buffer.replace(/\r$/, '').trim());
+        break;
+      }
 
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+      buffer += decoder.decode(value, { stream: true });
+      const { lines, rest } = takeCompleteLines(buffer);
+      buffer = rest;
 
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6);
-        if (data === '[DONE]') {
-          return finalize();
-        }
-
-        try {
-          const parsed = JSON.parse(data);
-          const choice = parsed.choices?.[0];
-          if (!choice) continue;
-
-          const delta = choice.delta || {};
-
-          if (delta.reasoning && onReasoningChunk) {
-            onReasoningChunk(delta.reasoning);
-          }
-
-          if (delta.content) {
-            fullContent += delta.content;
-            if (onStreamChunk) onStreamChunk(delta.content);
-          }
-
-          if (Array.isArray(delta.tool_calls)) {
-            for (const tc of delta.tool_calls) {
-              const idx = typeof tc.index === 'number' ? tc.index : 0;
-              if (!toolCallsByIndex[idx]) toolCallsByIndex[idx] = { arguments: '' };
-              if (tc.id) toolCallsByIndex[idx].id = tc.id;
-              if (tc.function?.name) toolCallsByIndex[idx].name = tc.function.name;
-              if (tc.function?.arguments) toolCallsByIndex[idx].arguments += tc.function.arguments;
-              // Gemini 2.5+ may deliver the thought_signature in any chunk for this call
-              // (sometimes a content-less one), so capture it whenever it appears.
-              if (tc.extra_content) toolCallsByIndex[idx].extra_content = tc.extra_content;
-            }
-          }
-
-          if (choice.finish_reason) finishReason = choice.finish_reason;
-        } catch (parseError) {
-          // Ignore unparseable fragments (matches non-tool handler behavior)
-        }
+        if (consume(line)) return finalize();
       }
     }
   } finally {
