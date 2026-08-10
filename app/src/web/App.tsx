@@ -8,7 +8,8 @@ import { platform as getPlatform } from '@tauri-apps/plugin-os';
 import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
-import { isMobile, confirm, isDesktop, isIOS, isAndroid } from '@utils/platform';
+import { isMobile, confirm, isDesktop, isIOS, isAndroid, getPlatformName } from '@utils/platform';
+import { version as appVersion } from '../../package.json';
 import {
   listAgents,
   getAgentCode,
@@ -64,7 +65,7 @@ datadogRum.init({
   site: 'us5.datadoghq.com',
   service: 'observer-web',
   env: import.meta.env.MODE,
-  version: '2.3.4',
+  version: appVersion,
   sessionSampleRate: 100,
   sessionReplaySampleRate: 20,
   trackResources: true,
@@ -73,9 +74,7 @@ datadogRum.init({
   plugins: [reactPlugin({ router: false })],
 });
 
-datadogRum.setGlobalContextProperty('platform',
-  isIOS() ? 'ios' : isAndroid() ? 'android' : isDesktop() ? 'desktop' : 'web'
-);
+datadogRum.setGlobalContextProperty('platform', getPlatformName());
 
 // Main app content - uses the unified auth hook
 function AppContent() {
