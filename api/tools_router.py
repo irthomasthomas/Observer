@@ -20,8 +20,7 @@ from admin_auth import get_admin_access
 from quota_manager import increment_usage, get_all_usage_data, check_usage
 from messaging import save_temp_image
 
-# --- Setup ---
-logging.basicConfig(level=logging.INFO)
+# --- Setup (logging is configured once in api.py via logging_config.setup_logging()) ---
 logger = logging.getLogger('tools_router')
 tools_router = APIRouter()
 

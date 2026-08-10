@@ -6,10 +6,20 @@ services:
     container_name: observer-redis
     restart: unless-stopped
     mem_limit: 512m
+    # Without an explicit maxmemory Redis grows until the kernel OOM-kills the
+    # container. noeviction (rather than an LRU policy) because evicting keys
+    # here would mean handing out free quota. The digest is the only sizeable
+    # consumer: ~20MB/day capped, ~27MB resident at a 32h TTL.
+    command: redis-server --maxmemory 400mb --maxmemory-policy noeviction
     volumes:
       - redis-data:/data
     networks:
       - observer-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -39,6 +49,9 @@ services:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379
+      # Every time key in the API is UTC: quota resets, observability hour
+      # buckets and digest days. Pinned so nothing depends on ambient host tz.
+      - TZ=UTC
     depends_on:
       redis:
         condition: service_healthy
@@ -51,6 +64,13 @@ services:
       - ./logs:/app/logs
     networks:
       - observer-network
+    # Application logs go to stdout and Docker owns retention. Without these
+    # options json-file keeps everything forever and eventually fills the disk.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3839/')"]
       interval: 30s

@@ -11,10 +11,16 @@ import sqlite3
 import stripe
 import hashlib
 import httpx
+import uuid
 from pathlib import Path
+
+# Logging must be configured before any other module logs at import time.
+from logging_config import setup_logging, request_id_var
+setup_logging()
 
 from auth import AuthUser
 from auth0_manager import delete_user
+from redis_client import close_redis
 
 # Import routers from our modules
 from marketplace import marketplace_router
@@ -26,12 +32,6 @@ from apple_payments import apple_payments_router
 from transcriptions import transcriptions_router
 import api_handlers
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
 logger = logging.getLogger('api-server')
 
 # modelo = randomforest()
@@ -48,6 +48,7 @@ async def lifespan(app: FastAPI):
     await api_handlers.startup_handlers()
     yield
     await api_handlers.shutdown_handlers()
+    await close_redis()
 
 # Setup FastAPI app
 app = FastAPI(lifespan=lifespan)
@@ -58,6 +59,20 @@ TEMP_IMAGES_DIR.mkdir(exist_ok=True)
 
 # Mount static files for serving images
 app.mount("/temp-images", StaticFiles(directory="temp_images"), name="temp-images")
+
+# Stamp every request with an id so its log lines can be correlated. Four
+# uvicorn workers share one stdout, so without this a single request's lines are
+# indistinguishable from everyone else's.
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+    token = request_id_var.set(request_id)
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        request_id_var.reset(token)
 
 # Reject oversized request bodies before they are read into memory
 @app.middleware("http")

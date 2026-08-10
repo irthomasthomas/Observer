@@ -23,10 +23,10 @@ from twilio.request_validator import RequestValidator
 
 # Local imports
 from auth import AuthUser
-from quota_manager import increment_usage, check_usage, get_redis
+from quota_manager import increment_usage, check_usage
+from redis_client import get_redis
 
-# Setup
-logging.basicConfig(level=logging.INFO)
+# Setup (logging is configured once in api.py via logging_config.setup_logging())
 logger = logging.getLogger('twilio')
 messaging_router = APIRouter()
 

@@ -8,8 +8,7 @@ import httpx
 from typing import Optional
 
 logger = logging.getLogger("api_handlers")
-# Basic logging setup if not configured elsewhere
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
+# Logging is configured once in api.py via logging_config.setup_logging()
 
 # Global registry for API handlers
 API_HANDLERS = {}

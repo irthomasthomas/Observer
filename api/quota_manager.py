@@ -3,8 +3,9 @@ import logging
 import os
 import asyncio
 import httpx
-import redis.asyncio as aioredis
 from typing import Dict
+
+from redis_client import get_redis
 
 logger = logging.getLogger('quota_manager')
 
@@ -85,20 +86,20 @@ GEMINI_SECOND_LIMITS = {
     "max":   54_000,   # 15 hours
 }
 
-# --- Redis client ---
-_redis: aioredis.Redis | None = None
-
-async def get_redis() -> aioredis.Redis:
-    global _redis
-    if _redis is None:
-        url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        _redis = aioredis.from_url(url, decode_responses=True)
-    return _redis
-
 def _seconds_until_midnight() -> int:
-    now = datetime.datetime.now()
+    """
+    Seconds until the next UTC midnight.
+
+    Explicitly UTC so daily quota resets do not depend on the container's
+    ambient timezone - they line up with the UTC day keys used by
+    observability, and setting TZ on the container cannot silently shift
+    every user's reset.
+    """
+    now = datetime.datetime.now(datetime.timezone.utc)
     midnight = datetime.datetime.combine(
-        now.date() + datetime.timedelta(days=1), datetime.time.min
+        now.date() + datetime.timedelta(days=1),
+        datetime.time.min,
+        tzinfo=datetime.timezone.utc,
     )
     return int((midnight - now).total_seconds())
 

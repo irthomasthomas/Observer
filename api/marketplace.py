@@ -6,12 +6,7 @@ import sqlite3
 import datetime
 import logging
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+# Logging is configured once in api.py via logging_config.setup_logging()
 logger = logging.getLogger('marketplace')
 
 # Create router
