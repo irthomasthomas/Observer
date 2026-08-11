@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Users, Database, Settings, Cpu, Video, Sparkles } from 'lucide-react';
+import { Home, Users, Database, Settings, Cpu, Video, Sparkles, Wand2 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { isIOS } from '../utils/platform';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -10,13 +10,15 @@ interface PersistentSidebarProps {
   onTabChange: (tab: string) => void;
   isMobileMenuOpen?: boolean;
   onCloseMobileMenu?: () => void;
+  onOpenRecipe?: () => void;
 }
 
 const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   activeTab,
   onTabChange,
   isMobileMenuOpen = false,
-  onCloseMobileMenu
+  onCloseMobileMenu,
+  onOpenRecipe,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -63,6 +65,26 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
       {/* Navigation */}
       <nav className="pt-6 pb-4">
         <ul className="space-y-2 px-2">
+          <li>
+            <button
+              onClick={() => {
+                onOpenRecipe?.();
+                Logger.info('NAVIGATION', 'Opened When...Then... builder from sidebar');
+                if (onCloseMobileMenu) onCloseMobileMenu();
+              }}
+              className={`w-full flex items-center rounded-lg transition-all duration-200 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/50 ${
+                isExpanded || isMobileMenuOpen ? 'px-3 py-2.5' : 'p-3 justify-center'
+              }`}
+              title={(!isExpanded && !isMobileMenuOpen) ? 'When... Then...' : undefined}
+            >
+              <Wand2 className="w-5 h-5 flex-shrink-0" />
+              {(isExpanded || isMobileMenuOpen) && (
+                <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">
+                  When... Then...
+                </span>
+              )}
+            </button>
+          </li>
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = activeTab === item.id;

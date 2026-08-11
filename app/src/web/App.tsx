@@ -869,6 +869,7 @@ function AppContent() {
         onTabChange={setActiveTab}
         isMobileMenuOpen={isMobileMenuOpen}
         onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        onOpenRecipe={() => setIsRecipeSplashOpen(true)}
       />
 
       <JupyterServerModal
