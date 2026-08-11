@@ -343,14 +343,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     };
   }, []);
 
-  // Initialize custom servers and check local server on mount
+  // Initialize custom servers on mount
   useEffect(() => {
     // Load custom servers from localStorage
     const loaded = loadCustomServers();
     setCustomServers(loaded);
-
-    // Check local server
-    checkLocalServer();
 
     // Load inference URL from Tauri backend
     if (isTauri()) {
