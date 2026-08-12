@@ -30,6 +30,7 @@ from messaging import messaging_router
 from payments import payments_router
 from apple_payments import apple_payments_router
 from transcriptions import transcriptions_router
+from orgs import orgs_router
 import api_handlers
 
 logger = logging.getLogger('api-server')
@@ -116,6 +117,8 @@ app.include_router(
 )
 # Transcriptions router
 app.include_router(transcriptions_router)
+# Enterprise orgs router
+app.include_router(orgs_router, tags=["Organizations"])
 
 YOUTUBE_CHANNEL_ID = "UCgXTVhPSngONO6XhQiLhftg"
 LIVE_CACHE_TTL = 120  # seconds

@@ -32,6 +32,7 @@ class AuthenticatedUser(BaseModel):
     is_pro: bool = False # Default to False for safety
     is_max: bool = False # Max tier subscription
     is_plus: bool = False # Plus tier subscription (unlimited alerts, limited chat)
+    org_id: Optional[str] = None # Enterprise org, if this user holds a seat
     app_metadata: Optional[Dict[str, Any]] = None
 
 # --- The Updated FastAPI Dependency ---
@@ -95,6 +96,7 @@ async def get_current_user(request: Request) -> AuthenticatedUser:
             is_pro=is_pro_status,
             is_max=is_max_status,
             is_plus=is_plus_status,
+            org_id=app_metadata.get("org_id"),
             app_metadata=app_metadata
         )
 
@@ -140,6 +142,7 @@ async def verify_token_from_string(token: str) -> Optional[AuthenticatedUser]:
             is_pro=app_metadata.get("is_pro", False),
             is_max=app_metadata.get("is_max", False),
             is_plus=app_metadata.get("is_plus", False),
+            org_id=app_metadata.get("org_id"),
             app_metadata=app_metadata
         )
 

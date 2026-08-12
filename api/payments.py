@@ -21,10 +21,13 @@ from auth0_manager import (
     find_user_by_email,
     get_email_by_id,
     check_apple_subscription_by_email,
+    get_user_app_metadata,
     CLEAR_FIELD
 )
 # Admin authentication
 from admin_auth import get_admin_access
+# Enterprise org sync (orgs.py does not import payments, so this is not circular)
+from orgs import sync_org_from_stripe
 
 # --- Standard Setup ---
 logger = logging.getLogger(__name__)
@@ -677,6 +680,15 @@ async def sync_user_from_stripe(stripe_customer_id: str) -> dict:
         logger.error(f"sync_user_from_stripe: Cannot find Auth0 user for email {customer_email} or stripe_customer_id {stripe_customer_id}")
         return {"status": "error", "detail": "User not found"}
 
+    # Enterprise seat holders are entitled by their org, not by anything under
+    # their own email. Without this guard, any Stripe event touching a lapsed
+    # personal customer of theirs would find no active subscription and clear
+    # the is_pro flag their org granted.
+    seat_metadata = await get_user_app_metadata(user_id)
+    if seat_metadata.get("org_id"):
+        logger.info(f"Skipping Stripe sync for {user_id}: entitled by org {seat_metadata['org_id']}")
+        return {"status": "skipped", "user_id": user_id, "reason": "org-entitled"}
+
     # 3. Find ALL Stripe customers with this email
     try:
         all_customers = stripe.Customer.list(email=customer_email, limit=100)
@@ -833,6 +845,25 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         'customer.subscription.deleted',
         'invoice.payment_failed',
     }
+
+    # Enterprise orgs are billed on a customer carrying an org_id in metadata.
+    # Route those away from the per-user path entirely: that path resolves the
+    # billing contact's email to an Auth0 user and would rewrite their personal
+    # entitlement from the company's subscription.
+    event_customer_id = getattr(event_data, 'customer', None)
+    if event_customer_id:
+        try:
+            org_customer = stripe.Customer.retrieve(event_customer_id)
+            org_id = (org_customer.metadata or {}).get("org_id")
+        except Exception as e:
+            logger.error(f"Could not retrieve customer {event_customer_id} for org routing: {e}")
+            org_id = None
+
+        if org_id:
+            if event_type in SYNC_EVENTS:
+                return await sync_org_from_stripe(org_id)
+            logger.info(f"Ignoring event {event_type} for org {org_id}")
+            return {"status": "ignored", "org_id": org_id}
 
     # Handle checkout.session.completed — safety net for email mismatches.
     # If Stripe Link changed the customer email, fix it using client_reference_id (Auth0 user ID).

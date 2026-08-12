@@ -67,7 +67,9 @@ async def update_user_subscription_status(
     is_plus: bool = None,
     stripe_customer_id: str = None,
     stripe_subscription_id: str = None,
-    apple_original_transaction_id: str = None
+    apple_original_transaction_id: str = None,
+    org_id: str = None,
+    org_tier: str = None
 ) -> bool:
     """
     Updates a user's app_metadata in Auth0 to set their subscription status
@@ -116,6 +118,17 @@ async def update_user_subscription_status(
             app_metadata["apple_original_transaction_id"] = None
         elif apple_original_transaction_id:
             app_metadata["apple_original_transaction_id"] = apple_original_transaction_id
+
+        # Handle org_id / org_tier (the enterprise-seat sentinel)
+        if org_id == CLEAR_FIELD:
+            app_metadata["org_id"] = None
+        elif org_id:
+            app_metadata["org_id"] = org_id
+
+        if org_tier == CLEAR_FIELD:
+            app_metadata["org_tier"] = None
+        elif org_tier:
+            app_metadata["org_tier"] = org_tier
 
         payload = { "app_metadata": app_metadata }
 
@@ -378,6 +391,12 @@ def check_existing_subscription(app_metadata: dict) -> tuple[bool, str | None, s
     """
     if not app_metadata or not isinstance(app_metadata, dict):
         return False, None, None
+
+    # Enterprise seat. Checked first because an org member is billed through the
+    # org's Stripe customer, never their own, so no personal ID will be present.
+    org_id = app_metadata.get('org_id')
+    if org_id:
+        return True, org_id, "org"
 
     # Check Apple first (arbitrary order, doesn't matter since user can only have one)
     apple_id = app_metadata.get('apple_original_transaction_id')
