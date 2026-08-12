@@ -31,7 +31,7 @@ import stripe
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from sendgrid.helpers.mail import ClickTracking, Mail, TrackingSettings
 
 import r2_store
 from admin_auth import get_admin_access
@@ -153,6 +153,12 @@ def _send_invite_email(email: str, org_name: str, token: str) -> None:
             f"This link is single-use and expires in {INVITE_TTL_DAYS} days.\n"
             f"It must be accepted with this email address ({email})."
         ),
+    )
+    # SendGrid click tracking rewrites the join link to a ct.sendgrid.net
+    # redirect. On a link that grants account access that reads as phishing to
+    # recipients and to corporate mail filters, so send the real URL.
+    message.tracking_settings = TrackingSettings(
+        click_tracking=ClickTracking(enable=False, enable_text=False)
     )
     try:
         SendGridAPIClient(api_key).send(message)
