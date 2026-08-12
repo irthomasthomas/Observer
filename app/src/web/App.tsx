@@ -45,6 +45,8 @@ import RecordingsViewer from '@components/RecordingsViewer';
 import SettingsTab from '@components/SettingsTab';
 import MemoryStoreTab from '@components/MemoryStoreTab';
 import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
+import { JoinOrgPage } from '../pages/JoinOrgPage';
+import { TeamPage } from '../pages/TeamPage';
 import AgentShareLandingPage from '@components/AgentShareLandingPage';
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
@@ -1395,6 +1397,8 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/upgrade-success" element={<UpgradeSuccessPage />} />
+            <Route path="/join" element={<JoinOrgPage />} />
+            <Route path="/team" element={<TeamPage />} />
             <Route path="/marketplace/:agentId" element={<AgentShareLandingPage />} />
             <Route path="/*" element={<AppContent />} />
           </Routes>
