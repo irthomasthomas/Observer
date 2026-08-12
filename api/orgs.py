@@ -207,6 +207,49 @@ async def grant_seat(email: str, org_id: str, org_name: str, tier: str) -> dict:
     return {"status": "invited", "auth0_user_id": None}
 
 
+async def _reserve_and_grant(org_id: str, org: dict, email: str) -> dict:
+    """
+    Claim a seat for `email` on `org_id`, then entitle or invite them.
+
+    The seat is reserved in R2 first. If the grant then fails we are left with a
+    reserved seat and no invite — visible on the team page and revocable — which
+    is the safe direction; the reverse would be a live invite for a seat nobody
+    counted against the cap.
+
+    The guards run again inside the mutator because update_json re-invokes it
+    against freshly read data on an ETag conflict, so two admins inviting at the
+    same moment cannot both pass a stale seat check.
+    """
+    def reserve(rec):
+        if _seats_used(rec) >= rec["seats_purchased"]:
+            raise HTTPException(status_code=409, detail="All seats are in use.")
+        m = _find_member(rec, email)
+        if m and m["status"] in ("invited", "active"):
+            raise HTTPException(status_code=409, detail=f"{email} is already on this team.")
+        if m:
+            m.update({"status": "invited", "invited_at": _now_iso(), "joined_at": None, "auth0_user_id": None})
+        else:
+            rec["members"].append({
+                "email": email, "auth0_user_id": None, "status": "invited",
+                "invited_at": _now_iso(), "joined_at": None,
+            })
+
+    await r2_store.update_json(r2_store.org_key(org_id), reserve)
+
+    result = await grant_seat(email, org_id, org["name"], org["tier"])
+
+    if result["status"] == "active":
+        def activate(rec):
+            m = _find_member(rec, email)
+            if m:
+                m["status"] = "active"
+                m["auth0_user_id"] = result["auth0_user_id"]
+                m["joined_at"] = _now_iso()
+        await r2_store.update_json(r2_store.org_key(org_id), activate)
+
+    return result
+
+
 async def _assert_no_personal_subscription(email: str) -> None:
     """A user paying for their own plan must cancel before taking a seat, or they'd be billed twice."""
     user_id = await find_user_by_email(email)
@@ -351,6 +394,59 @@ async def create_org(body: OrgCreateRequest):
     }
 
 
+@orgs_router.get("/admin/orgs/{org_id}", dependencies=[Depends(get_admin_access)], summary="Read an org record")
+async def admin_get_org(org_id: str):
+    """
+    Support/debug view of an org. Unlike /orgs/me this needs no membership, so
+    it works before anyone has claimed a seat.
+    """
+    org, _ = await r2_store.get_json(r2_store.org_key(org_id))
+    if not org:
+        raise HTTPException(status_code=404, detail=f"No org record for {org_id}")
+
+    member_ids = [m["auth0_user_id"] for m in org["members"]
+                  if m["status"] == "active" and m["auth0_user_id"]]
+    usage = await _usage_for_members(member_ids)
+
+    return {
+        **org,
+        "seats_used": _seats_used(org),
+        "members": [{**m, "usage": usage.get(m.get("auth0_user_id"), {})} for m in org["members"]],
+    }
+
+
+@orgs_router.post("/admin/orgs/{org_id}/sync", dependencies=[Depends(get_admin_access)], summary="Force a Stripe resync")
+async def admin_sync_org(org_id: str):
+    """Reconcile an org against Stripe by hand, for when a webhook was missed."""
+    return await sync_org_from_stripe(org_id)
+
+
+@orgs_router.post("/admin/orgs/{org_id}/members", dependencies=[Depends(get_admin_access)], summary="Invite a member as admin")
+async def admin_invite_member(org_id: str, body: InviteRequest):
+    """
+    Seat someone without being a member of the org yourself. Used from the admin
+    dashboard for support ("add this person for me") and to seat the first few
+    members before the owner has logged in.
+
+    Enforces the same seat cap and personal-subscription guard as the org-facing
+    endpoint — the only thing skipped is membership authorization.
+    """
+    org, _ = await r2_store.get_json(r2_store.org_key(org_id))
+    if not org:
+        raise HTTPException(status_code=404, detail=f"No org record for {org_id}")
+
+    email = body.email.lower()
+    existing = _find_member(org, email)
+    if existing and existing["status"] in ("invited", "active"):
+        raise HTTPException(status_code=409, detail=f"{email} is already on this team.")
+    if _seats_used(org) >= org["seats_purchased"]:
+        raise HTTPException(status_code=409, detail=f"All {org['seats_purchased']} seats are in use.")
+
+    await _assert_no_personal_subscription(email)
+    await _reserve_and_grant(org_id, org, email)
+    return {"email": email, "org_id": org_id}
+
+
 # --- Claiming an invite -----------------------------------------------------
 
 @orgs_router.post("/orgs/claim", summary="Claim a seat invite")
@@ -486,36 +582,7 @@ async def invite_member(current_user: AuthUser, body: InviteRequest):
 
     await _assert_no_personal_subscription(email)
 
-    # Reserve the seat before creating the invite. If the second step fails we
-    # leave a reserved seat with no invite — visible on the team page and
-    # revocable — rather than a live invite for a seat nobody counted.
-    def reserve(rec):
-        if _seats_used(rec) >= rec["seats_purchased"]:
-            raise HTTPException(status_code=409, detail="All seats are in use.")
-        m = _find_member(rec, email)
-        if m and m["status"] in ("invited", "active"):
-            raise HTTPException(status_code=409, detail=f"{email} is already on this team.")
-        if m:
-            m.update({"status": "invited", "invited_at": _now_iso(), "joined_at": None, "auth0_user_id": None})
-        else:
-            rec["members"].append({
-                "email": email, "auth0_user_id": None, "status": "invited",
-                "invited_at": _now_iso(), "joined_at": None,
-            })
-
-    await r2_store.update_json(r2_store.org_key(org_id), reserve)
-
-    result = await grant_seat(email, org_id, org["name"], org["tier"])
-
-    if result["status"] == "active":
-        def activate(rec):
-            m = _find_member(rec, email)
-            if m:
-                m["status"] = "active"
-                m["auth0_user_id"] = result["auth0_user_id"]
-                m["joined_at"] = _now_iso()
-        await r2_store.update_json(r2_store.org_key(org_id), activate)
-
+    result = await _reserve_and_grant(org_id, org, email)
     logger.info(f"{current_user.email} invited {email} to {org_id} -> {result['status']}")
     return {"email": email, "status": result["status"]}
 
