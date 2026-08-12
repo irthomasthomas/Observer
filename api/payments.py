@@ -27,7 +27,7 @@ from auth0_manager import (
 # Admin authentication
 from admin_auth import get_admin_access
 # Enterprise org sync (orgs.py does not import payments, so this is not circular)
-from orgs import sync_org_from_stripe
+from orgs import sync_org_from_stripe, sget
 
 # --- Standard Setup ---
 logger = logging.getLogger(__name__)
@@ -707,6 +707,14 @@ async def sync_user_from_stripe(stripe_customer_id: str) -> dict:
     total_active = 0
 
     for cust in all_customers.data:
+        # An enterprise org's Stripe customer is created with the billing
+        # contact's email, so it shows up in this list for that person. Its
+        # subscription bills the company, not them — counting it here would
+        # price the whole company's seats as if they were a personal plan.
+        if sget(cust.metadata, "org_id"):
+            logger.info(f"Skipping org-owned customer {cust.id} while syncing user {user_id}")
+            continue
+
         try:
             subscriptions = stripe.Subscription.list(customer=cust.id, limit=100)
         except Exception as e:
@@ -854,7 +862,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
     if event_customer_id:
         try:
             org_customer = stripe.Customer.retrieve(event_customer_id)
-            org_id = (org_customer.metadata or {}).get("org_id")
+            org_id = sget(org_customer.metadata, "org_id")
         except Exception as e:
             logger.error(f"Could not retrieve customer {event_customer_id} for org routing: {e}")
             org_id = None

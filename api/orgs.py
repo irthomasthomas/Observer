@@ -82,6 +82,22 @@ class ClaimRequest(BaseModel):
 
 # --- Helpers ----------------------------------------------------------------
 
+def sget(obj, key, default=None):
+    """
+    Read a key from a Stripe object.
+
+    stripe.StripeObject implements __getitem__ but not .get() — calling .get()
+    on one raises AttributeError rather than returning a default. This works for
+    both StripeObject and plain dicts.
+    """
+    if obj is None:
+        return default
+    try:
+        return obj[key]
+    except (KeyError, TypeError, AttributeError, IndexError):
+        return default
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -257,40 +273,62 @@ async def create_org(body: OrgCreateRequest):
         logger.exception(f"Stripe provisioning failed for org {org_id}")
         raise HTTPException(status_code=502, detail=f"Stripe provisioning failed: {e}")
 
-    invoice = subscription.get("latest_invoice")
-    invoice_url = invoice.get("hosted_invoice_url") if isinstance(invoice, dict) else None
-    invoice_id = invoice.get("id") if isinstance(invoice, dict) else invoice
+    # Everything past this point can still fail, and a half-provisioned org
+    # leaves a live subscription billing a customer who has no seats. Unwind the
+    # Stripe objects rather than leaving them orphaned.
+    try:
+        invoice = sget(subscription, "latest_invoice")
+        if isinstance(invoice, str):
+            invoice_id, invoice_url = invoice, None
+        else:
+            invoice_id = sget(invoice, "id")
+            invoice_url = sget(invoice, "hosted_invoice_url")
 
-    org = {
-        "org_id": org_id,
-        "name": body.name,
-        "owner_email": admin_email,
-        "tier": body.tier,
-        "seats_purchased": body.seats,
-        "status": subscription.status,
-        "stripe_customer_id": customer.id,
-        "stripe_subscription_id": subscription.id,
-        "features": {},
-        "members": [{
-            "email": admin_email,
-            "auth0_user_id": None,
-            "status": "invited",
-            "invited_at": _now_iso(),
-            "joined_at": None,
-        }],
-        "created_at": _now_iso(),
-    }
-    # if_none_match="*" so a colliding org_id fails loudly instead of overwriting.
-    await r2_store.put_json(r2_store.org_key(org_id), org, if_none_match="*")
+        org = {
+            "org_id": org_id,
+            "name": body.name,
+            "owner_email": admin_email,
+            "tier": body.tier,
+            "seats_purchased": body.seats,
+            "status": subscription.status,
+            "stripe_customer_id": customer.id,
+            "stripe_subscription_id": subscription.id,
+            "features": {},
+            "members": [{
+                "email": admin_email,
+                "auth0_user_id": None,
+                "status": "invited",
+                "invited_at": _now_iso(),
+                "joined_at": None,
+            }],
+            "created_at": _now_iso(),
+        }
+        # if_none_match="*" so a colliding org_id fails loudly instead of overwriting.
+        await r2_store.put_json(r2_store.org_key(org_id), org, if_none_match="*")
 
-    result = await grant_seat(admin_email, org_id, body.name, body.tier)
-    if result["status"] == "active":
-        def activate(rec):
-            m = _find_member(rec, admin_email)
-            m["status"] = "active"
-            m["auth0_user_id"] = result["auth0_user_id"]
-            m["joined_at"] = _now_iso()
-        await r2_store.update_json(r2_store.org_key(org_id), activate)
+        result = await grant_seat(admin_email, org_id, body.name, body.tier)
+        if result["status"] == "active":
+            def activate(rec):
+                m = _find_member(rec, admin_email)
+                m["status"] = "active"
+                m["auth0_user_id"] = result["auth0_user_id"]
+                m["joined_at"] = _now_iso()
+            await r2_store.update_json(r2_store.org_key(org_id), activate)
+
+    except Exception as e:
+        logger.exception(f"Provisioning failed after Stripe setup for org {org_id}; unwinding")
+        try:
+            await asyncio.to_thread(lambda: stripe.Subscription.cancel(subscription.id))
+            await asyncio.to_thread(lambda: stripe.Customer.delete(customer.id))
+            logger.info(f"Unwound Stripe customer {customer.id} for failed org {org_id}")
+        except Exception:
+            logger.exception(
+                f"MANUAL CLEANUP NEEDED: could not unwind Stripe customer {customer.id} "
+                f"/ subscription {subscription.id} for failed org {org_id}"
+            )
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=500, detail=f"Provisioning failed after Stripe setup: {e}")
 
     logger.info(f"Provisioned org {org_id} ({body.seats} {body.tier} seats) for {admin_email}")
     return {
