@@ -64,6 +64,47 @@ def get_tier_from_price(price_id: str) -> tuple[bool, bool, bool]:
         return (False, False, False)
 
 
+def _list_personal_customers(email: str, limit: int = 100) -> list:
+    """
+    Stripe customers for `email`, excluding enterprise org billing entities.
+
+    An org's Stripe customer carries the billing contact's email so the invoice
+    reaches a human, which means a plain email lookup for that person returns it
+    alongside their personal customers. Every personal-billing path must filter
+    it out: attaching a personal subscription to it bills the company, and the
+    webhook then routes the event into the org path where that subscription is
+    invisible — the user pays and receives no entitlement.
+    """
+    try:
+        customers = stripe.Customer.list(email=email, limit=limit)
+    except Exception as e:
+        logger.error(f"Failed to list Stripe customers for {email}: {e}")
+        return []
+
+    personal = []
+    for cust in customers.data:
+        if sget(cust.metadata, "org_id"):
+            logger.info(f"Excluding org-owned customer {cust.id} from personal lookup for {email}")
+            continue
+        personal.append(cust)
+    return personal
+
+
+def reject_if_org_member(user: AuthUser) -> None:
+    """
+    Enterprise seat holders are covered by their company's plan, so personal
+    checkout is closed to them. Beyond the double-billing, seating clears their
+    stripe_customer_id, so checkout would fall back to an email lookup and could
+    attach the subscription to the wrong customer entirely.
+    """
+    if getattr(user, "org_id", None):
+        raise HTTPException(
+            status_code=400,
+            detail="Your Observer plan is provided by your organization. "
+                   "Contact your team admin to change your seat.",
+        )
+
+
 async def has_active_subscription(email: str) -> tuple[bool, str | None, str | None, str | None]:
     """
     Single source-of-truth check for active subscriptions across all providers.
@@ -93,8 +134,7 @@ async def has_active_subscription(email: str) -> tuple[bool, str | None, str | N
 
     # 2. Check Stripe directly (source of truth)
     try:
-        all_customers = stripe.Customer.list(email=email, limit=100)
-        for cust in all_customers.data:
+        for cust in _list_personal_customers(email):
             subscriptions = stripe.Subscription.list(customer=cust.id, status='all', limit=100)
             for sub in subscriptions.data:
                 if sub.status in ('active', 'trialing'):
@@ -408,9 +448,9 @@ def get_or_create_stripe_customer(user: AuthUser) -> str | None:
     # Fallback: query Stripe by email (new users who have no metadata yet)
     try:
         if hasattr(user, 'email') and user.email:
-            existing_customers = stripe.Customer.list(email=user.email, limit=1)
-            if existing_customers.data:
-                return existing_customers.data[0].id
+            existing_customers = _list_personal_customers(user.email)
+            if existing_customers:
+                return existing_customers[0].id
     except Exception as e:
         logger.warning(f"Stripe customer lookup failed for {user.id}: {e}")
 
@@ -438,6 +478,8 @@ async def create_checkout_session(current_user: AuthUser, body: CheckoutRequest 
     purchase the Pro plan. The user's Auth0 ID is passed to Stripe for
     identification in webhooks.
     """
+    reject_if_org_member(current_user)
+
     base_url = get_base_url(body.return_base_url if body else None)
 
     has_sub, existing_id, provider, active_customer_id = _get_subscription_from_metadata(current_user)
@@ -512,6 +554,8 @@ async def create_checkout_session_max(current_user: AuthUser, body: CheckoutRequ
     purchase the Max plan. The user's Auth0 ID is passed to Stripe for
     identification in webhooks.
     """
+    reject_if_org_member(current_user)
+
     base_url = get_base_url(body.return_base_url if body else None)
 
     has_sub, existing_id, provider, active_customer_id = _get_subscription_from_metadata(current_user)
@@ -565,6 +609,8 @@ async def create_checkout_session_plus(current_user: AuthUser, body: CheckoutReq
     purchase the Plus plan. The user's Auth0 ID is passed to Stripe for
     identification in webhooks.
     """
+    reject_if_org_member(current_user)
+
     base_url = get_base_url(body.return_base_url if body else None)
 
     has_sub, existing_id, provider, active_customer_id = _get_subscription_from_metadata(current_user)
@@ -802,9 +848,9 @@ async def sync_subscription_endpoint(current_user: AuthUser):
 
     if not stripe_customer_id and hasattr(current_user, 'email') and current_user.email:
         try:
-            customers = stripe.Customer.list(email=current_user.email, limit=1)
-            if customers.data:
-                stripe_customer_id = customers.data[0].id
+            customers = _list_personal_customers(current_user.email)
+            if customers:
+                stripe_customer_id = customers[0].id
         except Exception as e:
             logger.warning(f"Stripe customer lookup by email failed for {current_user.id}: {e}")
 
