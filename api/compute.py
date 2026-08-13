@@ -166,11 +166,19 @@ async def check_quota_endpoint(current_user: AuthUser):
     used = await get_usage_for_service(current_user.id, "monitor")
     remaining = max(0, limit - used)
 
+    # Enterprise seats carry the same entitlement flags as a personal subscription,
+    # so tier/limit above are already correct. org_id tells the frontend the seat is
+    # org-managed (no Stripe portal for this user — send them to /team instead).
+    app_metadata = current_user.app_metadata or {}
+
     return JSONResponse(content={
         "used": used,
         "remaining": remaining,
         "limit": limit,
-        "tier": tier
+        "tier": tier,
+        "org_id": current_user.org_id,
+        "org_tier": app_metadata.get("org_tier"),
+        "is_enterprise": bool(current_user.org_id),
     })
 
 
