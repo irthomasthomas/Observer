@@ -78,7 +78,8 @@ const QUOTA_MESSAGES: Record<string, {
 };
 
 export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isHalfwayWarning = false, quotaType }) => {
-  const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error' | 'enterprise'>('loading');
+  const [orgTier, setOrgTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
 
@@ -101,8 +102,9 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
         });
         if (!response.ok) throw new Error(`API request failed: ${response.statusText}`);
         const data = await response.json();
-        // Backend returns tier: 'free' | 'plus' | 'pro' | 'max'
-        setStatus(data.tier || (data.pro_status ? 'pro' : 'free'));
+        // Backend returns tier: 'free' | 'plus' | 'pro' | 'max', plus org_id for enterprise seats
+        setOrgTier(data.org_tier ?? null);
+        setStatus(data.org_id ? 'enterprise' : (data.tier || (data.pro_status ? 'pro' : 'free')));
       } catch (err) {
         Logger.error('PAYMENTS', 'Failed to check pro status:', err);
         setError('Could not retrieve your subscription status.');
@@ -181,6 +183,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, isH
             headline={headline}
             subheadline={subheadline}
             status={status}
+            orgTier={orgTier}
             isButtonLoading={isButtonLoading}
             isAuthenticated={isAuthenticated}
             error={error}

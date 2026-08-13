@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   Loader2, Zap, ExternalLink,
-  Check, X, Sparkles, RotateCcw
+  Check, X, Sparkles, RotateCcw, Building2, Users
 } from 'lucide-react';
 import { CreditInfoButton } from './CreditVisualization';
 import { InfoTooltip } from './InfoTooltip';
@@ -15,7 +15,9 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 interface PricingTableProps {
   headline: string;
   subheadline: string;
-  status: 'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error';
+  status: 'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error' | 'enterprise';
+  /** Tier the org seat grants ('pro' | 'max'), only meaningful when status is 'enterprise'. */
+  orgTier?: string | null;
   isButtonLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
@@ -115,6 +117,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   headline,
   subheadline,
   status,
+  orgTier,
   isButtonLoading,
   isAuthenticated,
   error,
@@ -198,6 +201,34 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   };
 
   const dataColCount = isAuthenticated ? 4 : 3; // label + data columns
+
+  // Enterprise seats are billed to the org, not the user — there is no personal
+  // subscription to show or manage, so point them at their team page instead.
+  if (status === 'enterprise') {
+    const tierLabel = orgTier === 'max' ? 'Max' : 'Pro';
+    return (
+      <div className="w-full max-w-2xl mx-auto p-5 md:p-8 bg-white dark:bg-gray-800 rounded-none md:rounded-lg text-center">
+        <Building2 className="mx-auto h-12 w-12 text-purple-500 mb-3" />
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">
+          You're on an Enterprise plan
+        </h1>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Your seat is provided by your organization and includes all {tierLabel} features.
+          Billing and seats are managed by your team's owner.
+        </p>
+        <a
+          href="/team"
+          className="mt-5 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-md"
+        >
+          <Users className="h-4 w-4" />
+          View your team
+        </a>
+        {combinedError && (
+          <p className="mt-3 text-sm text-red-600 dark:text-red-400 font-semibold">{combinedError}</p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto p-3 md:p-5 bg-white dark:bg-gray-800 rounded-none md:rounded-lg">

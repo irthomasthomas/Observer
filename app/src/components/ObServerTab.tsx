@@ -8,7 +8,8 @@ import { Logger } from '@utils/logging';
 import { PricingTable } from './PricingTable';
 
 export const ObServerTab: React.FC = () => {
-  const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'plus' | 'pro' | 'max' | 'free' | 'error' | 'enterprise'>('loading');
+  const [orgTier, setOrgTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
 
@@ -31,8 +32,9 @@ export const ObServerTab: React.FC = () => {
         });
         if (!response.ok) throw new Error(`API request failed with status: ${response.status}`);
         const data = await response.json();
-        // Backend returns tier: 'free' | 'plus' | 'pro' | 'max'
-        setStatus(data.tier || (data.pro_status ? 'pro' : 'free'));
+        // Backend returns tier: 'free' | 'plus' | 'pro' | 'max', plus org_id for enterprise seats
+        setOrgTier(data.org_tier ?? null);
+        setStatus(data.org_id ? 'enterprise' : (data.tier || (data.pro_status ? 'pro' : 'free')));
       } catch (err) {
         Logger.error('PAYMENTS', 'Failed to check pro status:', err);
         setError('Could not retrieve your subscription status.');
@@ -102,6 +104,7 @@ export const ObServerTab: React.FC = () => {
         headline="Choose Your Way to Observe"
         subheadline=""
         status={status}
+        orgTier={orgTier}
         isButtonLoading={isButtonLoading}
         isAuthenticated={isAuthenticated}
         error={error}
