@@ -17,7 +17,7 @@ import base64
 from auth import AuthUser
 from admin_auth import get_admin_access
 # Import the new, unified quota manager functions and constants
-from quota_manager import increment_usage, get_all_usage_data, check_usage
+from quota_manager import try_consume, get_all_usage_data
 from messaging import save_temp_image
 
 # --- Setup (logging is configured once in api.py via logging_config.setup_logging()) ---
@@ -81,7 +81,11 @@ async def send_email(
         )
 
     # 2. Quota Check (using the "email" service)
-    if await check_usage(current_user.id, "email", current_user.is_pro, current_user.is_max, current_user.is_plus):
+    allowed, _usage_count, _reason = await try_consume(
+        current_user.id, "email",
+        current_user.is_pro, current_user.is_max, current_user.is_plus,
+    )
+    if not allowed:
         raise HTTPException(
             status_code=429,
             detail={
@@ -89,9 +93,6 @@ async def send_email(
                 "quota_type": "email"
             }
         )
-
-    # 3. Increment and proceed
-    await increment_usage(current_user.id, "email")
     logger.info(f"Processing email for user_id: {current_user.id} to {request_data.to_email}")
 
     # 4. Action: Send the Email
@@ -170,7 +171,11 @@ async def send_pushover(
         logger.error("Server is missing PUSHOVER_API_KEY environment variable.")
         raise HTTPException(status_code=500, detail="Notification service (Pushover) is not configured on the server.")
 
-    if await check_usage(current_user.id, "pushover", current_user.is_pro, current_user.is_max, current_user.is_plus):
+    allowed, _usage_count, _reason = await try_consume(
+        current_user.id, "pushover",
+        current_user.is_pro, current_user.is_max, current_user.is_plus,
+    )
+    if not allowed:
         raise HTTPException(
             status_code=429,
             detail={
@@ -178,9 +183,6 @@ async def send_pushover(
                 "quota_type": "pushover"
             }
         )
-
-    # 3. Increment usage and proceed
-    await increment_usage(current_user.id, "pushover")
     logger.info(f"Processing Pushover for user_id: {current_user.id}")
 
     # 4. Action: Send the notification to the Pushover API
@@ -252,7 +254,11 @@ async def send_telegram(
         raise HTTPException(status_code=500, detail="Telegram service is not configured on the server.")
 
     # 2. Quota Check
-    if await check_usage(current_user.id, "telegram", current_user.is_pro, current_user.is_max, current_user.is_plus):
+    allowed, _usage_count, _reason = await try_consume(
+        current_user.id, "telegram",
+        current_user.is_pro, current_user.is_max, current_user.is_plus,
+    )
+    if not allowed:
         raise HTTPException(
             status_code=429,
             detail={
@@ -260,9 +266,6 @@ async def send_telegram(
                 "quota_type": "telegram"
             }
         )
-
-    # 3. Increment usage and proceed
-    await increment_usage(current_user.id, "telegram")
     logger.info(f"Processing Telegram for user_id: {current_user.id} to chat_id: {request_data.chat_id}")
 
     # 4. Action: Send images first, then videos, then the message

@@ -23,7 +23,7 @@ from twilio.request_validator import RequestValidator
 
 # Local imports
 from auth import AuthUser
-from quota_manager import increment_usage, check_usage
+from quota_manager import try_consume
 from redis_client import get_redis
 
 # Setup (logging is configured once in api.py via logging_config.setup_logging())
@@ -486,7 +486,11 @@ async def send_sms(
     resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (using the "sms" service)
-    if await check_usage(current_user.id, "sms", current_user.is_pro, current_user.is_max, current_user.is_plus):
+    allowed, _usage_count, _reason = await try_consume(
+        current_user.id, "sms",
+        current_user.is_pro, current_user.is_max, current_user.is_plus,
+    )
+    if not allowed:
         raise HTTPException(
             status_code=429,
             detail={
@@ -494,9 +498,6 @@ async def send_sms(
                 "quota_type": "sms"
             }
         )
-
-    # 3. Increment and proceed
-    await increment_usage(current_user.id, "sms")
     logger.info(f"Processing SMS for user_id: {current_user.id} to {resolved_phone} (original input: {request_data.to_number})")
 
     # 4. Action: Send the SMS/MMS
@@ -625,7 +626,11 @@ async def send_whatsapp(
     resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (using the "whatsapp" service)
-    if await check_usage(current_user.id, "whatsapp", current_user.is_pro, current_user.is_max, current_user.is_plus):
+    allowed, _usage_count, _reason = await try_consume(
+        current_user.id, "whatsapp",
+        current_user.is_pro, current_user.is_max, current_user.is_plus,
+    )
+    if not allowed:
         raise HTTPException(
             status_code=429,
             detail={
@@ -633,9 +638,6 @@ async def send_whatsapp(
                 "quota_type": "whatsapp"
             }
         )
-
-    # 3. Increment and proceed
-    await increment_usage(current_user.id, "whatsapp")
     logger.info(f"Processing WhatsApp for user_id: {current_user.id} to {resolved_phone} (original input: {request_data.to_number})")
 
     # 4. Action: Send the WhatsApp message
@@ -815,7 +817,11 @@ async def make_voice_call(
     resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (separate voice_call quota)
-    if await check_usage(current_user.id, "voice_call", current_user.is_pro, current_user.is_max, current_user.is_plus):
+    allowed, _usage_count, _reason = await try_consume(
+        current_user.id, "voice_call",
+        current_user.is_pro, current_user.is_max, current_user.is_plus,
+    )
+    if not allowed:
         raise HTTPException(
             status_code=429,
             detail={
@@ -823,9 +829,6 @@ async def make_voice_call(
                 "quota_type": "voice_call"
             }
         )
-
-    # 3. Increment usage and proceed
-    await increment_usage(current_user.id, "voice_call")
     logger.info(f"Processing voice call for user_id: {current_user.id} to {resolved_phone} (original input: {request_data.to_number})")
 
     # 4. Action: Initiate the call

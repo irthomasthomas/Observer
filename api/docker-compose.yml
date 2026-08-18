@@ -1,31 +1,6 @@
 version: '3.8'
 
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: observer-redis
-    restart: unless-stopped
-    mem_limit: 512m
-    # Without an explicit maxmemory Redis grows until the kernel OOM-kills the
-    # container. noeviction (rather than an LRU policy) because evicting keys
-    # here would mean handing out free quota. The digest is the only sizeable
-    # consumer: ~20MB/day capped, ~27MB resident at a 32h TTL.
-    command: redis-server --maxmemory 400mb --maxmemory-policy noeviction
-    volumes:
-      - redis-data:/data
-    networks:
-      - observer-network
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: observer-cloudflared
@@ -48,13 +23,12 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://redis:6379
+      # REDIS_URL comes from .env and points at the managed Upstash instance
+      # (rediss://... native TCP endpoint, not the REST URL).
+      #
       # Every time key in the API is UTC: quota resets, observability hour
       # buckets and digest days. Pinned so nothing depends on ambient host tz.
       - TZ=UTC
-    depends_on:
-      redis:
-        condition: service_healthy
     volumes:
       # Persist marketplace database
       - ./marketplace.db:/app/marketplace.db
@@ -81,6 +55,3 @@ services:
 networks:
   observer-network:
     driver: bridge
-
-volumes:
-  redis-data:

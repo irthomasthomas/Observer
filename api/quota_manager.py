@@ -120,56 +120,83 @@ async def _send_abuse_alert_async(user_id: str, service: str):
     except Exception as e:
         logger.error(f"Failed to send abuse alert: {e}")
 
-async def increment_usage(user_id: str, service: str) -> int:
+# Rate limit and quota are checked and consumed in a single Lua script so the
+# two cannot interleave. The previous check_usage()/increment_usage() pair read
+# the counter, decided, then incremented in a separate round trip: with four
+# uvicorn workers two concurrent requests could both read 59 against a limit of
+# 60, both pass, and both increment to 61. It also collapses six sequential
+# round trips into one, which matters once Redis is not on localhost.
+_CONSUME_LUA = """
+local rl = tonumber(redis.call('GET', KEYS[1]) or '0')
+if rl >= tonumber(ARGV[1]) then return {-1, rl} end
+
+local used = tonumber(redis.call('GET', KEYS[2]) or '0')
+if used >= tonumber(ARGV[2]) then return {-2, used} end
+
+local nrl = redis.call('INCR', KEYS[1])
+if nrl == 1 then redis.call('EXPIRE', KEYS[1], 60) end
+
+local nq = redis.call('INCR', KEYS[2])
+if nq == 1 then redis.call('EXPIRE', KEYS[2], tonumber(ARGV[3])) end
+
+return {0, nq}
+"""
+
+_consume_script = None
+
+
+def limit_for(service: str, is_pro: bool = False, is_max: bool = False, is_plus: bool = False) -> int:
+    """The daily limit that applies to this user's tier for this service."""
+    if is_max:
+        return MAX_QUOTA_LIMITS[service]
+    if is_pro:
+        return PRO_QUOTA_LIMITS[service]
+    if is_plus:
+        return PLUS_QUOTA_LIMITS[service]
+    return QUOTA_LIMITS[service]
+
+
+async def try_consume(
+    user_id: str, service: str,
+    is_pro: bool = False, is_max: bool = False, is_plus: bool = False,
+) -> tuple[bool, int, str | None]:
+    """
+    Atomically check the rate limit and daily quota, and consume one unit if
+    both allow it.
+
+    Returns (allowed, count, reason). On success reason is None and count is
+    the new daily total. On refusal reason is "rate_limit" or "quota" and
+    count is the value that blocked it. Nothing is consumed when refused, so
+    a rejected request does not eat rate-limit budget - same as the behaviour
+    of the check/increment pair this replaces.
+    """
+    global _consume_script
     r = await get_redis()
-    ttl = _seconds_until_midnight()
+    if _consume_script is None:
+        # register_script sends EVALSHA and falls back to EVAL on NOSCRIPT, so
+        # this stays one round trip and re-loads itself after a Redis restart.
+        _consume_script = r.register_script(_CONSUME_LUA)
 
-    # Increment rate limit counter (fixed 60s window)
-    rl_key = f"ratelimit:{user_id}"
-    rl_count = await r.incr(rl_key)
-    if rl_count == 1:
-        await r.expire(rl_key, 60)
+    limit = limit_for(service, is_pro=is_pro, is_max=is_max, is_plus=is_plus)
 
-    # Increment daily quota counter
-    quota_key = f"quota:{user_id}:{service}"
-    new_count = await r.incr(quota_key)
-    if new_count == 1:
-        await r.expire(quota_key, ttl)
+    code, count = await _consume_script(
+        keys=[f"ratelimit:{user_id}", f"quota:{user_id}:{service}"],
+        args=[RATE_LIMIT_PER_MINUTE, limit, _seconds_until_midnight()],
+    )
+    code, count = int(code), int(count)
 
-    return new_count
+    if code == -1:
+        asyncio.create_task(_send_abuse_alert_async(user_id, service))
+        return False, count, "rate_limit"
+    if code == -2:
+        return False, count, "quota"
+    return True, count, None
+
 
 async def get_usage_for_service(user_id: str, service: str) -> int:
     r = await get_redis()
     val = await r.get(f"quota:{user_id}:{service}")
     return int(val) if val else 0
-
-async def is_rate_limited(user_id: str) -> bool:
-    r = await get_redis()
-    val = await r.get(f"ratelimit:{user_id}")
-    return int(val) >= RATE_LIMIT_PER_MINUTE if val else False
-
-async def check_usage(
-    user_id: str, service: str,
-    is_pro: bool = False, is_max: bool = False, is_plus: bool = False
-) -> bool:
-    if await is_rate_limited(user_id):
-        asyncio.create_task(_send_abuse_alert_async(user_id, service))
-        return True
-
-    r = await get_redis()
-    val = await r.get(f"quota:{user_id}:{service}")
-    current_usage = int(val) if val else 0
-
-    if is_max:
-        limit = MAX_QUOTA_LIMITS[service]
-    elif is_pro:
-        limit = PRO_QUOTA_LIMITS[service]
-    elif is_plus:
-        limit = PLUS_QUOTA_LIMITS[service]
-    else:
-        limit = QUOTA_LIMITS[service]
-
-    return current_usage >= limit
 
 async def get_all_usage_data() -> dict:
     r = await get_redis()

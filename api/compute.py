@@ -9,7 +9,7 @@ import json
 from auth import AuthUser
 from admin_auth import get_admin_access
 # Import the new, specific functions and the QUOTA_LIMITS dictionary
-from quota_manager import increment_usage, get_usage_for_service, check_usage, QUOTA_LIMITS, PRO_QUOTA_LIMITS, MAX_QUOTA_LIMITS, PLUS_QUOTA_LIMITS
+from quota_manager import try_consume, limit_for, get_usage_for_service, QUOTA_LIMITS, PRO_QUOTA_LIMITS, MAX_QUOTA_LIMITS, PLUS_QUOTA_LIMITS
 import observability
 
 # Logging is configured once in api.py via logging_config.setup_logging()
@@ -204,23 +204,19 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
     # Determine which quota to use based on model type
     service_type = "agent_creator" if model_name in AGENT_CREATOR_MODELS else "monitor"
 
-    # Check quota for all users (each tier has limits as anti-abuse)
-    if await check_usage(current_user.id, service_type, current_user.is_pro, current_user.is_max, current_user.is_plus):
-        # Determine tier and limit for error message
-        if current_user.is_max:
-            limit_type = "max"
-            limit_value = MAX_QUOTA_LIMITS[service_type]
-        elif current_user.is_plus:
-            limit_type = "plus"
-            limit_value = PLUS_QUOTA_LIMITS[service_type]
-        elif current_user.is_pro:
-            limit_type = "pro"
-            limit_value = PRO_QUOTA_LIMITS[service_type]
-        else:
-            limit_type = "free"
-            limit_value = QUOTA_LIMITS[service_type]
+    # Check and consume quota for all users (each tier has limits as anti-abuse)
+    allowed, usage_count, reason = await try_consume(
+        current_user.id, service_type,
+        current_user.is_pro, current_user.is_max, current_user.is_plus,
+    )
+    user_type = "max" if current_user.is_max else ("plus" if current_user.is_plus else ("pro" if current_user.is_pro else "free"))
 
-        logger.warning(f"{service_type.capitalize()} limit exceeded for {limit_type} user: {current_user.id} (Daily limit: {limit_value})")
+    if not allowed:
+        limit_value = limit_for(
+            service_type,
+            is_pro=current_user.is_pro, is_max=current_user.is_max, is_plus=current_user.is_plus,
+        )
+        logger.warning(f"{service_type.capitalize()} limit exceeded for {user_type} user: {current_user.id} (reason: {reason}, daily limit: {limit_value})")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
@@ -229,9 +225,6 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
             }
         )
 
-    # If within limit, increment the appropriate usage counter
-    usage_count = await increment_usage(current_user.id, service_type)
-    user_type = "max" if current_user.is_max else ("plus" if current_user.is_plus else ("pro" if current_user.is_pro else "free"))
     logger.info(f"Processing {service_type} request for {user_type.upper()} user: {current_user.id} (Daily {service_type} request #{usage_count})")
     # --- END of Quota Logic ---
 
