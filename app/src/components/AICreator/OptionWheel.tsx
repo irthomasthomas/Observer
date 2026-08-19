@@ -50,13 +50,17 @@ interface OptionWheelProps {
 const CYCLE_MS = 2100;         // auto-cycle cadence
 const ANIM_MS = 480;           // auto-cycle glide duration (gentle)
 const ARROW_MS = 120;          // chevron/click glide duration (snappy)
-const ROW_REM = 2.5;
-const ROW_PX = ROW_REM * 16;   // 40px
-const VISIBLE = 5;             // rows shown in the viewport
+// Row/viewport geometry is smaller on mobile so the wheels don't dominate the stacked
+// layout. Computed in JS (not just CSS) because the drag/wheel handlers map real screen
+// pixels 1:1 to row pixels — a CSS `scale()` would desync finger movement from the glide.
+const ROW_REM_DESKTOP = 2.5;
+const ROW_REM_COMPACT = 2;
+const VISIBLE_DESKTOP = 5;     // rows shown in the viewport
+const VISIBLE_COMPACT = 4;
 const HALF = 20;               // render ±20 rows (looping) — drag can't run out
 const RENDER = Array.from({ length: 2 * HALF + 1 }, (_, i) => i - HALF);
-const BASE_PX = ROW_PX * ((VISIBLE - 1) / 2 - HALF); // centers offset 0 in the viewport
 const DRAG_THRESHOLD = 4;
+const COMPACT_QUERY = '(max-width: 767px)'; // matches Tailwind's md breakpoint
 // How long after the last wheel event we consider the gesture over and ease the sub-row
 // remainder to center. Trackpads emit a dense stream of small deltas, so this has to be
 // longer than the inter-event gap of a continuous two-finger scroll but short enough to
@@ -90,6 +94,24 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   const [animMs, setAnimMs] = useState(ANIM_MS);  // current glide duration (slow auto vs fast click)
 
   const [wheeling, setWheeling] = useState(false);  // a wheel/trackpad gesture is in flight
+
+  const [compact, setCompact] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia?.(COMPACT_QUERY).matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(COMPACT_QUERY);
+    const onChange = () => setCompact(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  const rowRem = compact ? ROW_REM_COMPACT : ROW_REM_DESKTOP;
+  const visible = compact ? VISIBLE_COMPACT : VISIBLE_DESKTOP;
+  const rowPx = rowRem * 16;
+  const basePx = rowPx * ((visible - 1) / 2 - HALF); // centers offset 0 in the viewport
+  // Native listeners below close over refs, not render-scoped values.
+  const rowPxRef = useRef(rowPx); rowPxRef.current = rowPx;
+  const visibleRef = useRef(visible); visibleRef.current = visible;
 
   const instantRef = useRef(false); instantRef.current = instant;
   // `instant` (the transition-less reset window) must count as busy: starting a glide there
@@ -132,7 +154,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
     const timer = setInterval(() => {
       if (instantRef.current || busyRef.current) return;
       setAnimMs(ANIM_MS);
-      setMotion(-ROW_PX); // glide up one row
+      setMotion(-rowPx); // glide up one row
     }, CYCLE_MS);
     return () => clearInterval(timer);
   }, [autoCycle, interacted, reduce, paused]);
@@ -155,12 +177,12 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
     markInteracted();
     if (reduce) { commit(delta); return; }
     setAnimMs(ARROW_MS); // snappy for chevron / neighbor clicks
-    setMotion(-delta * ROW_PX);
+    setMotion(-delta * rowPx);
   };
 
   const handleTransitionEnd = () => {
     if (motion === 0) return; // ignore the drag-settle transition (motion already 0)
-    commit(-motion / ROW_PX);
+    commit(-motion / rowPx);
   };
 
   // ---- Drag: track the pointer anywhere on screen until release --------------
@@ -185,8 +207,9 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
       setDragging(false);
       if (!movedRef.current) { setDrag(0); return; } // a tap — let the row onClick handle it
       const d = dragRef.current;
-      const steps = Math.round(d / ROW_PX);          // dragging down (positive) = earlier items
-      const residual = d - steps * ROW_PX;
+      const rp = rowPxRef.current;
+      const steps = Math.round(d / rp);          // dragging down (positive) = earlier items
+      const residual = d - steps * rp;
       // Commit the whole-row shift instantly (pixel-continuous with the finger), then ease the
       // sub-row remainder to center. onChange is called outside any updater (see `commit`).
       const n = mod(index - steps, len);
@@ -231,14 +254,15 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
       if (glidingRef.current) return;
 
       // deltaMode 1 is lines (Firefox mouse wheels), 2 is pages.
-      const unit = e.deltaMode === 1 ? ROW_PX : e.deltaMode === 2 ? ROW_PX * VISIBLE : 1;
+      const rp = rowPxRef.current;
+      const unit = e.deltaMode === 1 ? rp : e.deltaMode === 2 ? rp * visibleRef.current : 1;
       wheelAccumRef.current += e.deltaY * unit;
 
       // Scrolling down (positive deltaY) advances toward later options, matching the
       // chevron-down direction.
-      const steps = Math.trunc(wheelAccumRef.current / ROW_PX);
+      const steps = Math.trunc(wheelAccumRef.current / rp);
       if (steps !== 0) {
-        wheelAccumRef.current -= steps * ROW_PX;
+        wheelAccumRef.current -= steps * rp;
         const n = mod(indexRef.current + steps, optionsRef.current.length);
         indexRef.current = n;
         setIndex(n);
@@ -264,7 +288,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
     };
   }, []);
 
-  const translateY = BASE_PX + motion + drag;
+  const translateY = basePx + motion + drag;
 
   return (
     <div className="flex items-center gap-1.5 md:gap-2" aria-label={ariaLabel} role="listbox">
@@ -282,7 +306,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
         <div
           ref={viewportRef}
           className="wheel-mask relative overflow-hidden w-full touch-none select-none cursor-grab active:cursor-grabbing"
-          style={{ height: `${ROW_REM * VISIBLE}rem` }}
+          style={{ height: `${rowRem * visible}rem` }}
           onPointerDown={onPointerDown}
         >
           <div
@@ -298,7 +322,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
                 key={offset}
                 onClick={() => { if (Math.abs(offset) === 1) glide(offset); }}
                 className={`flex items-center justify-center text-center px-2 text-lg md:text-xl font-medium text-white truncate ${offset !== 0 ? 'cursor-pointer' : ''}`}
-                style={{ height: `${ROW_REM}rem` }}
+                style={{ height: `${rowRem}rem` }}
               >
                 {at(offset).label}
               </div>

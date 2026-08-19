@@ -133,12 +133,20 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
   return createPortal(
     <div className="fixed inset-0 z-[10000] bg-slate-950/70 backdrop-blur-md font-golos flex flex-col items-center justify-center p-4">
       {/* Close */}
-      <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors" aria-label="Close">
+      <button
+        onClick={onClose}
+        style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
+        className="absolute right-4 text-white/50 hover:text-white transition-colors"
+        aria-label="Close"
+      >
         <X className="h-6 w-6" />
       </button>
 
-      {/* Header label */}
-      <p className="absolute top-6 left-1/2 -translate-x-1/2 text-white/50 text-xs md:text-sm tracking-[0.3em] uppercase select-none">
+      {/* Header label — offset below the safe area so it clears the iOS dynamic island */}
+      <p
+        style={{ top: 'calc(1.5rem + env(safe-area-inset-top))' }}
+        className="absolute left-1/2 -translate-x-1/2 text-white/50 text-xs md:text-sm tracking-[0.3em] uppercase select-none text-center px-10"
+      >
         Welcome to Observer!   Build your first agent:
       </p>
 
@@ -163,9 +171,9 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col md:flex-row md:flex-nowrap items-center justify-center gap-x-3 gap-y-3">
+          <div className="flex flex-col md:flex-row md:flex-nowrap items-center justify-center gap-x-3 gap-y-4">
             <div className="relative">
-              <span className="text-4xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">When</span>
+              <span className="text-3xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">When</span>
               {/* Mobile (stacked layout): anchor to "When" itself, which is already
                   centered correctly — simpler than chasing the wheel's own offset. */}
               {!triggerChosen && (
@@ -200,14 +208,14 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
                 )}
               />
             </div>
-            <span className="text-4xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">then</span>
+            <span className="text-3xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">then</span>
             <OptionWheel
               options={ACTIONS}
               value={actionId}
               onChange={setActionId}
               paused={aiming}
               ariaLabel="Choose an action"
-              widthClass="w-[11rem] md:w-[13rem]"
+              widthClass="w-[15rem] md:w-[13rem]"
             />
             <button
               onClick={openEditor}
