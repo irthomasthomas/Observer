@@ -213,6 +213,41 @@ class SettingsManager {
     public setCaptureQuality(value: { maxWidth: number; jpegQuality: number; fps: number }): void {
         localStorage.setItem(this.CAPTURE_QUALITY_KEY, JSON.stringify(value));
     }
+
+    // --- NOTIFICATION CONTACTS ---
+    // Remembered so the `ask_user_info` modal can prefill instead of making the user
+    // re-hunt their Discord webhook / Telegram chat_id on every agent they build. Stored
+    // per-kind under one JSON blob. These same values already end up baked into agent code
+    // in IndexedDB, and code_sanitizer.ts redacts them when an agent is shared.
+    private readonly NOTIFICATION_CONTACTS_KEY = 'observer-ai:settings:notificationContacts';
+
+    private readAllContacts(): Record<string, string> {
+        const stored = localStorage.getItem(this.NOTIFICATION_CONTACTS_KEY);
+        if (!stored) return {};
+        try {
+            const parsed = JSON.parse(stored);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    /** Last value the user confirmed for this contact kind, or '' if none. */
+    public getNotificationContact(kind: string): string {
+        const v = this.readAllContacts()[kind];
+        return typeof v === 'string' ? v : '';
+    }
+
+    public setNotificationContact(kind: string, value: string): void {
+        const all = this.readAllContacts();
+        const v = value.trim();
+        if (v) all[kind] = v; else delete all[kind];
+        localStorage.setItem(this.NOTIFICATION_CONTACTS_KEY, JSON.stringify(all));
+    }
+
+    public clearNotificationContacts(): void {
+        localStorage.removeItem(this.NOTIFICATION_CONTACTS_KEY);
+    }
 }
 
 // Export a single instance

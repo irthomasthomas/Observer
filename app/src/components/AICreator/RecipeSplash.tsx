@@ -3,9 +3,15 @@
 // The cosmic onboarding "splash": a full-screen blurred portal shown right after ToS.
 // Minimal, modern, space-y. The whole builder is one sentence —
 //   "When [wheel]  then [wheel]"
-// — where each choice is an auto-cycling OptionWheel. Picking a notification channel
-// reveals a Message-setup block (QR for phone, chat_id for Telegram, webhook for
-// Discord). Email silently uses the Auth0 user's email (the backend only sends from it).
+// — where each choice is an auto-cycling OptionWheel.
+//
+// "Build it" is NEVER disabled. The wheels always display a valid trigger/action pair, so
+// whatever is on screen is a real, buildable agent — a user who touches nothing and clicks
+// straight through gets exactly what they were looking at. This is deliberate: the old
+// version gated the button on picking a trigger AND filling in a contact field, which read
+// as a broken grey button and pushed people into "Skip for now". Contact info is now
+// collected downstream by the MCP's `ask_user_info` tool, which pops a guided modal at the
+// moment the value is actually needed.
 //
 // A single "master edit" ✏️ swaps the wheels for a textarea of the actual composed MCP
 // message (with an × to revert), so power users can tweak the prompt directly.
@@ -20,7 +26,6 @@ import { useMCPContext } from '../../mcp/MCPContext';
 import { useAuth } from '@contexts/AuthContext';
 import { Analytics } from '@utils/analytics';
 import type { WhitelistChannel } from '@utils/logging';
-import WhitelistInline from '@components/whitelist/WhitelistInline';
 import OptionWheel, { type WheelOption } from './OptionWheel';
 
 export type ContactKind = 'phone' | 'email' | 'telegram' | 'discord' | 'none';
@@ -60,44 +65,24 @@ export const ACTIONS: ActionOption[] = [
   { id: 'log',      label: 'log it',              contact: 'none',     actionFragment: 'log it to memory' },
 ];
 
-export const CONTACT_PLACEHOLDER: Record<ContactKind, string> = {
-  phone: '+1 555 123 4567',
-  email: 'you@email.com',
-  telegram: 'Telegram chat_id',
-  discord: 'https://discord.com/api/webhooks/…',
-  none: '',
-};
-
-export function contactValid(kind: ContactKind, value: string): boolean {
-  const v = value.trim();
-  switch (kind) {
-    case 'none':
-    case 'email': return true; // email uses the Auth0 address; no input to validate
-    case 'phone': return /^\+?[0-9][0-9\s()-]{6,}$/.test(v);
-    case 'telegram': return v.length > 0;
-    case 'discord': return /^https?:\/\/.+/.test(v);
-  }
-}
-
-/** Composes the one-sentence MCP prompt from a trigger/action/contact combo. Shared by
- *  RecipeSplash (full onboarding) and RecipeMini (inline builder in the chat suggestions). */
+/**
+ * Composes the one-sentence MCP prompt from a trigger/action combo.
+ *
+ * Deliberately emits the notification *intent* only ("send me an SMS") and never a phone
+ * number / chat_id / webhook: the MCP collects those itself via `ask_user_info`, which can
+ * also guide the user through obtaining them. Email is the one exception — the Auth0
+ * address needs no user input, so it's inlined here.
+ */
 export function composeRecipePrompt(
   trigger: TriggerOption | undefined,
   action: ActionOption | undefined,
-  contact: string,
   authEmail: string,
 ): string {
   const sensor = trigger?.sensor ?? '$SCREEN';
   const watchWhat = sensor === '$CAMERA' ? 'my camera' : 'my screen';
   const triggerFrag = trigger?.promptFragment ?? '';
   const actionFrag = action?.actionFragment ?? '';
-  const contactKind = action?.contact ?? 'none';
-  const v = contact.trim();
-  let phrase = '';
-  if (contactKind === 'phone') phrase = ` at ${v}`;
-  else if (contactKind === 'email') phrase = authEmail ? ` at ${authEmail}` : '';
-  else if (contactKind === 'telegram') phrase = ` to Telegram chat_id ${v}`;
-  else if (contactKind === 'discord') phrase = ` via the Discord webhook ${v}`;
+  const phrase = action?.contact === 'email' && authEmail ? ` at ${authEmail}` : '';
   return `Watch ${watchWhat}. When ${triggerFrag}, ${actionFrag}${phrase}. Use a cloud model.`;
 }
 
@@ -108,48 +93,37 @@ interface RecipeSplashProps {
 
 const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
   const { send } = useMCPContext();
-  const { user, getAccessToken } = useAuth();
+  const { user } = useAuth();
   const authEmail = user?.email ?? '';
 
   const [triggerId, setTriggerId] = useState(TRIGGERS[0].id);
   const [actionId, setActionId] = useState(ACTIONS[0].id);
-  const [triggerChosen, setTriggerChosen] = useState(false); // gates Build it until user picks a trigger
-  const [actionChosen, setActionChosen] = useState(false); // gates the Message-setup block
-  const [contact, setContact] = useState('');
-  const [phoneVerified, setPhoneVerified] = useState(false);
+  // Purely cosmetic now: drives the "Spin to pick" tooltip. Does not gate Build it.
+  const [triggerChosen, setTriggerChosen] = useState(false);
   const [editingMessage, setEditingMessage] = useState(false);
   const [messageDraft, setMessageDraft] = useState('');
+  // Settle the wheels as the pointer reaches "Build it". commit() runs on transitionend, so
+  // a click landing mid-glide would otherwise build the row BEFORE the one on screen.
+  const [aiming, setAiming] = useState(false);
 
   useEffect(() => { if (isOpen) Analytics.recipeShown(); }, [isOpen]);
 
-  // A changed number (or action) invalidates any prior verification.
-  useEffect(() => { setPhoneVerified(false); }, [contact, actionId]);
-
   const trigger = useMemo(() => TRIGGERS.find(t => t.id === triggerId), [triggerId]);
   const action = useMemo(() => ACTIONS.find(a => a.id === actionId), [actionId]);
-  const contactKind: ContactKind = action?.contact ?? 'none';
-  const showSetup = !editingMessage && actionChosen &&
-    (contactKind === 'phone' || contactKind === 'telegram' || contactKind === 'discord');
 
-  const composePrompt = (): string => composeRecipePrompt(trigger, action, contact, authEmail);
+  const composePrompt = (): string => composeRecipePrompt(trigger, action, authEmail);
 
   const openEditor = () => { setMessageDraft(composePrompt()); setEditingMessage(true); };
   const revertEditor = () => setEditingMessage(false);
 
-  // Phone channels must be whitelisted before building; other channels just need a value.
-  const needsPhone = !editingMessage && contactKind === 'phone';
-  const canBuild = editingMessage
-    ? messageDraft.trim().length > 0
-    : !triggerChosen
-      ? false
-      : needsPhone
-        ? contactValid('phone', contact) && phoneVerified
-        : contactValid(contactKind, contact);
-
+  // No gating, by design. The wheels always hold a valid trigger/action pair (OptionWheel
+  // fires onChange on every committed step), so there is nothing left to wait for — an
+  // empty master-edit draft just falls back to the wheels rather than blocking.
   const handleBuild = () => {
-    if (!canBuild) return;
-    const prompt = editingMessage ? messageDraft.trim() : composePrompt();
-    Analytics.recipeBuilt(editingMessage ? 'custom' : triggerId, editingMessage ? 'custom' : actionId);
+    const draft = messageDraft.trim();
+    const useDraft = editingMessage && draft.length > 0;
+    const prompt = useDraft ? draft : composePrompt();
+    Analytics.recipeBuilt(useDraft ? 'custom' : triggerId, useDraft ? 'custom' : actionId);
     send(prompt);
     onClose();
   };
@@ -198,7 +172,7 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
                 <div className="md:hidden absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
                   <div className="flex flex-col items-center animate-bounce">
                     <span className="whitespace-nowrap text-xs font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
-                      Select what you want to detect
+                      Spin to pick what to detect
                     </span>
                     <div className="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5" />
                   </div>
@@ -211,13 +185,14 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
                 value={triggerId}
                 onChange={setTriggerId}
                 onInteract={() => setTriggerChosen(true)}
+                paused={aiming}
                 ariaLabel="Choose a trigger"
                 widthClass="w-[15rem] md:w-[19rem]"
                 tooltip={!triggerChosen && (
                   <div className="hidden md:block absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
                     <div className="flex flex-col items-center animate-bounce">
                       <span className="whitespace-nowrap text-sm font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
-                        Select what you want to detect
+                        Spin to pick what to detect
                       </span>
                       <div className="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5" />
                     </div>
@@ -230,7 +205,7 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
               options={ACTIONS}
               value={actionId}
               onChange={setActionId}
-              onInteract={() => setActionChosen(true)}
+              paused={aiming}
               ariaLabel="Choose an action"
               widthClass="w-[11rem] md:w-[13rem]"
             />
@@ -246,51 +221,25 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
         )}
       </div>
 
-      {/* Bottom cluster — message setup + edit toggle + Build it (always pinned) */}
-      <div className="absolute bottom-0 inset-x-0 flex flex-col items-center gap-4 pb-8 px-4">
-        {showSetup && (
-          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-800 p-4 md:p-5 text-left shadow-xl">
-            <p className="text-white/70 text-sm font-medium mb-3">Message setup</p>
-            <input
-              type={contactKind === 'phone' ? 'tel' : 'text'}
-              value={contact}
-              onChange={e => setContact(e.target.value)}
-              placeholder={CONTACT_PLACEHOLDER[contactKind]}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-white/50 transition-colors"
-            />
-            {contactKind === 'phone' && action?.channel && contactValid('phone', contact) && (
-              <div className="mt-3">
-                <WhitelistInline
-                  phoneNumber={contact.trim()}
-                  channel={action.channel}
-                  getToken={getAccessToken}
-                  onWhitelisted={() => setPhoneVerified(true)}
-                />
-              </div>
-            )}
-            {contactKind === 'telegram' && (
-              <p className="text-xs text-white/50 mt-2">
-                Message <span className="font-mono text-white/70">@observer_notification_bot</span> to get your chat_id.
-              </p>
-            )}
-            {contactKind === 'discord' && (
-              <p className="text-xs text-white/50 mt-2">
-                In Discord: Server Settings → Integrations → Webhooks → New Webhook → Copy URL.
-              </p>
-            )}
-          </div>
-        )}
-
+      {/* Bottom cluster — Build it (always live, always pinned) */}
+      <div className="absolute bottom-0 inset-x-0 flex flex-col items-center gap-3 pb-8 px-4">
+        {/* Never disabled: whatever the wheels show is buildable. */}
         <button
           onClick={handleBuild}
-          disabled={!canBuild}
-          className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-white text-slate-900 font-bold text-xl md:text-2xl shadow-[0_0_40px_-8px_rgba(255,255,255,0.6)] hover:shadow-[0_0_60px_-6px_rgba(255,255,255,0.8)] hover:scale-[1.02] transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+          // Pointer-down covers touch, where there's no hover to settle the wheels on.
+          onPointerDown={() => setAiming(true)}
+          onMouseEnter={() => setAiming(true)}
+          onMouseLeave={() => setAiming(false)}
+          onFocus={() => setAiming(true)}
+          onBlur={() => setAiming(false)}
+          className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-white text-slate-900 font-bold text-xl md:text-2xl shadow-[0_0_40px_-8px_rgba(255,255,255,0.6)] hover:shadow-[0_0_60px_-6px_rgba(255,255,255,0.8)] hover:scale-[1.02] transition-all"
         >
           Build it
           <ArrowRight className="h-6 w-6" />
         </button>
 
-        <button onClick={onClose} className="text-white/40 hover:text-white/70 text-sm transition-colors">
+        {/* The exit, not the alternative — deliberately quieter than the primary action. */}
+        <button onClick={onClose} className="text-white/30 hover:text-white/60 text-xs transition-colors">
           Skip for now
         </button>
       </div>

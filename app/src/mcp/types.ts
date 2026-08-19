@@ -92,6 +92,35 @@ export interface ToolDefinition {
 }
 
 /**
+ * The kinds of contact info `ask_user_info` can collect. Mirrors the notification tools
+ * available to agent code (sendSms/call/sendWhatsapp, sendEmail, sendTelegram, sendDiscord,
+ * sendPushover).
+ */
+export type UserInfoKind = 'phone' | 'email' | 'telegram' | 'discord' | 'pushover';
+
+/**
+ * A request for one piece of contact info, handed from the `ask_user_info` executor up to
+ * the React layer, which renders the guided modal.
+ */
+export interface UserInfoRequest {
+  requestId: string;
+  kind: UserInfoKind;
+  /** For `phone`: which channel the number is for. Drives which whitelist QRs are shown. */
+  channel?: 'sms' | 'voice' | 'whatsapp';
+  /** The model's one-line "why I need this", shown to the user for context. */
+  reason?: string;
+}
+
+/**
+ * The user's answer. `skipped` means they dismissed the modal — the tool reports that back
+ * to the model so it can ask in chat instead of hanging.
+ */
+export interface UserInfoResponse {
+  value: string;
+  skipped?: boolean;
+}
+
+/**
  * Ambient context handed to executors that need it (e.g. an auth token provider for
  * starting agents against the Observer API).
  */
@@ -99,6 +128,13 @@ export interface ToolContext {
   getToken?: () => Promise<string | undefined>;
   /** Aborts a long-running/blocking executor (e.g. check_whitelist waiting for the user). */
   signal?: AbortSignal;
+  /**
+   * Blocks until the user supplies a piece of contact info via the guided modal. Injected by
+   * the React layer (useMCP) using the same deferred-promise idiom as `requestInteraction`.
+   * Absent in non-React hosts, where `ask_user_info` degrades to telling the model to ask in
+   * chat instead.
+   */
+  requestUserInfo?: (req: UserInfoRequest) => Promise<UserInfoResponse>;
 }
 
 /**

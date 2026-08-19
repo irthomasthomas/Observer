@@ -9,6 +9,10 @@
 //     drag continues anywhere on screen and only ends on pointer-up), then settles to the
 //     nearest row on release. Uses absolute clientY, so the wheel's bounding box is
 //     irrelevant.
+//   • wheel / two-finger scroll → accumulates raw scroll distance, spends it a row at a
+//     time, and keeps the remainder as a live offset; settles once the scroll stops. The
+//     listener is native (not React's onWheel) so it can preventDefault and stop the page
+//     scrolling behind the wheel.
 //
 // The option list loops (`at()` wraps via mod) and we render a wide window (±HALF rows),
 // so a drag can never run off the end. Emphasis/fade is a center-peaked mask gradient
@@ -30,6 +34,12 @@ interface OptionWheelProps {
   autoCycle?: boolean;
   /** Fires once, on the user's first interaction (stops auto-cycling). */
   onInteract?: () => void;
+  /**
+   * Temporarily halts auto-cycling without counting as an interaction. RecipeSplash sets this
+   * when the pointer reaches "Build it": `commit()` only runs on transitionend, so a click
+   * landing mid-glide would otherwise build the row BEFORE the one the user sees.
+   */
+  paused?: boolean;
   ariaLabel: string;
   /** Tailwind width classes for the scroll column. Defaults to the original size. */
   widthClass?: string;
@@ -47,6 +57,11 @@ const HALF = 20;               // render ±20 rows (looping) — drag can't run 
 const RENDER = Array.from({ length: 2 * HALF + 1 }, (_, i) => i - HALF);
 const BASE_PX = ROW_PX * ((VISIBLE - 1) / 2 - HALF); // centers offset 0 in the viewport
 const DRAG_THRESHOLD = 4;
+// How long after the last wheel event we consider the gesture over and ease the sub-row
+// remainder to center. Trackpads emit a dense stream of small deltas, so this has to be
+// longer than the inter-event gap of a continuous two-finger scroll but short enough to
+// still feel like a release.
+const WHEEL_SETTLE_MS = 120;
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -60,6 +75,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   onChange,
   autoCycle = true,
   onInteract,
+  paused = false,
   ariaLabel,
   widthClass = 'w-[13rem] md:w-[16rem]',
   tooltip,
@@ -73,14 +89,28 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   const [interacted, setInteracted] = useState(false);
   const [animMs, setAnimMs] = useState(ANIM_MS);  // current glide duration (slow auto vs fast click)
 
+  const [wheeling, setWheeling] = useState(false);  // a wheel/trackpad gesture is in flight
+
   const instantRef = useRef(false); instantRef.current = instant;
   // `instant` (the transition-less reset window) must count as busy: starting a glide there
   // would move the transform with transitions off, so no transitionend fires and `motion`
   // gets stuck ≠ 0 — freezing the wheel while its index keeps changing.
-  const busyRef = useRef(false); busyRef.current = motion !== 0 || dragging || instant;
+  // A wheel gesture counts as busy too, so the external-value sync can't yank the index out
+  // from under the user's fingers mid-scroll.
+  const glidingRef = useRef(false); glidingRef.current = motion !== 0 || dragging || instant;
+  const busyRef = useRef(false); busyRef.current = glidingRef.current || wheeling;
   const startYRef = useRef(0);
   const dragRef = useRef(0);
   const movedRef = useRef(false);
+
+  // The wheel listener is attached natively (see below) and therefore closes over its first
+  // render. These refs keep it reading current values instead of stale ones.
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const wheelAccumRef = useRef(0);      // unspent scroll distance, in px
+  const wheelTimerRef = useRef(0);
+  const indexRef = useRef(index); indexRef.current = index;
+  const optionsRef = useRef(options); optionsRef.current = options;
+  const onChangeRef = useRef(onChange); onChangeRef.current = onChange;
 
   const reduce = prefersReducedMotion();
   const len = options.length;
@@ -98,14 +128,14 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
 
   // Auto-cycle until first interaction.
   useEffect(() => {
-    if (!autoCycle || interacted || reduce) return;
+    if (!autoCycle || interacted || reduce || paused) return;
     const timer = setInterval(() => {
       if (instantRef.current || busyRef.current) return;
       setAnimMs(ANIM_MS);
       setMotion(-ROW_PX); // glide up one row
     }, CYCLE_MS);
     return () => clearInterval(timer);
-  }, [autoCycle, interacted, reduce]);
+  }, [autoCycle, interacted, reduce, paused]);
 
   // Commit a settled step. onChange is called OUTSIDE the setIndex updater — calling a
   // parent setState inside an updater runs during render and triggers React's
@@ -177,6 +207,63 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging]);
 
+  // ---- Wheel / two-finger scroll -------------------------------------------
+  // Same pixel-offset model as the drag: accumulate raw scroll distance, spend it a whole
+  // row at a time, and keep the remainder as a live offset so the column tracks the gesture
+  // continuously. Settles to the nearest row once the scroll stops.
+  //
+  // Attached natively with { passive: false } because React's synthetic onWheel can't
+  // preventDefault — without that, scrolling the wheel would also scroll the page behind it.
+  const markInteractedRef = useRef(markInteracted); markInteractedRef.current = markInteracted;
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      // Let a genuinely horizontal gesture (or a shift-scroll) pass through untouched.
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      // Mark first, then bail: even an event we can't spend means the user is driving, so
+      // the auto-cycle should stop rather than keep spinning under them.
+      markInteractedRef.current();
+      // Don't fight an in-flight glide: its transitionend still owes us a commit.
+      if (glidingRef.current) return;
+
+      // deltaMode 1 is lines (Firefox mouse wheels), 2 is pages.
+      const unit = e.deltaMode === 1 ? ROW_PX : e.deltaMode === 2 ? ROW_PX * VISIBLE : 1;
+      wheelAccumRef.current += e.deltaY * unit;
+
+      // Scrolling down (positive deltaY) advances toward later options, matching the
+      // chevron-down direction.
+      const steps = Math.trunc(wheelAccumRef.current / ROW_PX);
+      if (steps !== 0) {
+        wheelAccumRef.current -= steps * ROW_PX;
+        const n = mod(indexRef.current + steps, optionsRef.current.length);
+        indexRef.current = n;
+        setIndex(n);
+        onChangeRef.current(optionsRef.current[n].id);
+      }
+      // Content moves up as the index grows, hence the negation.
+      setDrag(-wheelAccumRef.current);
+      setWheeling(true);
+
+      clearTimeout(wheelTimerRef.current);
+      wheelTimerRef.current = window.setTimeout(() => {
+        wheelAccumRef.current = 0;
+        setAnimMs(ARROW_MS);   // snappy settle, like a chevron press
+        setWheeling(false);    // re-enables the transition so the remainder eases home
+        setDrag(0);
+      }, WHEEL_SETTLE_MS);
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      clearTimeout(wheelTimerRef.current);
+    };
+  }, []);
+
   const translateY = BASE_PX + motion + drag;
 
   return (
@@ -193,6 +280,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
       <div className={`relative ${widthClass}`}>
         {tooltip}
         <div
+          ref={viewportRef}
           className="wheel-mask relative overflow-hidden w-full touch-none select-none cursor-grab active:cursor-grabbing"
           style={{ height: `${ROW_REM * VISIBLE}rem` }}
           onPointerDown={onPointerDown}
@@ -201,7 +289,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
             className="absolute inset-x-0 top-0 flex flex-col will-change-transform"
             style={{
               transform: `translateY(${translateY}px)`,
-              transition: instant || dragging || reduce ? 'none' : `transform ${animMs}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+              transition: instant || dragging || wheeling || reduce ? 'none' : `transform ${animMs}ms cubic-bezier(0.22, 1, 0.36, 1)`,
             }}
             onTransitionEnd={handleTransitionEnd}
           >

@@ -5,7 +5,7 @@
 // data layer (agent_database, IterationStore, main_loop, ModelManager, local model managers),
 // so the same registry can later be served from a real MCP server with the transport swapped.
 
-import type { ToolDefinition, ToolResult, WireToolSpec } from './types';
+import type { ToolDefinition, ToolResult, WireToolSpec, UserInfoKind } from './types';
 import {
   listAgents,
   getAgent,
@@ -523,6 +523,74 @@ export const TOOLS: ToolDefinition[] = [
           return { error: 'Cancelled.' };
         }
       }
+    },
+  },
+  {
+    name: 'ask_user_info',
+    description: "Ask the user for a piece of contact info needed by a notification tool, via a guided modal. Use this INSTEAD of asking for a phone number / chat_id / webhook URL in chat prose — the modal walks the user through actually obtaining the value (QR codes, deep links, step-by-step instructions) and prefills anything they've given before. Call it BEFORE create_agent, once per piece of info you need. This BLOCKS until the user confirms. For kind='phone' it also handles whitelisting in the same modal, so you do NOT need a separate check_whitelist call for a number obtained this way. If the result is {skipped:true}, the user declined — ask them about it in chat rather than calling this again. Do not narrate the modal or tell the user to fill it in; they can see it.",
+    parameters: {
+      type: 'object',
+      properties: {
+        kind: {
+          type: 'string',
+          enum: ['phone', 'email', 'telegram', 'discord', 'pushover'],
+          description: "Which piece of info to collect: 'phone' for sendSms/call/sendWhatsapp, 'email' for sendEmail, 'telegram' for sendTelegram's chat_id, 'discord' for sendDiscord's webhook URL, 'pushover' for sendPushover's user key.",
+        },
+        channel: {
+          type: 'string',
+          enum: ['sms', 'voice', 'whatsapp'],
+          description: "Only for kind='phone': which channel the number will be used for — sms (sendSms), voice (call), or whatsapp (sendWhatsapp). WhatsApp has a separate whitelist. Defaults to sms.",
+        },
+        reason: {
+          type: 'string',
+          description: 'A short, friendly one-line explanation of what this will be used for, shown in the modal (e.g. "so I can text you when your render finishes").',
+        },
+      },
+      required: ['kind'],
+    },
+    requiresConfirmation: false,
+    multimodal: false,
+    execute: async (args, ctx): Promise<ToolResult> => {
+      const kind = args.kind as UserInfoKind;
+      if (!kind) return { error: 'Provide a `kind` to ask for.' };
+
+      // Non-React host (or a future MCP server transport): no modal to show, so tell the
+      // model to fall back to plain conversation rather than silently hanging.
+      if (!ctx.requestUserInfo) {
+        return { error: 'No interactive UI is available here. Ask the user for this value in chat instead.' };
+      }
+
+      const channel = kind === 'phone'
+        ? (args.channel === 'whatsapp' ? 'whatsapp' : args.channel === 'voice' ? 'voice' : 'sms')
+        : undefined;
+
+      let response;
+      try {
+        response = await ctx.requestUserInfo({
+          requestId: `info_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          kind,
+          channel,
+          reason: typeof args.reason === 'string' ? args.reason : undefined,
+        });
+      } catch {
+        return { error: 'Cancelled.' };
+      }
+
+      if (response.skipped) {
+        return { data: { kind, skipped: true, note: 'The user dismissed the prompt without providing a value. Ask them about it in chat; do not call ask_user_info again for this.' } };
+      }
+
+      const value = (response.value ?? '').trim();
+      if (!value) return { data: { kind, skipped: true } };
+
+      // Same guard as check_whitelist: Observer's own number is never the user's.
+      if (kind === 'phone' && value === '+18632085341') {
+        return { error: "\u{1F6AB} That's Observer's own phone number, not the user's. Ask for the user's own number." };
+      }
+
+      // The modal only resolves a phone once WhitelistInline has confirmed it, so a returned
+      // phone number is always already whitelisted — no separate check_whitelist needed.
+      return { data: { kind, value, ...(kind === 'phone' ? { channel, whitelisted: true } : {}) } };
     },
   },
   {

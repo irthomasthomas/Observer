@@ -37,8 +37,8 @@ MCP: list_screen_targets // agent will use $SCREEN; find the Steam window in the
 MCP: see_screen_target // look at that thumbnail, it's the download bar; decide to crop to it
 MCP: select_screen_target // select screen, maybe tell the user it will watch a specific part of the screen
 MCP: of course! do you want to be called when it finishes? // infer what state triggers notificatio
-User: yes my phone number is +1 999 9999 9999
-MCP: check_whitelist // agent uses call(); blocks until number is whitelisted, then returns
+User: yes
+MCP: ask_user_info kind='phone' channel='voice' // modal collects + whitelists the number; never ask for it in chat
 MCP: do you want it to use a local model? // always offer local model path
 User: yes
 MCP: download_model
@@ -51,8 +51,8 @@ MCP: list_agents list_models // get all context and available models use this al
 MCP: of course! can I see the steam window? // infer what state triggers notification, seek context always
 MCP: capture_screen // opens browser picker; user selects their Steam window; you see a preview image
 MCP: how do you want to be notified? 
-User: please call me, my phone number is +1 999 9999 9999
-MCP: check_whitelist // agent uses call(); blocks until number is whitelisted, then returns
+User: please call me
+MCP: ask_user_info kind='phone' channel='voice' // modal collects + whitelists the number; never ask for it in chat
 MCP: do you want it to use a local model? // always offer local model path
 User: yes
 MCP: download_model
@@ -79,7 +79,8 @@ You manage Observer by calling **function tools** (native function calling). Use
 - \`list_models\` — available inference models
 - \`create_agent\` — create (or overwrite) an agent  *(asks the user to approve)*
 - \`edit_agent\` — edit an existing agent  *(asks the user to approve)*
-- \`check_whitelist\` — pre-flight check that user's phone number is whitelisted for the phone tools (\`sendSms\`/\`call\`/\`sendWhatsapp\`). Always ask for user's phone number for phone tools. Never use this with a phone number that the user hasn't explicitly provided.
+- \`ask_user_info\` — ask the user for contact info (phone / email / telegram chat_id / discord webhook / pushover key) via a guided modal. Use this instead of asking for those values in chat.
+- \`check_whitelist\` — pre-flight check that user's phone number is whitelisted for the phone tools (\`sendSms\`/\`call\`/\`sendWhatsapp\`). Only needed for a number you already have; \`ask_user_info\` already whitelists the numbers it collects. Never use this with a phone number that the user hasn't explicitly provided.
 ${screenToolList}
 - \`start_agent\` — start an agent's loop  *(asks the user to approve)*
 - \`stop_agent\` — stop a running agent
@@ -87,7 +88,9 @@ ${screenToolList}
 
 When the user asks what an agent has been doing, call \`get_runs\` first (cheap, no images). Only call \`get_iteration\` when you actually need to *see* a screenshot.
 
-If an agent uses the phone tools (\`sendSms\`, \`call\`, \`sendWhatsapp\`), call \`check_whitelist\` with the phone_number + channel BEFORE \`start_agent\`. It BLOCKS until the number is whitelisted — the user is shown an inline QR prompt that handles it — then returns. Do NOT announce that the number is unwhitelisted or ask the user to whitelist it; the prompt does that. When it returns, go straight to \`start_agent\`.
+Whenever an agent you are about to build needs a piece of the user's contact info — a phone number, email, Telegram chat_id, Discord webhook, or Pushover key — call \`ask_user_info\` for it BEFORE \`create_agent\`, one call per value. Do NOT ask for these in chat prose, and do NOT invent placeholders: the modal guides the user through actually getting the value (QR codes, bot deep links, step-by-step instructions) and prefills what they've entered before. Do not narrate the modal or tell the user to fill it in — they can see it. If it returns \`skipped: true\`, the user declined; ask them about it in chat instead of calling it again. A phone number returned by \`ask_user_info\` is already whitelisted, so go straight to \`create_agent\`.
+
+If an agent uses the phone tools (\`sendSms\`, \`call\`, \`sendWhatsapp\`) with a number you already have (not one from \`ask_user_info\`), call \`check_whitelist\` with the phone_number + channel BEFORE \`start_agent\`. It BLOCKS until the number is whitelisted — the user is shown an inline QR prompt that handles it — then returns. Do NOT announce that the number is unwhitelisted or ask the user to whitelist it; the prompt does that. When it returns, go straight to \`start_agent\`.
 
 ${screenFlow}
 

@@ -8,7 +8,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { TokenProvider } from '@utils/main_loop';
 import { ModelManager } from '@utils/ModelManager';
 import { Logger } from '@utils/logging';
-import type { WireMessage, ToolCallStatus } from './types';
+import type { WireMessage, ToolCallStatus, UserInfoRequest, UserInfoResponse } from './types';
 import { getTool, getToolSpecs } from './registry';
 import getMcpSystemPrompt from './systemPrompt';
 import {
@@ -71,11 +71,19 @@ export function useMCP(options: UseMCPOptions) {
   const [isRunning, setIsRunning] = useState(false);
   const [toolStatus, setToolStatus] = useState<Map<string, ToolStatusEntry>>(new Map());
   const [pendingApproval, setPendingApproval] = useState<InteractionRequest | null>(null);
+  const [pendingUserInfo, setPendingUserInfo] = useState<UserInfoRequest | null>(null);
 
   // batchId → settlers for the deferred approval promise. We keep `reject` too so a hard
   // stop can unwind a run that's parked at the human-approval gate.
   const pendingResolvers = useRef<Map<string, {
     resolve: (d: InteractionDecision) => void;
+    reject: (e: unknown) => void;
+  }>>(new Map());
+
+  // requestId → settlers for the deferred `ask_user_info` promise. Same idiom as
+  // pendingResolvers above; kept separate because it's per-tool-call, not per-batch.
+  const userInfoResolvers = useRef<Map<string, {
+    resolve: (r: UserInfoResponse) => void;
     reject: (e: unknown) => void;
   }>>(new Map());
 
@@ -120,6 +128,28 @@ export function useMCP(options: UseMCPOptions) {
       settler.resolve(decision);
     }
     setPendingApproval(prev => (prev && prev.batchId === batchId ? null : prev));
+  }, []);
+
+  /** Blocks the `ask_user_info` executor until the modal resolves. Injected via ToolContext. */
+  const requestUserInfo = useCallback((req: UserInfoRequest): Promise<UserInfoResponse> => {
+    Logger.info(LOG_SOURCE, `Awaiting user info: ${req.kind}${req.channel ? ` (${req.channel})` : ''}`, {
+      requestId: req.requestId,
+    });
+    return new Promise<UserInfoResponse>((resolve, reject) => {
+      userInfoResolvers.current.set(req.requestId, { resolve, reject });
+      setPendingUserInfo(req);
+    });
+  }, []);
+
+  /** Resolve a pending user-info request from the modal. */
+  const resolveUserInfo = useCallback((requestId: string, response: UserInfoResponse) => {
+    const settler = userInfoResolvers.current.get(requestId);
+    if (settler) {
+      userInfoResolvers.current.delete(requestId);
+      Logger.info(LOG_SOURCE, `User ${response.skipped ? 'skipped' : 'supplied'} requested info`, { requestId });
+      settler.resolve(response);
+    }
+    setPendingUserInfo(prev => (prev && prev.requestId === requestId ? null : prev));
   }, []);
 
   const send = useCallback(async (userText: string, images?: string[]) => {
@@ -181,7 +211,7 @@ export function useMCP(options: UseMCPOptions) {
       await runConversation(wireRef.current, {
         send: sendToModel,
         getTool,
-        context: { getToken, signal },
+        context: { getToken, signal, requestUserInfo },
         skipPermissions,
         signal,
         onWireUpdate: syncMessages,
@@ -226,7 +256,7 @@ export function useMCP(options: UseMCPOptions) {
     }
     // skipPermissions is a stable live getter (read at the gate inside the runner), so it
     // intentionally stays out of these deps — it never needs to rebuild send().
-  }, [isRunning, isUsingObServer, getToken, modelName, syncMessages, setStatus, requestInteraction]);
+  }, [isRunning, isUsingObServer, getToken, modelName, syncMessages, setStatus, requestInteraction, requestUserInfo]);
 
   /** Hard-stop the in-flight run: kill the loop, abandon any model call, and unwind a
    *  run parked at the approval gate. Leaves the (sealed) conversation intact. */
@@ -235,6 +265,11 @@ export function useMCP(options: UseMCPOptions) {
     // Reject any parked approval gate so the runner's await unwinds promptly.
     for (const [, settler] of pendingResolvers.current) settler.reject(abortError());
     pendingResolvers.current.clear();
+    // Same for a run parked on the ask_user_info modal, or it would be left on screen with
+    // nothing listening for its answer.
+    for (const [, settler] of userInfoResolvers.current) settler.reject(abortError());
+    userInfoResolvers.current.clear();
+    setPendingUserInfo(null);
     setPendingApproval(prev => {
       // Any tool calls still awaiting that gate are being abandoned — clear their spinners.
       if (prev) setToolStatus(s => {
@@ -253,11 +288,13 @@ export function useMCP(options: UseMCPOptions) {
   const clear = useCallback(() => {
     if (isRunning) return;
     pendingResolvers.current.clear();
+    userInfoResolvers.current.clear();
     wireRef.current = [{ role: 'system', content: getMcpSystemPrompt() }];
     setMessages([]);
     setToolStatus(new Map());
     setStreamingText('');
     setPendingApproval(null);
+    setPendingUserInfo(null);
   }, [isRunning]);
 
   return {
@@ -267,6 +304,8 @@ export function useMCP(options: UseMCPOptions) {
     toolStatus,
     pendingApproval,
     resolveInteraction,
+    pendingUserInfo,
+    resolveUserInfo,
     subscribeMutation,
     clear,
     stop,

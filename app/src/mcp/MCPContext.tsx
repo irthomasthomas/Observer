@@ -13,6 +13,7 @@ import React, { createContext, useContext, useState } from 'react';
 import type { TokenProvider } from '@utils/main_loop';
 import { SensorSettings } from '@utils/settings';
 import { useMCP, type UseMCPReturn } from './useMCP';
+import UserInfoModal from '@components/AICreator/UserInfoModal';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
 
@@ -40,7 +41,16 @@ export const MCPProvider: React.FC<MCPProviderProps> = ({ getToken, isUsingObSer
     skipPermissions: () => SensorSettings.getMcpYoloMode(),
     modelName,
   });
-  return <MCPContext.Provider value={{ ...mcp, modelName, setModelName }}>{children}</MCPContext.Provider>;
+  return (
+    <MCPContext.Provider value={{ ...mcp, modelName, setModelName }}>
+      {children}
+      {/* Hosted here, not in MCP.tsx: a run survives closing the chat panel, and RecipeSplash
+          closes itself right after send() — so the modal must outlive both. */}
+      {mcp.pendingUserInfo && (
+        <UserInfoModal req={mcp.pendingUserInfo} onResolve={mcp.resolveUserInfo} />
+      )}
+    </MCPContext.Provider>
+  );
 };
 
 export function useMCPContext(): MCPContextValue {
