@@ -112,6 +112,10 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   // Native listeners below close over refs, not render-scoped values.
   const rowPxRef = useRef(rowPx); rowPxRef.current = rowPx;
   const visibleRef = useRef(visible); visibleRef.current = visible;
+  // The row height in effect when a glide *started* — a resize crossing the compact
+  // breakpoint mid-glide must not change how `motion` gets converted back into a step
+  // count when it settles, or the settle math (motion / rowPx) drifts off the row grid.
+  const glideRowPxRef = useRef(rowPx);
 
   const instantRef = useRef(false); instantRef.current = instant;
   // `instant` (the transition-less reset window) must count as busy: starting a glide there
@@ -154,7 +158,8 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
     const timer = setInterval(() => {
       if (instantRef.current || busyRef.current) return;
       setAnimMs(ANIM_MS);
-      setMotion(-rowPx); // glide up one row
+      glideRowPxRef.current = rowPxRef.current;
+      setMotion(-rowPxRef.current); // glide up one row
     }, CYCLE_MS);
     return () => clearInterval(timer);
   }, [autoCycle, interacted, reduce, paused]);
@@ -163,7 +168,10 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   // parent setState inside an updater runs during render and triggers React's
   // "cannot update a component while rendering a different component" warning.
   const commit = (delta: number) => {
-    const n = mod(index + delta, len);
+    // `delta` may be a non-integer number of rows if `rowPx` changed (e.g. the compact
+    // breakpoint flipped) between when the glide started and when its transition ended —
+    // round it so we never index into `options` with a fractional/out-of-range value.
+    const n = mod(index + Math.round(delta), len);
     setInstant(true);
     setIndex(n);
     onChange(options[n].id);
@@ -177,12 +185,13 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
     markInteracted();
     if (reduce) { commit(delta); return; }
     setAnimMs(ARROW_MS); // snappy for chevron / neighbor clicks
+    glideRowPxRef.current = rowPx;
     setMotion(-delta * rowPx);
   };
 
   const handleTransitionEnd = () => {
     if (motion === 0) return; // ignore the drag-settle transition (motion already 0)
-    commit(-motion / rowPx);
+    commit(-motion / glideRowPxRef.current);
   };
 
   // ---- Drag: track the pointer anywhere on screen until release --------------
