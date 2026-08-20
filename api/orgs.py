@@ -34,6 +34,7 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import ClickTracking, Mail, TrackingSettings
 
 import r2_store
+import usage_log
 from admin_auth import get_admin_access
 from auth import AuthUser
 from auth0_manager import (
@@ -558,6 +559,56 @@ async def get_my_org(current_user: AuthUser):
                 "usage": usage.get(m.get("auth0_user_id"), {}),
             }
             for m in org["members"] if m["status"] != "removed"
+        ],
+    }
+
+
+@orgs_router.get("/orgs/usage/history", summary="Historical usage for the org")
+async def get_org_usage_history(
+    current_user: AuthUser,
+    days: int = 30,
+    bucket: str = "day",
+):
+    """
+    Usage per member over time, from the Postgres event log.
+
+    Deliberately a separate endpoint from /orgs/me rather than more fields on
+    it. The two answer different questions from different stores: /orgs/me
+    reports today's counters straight from Redis, which is what the limiter
+    enforces and therefore the only number safe to show next to a limit, while
+    this is a best-effort historical log that may be missing rows dropped under
+    load or written to the other box during a failover. Keeping them apart
+    means neither one's failure mode becomes the other's, and the frontend
+    always knows which kind of number it is holding.
+
+    Returns an empty series - not an error - when usage logging is disabled or
+    the query fails, so a team page never breaks over analytics.
+    """
+    _org_id, org = await _require_org(current_user)
+
+    if bucket not in ("day", "week", "month"):
+        raise HTTPException(status_code=400, detail="bucket must be day, week or month")
+    days = max(1, min(days, 365))
+
+    members = [m for m in org["members"] if m["status"] == "active" and m["auth0_user_id"]]
+    email_by_id = {m["auth0_user_id"]: m["email"] for m in members}
+
+    rows = await usage_log.get_usage_history(
+        list(email_by_id), days=days, bucket=bucket,
+    )
+
+    return {
+        "days": days,
+        "bucket": bucket,
+        "available": usage_log.enabled(),
+        "series": [
+            {
+                "period": r["period"],
+                "email": email_by_id.get(r["user_id"], r["user_id"]),
+                "service": r["service"],
+                "count": r["count"],
+            }
+            for r in rows
         ],
     }
 

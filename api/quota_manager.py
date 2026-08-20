@@ -6,6 +6,7 @@ import httpx
 from typing import Dict
 
 from redis_client import get_redis
+from usage_log import log_usage
 
 logger = logging.getLogger('quota_manager')
 
@@ -190,6 +191,11 @@ async def try_consume(
         return False, count, "rate_limit"
     if code == -2:
         return False, count, "quota"
+
+    # Every service routes its consumption through here, so this one call
+    # covers monitor, agent_creator and all eight messaging channels. It is
+    # synchronous and non-blocking by design - see usage_log.
+    log_usage(user_id, service)
     return True, count, None
 
 

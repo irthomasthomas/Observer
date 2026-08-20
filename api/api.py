@@ -32,6 +32,7 @@ from apple_payments import apple_payments_router
 from transcriptions import transcriptions_router
 from orgs import orgs_router
 import api_handlers
+import usage_log
 
 logger = logging.getLogger('api-server')
 
@@ -47,8 +48,10 @@ MAX_BODY_SIZE = 20 * 1024 * 1024  # 20 MB
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await api_handlers.startup_handlers()
+    await usage_log.start()
     yield
     await api_handlers.shutdown_handlers()
+    await usage_log.stop()
     await close_redis()
 
 # Setup FastAPI app
