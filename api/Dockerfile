@@ -4,6 +4,11 @@ FROM python:3.11-slim as base
 # Set working directory
 WORKDIR /app
 
+# ffmpeg is required to transcode captured video to H.264/AAC mp4,
+# which WhatsApp requires (Twilio rejects other codecs with error 63021)
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy requirements first for better caching
 COPY requirements.txt .
 
