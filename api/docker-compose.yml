@@ -22,10 +22,6 @@ services:
       - "3839:3839"
     env_file:
       - .env
-    depends_on:
-      # Start ordering only. The API does not wait for Postgres to be healthy
-      # and starts fine without it - usage logging simply stays disabled.
-      - usage-db
     environment:
       # REDIS_URL comes from .env and points at the managed Upstash instance
       # (rediss://... native TCP endpoint, not the REST URL).
@@ -55,45 +51,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  # Analytics only. Nothing in the request path reads or writes this, so it is
-  # allowed to be slow, restart, or be missing entirely - usage_log drops rows
-  # and the API is unaffected. Not exposed on a host port: it is reachable only
-  # from observer-network, over the compose service name.
-  #
-  # This is box-local. The failover backup runs its own copy, so a period that
-  # spans a promotion leaves rows split across two machines; the `host` column
-  # on usage_events records which one wrote each row. Point POSTGRES_DSN at a
-  # managed instance to make both boxes share one database.
-  usage-db:
-    image: postgres:16-alpine
-    container_name: observer-usage-db
-    restart: unless-stopped
-    mem_limit: 512m
-    environment:
-      - POSTGRES_USER=observer
-      - POSTGRES_PASSWORD=${USAGE_DB_PASSWORD:-observer}
-      - POSTGRES_DB=usage
-      - TZ=UTC
-    volumes:
-      # A named volume, not a bind mount: Postgres needs the data directory to
-      # have its own ownership and permissions, which a host bind mount fights.
-      - usage-db-data:/var/lib/postgresql/data
-    networks:
-      - observer-network
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U observer -d usage"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-
-volumes:
-  usage-db-data:
 
 networks:
   observer-network:

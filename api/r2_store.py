@@ -2,10 +2,14 @@
 """
 Cloudflare R2 object store for enterprise org records.
 
-Two object types, both accessed by direct key — nothing here ever lists:
+Object types, all written by direct key — nothing here ever lists:
 
     orgs/{org_id}.json      the org record, members inline
     invites/{token}.json    a pending seat invite, single use
+    usage/{date}/...        gzipped NDJSON usage batches, write-only archive
+
+The usage objects are never read back by the API; they are the cold archive
+for offline analysis. See usage_log.py.
 
 R2 is not on the request hot path. Auth, quota and model routing all run off
 the JWT (which carries `org_id` and `is_pro`), so these objects are read only
@@ -93,6 +97,19 @@ def _put_json_sync(key: str, data: dict, if_match: Optional[str], if_none_match:
     return resp.get("ETag")
 
 
+def _put_bytes_sync(key: str, body: bytes, content_type: str, content_encoding: Optional[str]) -> str:
+    params = {
+        "Bucket": R2_BUCKET,
+        "Key": key,
+        "Body": body,
+        "ContentType": content_type,
+    }
+    if content_encoding:
+        params["ContentEncoding"] = content_encoding
+    resp = _get_client().put_object(**params)
+    return resp.get("ETag")
+
+
 def _delete_sync(key: str) -> None:
     _get_client().delete_object(Bucket=R2_BUCKET, Key=key)
 
@@ -115,6 +132,19 @@ async def put_json(
     Raises PreconditionFailed when the condition is not met.
     """
     return await asyncio.to_thread(_put_json_sync, key, data, if_match, if_none_match)
+
+
+async def put_bytes(
+    key: str,
+    body: bytes,
+    content_type: str = "application/octet-stream",
+    content_encoding: Optional[str] = None,
+) -> str:
+    """
+    Write raw bytes. Unconditional: callers that use this write to keys nobody
+    else writes, so there is no race to guard against.
+    """
+    return await asyncio.to_thread(_put_bytes_sync, key, body, content_type, content_encoding)
 
 
 async def delete(key: str) -> None:
@@ -158,3 +188,15 @@ def org_key(org_id: str) -> str:
 
 def invite_key(token: str) -> str:
     return f"invites/{token}.json"
+
+
+def usage_key(date: str, host: str, stamp: str, token: str, seq: int) -> str:
+    """
+    Partitioned by date first so an offline reader can scan a time range
+    without listing the whole prefix, then by host.
+
+    `token` distinguishes the several worker processes that share a host;
+    without it their independent sequence counters collide and the later PUT
+    silently replaces an earlier worker's batch.
+    """
+    return f"usage/{date}/{host}/{stamp}-{token}-{seq:06d}.ndjson.gz"
