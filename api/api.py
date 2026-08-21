@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from contextlib import asynccontextmanager
 import uvicorn
 import argparse
 import logging
 import os
+import re
 import stripe
 import hashlib
 import httpx
@@ -19,6 +19,7 @@ setup_logging()
 
 from auth import AuthUser
 from auth0_manager import delete_user
+import r2_store
 from redis_client import close_redis
 
 # Import routers from our modules
@@ -57,12 +58,38 @@ async def lifespan(app: FastAPI):
 # Setup FastAPI app
 app = FastAPI(lifespan=lifespan)
 
-# Create temp images directory
-TEMP_IMAGES_DIR = Path("temp_images")
-TEMP_IMAGES_DIR.mkdir(exist_ok=True)
+# Outbound message media, served from R2 rather than a StaticFiles mount over a
+# local directory. The URL messaging.py hands to WhatsApp and Telegram points at
+# a hostname that load balances across boxes, so the provider's fetch does not
+# necessarily come back to the box that wrote the file. The path is unchanged,
+# so nothing outside this process notices.
+#
+# Proxied rather than redirected to a presigned URL: R2 egress is free, the
+# volume is one fetch per message, and this assumes nothing about whether a
+# given provider follows redirects.
+_TEMP_MEDIA_NAME = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|mp4)$")
 
-# Mount static files for serving images
-app.mount("/temp-images", StaticFiles(directory="temp_images"), name="temp-images")
+
+@app.get("/temp-images/{filename}")
+async def serve_temp_media(filename: str):
+    # StaticFiles sanitised the path for us; this route has to do it itself.
+    # The names are generated UUIDs, so an exact-shape match is both sufficient
+    # and tight enough to make traversal impossible.
+    if not _TEMP_MEDIA_NAME.match(filename):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    found = await r2_store.get_bytes(r2_store.temp_media_key(filename))
+    if found is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    body, content_type = found
+    return Response(
+        content=body,
+        media_type=content_type,
+        # Immutable: the name is a UUID, so a given URL's bytes never change.
+        # Capped below the bucket lifecycle so nothing caches past expiry.
+        headers={"Cache-Control": "public, max-age=86400, immutable"},
+    )
 
 # Stamp every request with an id so its log lines can be correlated. Four
 # uvicorn workers share one stdout, so without this a single request's lines are

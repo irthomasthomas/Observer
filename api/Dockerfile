@@ -15,7 +15,7 @@ COPY *.py ./
 COPY *.html ./
 
 # Create necessary directories
-RUN mkdir -p /app/temp_images /app/logs
+RUN mkdir -p /app/logs
 
 # Expose port
 EXPOSE 3839

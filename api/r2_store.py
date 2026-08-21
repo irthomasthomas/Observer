@@ -7,6 +7,7 @@ Object types, all written by direct key — nothing here ever lists:
     orgs/{org_id}.json      the org record, members inline
     invites/{token}.json    a pending seat invite, single use
     usage/{date}/...        gzipped NDJSON usage batches, write-only archive
+    temp/{uuid}.{ext}       outbound message media, served back by the API
 
 The usage objects are never read back by the API; they are the cold archive
 for offline analysis. See usage_log.py.
@@ -110,6 +111,16 @@ def _put_bytes_sync(key: str, body: bytes, content_type: str, content_encoding: 
     return resp.get("ETag")
 
 
+def _get_bytes_sync(key: str) -> Optional[Tuple[bytes, str]]:
+    try:
+        resp = _get_client().get_object(Bucket=R2_BUCKET, Key=key)
+    except ClientError as e:
+        if e.response["Error"]["Code"] in ("NoSuchKey", "404"):
+            return None
+        raise
+    return resp["Body"].read(), resp.get("ContentType", "application/octet-stream")
+
+
 def _delete_sync(key: str) -> None:
     _get_client().delete_object(Bucket=R2_BUCKET, Key=key)
 
@@ -145,6 +156,11 @@ async def put_bytes(
     else writes, so there is no race to guard against.
     """
     return await asyncio.to_thread(_put_bytes_sync, key, body, content_type, content_encoding)
+
+
+async def get_bytes(key: str) -> Optional[Tuple[bytes, str]]:
+    """Returns (body, content_type), or None if the object does not exist."""
+    return await asyncio.to_thread(_get_bytes_sync, key)
 
 
 async def delete(key: str) -> None:
@@ -198,6 +214,18 @@ def marketplace_key() -> str:
     otherwise be N GETs.
     """
     return "marketplace/agents.json"
+
+
+def temp_media_key(filename: str) -> str:
+    """
+    Media handed to a messaging provider as a URL. Written by whichever box
+    handled the send and read back by whichever box the provider's fetch is
+    routed to, which is why it cannot live on a box's disk.
+
+    Expiry is a bucket lifecycle rule on this prefix, not something the API
+    does: nothing here knows when a provider has finished fetching.
+    """
+    return f"temp/{filename}"
 
 
 def usage_key(date: str, host: str, stamp: str, token: str, seq: int) -> str:

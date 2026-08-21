@@ -23,6 +23,7 @@ from twilio.request_validator import RequestValidator
 
 # Local imports
 from auth import AuthUser
+import r2_store
 from quota_manager import try_consume
 from redis_client import get_redis
 
@@ -31,7 +32,6 @@ logger = logging.getLogger('twilio')
 messaging_router = APIRouter()
 
 # Temp images directory
-TEMP_IMAGES_DIR = Path("temp_images")
 
 WHITELIST_TTL = 86400  # 24 hours in seconds
 VOICE_CALL_TTL = 3600  # 1 hour — how long a pending call message stays retrievable
@@ -242,7 +242,6 @@ async def save_temp_image(image_b64: str) -> str:
         # Generate secure UUID filename
         image_id = str(uuid.uuid4())
         filename = f"{image_id}.jpg"  # Use JPG for better compression
-        filepath = TEMP_IMAGES_DIR / filename
 
         # Decode base64 image
         image_data = base64.b64decode(image_b64)
@@ -272,11 +271,7 @@ async def save_temp_image(image_b64: str) -> str:
                 img.save(buffer, format='JPEG', quality=quality, optimize=True)
 
                 if buffer.tell() <= max_size:
-                    # Size is acceptable, save to file
-                    with open(filepath, "wb") as f:
-                        f.write(buffer.getvalue())
-                        f.flush()
-                        os.fsync(f.fileno())
+                    # Size is acceptable
                     break
 
                 # Reduce quality and try again
@@ -286,18 +281,18 @@ async def save_temp_image(image_b64: str) -> str:
                 img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
                 buffer = io.BytesIO()
                 img.save(buffer, format='JPEG', quality=80, optimize=True)
-                with open(filepath, "wb") as f:
-                    f.write(buffer.getvalue())
-                    f.flush()
-                    os.fsync(f.fileno())
 
-        # Verify file exists and is readable
-        if not filepath.exists() or filepath.stat().st_size == 0:
-            raise Exception("File was not saved properly")
+        data = buffer.getvalue()
+        if not data:
+            raise Exception("Image was not encoded properly")
 
-        # Log final file size
-        file_size = filepath.stat().st_size / (1024 * 1024)  # MB
-        logger.info(f"Image compressed and saved: {file_size:.2f}MB")
+        # To R2, not to local disk: the URL below points at a hostname that
+        # load balances across boxes, so the provider's fetch will not
+        # necessarily come back to the box that handled the send.
+        await r2_store.put_bytes(
+            r2_store.temp_media_key(filename), data, content_type="image/jpeg"
+        )
+        logger.info(f"Image compressed and uploaded: {len(data) / (1024 * 1024):.2f}MB")
 
         # Return public URL
         return f"https://api.observer-ai.com/temp-images/{filename}"
@@ -318,14 +313,27 @@ async def save_temp_video(video_b64: str, max_size_mb: float = 50.0, transcode: 
         Public URL to the saved video
     """
     import subprocess
+    import tempfile
+
+    # ffmpeg works on real files, so transcoding needs a scratch directory.
+    # It is per-request and torn down here, which is the difference that
+    # matters: nothing outside this call ever has to find these files again.
+    with tempfile.TemporaryDirectory(prefix="observer-video-") as scratch:
+        return await _save_temp_video(video_b64, max_size_mb, transcode, Path(scratch))
+
+
+async def _save_temp_video(
+    video_b64: str, max_size_mb: float, transcode: bool, scratch: Path
+) -> str:
+    import subprocess
 
     try:
         # Generate secure UUID filename
         video_id = str(uuid.uuid4())
         input_filename = f"{video_id}_input.mp4"
         output_filename = f"{video_id}.mp4"
-        input_filepath = TEMP_IMAGES_DIR / input_filename
-        output_filepath = TEMP_IMAGES_DIR / output_filename
+        input_filepath = scratch / input_filename
+        output_filepath = scratch / output_filename
 
         # Decode base64 video
         video_data = base64.b64decode(video_b64)
@@ -409,8 +417,11 @@ async def save_temp_video(video_b64: str, max_size_mb: float = 50.0, transcode: 
         if not output_filepath.exists() or output_filepath.stat().st_size == 0:
             raise Exception("Video file was not saved properly")
 
-        final_size_mb = output_filepath.stat().st_size / (1024 * 1024)
-        logger.info(f"Video saved: {final_size_mb:.2f}MB")
+        data = output_filepath.read_bytes()
+        await r2_store.put_bytes(
+            r2_store.temp_media_key(output_filename), data, content_type="video/mp4"
+        )
+        logger.info(f"Video uploaded: {len(data) / (1024 * 1024):.2f}MB")
 
         # Return public URL
         return f"https://api.observer-ai.com/temp-images/{output_filename}"

@@ -24,9 +24,6 @@ from messaging import save_temp_image
 logger = logging.getLogger('tools_router')
 tools_router = APIRouter()
 
-# Temp images directory
-TEMP_IMAGES_DIR = Path("temp_images")
-
 
 # --- Pydantic Models ---
 

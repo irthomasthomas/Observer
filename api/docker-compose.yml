@@ -30,8 +30,6 @@ services:
       # buckets and digest days. Pinned so nothing depends on ambient host tz.
       - TZ=UTC
     volumes:
-      # Persist temporary images
-      - ./temp_images:/app/temp_images
       # Persist logs
       - ./logs:/app/logs
     networks:
