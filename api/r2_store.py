@@ -190,6 +190,16 @@ def invite_key(token: str) -> str:
     return f"invites/{token}.json"
 
 
+def marketplace_key() -> str:
+    """
+    The whole agent catalog in one object. Small (tens of KB), read constantly
+    and written only on publish or delete, so one object under an ETag
+    precondition is cheaper and simpler than a key per agent - a listing would
+    otherwise be N GETs.
+    """
+    return "marketplace/agents.json"
+
+
 def usage_key(date: str, host: str, stamp: str, token: str, seq: int) -> str:
     """
     Partitioned by date first so an offline reader can scan a time range

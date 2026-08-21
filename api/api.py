@@ -7,7 +7,6 @@ import uvicorn
 import argparse
 import logging
 import os
-import sqlite3
 import stripe
 import hashlib
 import httpx
@@ -23,6 +22,7 @@ from auth0_manager import delete_user
 from redis_client import close_redis
 
 # Import routers from our modules
+import marketplace
 from marketplace import marketplace_router
 from compute import compute_router
 from tools_router import tools_router
@@ -230,12 +230,7 @@ async def delete_account(current_user: AuthUser):
 
     # 2. Delete marketplace agents created by this user
     try:
-        conn = sqlite3.connect("marketplace.db")
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM agents WHERE author_id = ?", (user_id,))
-        deleted_agents = cursor.rowcount
-        conn.commit()
-        conn.close()
+        deleted_agents = await marketplace.delete_agents_by_author(user_id)
         logger.info(f"Deleted {deleted_agents} marketplace agents for user {user_id}")
     except Exception as e:
         logger.error(f"Failed to delete marketplace agents for user {user_id}: {e}")
