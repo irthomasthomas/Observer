@@ -13,6 +13,8 @@ import type { WhitelistChannel } from '@utils/logging';
 import {
   whatsappQRValue,
   smsQRValue,
+  whatsappCodeQRValue,
+  smsCodeQRValue,
   openWhatsApp,
   openSMS,
   OBSERVER_WHATSAPP,
@@ -21,6 +23,7 @@ import {
 } from './shared';
 
 interface WhitelistInlineProps {
+  /** In 'code' mode, this is the golden-path wordlist code rather than a phone number. */
   phoneNumber: string;
   channel?: WhitelistChannel;
   onCancel?: () => void;
@@ -31,6 +34,13 @@ interface WhitelistInlineProps {
   getToken?: () => Promise<string | undefined>;
   /** Fired once the number becomes whitelisted (only when self-polling via getToken). */
   onWhitelisted?: () => void;
+  /**
+   * 'number' (default): QR sends a canned greeting, expecting the user's own number to reply
+   * from — unchanged behavior for check_whitelist and the manual UserInfoModal fallback.
+   * 'code': QR sends the persisted whitelist code as the message body — the golden path,
+   * where `phoneNumber` is actually that code, not a phone number.
+   */
+  mode?: 'code' | 'number';
 }
 
 const QrOption: React.FC<{
@@ -63,8 +73,9 @@ const QrOption: React.FC<{
 
 const NO_TOKEN = async () => undefined;
 
-const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel, onCancel, getToken, onWhitelisted }) => {
+const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel, onCancel, getToken, onWhitelisted, mode = 'number' }) => {
   const [expanded, setExpanded] = useState(true);
+  const isCode = mode === 'code';
 
   // Self-poll only when a token provider is supplied (the splash). In the MCP flow getToken is
   // undefined, so `enabled` is false and the executor remains the single source of polling.
@@ -98,7 +109,9 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel,
         >
           <AlertTriangle className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
           <span className="min-w-0">
-            <span className="block text-sm font-medium text-gray-900">Verify your number</span>
+            <span className="block text-sm font-medium text-gray-900">
+              {isCode ? 'Send this code to connect' : 'Verify your number'}
+            </span>
             <span className="block text-xs font-mono text-gray-500 truncate">{phoneNumber}</span>
           </span>
         </button>
@@ -125,15 +138,23 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel,
       {expanded && !verified && (
         <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-gray-200">
           <p className="text-xs text-gray-600">
-            Whitelist this number once{channel === 'whatsapp' ? ' sending a WhatsApp' : ' sending an SMS, call, or WhatsApp'}, valid for 24 hours:
+            {isCode
+              ? 'Scan a QR or send the code below — valid for 24 hours, then just send it again:'
+              : `Whitelist this number once${channel === 'whatsapp' ? ' sending a WhatsApp' : ' sending an SMS, call, or WhatsApp'}, valid for 24 hours:`}
           </p>
+
+          {isCode && (
+            <p className="text-center font-mono text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-md py-1.5 select-all">
+              {phoneNumber}
+            </p>
+          )}
 
           <div className="flex gap-2">
             {showWhatsApp && (
               <QrOption
                 icon={<MessageCircle className="h-4 w-4 text-green-600 flex-shrink-0" />}
                 title="WhatsApp"
-                qrValue={whatsappQRValue}
+                qrValue={isCode ? whatsappCodeQRValue(phoneNumber) : whatsappQRValue}
                 buttonLabel="Open WhatsApp"
                 onOpen={openWhatsApp}
                 contact={OBSERVER_WHATSAPP}
@@ -143,7 +164,7 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel,
               <QrOption
                 icon={<Phone className="h-4 w-4 text-blue-600 flex-shrink-0" />}
                 title="SMS or Call"
-                qrValue={smsQRValue}
+                qrValue={isCode ? smsCodeQRValue(phoneNumber) : smsQRValue}
                 buttonLabel="Send SMS"
                 onOpen={openSMS}
                 contact={OBSERVER_SMS_CALL}

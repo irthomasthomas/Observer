@@ -3,6 +3,7 @@
 // NOTE: No imports are needed from your config files anymore.
 import { WhisperSettings, TranscriptionMode, WhisperDevice } from './whisper/types';
 import { getDefaultWhisperSettings, migrateWhisperModelId } from '../config/whisper-models';
+import { generateWhitelistCode } from './whitelistCode';
 
 class SettingsManager {
     // --- PRIVATE CONSTANTS FOR LOCALSTORAGE KEYS ---
@@ -247,6 +248,21 @@ class SettingsManager {
 
     public clearNotificationContacts(): void {
         localStorage.removeItem(this.NOTIFICATION_CONTACTS_KEY);
+    }
+
+    // --- WHITELIST CODE ---
+    // A stable, per-user code (e.g. "tree-book-shower-golden") shown in the golden-path QR.
+    // Generated once and never regenerated: agent code bakes this in literally, so if it
+    // changed, every agent built against the old code would silently stop working.
+    private readonly WHITELIST_CODE_KEY = 'observer-ai:settings:whitelistCode';
+
+    /** The persisted whitelist code, generating and storing one on first use. */
+    public ensureWhitelistCode(): string {
+        const existing = localStorage.getItem(this.WHITELIST_CODE_KEY);
+        if (existing) return existing;
+        const code = generateWhitelistCode();
+        localStorage.setItem(this.WHITELIST_CODE_KEY, code);
+        return code;
     }
 }
 

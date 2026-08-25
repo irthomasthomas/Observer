@@ -14,10 +14,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Phone, Mail, Send, Hash, Bell, ExternalLink, Check, Pencil, X,
+  Phone, Mail, Send, Hash, Bell, ExternalLink, Check, Pencil, X, ChevronRight,
+  Copy, CheckCircle2, Loader,
 } from 'lucide-react';
+import { FaWhatsapp } from 'react-icons/fa';
 import Modal from '@components/EditAgent/Modal';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
+import { whatsappCodeQRValue, smsCodeQRValue, openWhatsApp, openSMS, useWhitelistPolling } from '@components/whitelist/shared';
 import { useAuth } from '@contexts/AuthContext';
 import { SensorSettings } from '@utils/settings';
 import type { UserInfoKind, UserInfoRequest, UserInfoResponse } from '../../mcp/types';
@@ -68,6 +71,115 @@ const Step: React.FC<{ n: number; children: React.ReactNode }> = ({ n, children 
   </li>
 );
 
+/**
+ * Golden path for phone: one big QR, no typing. Purpose-built for the modal's roomy layout
+ * rather than reusing WhitelistInline's compact chat-pill chrome (that component stays as-is
+ * for check_whitelist's inline gate and the typed-number fallback below).
+ */
+const GoldenPathPanel: React.FC<{
+  code: string;
+  channel?: UserInfoRequest['channel'];
+  getToken: () => Promise<string | undefined>;
+  onWhitelisted: () => void;
+}> = ({ code, channel, getToken, onWhitelisted }) => {
+  const { allWhitelisted } = useWhitelistPolling([{ number: code, isWhitelisted: false }], getToken, channel, true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => { if (allWhitelisted) onWhitelisted(); }, [allWhitelisted, onWhitelisted]);
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  const showSms = channel !== 'whatsapp';
+  const [qrChannel, setQrChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const isWhatsApp = qrChannel === 'whatsapp';
+
+  if (allWhitelisted) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-6 text-green-700">
+        <CheckCircle2 className="h-8 w-8" />
+        <p className="text-sm font-medium">You're all set — number verified.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-2">
+      {showSms && (
+        <div className="inline-flex items-center gap-1 p-1 rounded-full bg-gray-100 border border-gray-200">
+          <button
+            onClick={() => setQrChannel('whatsapp')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              isWhatsApp ? 'bg-[#25D366] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <FaWhatsapp className="h-3.5 w-3.5" /> WhatsApp
+          </button>
+          <button
+            onClick={() => setQrChannel('sms')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              !isWhatsApp ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Phone className="h-3.5 w-3.5" /> SMS
+          </button>
+        </div>
+      )}
+
+      <div className={`relative bg-white p-3 rounded-xl border shadow-sm ${isWhatsApp ? 'border-[#25D366]/30' : 'border-gray-200'}`}>
+        <QRCodeSVG
+          value={isWhatsApp ? whatsappCodeQRValue(code) : smsCodeQRValue(code)}
+          size={168}
+          level="H"
+          includeMargin={false}
+          fgColor="#111827"
+        />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div
+            className={`flex items-center justify-center h-11 w-11 rounded-full ring-4 ring-white ${
+              isWhatsApp ? 'bg-[#25D366]' : 'bg-gray-900'
+            }`}
+          >
+            {isWhatsApp ? <FaWhatsapp className="h-6 w-6 text-white" /> : <Phone className="h-5 w-5 text-white" />}
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={copyCode}
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors"
+        title="Copy code"
+      >
+        <span className="font-mono text-sm font-semibold text-gray-900">{code}</span>
+        {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+      </button>
+
+      <p className="text-xs text-gray-500 text-center max-w-xs">
+        Scan the QR with your phone, or send that code to Observer yourself via {isWhatsApp ? 'WhatsApp' : 'SMS'}.
+      </p>
+
+      <button
+        onClick={isWhatsApp ? openWhatsApp : openSMS}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+          isWhatsApp ? 'bg-[#25D366] text-white hover:bg-[#1ebe57]' : 'bg-gray-900 text-white hover:bg-black'
+        }`}
+      >
+        {isWhatsApp ? <FaWhatsapp className="h-3.5 w-3.5" /> : <Phone className="h-3.5 w-3.5" />}
+        Open {isWhatsApp ? 'WhatsApp' : 'SMS'}
+      </button>
+
+      <div className="flex items-center gap-1.5 text-[11px] text-purple-600">
+        <Loader className="h-3 w-3 animate-spin" />
+        <span>Waiting — this continues automatically.</span>
+      </div>
+    </div>
+  );
+};
+
 const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
   const { user, getAccessToken } = useAuth();
   const { kind, channel, requestId } = req;
@@ -87,10 +199,24 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
   const valid = contactValid(kind, value);
   const error = editing ? contactError(kind, value) : null;
   const needsWhitelist = kind === 'phone';
-  const canConfirm = valid && (!needsWhitelist || verified);
+
+  // Golden path for phone: a persisted code + QR, no typing required. The typed-number flow
+  // above becomes a collapsible fallback. The code is generated once and never changes, so
+  // agent code that bakes it in (sendWhatsapp("tree-book-shower-golden", ...)) never goes
+  // stale even after the 24h whitelist consent needs re-verifying.
+  const code = useMemo(() => (kind === 'phone' ? SensorSettings.ensureWhitelistCode() : ''), [kind]);
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
+  const useCodePath = needsWhitelist && !showFallback;
+
+  const canConfirm = useCodePath ? codeVerified : valid && (!needsWhitelist || verified);
 
   const confirm = () => {
     if (!canConfirm) return;
+    if (useCodePath) {
+      onResolve(requestId, { value: code });
+      return;
+    }
     const normalized = normalizeContact(kind, value);
     SensorSettings.setNotificationContact(kind, normalized);
     onResolve(requestId, { value: normalized });
@@ -101,7 +227,7 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
   const title = kind === 'phone' && channel ? CHANNEL_TITLE[channel] ?? KIND_TITLE.phone : KIND_TITLE[kind];
 
   return (
-    <Modal open onClose={skip} className="w-full max-w-lg mx-4">
+    <Modal open onClose={skip} className="w-full max-w-xl mx-4">
       {/* Header */}
       <div className="flex items-start gap-3 px-6 py-4 rounded-t-lg bg-gradient-to-br from-purple-600 to-indigo-600 text-white">
         <div className="flex-shrink-0 mt-0.5">{KIND_ICON[kind]}</div>
@@ -119,7 +245,38 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
         </button>
       </div>
 
-      <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+      <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        {/* Golden path for phone: one big QR + code, no typing required. */}
+        {useCodePath && (
+          <>
+            <GoldenPathPanel
+              code={code}
+              channel={channel}
+              getToken={getAccessToken}
+              onWhitelisted={() => setCodeVerified(true)}
+            />
+            <div className="text-center">
+              <button
+                onClick={() => setShowFallback(true)}
+                className="text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Or enter your phone number instead
+              </button>
+            </div>
+          </>
+        )}
+
+        {needsWhitelist && showFallback && (
+          <button
+            onClick={() => setShowFallback(false)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <ChevronRight className="h-3 w-3 rotate-180" /> Back to QR code
+          </button>
+        )}
+
+        {(!needsWhitelist || showFallback) && (
+        <>
         {/* Remembered value — one-click confirm instead of retyping. */}
         {!editing && (
           <div className="flex items-center gap-3 p-3 rounded-lg border border-purple-200 bg-purple-50">
@@ -223,6 +380,8 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
             onWhitelisted={() => setVerified(true)}
           />
         )}
+        </>
+        )}
       </div>
 
       {/* Footer */}
@@ -235,7 +394,11 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
           disabled={!canConfirm}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 text-white font-medium text-sm hover:bg-purple-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {needsWhitelist && valid && !verified ? 'Waiting for verification…' : 'Confirm'}
+          {useCodePath && !codeVerified
+            ? 'Waiting for verification…'
+            : needsWhitelist && showFallback && valid && !verified
+              ? 'Waiting for verification…'
+              : 'Confirm'}
           {canConfirm && <Check className="h-4 w-4" />}
         </button>
       </div>

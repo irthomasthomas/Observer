@@ -39,10 +39,11 @@ export async function checkPhoneWhitelist(
     return { phoneNumbers: [], hasTools: false, channel };
   }
 
-  // Extract phone numbers using E.164 format regex
-  const phoneRegex = /\+\d{10,15}/g;
-  const matches = agentCode.match(phoneRegex);
-  const uniqueNumbers = matches ? [...new Set(matches)] : [];
+  // Extract the literal string argument passed to each phone tool call, rather than
+  // guessing at phone-shaped substrings in the code — this also covers golden-path
+  // whitelist codes (e.g. "tree-book-shower-golden"), which aren't E.164-shaped at all.
+  const argRegex = /\b(?:sendWhatsapp|sendSms|call)\(\s*["']([^"']+)["']/g;
+  const uniqueNumbers = [...new Set(Array.from(agentCode.matchAll(argRegex), m => m[1]))];
 
   if (uniqueNumbers.length === 0) {
     // Tools present but no numbers found

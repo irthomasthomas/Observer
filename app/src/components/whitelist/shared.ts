@@ -19,6 +19,14 @@ export const whatsappQRValue = `https://wa.me/${OBSERVER_WHATSAPP_PLAIN}?text=${
 // Use +1 prefix for SMS to ensure proper international number formatting.
 export const smsQRValue = `sms:+${OBSERVER_SMS_PLAIN}?&body=${encodeURIComponent(WHITELIST_GREETING)}`;
 
+// Golden-path variants: the message body is the user's persisted whitelist code instead of
+// the canned greeting, so the backend's key->phone mapping binds to that code (see
+// api/messaging.py add_to_whitelist/resolve_to_phone).
+export const whatsappCodeQRValue = (code: string) =>
+  `https://wa.me/${OBSERVER_WHATSAPP_PLAIN}?text=${encodeURIComponent(code)}`;
+export const smsCodeQRValue = (code: string) =>
+  `sms:+${OBSERVER_SMS_PLAIN}?&body=${encodeURIComponent(code)}`;
+
 export const openWhatsApp = () => window.open(`https://wa.me/${OBSERVER_WHATSAPP_PLAIN}`, '_blank');
 export const openSMS = () => window.open(`sms:${OBSERVER_SMS_CALL}`, '_blank');
 
