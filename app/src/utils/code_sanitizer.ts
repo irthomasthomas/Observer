@@ -13,7 +13,8 @@ const SENSITIVE_FUNCTIONS = [
   'sendDiscord',
   'sendTelegram',
   'sendWhatsapp',
-  'sendSms'
+  'sendSms',
+  'call'
 ];
 
 const FUNCTION_DESCRIPTIONS: Record<string, string> = {
