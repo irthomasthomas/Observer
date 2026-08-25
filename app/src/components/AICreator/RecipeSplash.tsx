@@ -21,12 +21,14 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowRight, Pencil } from 'lucide-react';
+import { X, ArrowRight } from 'lucide-react';
 import { useMCPContext } from '../../mcp/MCPContext';
 import { useAuth } from '@contexts/AuthContext';
+import { SensorSettings } from '@utils/settings';
 import { Analytics } from '@utils/analytics';
 import type { WhitelistChannel } from '@utils/logging';
-import OptionWheel, { type WheelOption } from './OptionWheel';
+import EditableWheel from './EditableWheel';
+import type { WheelOption } from './OptionWheel';
 
 export type ContactKind = 'phone' | 'email' | 'telegram' | 'discord' | 'none';
 
@@ -98,32 +100,45 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
 
   const [triggerId, setTriggerId] = useState(TRIGGERS[0].id);
   const [actionId, setActionId] = useState(ACTIONS[0].id);
+  // Free text typed onto a preset's row, keyed by that preset's id. Overwrites the row's
+  // label/fragment in place — spinning the wheel carries it along like any other row, and
+  // spinning back to that id later still shows the edited text (until edited again).
+  const [triggerOverrides, setTriggerOverrides] = useState<Record<string, string>>({});
+  const [actionOverrides, setActionOverrides] = useState<Record<string, string>>({});
   // Purely cosmetic now: drives the "Spin to pick" tooltip. Does not gate Build it.
   const [triggerChosen, setTriggerChosen] = useState(false);
-  const [editingMessage, setEditingMessage] = useState(false);
-  const [messageDraft, setMessageDraft] = useState('');
   // Settle the wheels as the pointer reaches "Build it". commit() runs on transitionend, so
   // a click landing mid-glide would otherwise build the row BEFORE the one on screen.
   const [aiming, setAiming] = useState(false);
 
   useEffect(() => { if (isOpen) Analytics.recipeShown(); }, [isOpen]);
 
-  const trigger = useMemo(() => TRIGGERS.find(t => t.id === triggerId), [triggerId]);
-  const action = useMemo(() => ACTIONS.find(a => a.id === actionId), [actionId]);
+  const triggerOptions = useMemo(
+    () => TRIGGERS.map(t => triggerOverrides[t.id]
+      ? { ...t, label: triggerOverrides[t.id], promptFragment: triggerOverrides[t.id] }
+      : t),
+    [triggerOverrides],
+  );
+  const actionOptions = useMemo(
+    () => ACTIONS.map(a => actionOverrides[a.id]
+      ? { ...a, label: actionOverrides[a.id], actionFragment: actionOverrides[a.id] }
+      : a),
+    [actionOverrides],
+  );
+
+  const trigger = useMemo(() => triggerOptions.find(t => t.id === triggerId), [triggerOptions, triggerId]);
+  const action = useMemo(() => actionOptions.find(a => a.id === actionId), [actionOptions, actionId]);
 
   const composePrompt = (): string => composeRecipePrompt(trigger, action, authEmail);
 
-  const openEditor = () => { setMessageDraft(composePrompt()); setEditingMessage(true); };
-  const revertEditor = () => setEditingMessage(false);
-
-  // No gating, by design. The wheels always hold a valid trigger/action pair (OptionWheel
-  // fires onChange on every committed step), so there is nothing left to wait for — an
-  // empty master-edit draft just falls back to the wheels rather than blocking.
+  // No gating, by design. A slot always holds a valid trigger/action pair — a preset or
+  // an edited-in-place one — so there is nothing left to wait for.
   const handleBuild = () => {
-    const draft = messageDraft.trim();
-    const useDraft = editingMessage && draft.length > 0;
-    const prompt = useDraft ? draft : composePrompt();
-    Analytics.recipeBuilt(useDraft ? 'custom' : triggerId, useDraft ? 'custom' : actionId);
+    const prompt = composePrompt();
+    Analytics.recipeBuilt(triggerOverrides[triggerId] ? 'custom' : triggerId, actionOverrides[actionId] ? 'custom' : actionId);
+    // First-run agents should just run — nobody's here yet to click through tool
+    // confirmations, so building from the splash turns on yolo mode.
+    SensorSettings.setMcpYoloMode(true);
     send(prompt);
     onClose();
   };
@@ -150,83 +165,57 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
         Welcome to Observer!   Build your first agent:
       </p>
 
-      {/* Centered builder (wheels OR the master-edit textarea) */}
+      {/* Centered builder: "When [wheel]  then [wheel]" — click the row itself to type. */}
       <div className="w-full max-w-6xl flex items-center justify-center">
-        {editingMessage ? (
-          <div className="w-full max-w-2xl relative">
-            <textarea
-              value={messageDraft}
-              onChange={e => setMessageDraft(e.target.value)}
-              rows={4}
-              autoFocus
-              className="w-full bg-white/5 border border-white/20 rounded-2xl p-5 pr-12 text-white text-lg md:text-xl leading-relaxed focus:outline-none focus:border-white/50 resize-none"
-            />
-            <button
-              onClick={revertEditor}
-              className="absolute top-3 right-3 text-white/50 hover:text-white transition-colors"
-              title="Back to the slots"
-              aria-label="Back to the slots"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        <div className="flex flex-col md:flex-row md:flex-nowrap items-center justify-center gap-x-3 gap-y-4">
+          <div className="relative">
+            <span className="text-3xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">When</span>
+            {/* Mobile (stacked layout): anchor to "When" itself, which is already
+                centered correctly — simpler than chasing the wheel's own offset. */}
+            {!triggerChosen && (
+              <div className="md:hidden absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
+                <div className="flex flex-col items-center animate-bounce">
+                  <span className="whitespace-nowrap text-xs font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
+                    Spin to pick what to detect
+                  </span>
+                  <div className="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5" />
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="flex flex-col md:flex-row md:flex-nowrap items-center justify-center gap-x-3 gap-y-4">
-            <div className="relative">
-              <span className="text-3xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">When</span>
-              {/* Mobile (stacked layout): anchor to "When" itself, which is already
-                  centered correctly — simpler than chasing the wheel's own offset. */}
-              {!triggerChosen && (
-                <div className="md:hidden absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
+          <div>
+            <EditableWheel
+              options={triggerOptions}
+              value={triggerId}
+              onChange={setTriggerId}
+              onCustom={text => setTriggerOverrides(prev => ({ ...prev, [triggerId]: text }))}
+              onInteract={() => setTriggerChosen(true)}
+              paused={aiming}
+              ariaLabel="Choose a trigger"
+              widthClass="w-[15rem] md:w-[19rem]"
+              tooltip={!triggerChosen && (
+                <div className="hidden md:block absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
                   <div className="flex flex-col items-center animate-bounce">
-                    <span className="whitespace-nowrap text-xs font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
+                    <span className="whitespace-nowrap text-sm font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
                       Spin to pick what to detect
                     </span>
                     <div className="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5" />
                   </div>
                 </div>
               )}
-            </div>
-            <div>
-              <OptionWheel
-                options={TRIGGERS}
-                value={triggerId}
-                onChange={setTriggerId}
-                onInteract={() => setTriggerChosen(true)}
-                paused={aiming}
-                ariaLabel="Choose a trigger"
-                widthClass="w-[15rem] md:w-[19rem]"
-                tooltip={!triggerChosen && (
-                  <div className="hidden md:block absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
-                    <div className="flex flex-col items-center animate-bounce">
-                      <span className="whitespace-nowrap text-sm font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
-                        Spin to pick what to detect
-                      </span>
-                      <div className="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5" />
-                    </div>
-                  </div>
-                )}
-              />
-            </div>
-            <span className="text-3xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">then</span>
-            <OptionWheel
-              options={ACTIONS}
-              value={actionId}
-              onChange={setActionId}
-              paused={aiming}
-              ariaLabel="Choose an action"
-              widthClass="w-[15rem] md:w-[13rem]"
             />
-            <button
-              onClick={openEditor}
-              title="Edit the full message"
-              aria-label="Edit the full message"
-              className="p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors md:self-center"
-            >
-              <Pencil className="h-5 w-5" />
-            </button>
           </div>
-        )}
+          <span className="text-3xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">then</span>
+          <EditableWheel
+            options={actionOptions}
+            value={actionId}
+            onChange={setActionId}
+            onCustom={text => setActionOverrides(prev => ({ ...prev, [actionId]: text }))}
+            paused={aiming}
+            ariaLabel="Choose an action"
+            widthClass="w-[15rem] md:w-[13rem]"
+          />
+        </div>
       </div>
 
       {/* Bottom cluster — Build it (always live, always pinned) */}

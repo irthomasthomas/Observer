@@ -45,11 +45,13 @@ interface OptionWheelProps {
   widthClass?: string;
   /** Rendered absolutely, centered over the scroll column only (excludes the chevrons). */
   tooltip?: React.ReactNode;
+  /** Center-row click, distinct from the neighbor-row glide clicks. Used to enter edit mode. */
+  onLabelClick?: () => void;
 }
 
 const CYCLE_MS = 2100;         // auto-cycle cadence
 const ANIM_MS = 480;           // auto-cycle glide duration (gentle)
-const ARROW_MS = 120;          // chevron/click glide duration (snappy)
+const ARROW_MS = 220;          // chevron/click glide + drag/wheel settle duration
 // Row/viewport geometry is smaller on mobile so the wheels don't dominate the stacked
 // layout. Computed in JS (not just CSS) because the drag/wheel handlers map real screen
 // pixels 1:1 to row pixels — a CSS `scale()` would desync finger movement from the glide.
@@ -83,6 +85,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   ariaLabel,
   widthClass = 'w-[13rem] md:w-[16rem]',
   tooltip,
+  onLabelClick,
 }) => {
   const startIndex = Math.max(0, options.findIndex(o => o.id === value));
   const [index, setIndex] = useState(startIndex);
@@ -329,8 +332,14 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
             {RENDER.map(offset => (
               <div
                 key={offset}
-                onClick={() => { if (Math.abs(offset) === 1) glide(offset); }}
-                className={`flex items-center justify-center text-center px-2 text-lg md:text-xl font-medium text-white truncate ${offset !== 0 ? 'cursor-pointer' : ''}`}
+                onClick={() => {
+                  if (Math.abs(offset) === 1) glide(offset);
+                  else if (offset === 0 && onLabelClick) onLabelClick();
+                }}
+                title={offset === 0 && onLabelClick ? 'Click to type' : undefined}
+                className={`flex items-center justify-center text-center px-2 text-lg md:text-xl font-medium text-white truncate ${
+                  offset !== 0 ? 'cursor-pointer' : onLabelClick ? 'cursor-text hover:text-cyan-200 transition-colors' : ''
+                }`}
                 style={{ height: `${rowRem}rem` }}
               >
                 {at(offset).label}
