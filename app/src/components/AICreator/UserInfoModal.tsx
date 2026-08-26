@@ -15,14 +15,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Phone, Mail, Send, Hash, Bell, ExternalLink, Check, Pencil, X, ChevronRight,
-  Copy, CheckCircle2, Loader,
+  Copy, CheckCircle2, Loader, RefreshCw, XCircle, KeyRound,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import Modal from '@components/EditAgent/Modal';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
-import { whatsappCodeQRValue, smsCodeQRValue, openWhatsApp, openSMS, useWhitelistPolling } from '@components/whitelist/shared';
+import {
+  whatsappCodeQRValue, smsCodeQRValue, openWhatsApp, openSMS, useWhitelistPolling, checkNumber,
+} from '@components/whitelist/shared';
 import { useAuth } from '@contexts/AuthContext';
 import { SensorSettings } from '@utils/settings';
+import * as toolUtils from '@utils/handlers/utils';
 import type { UserInfoKind, UserInfoRequest, UserInfoResponse } from '../../mcp/types';
 import {
   CONTACT_LABEL,
@@ -33,6 +36,13 @@ import {
   contactValid,
   normalizeContact,
 } from '@utils/contactInfo';
+
+/** The channel to actually test send through — defaults to WhatsApp when unspecified. */
+const CHANNEL_TEST_LABEL: Record<'sms' | 'voice' | 'whatsapp', string> = {
+  whatsapp: 'Test WhatsApp',
+  sms: 'Test SMS',
+  voice: 'Test call',
+};
 
 interface UserInfoModalProps {
   req: UserInfoRequest;
@@ -84,8 +94,17 @@ const GoldenPathPanel: React.FC<{
 }> = ({ code, channel, getToken, onWhitelisted }) => {
   const { allWhitelisted } = useWhitelistPolling([{ number: code, isWhitelisted: false }], getToken, channel, true);
   const [copied, setCopied] = useState(false);
+  const [countdown, setCountdown] = useState(3);
 
   useEffect(() => { if (allWhitelisted) onWhitelisted(); }, [allWhitelisted, onWhitelisted]);
+
+  // Visible 3…2…1… tick matching the parent's 3s auto-close timer.
+  useEffect(() => {
+    if (!allWhitelisted) return;
+    setCountdown(3);
+    const interval = setInterval(() => setCountdown(c => Math.max(c - 1, 0)), 1000);
+    return () => clearInterval(interval);
+  }, [allWhitelisted]);
 
   const copyCode = () => {
     navigator.clipboard.writeText(code).then(() => {
@@ -103,6 +122,7 @@ const GoldenPathPanel: React.FC<{
       <div className="flex flex-col items-center gap-2 py-6 text-green-700">
         <CheckCircle2 className="h-8 w-8" />
         <p className="text-sm font-medium">You're all set — number verified.</p>
+        <p className="text-xs text-gray-400 tabular-nums">Continuing in {countdown}…</p>
       </div>
     );
   }
@@ -180,6 +200,115 @@ const GoldenPathPanel: React.FC<{
   );
 };
 
+type TestState = 'idle' | 'testing' | 'success' | 'failure';
+
+/**
+ * Shown when a whitelist code already exists in localStorage — instead of blindly assuming
+ * it's still the right number, let the user confirm/verify/rotate it before committing.
+ */
+const ConfirmExistingCodePanel: React.FC<{
+  code: string;
+  channel?: UserInfoRequest['channel'];
+  getToken: () => Promise<string | undefined>;
+  onUse: () => void;
+  onRotate: () => void;
+  onFallback: () => void;
+}> = ({ code, channel, getToken, onUse, onRotate, onFallback }) => {
+  const [whitelistTest, setWhitelistTest] = useState<TestState>('idle');
+  const [toolTest, setToolTest] = useState<TestState>('idle');
+  const [toolTestError, setToolTestError] = useState('');
+
+  const testChannel: 'sms' | 'voice' | 'whatsapp' = channel ?? 'whatsapp';
+
+  const testWhitelist = async () => {
+    setWhitelistTest('testing');
+    const token = await getToken();
+    if (!token) { setWhitelistTest('failure'); return; }
+    const result = await checkNumber(code, token, channel);
+    setWhitelistTest(result.isWhitelisted ? 'success' : 'failure');
+  };
+
+  const testTool = async () => {
+    setToolTest('testing');
+    setToolTestError('');
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Failed to retrieve authentication token');
+      const message = 'This is a test from Observer!';
+      if (testChannel === 'whatsapp') await toolUtils.sendWhatsapp(message, code, token);
+      else if (testChannel === 'sms') await toolUtils.sendSms(message, code, token);
+      else await toolUtils.call(message, code, token);
+      setToolTest('success');
+    } catch (err) {
+      setToolTest('failure');
+      setToolTestError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-2">
+      <div className="flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 text-purple-700">
+        <KeyRound className="h-6 w-6" />
+      </div>
+
+      <p className="text-sm text-gray-700 text-center">
+        Use the contact info of{' '}
+        <span className="font-mono font-semibold text-gray-900">{code}</span>?
+      </p>
+
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <TestButton state={whitelistTest} label="Test whitelist" onClick={testWhitelist} />
+        <TestButton state={toolTest} label={CHANNEL_TEST_LABEL[testChannel]} onClick={testTool} />
+      </div>
+      {toolTest === 'failure' && toolTestError && (
+        <p className="text-xs text-red-600 text-center max-w-xs">{toolTestError}</p>
+      )}
+
+      <button
+        onClick={onUse}
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 text-white font-medium text-sm hover:bg-purple-700 transition-colors"
+      >
+        <Check className="h-4 w-4" /> Use this
+      </button>
+
+      <div className="flex items-center gap-4 text-xs">
+        <button
+          onClick={onRotate}
+          className="inline-flex items-center gap-1 font-medium text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <RefreshCw className="h-3 w-3" /> Rotate key to a new contact
+        </button>
+        <button onClick={onFallback} className="font-medium text-gray-400 hover:text-gray-600 transition-colors">
+          Enter phone number instead
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const TestButton: React.FC<{ state: TestState; label: string; onClick: () => void }> = ({ state, label, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={state === 'testing'}
+    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+      state === 'success'
+        ? 'bg-green-100 text-green-700'
+        : state === 'failure'
+          ? 'bg-red-100 text-red-700'
+          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+    }`}
+  >
+    {state === 'testing' ? (
+      <Loader className="h-3 w-3 animate-spin" />
+    ) : state === 'success' ? (
+      <CheckCircle2 className="h-3 w-3" />
+    ) : state === 'failure' ? (
+      <XCircle className="h-3 w-3" />
+    ) : null}
+    {label}
+  </button>
+);
+
 const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
   const { user, getAccessToken } = useAuth();
   const { kind, channel, requestId } = req;
@@ -204,12 +333,28 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
   // above becomes a collapsible fallback. The code is generated once and never changes, so
   // agent code that bakes it in (sendWhatsapp("tree-book-shower-golden", ...)) never goes
   // stale even after the 24h whitelist consent needs re-verifying.
-  const code = useMemo(() => (kind === 'phone' ? SensorSettings.ensureWhitelistCode() : ''), [kind]);
+  //
+  // Three-way step for phone: 'confirm' (returning user — confirm/test/rotate the existing
+  // code instead of assuming it), 'qr' (no code yet, or just rotated — scan to whitelist),
+  // 'fallback' (typed number, unchanged legacy flow).
+  const hadExistingCode = useMemo(() => (kind === 'phone' ? !!SensorSettings.getWhitelistCode() : false), [kind]);
+  const [code, setCode] = useState(() => (kind === 'phone' ? SensorSettings.ensureWhitelistCode() : ''));
+  const [phoneStep, setPhoneStep] = useState<'confirm' | 'qr' | 'fallback'>(
+    kind === 'phone' && hadExistingCode ? 'confirm' : 'qr',
+  );
   const [codeVerified, setCodeVerified] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
-  const useCodePath = needsWhitelist && !showFallback;
+  const showFallback = phoneStep === 'fallback';
+  const useCodePath = needsWhitelist && phoneStep === 'qr';
 
-  const canConfirm = useCodePath ? codeVerified : valid && (!needsWhitelist || verified);
+  const rotateCode = () => {
+    setCode(SensorSettings.rotateWhitelistCode());
+    setCodeVerified(false);
+    setPhoneStep('qr');
+  };
+
+  const canConfirm = useCodePath
+    ? codeVerified
+    : valid && (!needsWhitelist || verified);
 
   const confirm = () => {
     if (!canConfirm) return;
@@ -221,6 +366,14 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
     SensorSettings.setNotificationContact(kind, normalized);
     onResolve(requestId, { value: normalized });
   };
+
+  // Once the QR path verifies, auto-close after a beat instead of waiting on a click —
+  // there's nothing left to decide, the success state already says "you're all set".
+  useEffect(() => {
+    if (!useCodePath || !codeVerified) return;
+    const timer = setTimeout(() => onResolve(requestId, { value: code }), 3000);
+    return () => clearTimeout(timer);
+  }, [useCodePath, codeVerified, code, requestId]);
 
   const skip = () => onResolve(requestId, { value: '', skipped: true });
 
@@ -246,6 +399,18 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
       </div>
 
       <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        {/* Returning user: confirm/test/rotate the already-persisted code instead of assuming it. */}
+        {needsWhitelist && phoneStep === 'confirm' && (
+          <ConfirmExistingCodePanel
+            code={code}
+            channel={channel}
+            getToken={getAccessToken}
+            onUse={() => onResolve(requestId, { value: code })}
+            onRotate={rotateCode}
+            onFallback={() => setPhoneStep('fallback')}
+          />
+        )}
+
         {/* Golden path for phone: one big QR + code, no typing required. */}
         {useCodePath && (
           <>
@@ -257,7 +422,7 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
             />
             <div className="text-center">
               <button
-                onClick={() => setShowFallback(true)}
+                onClick={() => setPhoneStep('fallback')}
                 className="text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
               >
                 Or enter your phone number instead
@@ -268,10 +433,10 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
 
         {needsWhitelist && showFallback && (
           <button
-            onClick={() => setShowFallback(false)}
+            onClick={() => setPhoneStep(hadExistingCode ? 'confirm' : 'qr')}
             className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
           >
-            <ChevronRight className="h-3 w-3 rotate-180" /> Back to QR code
+            <ChevronRight className="h-3 w-3 rotate-180" /> Back
           </button>
         )}
 
@@ -389,18 +554,20 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
         <button onClick={skip} className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
           Skip for now
         </button>
-        <button
-          onClick={confirm}
-          disabled={!canConfirm}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 text-white font-medium text-sm hover:bg-purple-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {useCodePath && !codeVerified
-            ? 'Waiting for verification…'
-            : needsWhitelist && showFallback && valid && !verified
+        {phoneStep !== 'confirm' && (
+          <button
+            onClick={confirm}
+            disabled={!canConfirm}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 text-white font-medium text-sm hover:bg-purple-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {useCodePath && !codeVerified
               ? 'Waiting for verification…'
-              : 'Confirm'}
-          {canConfirm && <Check className="h-4 w-4" />}
-        </button>
+              : needsWhitelist && showFallback && valid && !verified
+                ? 'Waiting for verification…'
+                : 'Confirm'}
+            {canConfirm && <Check className="h-4 w-4" />}
+          </button>
+        )}
       </div>
     </Modal>
   );

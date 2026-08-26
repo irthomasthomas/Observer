@@ -38,7 +38,7 @@ export interface PhoneEntry {
 export type WhitelistPollStatus = 'idle' | 'checking' | 'success';
 
 /** Check a single number against the whitelist API; resolves false on any failure. */
-async function checkNumber(
+export async function checkNumber(
   number: string,
   token: string,
   channel?: WhitelistChannel,

@@ -264,6 +264,22 @@ class SettingsManager {
         localStorage.setItem(this.WHITELIST_CODE_KEY, code);
         return code;
     }
+
+    /** The persisted whitelist code, or null if one hasn't been generated yet. */
+    public getWhitelistCode(): string | null {
+        return localStorage.getItem(this.WHITELIST_CODE_KEY);
+    }
+
+    /**
+     * Mints a fresh code and overwrites the stored one, for "rotate to a new contact".
+     * The old code isn't invalidated server-side (no API for that) — it just stops being
+     * the one new agent code is written against.
+     */
+    public rotateWhitelistCode(): string {
+        const code = generateWhitelistCode();
+        localStorage.setItem(this.WHITELIST_CODE_KEY, code);
+        return code;
+    }
 }
 
 // Export a single instance
