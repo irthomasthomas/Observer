@@ -25,6 +25,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [skipConfirmText, setSkipConfirmText] = useState('');
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   const { getAccessToken } = useAuth();
   const {
@@ -41,6 +42,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
     if (!isOpen) {
       setDontShowAgain(false);
       setSkipConfirmText('');
+      setShowSkipConfirm(false);
       setError(null);
     }
   }, [isOpen]);
@@ -118,7 +120,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
       onClick={mode === 'upsell' ? handleClose : undefined}
     >
       <div
-        className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[85vh] md:max-h-[90vh] overflow-y-auto transition-all duration-300"
+        className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[85vh] md:max-h-[90vh] overflow-y-auto transition-all duration-300 flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {mode === 'upsell' && (
@@ -164,6 +166,47 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
               </div>
             )}
 
+            {/* Other options: collapsed by default, deprioritized */}
+            <div className="mb-3 md:mb-4 text-center">
+              {!showSkipConfirm ? (
+                <button
+                  onClick={() => setShowSkipConfirm(true)}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Other options
+                </button>
+              ) : (
+                <div className="text-left">
+                  <p className="text-xs text-gray-400 mb-2">If you know what you're doing and already know how to use the framework, type <strong className="text-gray-500">I know how to use Observer offline and manually</strong> to continue without signing in:</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={skipConfirmText}
+                      onChange={(e) => setSkipConfirmText(e.target.value)}
+                      placeholder="I know how to use Observer offline and manually"
+                      className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                    />
+                    <button
+                      onClick={() => { Analytics.localModeContinue(); handleClose(); if (onContinueLocal) onContinueLocal(); }}
+                      disabled={skipConfirmText.trim().toLowerCase() !== 'i know how to use observer offline and manually'}
+                      className="px-4 py-2 text-sm text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer mt-2">
+                    <input
+                      type="checkbox"
+                      checked={dontShowAgain}
+                      onChange={(e) => setDontShowAgain(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-gray-500 focus:ring-gray-400"
+                    />
+                    <span className="text-xs text-gray-400">Don't show this again</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
             {/* Soft sign-in nudge */}
             <div className="mb-3 md:mb-6">
               <button
@@ -175,36 +218,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
               <p className="text-xs text-gray-500 text-center mt-2">
                 I recommend this, you can sign in <strong>and</strong> use local models. Your data stays on-device either way :)
               </p>
-            </div>
-
-            {/* Type-to-confirm */}
-            <div className="pt-3 md:pt-5 border-t border-gray-200">
-              <p className="text-xs text-gray-400 mb-2">If you know what you're doing and already know how to use the framework, type <strong className="text-gray-500">I know how to use Observer</strong> to continue without signing in:</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={skipConfirmText}
-                  onChange={(e) => setSkipConfirmText(e.target.value)}
-                  placeholder="I know how to use Observer"
-                  className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
-                />
-                <button
-                  onClick={() => { Analytics.localModeContinue(); handleClose(); if (onContinueLocal) onContinueLocal(); }}
-                  disabled={skipConfirmText.trim().toLowerCase() !== 'i know how to use observer'}
-                  className="px-4 py-2 text-sm text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  Continue
-                </button>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer mt-2">
-                <input
-                  type="checkbox"
-                  checked={dontShowAgain}
-                  onChange={(e) => setDontShowAgain(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-gray-500 focus:ring-gray-400"
-                />
-                <span className="text-xs text-gray-400">Don't show this again</span>
-              </label>
             </div>
 
           </div>
