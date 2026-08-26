@@ -3043,9 +3043,8 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "llama-cpp-2"
-version = "0.1.154"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4397360a0bd81be29929a55ad2f49eba27a744a6578f3271894d6f41d86bd15b"
+version = "0.1.146"
+source = "git+https://github.com/Roy3838/llama-cpp-rs?branch=feat/mtmd-image-token-budget#dfff29ad9ac05ed8429b1f917ad04428592be983"
 dependencies = [
  "encoding_rs",
  "enumflags2",
@@ -3057,9 +3056,8 @@ dependencies = [
 
 [[package]]
 name = "llama-cpp-sys-2"
-version = "0.1.154"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13a9ea2ce0cdc20bcb1870534022e340b391663f8fe09133951e2fe37fbc29cf"
+version = "0.1.146"
+source = "git+https://github.com/Roy3838/llama-cpp-rs?branch=feat/mtmd-image-token-budget#dfff29ad9ac05ed8429b1f917ad04428592be983"
 dependencies = [
  "bindgen",
  "cc",
