@@ -27,7 +27,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
   const [skipConfirmText, setSkipConfirmText] = useState('');
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, login } = useAuth();
   const {
     isLoading: isAppleLoading,
     error: appleError,
@@ -108,6 +108,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
   const handleSignIn = () => {
     Analytics.localModeSignIn();
     onClose();
+    login();
   };
 
   if (!isOpen) {
