@@ -61,10 +61,25 @@ const EyeLogo = ({
   );
 };
 
+const TAGLINE_LINE_1 = 'Local open-source micro-agents that observe, log and react,';
+const TAGLINE_LINE_2 = "so you don't have to.";
+const TAGLINE_FULL = TAGLINE_LINE_1 + '\n' + TAGLINE_LINE_2;
+
 const ObserverLanding = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [scrollProgress, setScrollProgress] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
+
+  // Terminal-cursor typing effect for the tagline
+  const [typedCount, setTypedCount] = useState(0);
+  const [typingActive, setTypingActive] = useState(false);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const cursorRef = useRef<HTMLSpanElement>(null);
+  const hasTypedRef = useRef(false);
+
+  const typedLine1 = TAGLINE_FULL.slice(0, typedCount).split('\n')[0];
+  const typedLine2 = TAGLINE_FULL.slice(0, typedCount).split('\n')[1] ?? null;
+  const typingDone = typedCount >= TAGLINE_FULL.length;
 
   // Mouse tracking
   useEffect(() => {
@@ -112,6 +127,38 @@ const ObserverLanding = () => {
   const eyeSize = 280 - (scrollProgress * 200); // 280px -> 80px
   const textOpacity = Math.max(0, (scrollProgress - 0.3) / 0.7); // Fade in after 30%
 
+  // Kick off typing once the tagline is essentially visible
+  useEffect(() => {
+    if (hasTypedRef.current || textOpacity < 0.85) return;
+    hasTypedRef.current = true;
+    setTypingActive(true);
+  }, [textOpacity]);
+
+  // Advance the typed characters
+  useEffect(() => {
+    if (!typingActive) return;
+    if (typedCount >= TAGLINE_FULL.length) {
+      const t = setTimeout(() => setTypingActive(false), 900);
+      return () => clearTimeout(t);
+    }
+    const ch = TAGLINE_FULL[typedCount];
+    const delay = ch === '\n' ? 260 : ch === ',' || ch === '.' ? 140 : 34 + Math.random() * 40;
+    const t = setTimeout(() => setTypedCount((c) => c + 1), delay);
+    return () => clearTimeout(t);
+  }, [typingActive, typedCount]);
+
+  // Track the on-screen position of the terminal cursor so the eye can follow it
+  useEffect(() => {
+    if (!typingActive) {
+      setCursorPos(null);
+      return;
+    }
+    const rect = cursorRef.current?.getBoundingClientRect();
+    if (rect) setCursorPos({ x: rect.left, y: rect.top + rect.height / 2 });
+  }, [typedCount, typingActive]);
+
+  const eyeTarget = cursorPos ?? mousePosition;
+
   // Final text size when fully scrolled
   const finalTextSize = 72;
 
@@ -149,7 +196,7 @@ const ObserverLanding = () => {
               transform: `translateX(${eyeTranslateX + scrollProgress * 20}px)`,
             }}
           >
-            <EyeLogo mousePosition={mousePosition} size={eyeSize} />
+            <EyeLogo mousePosition={eyeTarget} size={eyeSize} />
           </div>
 
           {/* "bserver" text */}
@@ -175,17 +222,34 @@ const ObserverLanding = () => {
         </div>
 
         {/* Tagline - fades in with scroll */}
-        <p
-          className="text-[#8899A6] text-lg md:text-xl max-w-3xl mx-auto leading-relaxed text-center px-6"
-          style={{
-            opacity: textOpacity,
-            transform: `translateY(${20 - textOpacity * 20}px)`,
-          }}
-        >
-          Local open-source micro-agents that observe, log and react,
-          <br />
-          <span className="text-[#5C6975]">so you don't have to.</span>
-        </p>
+        <div className="relative font-mono text-lg md:text-xl leading-relaxed px-6 text-left">
+          {/* Invisible full copy reserves the final layout box so typed text lands in place */}
+          <p aria-hidden="true" className="invisible whitespace-pre-wrap">
+            {TAGLINE_LINE_1}
+            {'\n'}
+            {TAGLINE_LINE_2}
+          </p>
+          {/* Typed overlay, only present once typing begins */}
+          {(typingActive || typedCount > 0) && (
+            <p className="absolute inset-0 px-6 text-[#8899A6] whitespace-pre-wrap">
+              {typedLine1}
+              {typedLine2 !== null && (
+                <>
+                  {'\n'}
+                  <span className="text-[#5C6975]">{typedLine2}</span>
+                </>
+              )}
+              <span
+                ref={cursorRef}
+                aria-hidden="true"
+                className="inline-block w-[0.55em] h-[1.1em] -mb-[0.15em] ml-[1px] bg-[#8899A6] align-baseline"
+                style={{
+                  animation: typingDone ? 'observer-cursor-blink 1s step-end infinite' : undefined,
+                }}
+              />
+            </p>
+          )}
+        </div>
 
         {/* CTA - visible from start */}
         <div className="mt-8 flex gap-4">

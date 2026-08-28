@@ -37,3 +37,8 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, transparent 2%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.55) 34%, black 50%, rgba(0,0,0,0.55) 66%, rgba(0,0,0,0.12) 80%, transparent 98%);
   mask-image: linear-gradient(to bottom, transparent 2%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.55) 34%, black 50%, rgba(0,0,0,0.55) 66%, rgba(0,0,0,0.12) 80%, transparent 98%);
 }
+
+@keyframes observer-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
