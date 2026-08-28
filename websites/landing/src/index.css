@@ -32,3 +32,8 @@ body {
 .font-golos {
   font-family: 'Golos Text', sans-serif;
 }
+
+.wheel-mask {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 2%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.55) 34%, black 50%, rgba(0,0,0,0.55) 66%, rgba(0,0,0,0.12) 80%, transparent 98%);
+  mask-image: linear-gradient(to bottom, transparent 2%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.55) 34%, black 50%, rgba(0,0,0,0.55) 66%, rgba(0,0,0,0.12) 80%, transparent 98%);
+}
