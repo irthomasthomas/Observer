@@ -16,6 +16,7 @@ import base64
 import phonenumbers
 
 # Third-party imports
+from better_profanity import profanity
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 from twilio.twiml.voice_response import VoiceResponse
@@ -37,6 +38,34 @@ WHITELIST_TTL = 86400  # 24 hours in seconds
 VOICE_CALL_TTL = 3600  # 1 hour — how long a pending call message stays retrievable
 
 DEFAULT_VOICE_MESSAGE = "Alert from Observer A I"
+
+# Load better-profanity's bundled wordlist once at import. It is a maintained
+# list of slurs/profanity and it normalises common character substitution
+# (leetspeak, punctuation) before matching.
+profanity.load_censor_words()
+
+
+def assert_content_allowed(*texts: str | None) -> None:
+    """
+    Synchronous acceptable-use check on outbound message content, run before
+    anything is handed to Twilio's client.messages.create / calls.create.
+
+    Screens the caller-supplied text against a maintained slur/profanity
+    wordlist. This is content-neutral enforcement that protects the Twilio
+    account from Messaging Policy violations — the text is never stored or
+    logged, it is only inspected in-memory on the send path.
+
+    Raises HTTPException(400) if the content is rejected.
+    """
+    for text in texts:
+        if text and profanity.contains_profanity(text):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Message blocked: the content violates the acceptable use policy. Hate speech, slurs, and abusive language are not permitted.",
+                    "error_type": "content_policy",
+                },
+            )
 
 
 async def stash_voice_message(message: str) -> str:
@@ -493,6 +522,10 @@ async def send_sms(
             detail=f"Number {request_data.to_number} not whitelisted! Send an SMS or WhatsApp message to whatsapp:+1 (555) 783-4727 or call us first to receive messages"
         )
 
+    # 1.25. Acceptable-use content screen — reject slurs/hate terms before we
+    # consume quota, upload media, or hand anything to Twilio.
+    assert_content_allowed(request_data.message)
+
     # 1.5. Resolve key or phone number to normalized E.164 format
     resolved_phone = await resolve_to_phone(request_data.to_number)
 
@@ -632,6 +665,10 @@ async def send_whatsapp(
             status_code=403,
             detail=f"Number {request_data.to_number} not whitelisted for WhatsApp! Send a WhatsApp message to +1 (555) 783-4727 first to receive WhatsApp messages"
         )
+
+    # 1.25. Acceptable-use content screen — reject slurs/hate terms before we
+    # consume quota, upload media, or hand anything to Twilio.
+    assert_content_allowed(request_data.message)
 
     # 1.5. Resolve key or phone number to normalized E.164 format
     resolved_phone = await resolve_to_phone(request_data.to_number)
@@ -823,6 +860,10 @@ async def make_voice_call(
             status_code=403,
             detail=f"Number {request_data.to_number} not whitelisted! Send an SMS or WhatsApp message to whatsapp:+1 (555) 783-4727 or call us first to receive messages"
         )
+
+    # 1.25. Acceptable-use content screen — reject slurs/hate terms before we
+    # consume quota or hand anything to Twilio.
+    assert_content_allowed(request_data.message)
 
     # 1.5. Resolve key or phone number to normalized E.164 format
     resolved_phone = await resolve_to_phone(request_data.to_number)
