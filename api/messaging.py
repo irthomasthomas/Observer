@@ -565,7 +565,7 @@ async def send_sms(
         logger.error(f"Twilio API error: {e.msg}")
         raise HTTPException(status_code=400, detail=f"Failed to send SMS/MMS: {e.msg}")
 
-@messaging_router.post("/webhooks/sms-incoming", tags=["Webhooks"])
+@messaging_router.post("/webhooks/sms-incoming", tags=["Webhooks"], status_code=204)
 async def sms_incoming_webhook(
     request: Request,
     form_data: dict = Depends(validate_twilio_request)
@@ -582,7 +582,7 @@ async def sms_incoming_webhook(
 
         if not from_number:
             logger.warning("Received SMS webhook without From number")
-            return {"status": "error", "detail": "No phone number provided"}
+            return FastAPIResponse(status_code=204)
 
         # Add to phone whitelist (for SMS and voice)
         # Store message body as key for friendly lookup (e.g., "pizza", "Roy", etc.)
@@ -613,11 +613,11 @@ async def sms_incoming_webhook(
             logger.error(f"Failed to send SMS confirmation to {from_number}: {str(e)}")
             # Still return success since whitelist was added
 
-        return {"status": "success", "whitelisted": from_number}
+        return FastAPIResponse(status_code=204)
 
     except Exception as e:
         logger.error(f"Error processing SMS incoming webhook: {str(e)}")
-        return {"status": "error", "detail": "Webhook processing failed"}
+        return FastAPIResponse(status_code=204)
 
 @messaging_router.post("/tools/send-whatsapp", tags=["Tools"])
 async def send_whatsapp(
@@ -716,7 +716,7 @@ async def check_is_whitelisted(
         "channel": request_data.channel
     }
 
-@messaging_router.post("/webhooks/whatsapp-incoming", tags=["Webhooks"])
+@messaging_router.post("/webhooks/whatsapp-incoming", tags=["Webhooks"], status_code=204)
 async def whatsapp_incoming_webhook(
     request: Request,
     form_data: dict = Depends(validate_twilio_request)
@@ -734,7 +734,7 @@ async def whatsapp_incoming_webhook(
 
         if not from_number:
             logger.warning("Received WhatsApp webhook without From number")
-            return {"status": "error", "detail": "No phone number provided"}
+            return FastAPIResponse(status_code=204)
 
         # Add to WhatsApp whitelist - blazing fast in-memory operation
         # Store message body as key for friendly lookup if it's greater than 7 chars
@@ -765,11 +765,11 @@ async def whatsapp_incoming_webhook(
             logger.error(f"Failed to send confirmation to {from_number}: {str(e)}")
             # Still return success since whitelist was added
 
-        return {"status": "success", "whitelisted": from_number}
+        return FastAPIResponse(status_code=204)
 
     except Exception as e:
         logger.error(f"Error processing WhatsApp incoming webhook: {str(e)}")
-        return {"status": "error", "detail": "Webhook processing failed"}
+        return FastAPIResponse(status_code=204)
 
 @messaging_router.post("/webhooks/whatsapp-status", tags=["Webhooks"])
 async def whatsapp_status_callback(
