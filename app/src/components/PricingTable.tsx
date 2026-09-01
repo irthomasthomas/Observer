@@ -50,33 +50,33 @@ interface FeatureGroup {
 
 const featureGroups: FeatureGroup[] = [
   {
-    group: 'Core Loop',
+    group: 'Core — Free Forever',
     rows: [
-      { label: 'Local Monitoring 24/7',   notLoggedIn: true,  free: true,       pro: true,        max: true },
+      { label: 'Local Models',             notLoggedIn: true,  free: true,       pro: true,        max: true },
       { label: 'Logging & Recording',      notLoggedIn: true,  free: true,       pro: true,        max: true },
       { label: 'Discord Notifications',    notLoggedIn: true,  free: true,       pro: true,        max: true },
+    ],
+  },
+  {
+    group: 'It drives itself',
+    rows: [
+      { label: 'Agent Builder (MCP)', sparkle: true, notLoggedIn: false, free: '3 agents / day', pro: 'Unlimited', max: 'Unlimited',
+        info: {
+          free: 'Building an agent takes ~15 messages on average, and the free tier gives you 45/day, about 3 full agent builds. Plenty to design and iterate.',
+          pro: "1,000 messages/day, roughly 67 agent builds in a single day. If you genuinely need to spin up more than 67 agents a day, one subscription was never going to cover that 😅. Reach out and we'll figure it out.",
+          max: "1,000 messages/day, roughly 67 agent builds in a single day. If you genuinely need to spin up more than 67 agents a day, one subscription was never going to cover that 😅. Reach out and we'll figure it out.",
+        } },
+      { label: 'Cloud Monitoring',         notLoggedIn: false, free: '1 hr / day', pro: '8 hr / day', max: '24 / 7', creditInfo: { free: 60, pro: 480, max: 2880 } },
     ],
   },
   {
     group: 'Notifications',
     rows: [
       { label: 'Telegram, Email & Pushover', notLoggedIn: false, free: true,      pro: true,        max: true },
-      { label: 'SMS, Phone & WhatsApp',      notLoggedIn: false, free: '5 / day', pro: true,        max: true,
+      { label: 'SMS, Phone & WhatsApp',      notLoggedIn: false, free: '5 / day', pro: 'Unlimited', max: 'Unlimited',
         info: {
           pro: "Practically unlimited 100/day as a guard against abuse. I use Observer every day and have never come close. Need more for a legit use case? Just email me, it's a solo project and I'm happy to help.",
           max: "Practically unlimited 100/day as a guard against abuse. I use Observer every day and have never come close. Need more for a legit use case? Just email me, it's a solo project and I'm happy to help.",
-        } },
-    ],
-  },
-  {
-    group: 'AI inference',
-    rows: [
-      { label: 'Cloud Monitoring',         notLoggedIn: false, free: '1 hr / day', pro: '8 hr / day', max: '24 / 7', creditInfo: { free: 60, pro: 480, max: 2880 } },
-      { label: 'Agent Builder (MCP)',       notLoggedIn: false, free: '3 agents / day', pro: true, max: true,
-        info: {
-          free: 'Building an agent takes ~15 messages on average, and the free tier gives you 45/day, about 3 full agent builds. Plenty to design and iterate.',
-          pro: "1,000 messages/day, roughly 67 agent builds in a single day. If you genuinely need to spin up more than 67 agents a day, one subscription was never going to cover that 😅. Reach out and we'll figure it out.",
-          max: "1,000 messages/day, roughly 67 agent builds in a single day. If you genuinely need to spin up more than 67 agents a day, one subscription was never going to cover that 😅. Reach out and we'll figure it out.",
         } },
     ],
   },
@@ -183,7 +183,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   const combinedError   = error || (applePayments?.error ?? null);
 
   // ── table column helpers ──────────────────────────────────────────────────
-  const headerBase = "text-center px-3 pt-2 pb-3 md:pt-3 md:pb-4 text-sm font-bold";
+  const headerBase = "text-center align-bottom px-3 pt-2 pb-3 md:pt-3 md:pb-4 text-sm font-bold";
   const cellBase   = "text-center px-3 py-2 md:py-3";
 
   const getHeaderClass = (tier: 'free' | 'pro' | 'max') => {
@@ -265,8 +265,10 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                 <>
                   {/* Free column */}
                   <th className={getHeaderClass('free')}>
+                    <div aria-hidden className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide invisible">Most Popular</div>
                     <div>Quick Start</div>
                     <div className="text-xs font-normal text-gray-400 dark:text-gray-500 mt-0.5">$0 / mo</div>
+                    <div className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 mt-1">You drive</div>
                     {effectiveStatus === 'free' ? (
                       <span className="mt-2 block text-xs bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-medium">
                         Current
@@ -279,10 +281,14 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                   </th>
                   {/* Pro column */}
                   <th className={getHeaderClass('pro')}>
+                    <div className={`mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${effectiveStatus === 'pro' ? 'invisible' : 'bg-purple-600 text-white dark:bg-purple-500'}`}>
+                      Most Popular
+                    </div>
                     <div>Pro</div>
                     <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'pro' ? 'text-purple-200' : 'text-purple-500'}`}>
                       ${isAppleDevice ? '22.99' : '20'} / mo
                     </div>
+                    <div className={`text-[11px] font-semibold mt-1 ${effectiveStatus === 'pro' ? 'text-purple-100' : 'text-purple-600 dark:text-purple-300'}`}>It drives itself</div>
                     {effectiveStatus === 'pro' ? (
                       <>
                         <span className="mt-2 block text-xs bg-purple-200 text-purple-700 dark:bg-purple-800 dark:text-purple-200 px-2 py-0.5 rounded-full font-medium">
@@ -310,10 +316,12 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                   </th>
                   {/* Max column */}
                   <th className={getHeaderClass('max')}>
+                    <div aria-hidden className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide invisible">Most Popular</div>
                     <div>Max</div>
                     <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'max' ? 'text-amber-100' : 'text-amber-500'}`}>
                       ${isAppleDevice ? '99.99' : '80'} / mo
                     </div>
+                    <div className={`text-[11px] font-semibold mt-1 ${effectiveStatus === 'max' ? 'text-amber-100' : 'text-amber-600 dark:text-amber-300'}`}>Always on</div>
                     {effectiveStatus === 'max' ? (
                       <>
                         <span className="mt-2 block text-xs bg-amber-200 text-amber-700 dark:bg-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-full font-medium">
@@ -346,6 +354,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                   <th className={`${headerBase} bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 rounded-t-lg`}>
                     <div>Quick Start</div>
                     <div className="text-xs font-normal text-purple-500 dark:text-purple-300 mt-0.5">Free</div>
+                    <div className="text-[11px] font-semibold text-purple-400 dark:text-purple-300 mt-1">You drive</div>
                     <button
                       onClick={onLogin}
                       className="mt-2 w-full py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 hover:scale-105 transition-all shadow-md ring-2 ring-purple-300"
