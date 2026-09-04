@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const EyeLogo = ({
-  mousePosition,
+  getTarget,
   size = 300
 }: {
-  mousePosition: { x: number; y: number };
+  // Returns the current point (in viewport coords) the eye should look at, or null.
+  getTarget: () => { x: number; y: number } | null;
   size?: number;
 }) => {
   const scale = size / 150; // Base size is 150
@@ -13,28 +14,46 @@ const EyeLogo = ({
   const strokeWidth = 16 * scale;
   const maxPupilOffset = eyeRadius - pupilRadius - (7 * scale);
 
-  const calculatePupilPosition = useCallback(() => {
-    if (!mousePosition.x || !mousePosition.y) return { x: 0, y: 0 };
+  const pupilRef = useRef<SVGCircleElement>(null);
+  const posRef = useRef({ x: 0, y: 0 }); // current rendered pupil offset
 
-    const rect = document.getElementById('eye-container')?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
+  // Single rAF loop: lerp the pupil toward its target every frame and write
+  // straight to the DOM. No React state, no CSS transition => continuous 60fps.
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const target = getTarget();
+      let destX = 0;
+      let destY = 0;
 
-    const eyeCenterX = rect.left + rect.width / 2;
-    const eyeCenterY = rect.top + rect.height / 2;
+      if (target) {
+        const rect = document.getElementById('eye-container')?.getBoundingClientRect();
+        if (rect) {
+          const eyeCenterX = rect.left + rect.width / 2;
+          const eyeCenterY = rect.top + rect.height / 2;
+          const dx = target.x - eyeCenterX;
+          const dy = target.y - eyeCenterY;
+          const angle = Math.atan2(dy, dx);
+          const distance = Math.min(maxPupilOffset, Math.hypot(dx, dy) / 8);
+          destX = Math.cos(angle) * distance;
+          destY = Math.sin(angle) * distance;
+        }
+      }
 
-    const angle = Math.atan2(mousePosition.y - eyeCenterY, mousePosition.x - eyeCenterX);
-    const distance = Math.min(
-      maxPupilOffset,
-      Math.sqrt(Math.pow(mousePosition.x - eyeCenterX, 2) + Math.pow(mousePosition.y - eyeCenterY, 2)) / 8
-    );
+      // Exponential smoothing toward the destination.
+      const cur = posRef.current;
+      cur.x += (destX - cur.x) * 0.18;
+      cur.y += (destY - cur.y) * 0.18;
 
-    return {
-      x: Math.cos(angle) * distance,
-      y: Math.sin(angle) * distance
+      if (pupilRef.current) {
+        pupilRef.current.setAttribute('cx', String(cur.x));
+        pupilRef.current.setAttribute('cy', String(cur.y));
+      }
+      raf = requestAnimationFrame(tick);
     };
-  }, [mousePosition.x, mousePosition.y, maxPupilOffset]);
-
-  const pupilPosition = calculatePupilPosition();
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [getTarget, maxPupilOffset]);
 
   return (
     <svg
@@ -50,13 +69,7 @@ const EyeLogo = ({
         stroke="currentColor"
         strokeWidth={strokeWidth}
       />
-      <circle
-        cx={pupilPosition.x}
-        cy={pupilPosition.y}
-        r={pupilRadius}
-        fill="currentColor"
-        className="transition-all duration-100 ease-out"
-      />
+      <circle ref={pupilRef} cx="0" cy="0" r={pupilRadius} fill="currentColor" />
     </svg>
   );
 };
@@ -66,44 +79,39 @@ const TAGLINE_LINE_2 = "so you don't have to.";
 const TAGLINE_FULL = TAGLINE_LINE_1 + '\n' + TAGLINE_LINE_2;
 
 const ObserverLanding = () => {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const mouseTargetRef = useRef<{ x: number; y: number } | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
 
   // Terminal-cursor typing effect for the tagline
   const [typedCount, setTypedCount] = useState(0);
   const [typingActive, setTypingActive] = useState(false);
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
   const cursorRef = useRef<HTMLSpanElement>(null);
+  const typingActiveRef = useRef(false);
   const hasTypedRef = useRef(false);
 
   const typedLine1 = TAGLINE_FULL.slice(0, typedCount).split('\n')[0];
   const typedLine2 = TAGLINE_FULL.slice(0, typedCount).split('\n')[1] ?? null;
   const typingDone = typedCount >= TAGLINE_FULL.length;
 
-  // Mouse tracking
+  // Mouse tracking - just stash the latest position in a ref (cheap, no re-render).
+  // The eye's own rAF loop reads this each frame.
   useEffect(() => {
-    let rafId: number;
-    let lastX = 0;
-    let lastY = 0;
-
     const handleMouseMove = (e: MouseEvent) => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(() => {
-        if (Math.abs(e.clientX - lastX) > 2 || Math.abs(e.clientY - lastY) > 2) {
-          lastX = e.clientX;
-          lastY = e.clientY;
-          setMousePosition({ x: e.clientX, y: e.clientY });
-        }
-        rafId = 0;
-      });
+      mouseTargetRef.current = { x: e.clientX, y: e.clientY };
     };
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (rafId) cancelAnimationFrame(rafId);
-    };
+  // What the eye should look at: the typing cursor while the tagline types itself,
+  // otherwise the mouse. Read live from refs so it never triggers a re-render.
+  const getEyeTarget = useCallback(() => {
+    if (typingActiveRef.current && cursorRef.current) {
+      const r = cursorRef.current.getBoundingClientRect();
+      return { x: r.left, y: r.top + r.height / 2 };
+    }
+    return mouseTargetRef.current;
   }, []);
 
   // Scroll tracking
@@ -124,13 +132,20 @@ const ObserverLanding = () => {
   }, []);
 
   // Calculate animated values based on scroll
-  const eyeSize = 280 - (scrollProgress * 200); // 280px -> 80px
+  const eyeSizeMax = 280;
+  const eyeSizeMin = 80;
+  const eyeSize = eyeSizeMax - scrollProgress * (eyeSizeMax - eyeSizeMin); // 280px -> 80px
+  // The eye is centered on the row origin, so its right edge sits at eyeSize/2.
+  // The "bserver" offset below is tuned for the final (small) eye, so add back the
+  // extra half-radius the eye currently has. Goes to 0 as the animation completes.
+  const eyeEdgeCompensation = (eyeSize - eyeSizeMin) / 2;
   const textOpacity = Math.max(0, (scrollProgress - 0.3) / 0.7); // Fade in after 30%
 
   // Kick off typing once the tagline is essentially visible
   useEffect(() => {
     if (hasTypedRef.current || textOpacity < 0.85) return;
     hasTypedRef.current = true;
+    typingActiveRef.current = true;
     setTypingActive(true);
   }, [textOpacity]);
 
@@ -138,7 +153,10 @@ const ObserverLanding = () => {
   useEffect(() => {
     if (!typingActive) return;
     if (typedCount >= TAGLINE_FULL.length) {
-      const t = setTimeout(() => setTypingActive(false), 900);
+      const t = setTimeout(() => {
+        typingActiveRef.current = false;
+        setTypingActive(false);
+      }, 900);
       return () => clearTimeout(t);
     }
     const ch = TAGLINE_FULL[typedCount];
@@ -146,18 +164,6 @@ const ObserverLanding = () => {
     const t = setTimeout(() => setTypedCount((c) => c + 1), delay);
     return () => clearTimeout(t);
   }, [typingActive, typedCount]);
-
-  // Track the on-screen position of the terminal cursor so the eye can follow it
-  useEffect(() => {
-    if (!typingActive) {
-      setCursorPos(null);
-      return;
-    }
-    const rect = cursorRef.current?.getBoundingClientRect();
-    if (rect) setCursorPos({ x: rect.left, y: rect.top + rect.height / 2 });
-  }, [typedCount, typingActive]);
-
-  const eyeTarget = cursorPos ?? mousePosition;
 
   // Final text size when fully scrolled
   const finalTextSize = 72;
@@ -196,7 +202,7 @@ const ObserverLanding = () => {
               transform: `translateX(${eyeTranslateX + scrollProgress * 20}px)`,
             }}
           >
-            <EyeLogo mousePosition={eyeTarget} size={eyeSize} />
+            <EyeLogo getTarget={getEyeTarget} size={eyeSize} />
           </div>
 
           {/* "bserver" text */}
@@ -204,7 +210,7 @@ const ObserverLanding = () => {
             className="absolute flex items-center"
             style={{
               left: '50%',
-              transform: `translateX(${eyeTranslateX + 40 - 4 + scrollProgress * 24}px)`,
+              transform: `translateX(${eyeTranslateX + eyeEdgeCompensation + 40 - 4 + scrollProgress * 24}px)`,
               opacity: textOpacity,
             }}
           >
