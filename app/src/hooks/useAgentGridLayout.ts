@@ -62,15 +62,13 @@ function loadLayout(): LayoutItem[] {
 
 export function useAgentGridLayout(agentIds: string[]) {
   // measureBeforeMount so `width` is never a wrong guess (e.g. desktop-sized
-  // default width used to size a brand-new tile on a phone) — layout items
-  // for new agents are only ever created once `mounted` reflects a real
-  // measurement.
+  // default width used to size a brand-new tile on a phone). The reconcile
+  // effect below additionally waits for a positive `width` — see the comment
+  // there for why `mounted` alone isn't a strong enough guard.
   const { width, containerRef, mounted } = useContainerWidth({ measureBeforeMount: true });
   const [layout, setLayout] = useState<LayoutItem[]>(loadLayout);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
-  const widthRef = useRef(width);
-  widthRef.current = width;
 
   const cols = colsForWidth(width || 1);
 
@@ -86,42 +84,66 @@ export function useAgentGridLayout(agentIds: string[]) {
 
   // Give any agent that doesn't have a tile yet a default one, sized in
   // absolute pixels (clamped to the grid's current column count).
+  //
+  // Gated on a *real* positive `width`, not just `mounted`: the grid's
+  // wrapper is toggled with `hidden` (display:none) whenever the GetStarted
+  // hero is showing (e.g. every agent minimized), and ResizeObserver reports
+  // that as width 0. If this effect fired on that stale 0 the moment the
+  // grid became visible again — same commit, before ResizeObserver's async
+  // callback had delivered the real width — it would create a degenerate,
+  // zero/negative-size tile for whichever agent just got un-minimized. Width
+  // is a dependency here specifically so the effect retries once a real
+  // measurement lands instead of running once on bad data.
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || width <= 0) return;
     const missing = agentIds.filter(id => !layoutRef.current.some(item => item.i === id));
     if (missing.length === 0) return;
 
-    const currentCols = colsForWidth(widthRef.current);
+    const currentCols = colsForWidth(width);
     const target = defaultSizePx();
-    const { w, h } = calcWHRaw(
-      positionParamsFor(widthRef.current, currentCols),
-      target.width,
-      target.height
-    );
-    const clampedW = Math.min(w, currentCols);
+    const { w, h } = calcWHRaw(positionParamsFor(width, currentCols), target.width, target.height);
+    const clampedW = Math.max(1, Math.min(w, currentCols));
+    const clampedH = Math.max(1, h);
 
     let cursorY = layoutRef.current.reduce((max, it) => Math.max(max, it.y + it.h), 0);
     const additions: LayoutItem[] = missing.map(id => {
-      const item: LayoutItem = { i: id, x: 0, y: cursorY, w: clampedW, h, minW: 3, minH: 8 };
-      cursorY += h;
+      const item: LayoutItem = { i: id, x: 0, y: cursorY, w: clampedW, h: clampedH, minW: 3, minH: 8 };
+      cursorY += clampedH;
       return item;
     });
 
     persist([...layoutRef.current, ...additions]);
-  }, [agentIds, mounted, persist]);
+  }, [agentIds, mounted, width, persist]);
 
   // Render-time-only clamp: shrink a tile to fit the current column count
   // without mutating (or persisting) its stored absolute size, so it's back
-  // to full size the moment the window is wide enough again.
+  // to full size the moment the window is wide enough again. Also floors
+  // w/h at 1 as a self-heal for any degenerate size persisted by an older
+  // build (see the effect above).
   const renderLayout = useMemo(
     () =>
       layout.map(item => {
-        const w = Math.min(item.w, cols);
+        const w = Math.max(1, Math.min(item.w, cols));
+        const h = Math.max(1, item.h);
         const x = Math.min(item.x, Math.max(0, cols - w));
-        return w === item.w && x === item.x ? item : { ...item, w, x };
+        return w === item.w && h === item.h && x === item.x ? item : { ...item, w, h, x };
       }),
     [layout, cols]
   );
+
+  // Un-minimizing a card brings back a layout item whose stored x/y may now
+  // collide with whatever moved into its old spot while it was hidden from
+  // the grid — react-grid-layout's compactor then resolves that collision by
+  // shoving it down, often well past the bottom of the screen ("valhalla").
+  // Drop it back in at the end instead, keeping its own w/h (size is still
+  // the user's choice), just not its stale position.
+  const restoreToEnd = useCallback((id: string) => {
+    const current = layoutRef.current;
+    const item = current.find(it => it.i === id);
+    if (!item) return;
+    const maxY = current.reduce((max, it) => (it.i === id ? max : Math.max(max, it.y + it.h)), 0);
+    persist(current.map(it => (it.i === id ? { ...it, x: 0, y: maxY } : it)));
+  }, [persist]);
 
   // A drag only moves a tile — its stored (absolute) w/h must survive even
   // if the tile happened to be rendering clamped at the time. Other tiles
@@ -153,5 +175,5 @@ export function useAgentGridLayout(agentIds: string[]) {
     persist(merged);
   }, [persist]);
 
-  return { layout: renderLayout, onDragStop, onResizeStop, containerRef, width, cols, mounted };
+  return { layout: renderLayout, onDragStop, onResizeStop, restoreToEnd, containerRef, width, cols, mounted };
 }

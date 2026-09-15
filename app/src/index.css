@@ -711,3 +711,26 @@ main {
 .dark .to-blue-100 {
   --tw-gradient-to: #334155 !important;
 }
+
+/* Agent grid resize handle — bigger and more visible than react-grid-layout's
+   default so it reads as a resizable corner rather than disappearing into
+   the card edge. */
+.react-grid-item > .react-resizable-handle {
+  width: 28px;
+  height: 28px;
+  opacity: 0.5;
+}
+
+.react-grid-item:hover > .react-resizable-handle {
+  opacity: 1;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  right: 4px;
+  bottom: 4px;
+  width: 10px;
+  height: 10px;
+  border-right: 3px solid rgba(0, 0, 0, 0.45);
+  border-bottom: 3px solid rgba(0, 0, 0, 0.45);
+  border-bottom-right-radius: 2px;
+}

@@ -112,7 +112,6 @@ function AppContent() {
   const [hasPendingImport, setHasPendingImport] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMCPPanelOpen, setIsMCPPanelOpen] = useState(false);
-  const [aiEditMessage, setAiEditMessage] = useState<string | undefined>();
 
   // Quota error state
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
@@ -165,8 +164,13 @@ function AppContent() {
   const handleMinimize = (agentId: string) =>
     setMinimizedAgents(prev => new Set([...prev, agentId]));
 
-  const handleRestore = (agentId: string) =>
+  const handleRestore = (agentId: string) => {
     setMinimizedAgents(prev => { const s = new Set(prev); s.delete(agentId); return s; });
+    // Its old grid spot may now collide with a card that moved in while it
+    // was minimized — drop it in at the end instead of letting the grid's
+    // compactor shove it far down the page trying to resolve that.
+    restoreGridAgentToEnd(agentId);
+  };
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -394,12 +398,6 @@ function AppContent() {
     setActivityModalAgentId(agentId);
     setActivityModalOpen(true);
     Logger.info('APP', `Opening activity modal for agent ${agentId}`);
-  };
-
-  const handleAIEditClick = (agentId: string) => {
-    setAiEditMessage(`Help me edit this agent @${agentId} `);
-    setIsMCPPanelOpen(true);
-    Logger.info('APP', `Opening MCP panel for agent ${agentId}`);
   };
 
   const markOnboardingComplete = () => {
@@ -786,11 +784,23 @@ function AppContent() {
     layout: gridLayout,
     onDragStop: onGridDragStop,
     onResizeStop: onGridResizeStop,
+    restoreToEnd: restoreGridAgentToEnd,
     containerRef: gridContainerRef,
     width: gridWidth,
     cols: gridCols,
     mounted: gridMounted,
   } = useAgentGridLayout(visibleAgentIds);
+  // The hook keeps a layout entry for every agent it's ever seen (so a
+  // minimized/restored agent keeps its spot), but react-grid-layout still
+  // renders a positioned box for any entry in `layout` even when it has no
+  // matching child — so this has to be filtered down to what's actually
+  // being rendered, or a minimized (or deleted) agent leaves an empty tile
+  // sitting in the grid.
+  const visibleAgentIdSet = useMemo(() => new Set(visibleAgentIds), [visibleAgentIds]);
+  const visibleGridLayout = useMemo(
+    () => gridLayout.filter(item => visibleAgentIdSet.has(item.i)),
+    [gridLayout, visibleAgentIdSet]
+  );
 
   // Hero (full-width MCP co-pilot) when there are no agents OR all of them are minimized.
   // Show GetStarted when no agents exist OR all are minimized
@@ -924,7 +934,7 @@ function AppContent() {
             <div ref={gridContainerRef as React.Ref<HTMLDivElement>} className="overflow-x-hidden">
               {gridMounted && (
                 <GridLayout
-                  layout={gridLayout}
+                  layout={visibleGridLayout}
                   width={gridWidth}
                   gridConfig={{ cols: gridCols, rowHeight: GRID_ROW_HEIGHT, margin: GRID_MARGIN }}
                   dragConfig={{
@@ -937,7 +947,7 @@ function AppContent() {
                   onDragStop={onGridDragStop}
                   onResizeStop={onGridResizeStop}
                 >
-                  {gridLayout.map(item => {
+                  {visibleGridLayout.map(item => {
                     const agent = sortedAgents.find(a => a.id === item.i);
                     if (!agent) return null;
                     return (
@@ -963,7 +973,6 @@ function AppContent() {
                           }}
                           onSave={handleSaveAgent}
                           isProUser={isProUser}
-                          onAIEdit={handleAIEditClick}
                           hostingContext={hostingContext}
                           onMinimize={() => handleMinimize(agent.id)}
                           isMinimized={false}
@@ -1001,7 +1010,6 @@ function AppContent() {
                   }}
                   onSave={handleSaveAgent}
                   isProUser={isProUser}
-                  onAIEdit={handleAIEditClick}
                   hostingContext={hostingContext}
                   onMinimize={() => handleMinimize(agent.id)}
                   isMinimized={true}
@@ -1093,7 +1101,7 @@ function AppContent() {
       {!showGetStarted && (
         <MCPPanel
           isOpen={isMCPPanelOpen}
-          onClose={() => { setIsMCPPanelOpen(false); setAiEditMessage(undefined); }}
+          onClose={() => setIsMCPPanelOpen(false)}
           getToken={getToken}
           isAuthenticated={isAuthenticated}
           isUsingObServer={isUsingObServer}
@@ -1104,7 +1112,6 @@ function AppContent() {
             setIsUsingObServer(true);
           }}
           onRefresh={fetchAgents}
-          initialMessage={aiEditMessage}
         />
       )}
 

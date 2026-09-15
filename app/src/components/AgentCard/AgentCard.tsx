@@ -53,7 +53,6 @@ interface AgentCardProps {
   onUpgradeClick: () => void;
   onSave: (agent: CompleteAgent, code: string) => Promise<void>;
   isProUser?: boolean;
-  onAIEdit?: (agentId: string) => void;
   hostingContext?: 'official-web' | 'self-hosted' | 'tauri';
   onMinimize: () => void;
   isMinimized?: boolean;
@@ -62,7 +61,7 @@ interface AgentCardProps {
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent, code, isRunning, isStarting, isMemoryFlashing, onEdit, onDelete, onToggle,
-  onMemory, onActivity, onShowJupyterModal, getToken, hasQuotaError, onUpgradeClick, onSave, isProUser = false, onAIEdit, hostingContext, onMinimize, isMinimized
+  onMemory, onActivity, onShowJupyterModal, getToken, hasQuotaError, onUpgradeClick, onSave, isProUser = false, hostingContext, onMinimize, isMinimized
 }) => {
   const [isPythonAgent, setIsPythonAgent] = useState(false);
   const [startWarning, setStartWarning] = useState<string | null>(null);
@@ -481,7 +480,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
         onMemory={onMemory}
         onActivity={onActivity}
         onShowJupyterModal={onShowJupyterModal}
-        onAIEdit={onAIEdit}
         onMinimize={handleMinimizeClick}
       />
     </div>
