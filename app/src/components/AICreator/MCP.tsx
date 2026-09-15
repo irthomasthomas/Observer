@@ -15,6 +15,7 @@ import { Logger, type WhitelistChannel } from '@utils/logging';
 import { StreamManager } from '@utils/streamManager';
 import { useSubscriberText } from '@hooks/useTranscriptionState';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
+import { SensorSettings } from '@utils/settings';
 import { isTauri } from '@utils/platform';
 import { tauriStreamCapture, type CaptureTarget } from '@utils/tauriStreamCapture';
 import { Monitor } from 'lucide-react';
@@ -117,7 +118,11 @@ const CheckWhitelistGate: React.FC<{
   const phoneNumber: string | undefined = status?.args?.phone_number;
   if (!phoneNumber) return null;
   const channel = status?.args?.channel as WhitelistChannel | undefined;
-  return <WhitelistInline phoneNumber={phoneNumber} channel={channel} onCancel={onCancel} />;
+  // Show the persisted golden-path word-key code (same one ask_user_info's modal uses)
+  // instead of a canned-greeting QR — the backend ties whichever number sends this code
+  // to the whitelist, so scanning it from the user's own phone whitelists phoneNumber too.
+  const code = SensorSettings.ensureWhitelistCode();
+  return <WhitelistInline phoneNumber={code} channel={channel} onCancel={onCancel} mode="code" />;
 };
 
 // ===================================================================================
