@@ -58,7 +58,7 @@ const StartupDialog: React.FC<StartupDialogProps> = ({
           <p className="text-gray-600 mb-8 leading-relaxed">
             {hasPendingImport
               ? "You need an account to import agents. Sign in, then click the share link again to import it."
-              : "Local open-source micro-agents that observe, log and react, so you don't have to."}
+              : "The agent that monitors your screen, so you don't have to."}
           </p>
 
           {/* Action Buttons */}
