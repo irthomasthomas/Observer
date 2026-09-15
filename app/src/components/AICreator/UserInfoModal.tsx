@@ -339,8 +339,8 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
   // 'fallback' (typed number, unchanged legacy flow).
   const hadExistingCode = useMemo(() => (kind === 'phone' ? !!SensorSettings.getWhitelistCode() : false), [kind]);
   const [code, setCode] = useState(() => (kind === 'phone' ? SensorSettings.ensureWhitelistCode() : ''));
-  const [phoneStep, setPhoneStep] = useState<'confirm' | 'qr' | 'fallback'>(
-    kind === 'phone' && hadExistingCode ? 'confirm' : 'qr',
+  const [phoneStep, setPhoneStep] = useState<'checking' | 'confirm' | 'qr' | 'fallback'>(
+    kind === 'phone' && hadExistingCode ? 'checking' : 'qr',
   );
   const [codeVerified, setCodeVerified] = useState(false);
   const showFallback = phoneStep === 'fallback';
@@ -351,6 +351,24 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
     setCodeVerified(false);
     setPhoneStep('qr');
   };
+
+  // On open, silently verify a previously-saved code against the whitelist instead of trusting
+  // it blindly — if it's no longer whitelisted (e.g. the 24h consent expired), rotate straight
+  // to a fresh QR rather than showing a confirm menu for a key that will just fail.
+  useEffect(() => {
+    if (phoneStep !== 'checking') return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      if (!token) { if (!cancelled) rotateCode(); return; }
+      const result = await checkNumber(code, token, channel);
+      if (cancelled) return;
+      setPhoneStep(result.isWhitelisted ? 'confirm' : 'qr');
+      if (!result.isWhitelisted) setCode(SensorSettings.rotateWhitelistCode());
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneStep]);
 
   const canConfirm = useCodePath
     ? codeVerified
@@ -399,6 +417,14 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
       </div>
 
       <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        {/* Silently re-verify a previously-saved code before trusting it. */}
+        {needsWhitelist && phoneStep === 'checking' && (
+          <div className="flex flex-col items-center gap-3 py-8 text-gray-500">
+            <Loader className="h-6 w-6 animate-spin text-purple-600" />
+            <p className="text-sm">Checking existing key…</p>
+          </div>
+        )}
+
         {/* Returning user: confirm/test/rotate the already-persisted code instead of assuming it. */}
         {needsWhitelist && phoneStep === 'confirm' && (
           <ConfirmExistingCodePanel
