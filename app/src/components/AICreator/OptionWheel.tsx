@@ -154,13 +154,16 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
 
   const markInteracted = () => { if (!interacted) onInteract?.(); setInteracted(true); };
 
-  // Sync to external value changes (only while fully idle).
+  // Sync to external value changes (only while fully idle). Also retried whenever a
+  // glide/drag/wheel gesture settles — if `value` changed while busy, this effect bails and
+  // would otherwise never get another chance (deps only include `value`), leaving the wheel
+  // visually stuck on a stale row even though the caller's state already moved on.
   useEffect(() => {
     if (busyRef.current) return;
     const i = options.findIndex(o => o.id === value);
     if (i >= 0 && i !== index) setIndex(i);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value, motion, dragging, instant, wheeling]);
 
   // Auto-cycle until first interaction.
   useEffect(() => {

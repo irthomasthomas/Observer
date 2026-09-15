@@ -21,7 +21,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowRight } from 'lucide-react';
+import { X, ArrowRight, Info } from 'lucide-react';
 import { useMCPContext } from '../../mcp/MCPContext';
 import { useAuth } from '@contexts/AuthContext';
 import { SensorSettings } from '@utils/settings';
@@ -153,6 +153,13 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
 
   const skipTutorial = () => { Analytics.tutorialSkipped(); setTutorialStep(null); };
 
+  // Re-triggerable after the first run: replays the same guided walkthrough on demand.
+  const replayTutorial = () => {
+    Analytics.tutorialStarted();
+    setTriggerId(TRIGGERS[0].id);
+    setTutorialStep('hello');
+  };
+
   const triggerOptions = useMemo(
     () => TRIGGERS.map(t => triggerOverrides[t.id]
       // Edited in place: the text no longer matches this row, so its $SCREEN/$CAMERA no
@@ -230,15 +237,29 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] bg-slate-950/70 backdrop-blur-md font-golos flex flex-col items-center justify-center p-4">
-      {/* Close */}
-      <button
-        onClick={onClose}
+      {/* Close + replay-tutorial */}
+      <div
         style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
-        className="absolute right-4 text-white/50 hover:text-white transition-colors"
-        aria-label="Close"
+        className="absolute right-4 flex items-center gap-3"
       >
-        <X className="h-6 w-6" />
-      </button>
+        {!tutorialStep && (
+          <button
+            onClick={replayTutorial}
+            className="text-white/50 hover:text-white transition-colors"
+            aria-label="Show tutorial"
+            title="Show tutorial"
+          >
+            <Info className="h-6 w-6" />
+          </button>
+        )}
+        <button
+          onClick={onClose}
+          className="text-white/50 hover:text-white transition-colors"
+          aria-label="Close"
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
 
       {/* Header — title (free to wrap, so it never fights the close X) with the
           Local/Cloud toggle right beneath it. Title runs smaller on mobile so the
