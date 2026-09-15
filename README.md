@@ -5,7 +5,7 @@
 [![Observer App Online](https://img.shields.io/badge/🌐_Try_Out-Web_App-blue?style=for-the-badge&color=4CAF50)](https://app.observer-ai.com/)
 [![Download App](https://img.shields.io/badge/⬇️_Download-Latest_Release-blue?style=for-the-badge&color=2196F3)](https://github.com/Roy3838/Observer/releases/latest/)
 
-[YouTube](https://www.youtube.com/@Observer-AI) | [Tiktok](https://www.tiktok.com/@observerai) | [Instagram](https://www.instagram.com/observer_ai.tech/) | [Twitter](https://x.com/AppObserverAI) | [Discord](https://discord.com/invite/wnBb7ZQDUC) 
+[YouTube](https://www.youtube.com/@Observer-AI) | [Tiktok](https://www.tiktok.com/@observerai) | [Instagram](https://www.instagram.com/observer_ai.tech/) | [Twitter](https://x.com/AppObserverAI) | [Discord](https://discord.com/invite/wnBb7ZQDUC) | [Reddit](https://www.reddit.com/r/ObserverAI/)
 
 ### *_The Agent that monitors your screen, so you don't have to._*
 
