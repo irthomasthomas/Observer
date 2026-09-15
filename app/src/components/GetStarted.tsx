@@ -1,6 +1,6 @@
 // src/components/GetStarted.tsx
 import React, { useState } from 'react';
-import { Users, MessageCircle, Plus, Trash2 } from 'lucide-react';
+import { Users, MessageCircle, Plus, Trash2, Sparkles } from 'lucide-react';
 import MCP from './AICreator/MCP';
 import type { TokenProvider } from '@utils/main_loop';
 import { useMCPContext } from '../mcp/MCPContext';
@@ -52,12 +52,12 @@ const GetStarted: React.FC<GetStartedProps> = ({
             <div className="border-b border-gray-200 shrink-0 p-4 md:p-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="bg-blue-50 flex justify-center items-center rounded-lg w-10 h-10 shrink-0">
-                    <MessageCircle className="text-blue-600 w-5 h-5" strokeWidth={2} />
+                  <div className="bg-purple-50 flex justify-center items-center rounded-lg w-10 h-10 shrink-0">
+                    <Sparkles className="text-purple-600 w-5 h-5" strokeWidth={2} />
                   </div>
                   <div>
                     <h2 className="text-gray-900 text-lg font-semibold">
-                      Create Agent
+                      Observer
                     </h2>
                     <p className="hidden md:block text-gray-600 text-sm">
                       Describe what you want your agent to do
