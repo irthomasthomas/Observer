@@ -138,7 +138,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
               </h3>
             </div>
             <p className="hidden md:block text-gray-600 text-sm">
-              Create an agent manually with full control over its behavior
+              Create a micro-agent manually
             </p>
           </div>
         </div>
