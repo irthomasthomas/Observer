@@ -1,6 +1,6 @@
 // src/components/GetStarted.tsx
 import React, { useState } from 'react';
-import { Users, MessageCircle, Plus, Trash2, Sparkles } from 'lucide-react';
+import { Users, Plus, Trash2, Sparkles } from 'lucide-react';
 import MCP from './AICreator/MCP';
 import type { TokenProvider } from '@utils/main_loop';
 import { useMCPContext } from '../mcp/MCPContext';
