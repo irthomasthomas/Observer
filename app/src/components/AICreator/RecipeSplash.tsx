@@ -127,8 +127,31 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
   // Settle the wheels as the pointer reaches "Build it". commit() runs on transitionend, so
   // a click landing mid-glide would otherwise build the row BEFORE the one on screen.
   const [aiming, setAiming] = useState(false);
+  // True-first-run only: a guided walkthrough, layered on the real wheel screen, that ends
+  // in building a REAL agent watching a synthetic progress bar (see
+  // SensorSettings.mcpTutorialMode / tutorialStreamCapture) instead of a zero-shot agent the
+  // user has never seen run.
+  //   'hello'  — trigger wheel frozen on "my download is finished"; bubble offers Skip/Okay.
+  //   'notify' — trigger still frozen; bubble points at the action wheel.
+  //   'ready'  — user picked a notification method; bubble points at Build it.
+  //   null     — tutorial inactive (skipped, finished, or not a first run) — normal wheels.
+  const tutorialKey = user && 'sub' in user && user.sub ? `observer_tutorial_seen_${user.sub}` : null;
+  const [tutorialStep, setTutorialStep] = useState<'hello' | 'notify' | 'ready' | null>(null);
 
   useEffect(() => { if (isOpen) Analytics.recipeShown(); }, [isOpen]);
+
+  // RecipeSplash is mounted once for the app's lifetime — `isOpen` just toggles an early
+  // return, it doesn't remount the component — so this can't be a lazy useState initializer:
+  // that would run once at app load, before auth resolves and `user`/`tutorialKey` exist.
+  // Recompute it fresh every time the splash actually opens instead.
+  useEffect(() => {
+    if (!isOpen) return;
+    const firstRun = !!tutorialKey && !localStorage.getItem(tutorialKey);
+    setTutorialStep(firstRun ? 'hello' : null);
+    if (firstRun) setTriggerId(TRIGGERS[0].id); // pin to "my download is finished"
+  }, [isOpen, tutorialKey]);
+
+  const skipTutorial = () => { Analytics.tutorialSkipped(); setTutorialStep(null); };
 
   const triggerOptions = useMemo(
     () => TRIGGERS.map(t => triggerOverrides[t.id]
@@ -163,6 +186,18 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
   };
 
   if (!isOpen) return null;
+
+  // Speech-bubble tooltip used by every tutorial step: a white card (readable against the
+  // wheel's own dark/white text) with a downward-pointing tail, positioned by the caller.
+  const tutorialBubble = (text: string, buttons?: React.ReactNode, topClass = '-top-28 md:-top-24') => (
+    <div className={`absolute ${topClass} left-1/2 -translate-x-1/2 select-none z-20 flex flex-col items-center w-64 md:w-72`}>
+      <div className="bg-white text-slate-900 rounded-2xl px-4 py-3 shadow-[0_0_30px_-6px_rgba(255,255,255,0.5)] text-center flex flex-col items-center gap-2.5">
+        <span className="text-sm md:text-base font-medium">{text}</span>
+        {buttons}
+      </div>
+      <div className="w-3 h-3 bg-white rotate-45 -mt-1.5" />
+    </div>
+  );
 
   // Compact so it sits inline next to the header title on every breakpoint, rather than
   // stacking below it (mobile has enough vertical stuff going on already).
@@ -225,7 +260,7 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
             <span className="text-3xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">When</span>
             {/* Mobile (stacked layout): anchor to "When" itself, which is already
                 centered correctly — simpler than chasing the wheel's own offset. */}
-            {!triggerChosen && (
+            {!triggerChosen && !tutorialStep && (
               <div className="md:hidden absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
                 <div className="flex flex-col items-center animate-bounce">
                   <span className="whitespace-nowrap text-xs font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
@@ -246,16 +281,39 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
               paused={aiming}
               ariaLabel="Choose a trigger"
               widthClass="w-[15rem] md:w-[19rem]"
-              tooltip={!triggerChosen && (
-                <div className="hidden md:block absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
-                  <div className="flex flex-col items-center animate-bounce">
-                    <span className="whitespace-nowrap text-sm font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
-                      Spin to pick what to detect
-                    </span>
-                    <div className="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5" />
+              locked={!!tutorialStep}
+              tooltip={
+                tutorialStep === 'hello' ? (
+                  tutorialBubble(
+                    "Hi! I'm Observer, let's get started with a quick demo. I'll monitor a download so you don't have to.",
+                    <div className="flex items-center gap-3 pt-0.5">
+                      <button onClick={skipTutorial} className="text-slate-500 hover:text-slate-800 text-sm font-medium transition-colors">
+                        Skip tutorial
+                      </button>
+                      <button
+                        onClick={() => {
+                          Analytics.tutorialStarted();
+                          SensorSettings.setMcpTutorialMode(true);
+                          setTutorialStep('notify');
+                        }}
+                        className="px-4 py-1.5 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-700 transition-colors"
+                      >
+                        Okay!
+                      </button>
+                    </div>,
+                    '-top-36 md:-top-32',
+                  )
+                ) : (!triggerChosen && !tutorialStep && (
+                  <div className="hidden md:block absolute -top-11 left-1/2 -translate-x-1/2 select-none pointer-events-none z-10">
+                    <div className="flex flex-col items-center animate-bounce">
+                      <span className="whitespace-nowrap text-sm font-semibold text-slate-900 bg-white rounded-full px-4 py-1.5 shadow-[0_0_20px_-4px_rgba(255,255,255,0.7)]">
+                        Spin to pick what to detect
+                      </span>
+                      <div className="w-2.5 h-2.5 bg-white rotate-45 -mt-1.5" />
+                    </div>
                   </div>
-                </div>
-              )}
+                ))
+              }
             />
           </div>
           <span className="text-3xl md:text-6xl font-bold text-white tracking-tight select-none pointer-events-none">then</span>
@@ -264,15 +322,22 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
             value={actionId}
             onChange={setActionId}
             onCustom={text => setActionOverrides(prev => ({ ...prev, [actionId]: text }))}
+            onInteract={() => { if (tutorialStep === 'notify') setTutorialStep('ready'); }}
             paused={aiming}
             ariaLabel="Choose an action"
             widthClass="w-[15rem] md:w-[13rem]"
+            tooltip={tutorialStep === 'notify' && tutorialBubble('Which way should I notify you?')}
           />
         </div>
       </div>
 
       {/* Bottom cluster — Build it (always live, always pinned) */}
       <div className="absolute bottom-0 inset-x-0 flex flex-col items-center gap-3 pb-8 px-4">
+        {tutorialStep === 'ready' && (
+          <div className="relative w-full flex justify-center">
+            {tutorialBubble("Perfect! I have everything I need, click build it and I'll handle the rest.")}
+          </div>
+        )}
         {/* Never disabled: whatever the wheels show is buildable. */}
         <button
           onClick={handleBuild}

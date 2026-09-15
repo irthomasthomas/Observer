@@ -52,6 +52,7 @@ import AgentShareLandingPage from '@components/AgentShareLandingPage';
 import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import { AcceptToS } from '@components/AcceptToS';
+import { AttributionSplash } from '@components/AttributionSplash';
 import { WelcomeModal } from '@components/WelcomeModal';
 import AgentActivityModal from '@components/AgentCard/AgentActivityModal';
 import FeedbackDialog from '@components/FeedbackDialog';
@@ -140,6 +141,7 @@ function AppContent() {
 
   // AcceptToS modal state
   const [isAcceptToSOpen, setIsAcceptToSOpen] = useState(false);
+  const [isAttributionOpen, setIsAttributionOpen] = useState(false);
   const [isWelcomeUpsellOpen, setIsWelcomeUpsellOpen] = useState(false);
   const [welcomeUpsellVariant, setWelcomeUpsellVariant] = useState<'onboarding' | 'activation'>('onboarding');
   const [isRecipeSplashOpen, setIsRecipeSplashOpen] = useState(false);
@@ -811,10 +813,18 @@ function AppContent() {
       <AcceptToS
         isOpen={isAcceptToSOpen}
         onAccept={() => {
-          // Show the Pro trial pitch right after ToS, while attention is highest.
-          // Once dismissed, land the user on the recipe splash (the guided one-line builder).
+          // Ask where they came from while it's fresh, then show the Pro trial pitch,
+          // then land the user on the recipe splash (the guided one-line builder).
           setIsAcceptToSOpen(false);
           markOnboardingComplete();
+          setIsAttributionOpen(true);
+        }}
+      />
+
+      <AttributionSplash
+        isOpen={isAttributionOpen}
+        onDone={() => {
+          setIsAttributionOpen(false);
           setWelcomeUpsellVariant('onboarding');
           setIsWelcomeUpsellOpen(true);
         }}

@@ -20,6 +20,12 @@ export const Analytics = {
   // ── Recipe builder (IFTTT onboarding hero) ──────────────────────────────────
   recipeShown: () => track('recipe_builder_shown'),
   recipeBuilt: (trigger: string, action: string, modelMode?: string) => track('recipe_built', { trigger, action, modelMode }),
+  tutorialStarted: () => track('recipe_tutorial_started'),
+  tutorialSkipped: () => track('recipe_tutorial_skipped'),
+
+  // ── Attribution (asked right after ToS, before the welcome upsell) ──────────
+  attributionShown: () => track('attribution_shown'),
+  attributionSelected: (source: AttributionSource, detail?: string) => track('attribution_selected', { source, detail }),
 
   // ── Upsell (WelcomeModal — 'welcome' after ToS, 'activation' after first agent starts)
   upsellShown: (source: UpsellSource) => track('upsell_shown', { source }),
@@ -30,3 +36,5 @@ export const Analytics = {
 };
 
 type UpsellSource = 'welcome' | 'activation';
+
+export type AttributionSource = 'reddit' | 'youtube' | 'tiktok' | 'instagram' | 'github' | 'google' | 'friend' | 'other';

@@ -47,6 +47,12 @@ interface OptionWheelProps {
   tooltip?: React.ReactNode;
   /** Center-row click, distinct from the neighbor-row glide clicks. Used to enter edit mode. */
   onLabelClick?: () => void;
+  /**
+   * Fully freezes the wheel — no auto-cycle, no drag/scroll/click/chevron interaction —
+   * while still rendering normally. Used by the onboarding tutorial to pin the trigger to
+   * "my download is finished" until the user opts out.
+   */
+  locked?: boolean;
 }
 
 const CYCLE_MS = 2100;         // auto-cycle cadence
@@ -86,6 +92,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   widthClass = 'w-[13rem] md:w-[16rem]',
   tooltip,
   onLabelClick,
+  locked = false,
 }) => {
   const startIndex = Math.max(0, options.findIndex(o => o.id === value));
   const [index, setIndex] = useState(startIndex);
@@ -157,7 +164,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
 
   // Auto-cycle until first interaction.
   useEffect(() => {
-    if (!autoCycle || interacted || reduce || paused) return;
+    if (!autoCycle || interacted || reduce || paused || locked) return;
     const timer = setInterval(() => {
       if (instantRef.current || busyRef.current) return;
       setAnimMs(ANIM_MS);
@@ -165,7 +172,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
       setMotion(-rowPxRef.current); // glide up one row
     }, CYCLE_MS);
     return () => clearInterval(timer);
-  }, [autoCycle, interacted, reduce, paused]);
+  }, [autoCycle, interacted, reduce, paused, locked]);
 
   // Commit a settled step. onChange is called OUTSIDE the setIndex updater — calling a
   // parent setState inside an updater runs during render and triggers React's
@@ -184,7 +191,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   };
 
   const glide = (delta: number) => {
-    if (busyRef.current) return;
+    if (busyRef.current || locked) return;
     markInteracted();
     if (reduce) { commit(delta); return; }
     setAnimMs(ARROW_MS); // snappy for chevron / neighbor clicks
@@ -199,7 +206,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
 
   // ---- Drag: track the pointer anywhere on screen until release --------------
   const onPointerDown = (e: React.PointerEvent) => {
-    if (busyRef.current) return;
+    if (busyRef.current || locked) return;
     markInteracted();
     startYRef.current = e.clientY;
     dragRef.current = 0;
@@ -250,12 +257,14 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   // Attached natively with { passive: false } because React's synthetic onWheel can't
   // preventDefault — without that, scrolling the wheel would also scroll the page behind it.
   const markInteractedRef = useRef(markInteracted); markInteractedRef.current = markInteracted;
+  const lockedRef = useRef(locked); lockedRef.current = locked;
 
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
 
     const onWheel = (e: WheelEvent) => {
+      if (lockedRef.current) return;
       // Let a genuinely horizontal gesture (or a shift-scroll) pass through untouched.
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       e.preventDefault();
@@ -305,10 +314,10 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   return (
     <div className="flex items-center gap-1.5 md:gap-2" aria-label={ariaLabel} role="listbox">
       <div className="flex flex-col">
-        <button type="button" onClick={() => glide(-1)} className="p-0.5 text-white/40 hover:text-white transition-colors" aria-label="Previous">
+        <button type="button" disabled={locked} onClick={() => glide(-1)} className="p-0.5 text-white/40 hover:text-white disabled:opacity-20 disabled:hover:text-white/40 transition-colors" aria-label="Previous">
           <ChevronUp className="h-5 w-5" />
         </button>
-        <button type="button" onClick={() => glide(1)} className="p-0.5 text-white/40 hover:text-white transition-colors" aria-label="Next">
+        <button type="button" disabled={locked} onClick={() => glide(1)} className="p-0.5 text-white/40 hover:text-white disabled:opacity-20 disabled:hover:text-white/40 transition-colors" aria-label="Next">
           <ChevronDown className="h-5 w-5" />
         </button>
       </div>
@@ -317,7 +326,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
         {tooltip}
         <div
           ref={viewportRef}
-          className="wheel-mask relative overflow-hidden w-full touch-none select-none cursor-grab active:cursor-grabbing"
+          className={`wheel-mask relative overflow-hidden w-full touch-none select-none ${locked ? '' : 'cursor-grab active:cursor-grabbing'}`}
           style={{ height: `${rowRem * visible}rem` }}
           onPointerDown={onPointerDown}
         >
@@ -333,12 +342,13 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
               <div
                 key={offset}
                 onClick={() => {
+                  if (locked) return;
                   if (Math.abs(offset) === 1) glide(offset);
                   else if (offset === 0 && onLabelClick) onLabelClick();
                 }}
-                title={offset === 0 && onLabelClick ? 'Click to type' : undefined}
+                title={offset === 0 && onLabelClick && !locked ? 'Click to type' : undefined}
                 className={`flex items-center justify-center text-center px-2 text-lg md:text-xl font-medium text-white truncate ${
-                  offset !== 0 ? 'cursor-pointer' : onLabelClick ? 'cursor-text hover:text-cyan-200 transition-colors' : ''
+                  locked ? '' : offset !== 0 ? 'cursor-pointer' : onLabelClick ? 'cursor-text hover:text-cyan-200 transition-colors' : ''
                 }`}
                 style={{ height: `${rowRem}rem` }}
               >

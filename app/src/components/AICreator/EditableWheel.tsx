@@ -22,10 +22,12 @@ interface EditableWheelProps<T extends WheelOption> {
   ariaLabel: string;
   widthClass?: string;
   tooltip?: React.ReactNode;
+  /** Freezes the wheel (no spin, no click-to-type) — see OptionWheel's `locked`. */
+  locked?: boolean;
 }
 
 function EditableWheel<T extends WheelOption>({
-  options, value, onChange, onCustom, onInteract, paused, ariaLabel, widthClass, tooltip,
+  options, value, onChange, onCustom, onInteract, paused, ariaLabel, widthClass, tooltip, locked,
 }: EditableWheelProps<T>) {
   const displayText = options.find(o => o.id === value)?.label ?? '';
   const [editing, setEditing] = useState(false);
@@ -64,7 +66,8 @@ function EditableWheel<T extends WheelOption>({
         ariaLabel={ariaLabel}
         widthClass={widthClass}
         tooltip={tooltip}
-        onLabelClick={startEdit}
+        onLabelClick={locked ? undefined : startEdit}
+        locked={locked}
       />
     );
   }
