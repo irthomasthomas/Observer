@@ -376,7 +376,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
   return (
     <div
-      className={`relative bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 flex flex-col ${isMinimizing ? 'animate-minimize-to-tray' : ''}`}
+      className={`relative bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 flex flex-col h-full overflow-hidden ${isMinimizing ? 'animate-minimize-to-tray' : ''}`}
       data-tutorial-agent-card={agent.id}
     >
       {isRunning && (
@@ -403,7 +403,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
         </div>
       )}
 
-      <div className="p-5 flex-grow overflow-visible">
+      {/* Scrollable body — the footer below is pinned outside this, so it always
+          stays anchored to the bottom of the card/tile instead of scrolling away. */}
+      <div className="p-5 flex-grow min-h-0 overflow-y-auto overflow-x-hidden">
         <AgentCardHeader
           agentId={agent.id}
           agentName={agent.name}
@@ -469,6 +471,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       </div>
 
       <AgentCardFooter
+        className="flex-shrink-0 rounded-b-xl"
         agentId={agent.id}
         isPythonAgent={isPythonAgent}
         isJupyterConnected={isJupyterConnected()}

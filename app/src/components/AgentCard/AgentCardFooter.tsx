@@ -14,14 +14,15 @@ interface AgentCardFooterProps {
     onShowJupyterModal: () => void;
     onAIEdit?: (agentId: string) => void;
     onMinimize: () => void;
+    className?: string;
 }
 
 const AgentCardFooter: React.FC<AgentCardFooterProps> = ({
     agentId, isPythonAgent, isJupyterConnected, isMemoryFlashing,
-    onEdit, onDelete, onMemory, onActivity, onShowJupyterModal, onAIEdit, onMinimize
+    onEdit, onDelete, onMemory, onActivity, onShowJupyterModal, onAIEdit, onMinimize, className = ''
 }) => {
     return (
-        <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 flex justify-between items-center">
+        <div className={`border-t border-gray-200 bg-gray-50 px-4 py-2 flex justify-between items-center ${className}`}>
             {/* Left Side: Delete + Minimize */}
             <div className="flex items-center gap-2">
                 <button onClick={() => onDelete(agentId)} className="flex items-center justify-center p-2 text-red-600 hover:bg-red-100 rounded-md" title="Delete"><Trash2 className="w-4 h-4" /></button>

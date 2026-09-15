@@ -17,7 +17,7 @@ const AgentCardHeader: React.FC<AgentCardHeaderProps> = ({ agentId, agentName, a
     return (
         <div className="mb-6">
             <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0 pr-4">
+                <div className="agent-drag-handle flex-1 min-w-0 pr-4 cursor-grab active:cursor-grabbing">
                     <h3 className="text-xl font-bold text-gray-800 truncate">{agentName}</h3>
                     <p className="text-sm text-gray-600 mt-1">{agentDescription || "No description provided."}</p>
                 </div>

@@ -6,7 +6,9 @@ import {
 import { CompleteAgent } from '@utils/agent_database';
 import { BROWSER_LOCAL_SENTINEL, LLAMA_CPP_LOCAL_SENTINEL, SKIP_MODEL_SENTINEL } from '@utils/inferenceServer';
 import { ModelManager, LocalModelState } from '@utils/ModelManager';
+import { useElementWidth } from '@hooks/useElementWidth';
 import { detectAgentCapabilities } from './agentCapabilities';
+import { CARD_LAYOUT_BREAKPOINT_PX } from './layoutBreakpoint';
 import SensorModal from './SensorModal';
 import ToolsModal from './ToolsModal';
 import ChangeDetectionSettings from '@components/ChangeDetectionSettings';
@@ -645,21 +647,29 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
         setIsToolsModalOpen(true);
     };
 
+    // Responsive to the card's own rendered width (ResizeObserver), not the
+    // viewport. Cards live in a resizable tiling grid now, so a "desktop"
+    // viewport says nothing about how wide a given card actually is — a
+    // viewport-based `md:` breakpoint here would keep the row layout even on
+    // a narrow card, overflowing it instead of stacking (see git history).
+    const { ref: rowRef, width: rowWidth } = useElementWidth<HTMLDivElement>(750);
+    const isWide = rowWidth >= CARD_LAYOUT_BREAKPOINT_PX;
+
     return (
         <div className="animate-fade-in">
-            {/* 3 Column Layout with Arrows - Responsive: vertical on mobile, horizontal on desktop */}
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-1 md:gap-4">
+            {/* 3 Column Layout with Arrows - stacked when the card is narrow, a row once it's wide enough */}
+            <div ref={rowRef} className={`flex items-center gap-1 ${isWide ? 'flex-row items-start gap-4' : 'flex-col'}`}>
                 {/* Column 1: Sensors */}
-                <div className="flex flex-col flex-1 w-full md:w-auto">
+                <div className={`flex flex-col flex-1 w-full ${isWide ? 'w-auto' : ''}`}>
                     <button
                         onClick={() => setIsSensorModalOpen(true)}
-                        className="flex md:flex-col items-start md:items-center w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
+                        className={`flex w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group ${isWide ? 'flex-col items-center' : 'items-start'}`}
                         title="View system prompt"
                     >
-                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0 transition-colors">
+                        <div className={`flex justify-start w-6 flex-shrink-0 transition-colors ${isWide ? 'mb-4 w-auto' : 'mb-0'}`}>
                             <Eye className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
                         </div>
-                        <div className="flex flex-wrap gap-2 md:flex-col md:space-y-2 items-start md:items-center min-h-[44px] md:min-h-0 flex-1 ml-3 md:ml-0">
+                        <div className={`flex flex-wrap gap-2 items-start min-h-[44px] flex-1 ml-3 ${isWide ? 'flex-col space-y-2 items-center min-h-0 ml-0' : ''}`}>
                             {detectedSensors.length > 0 ? (
                                 detectedSensors.map(sensor => (
                                     <InfoTag key={sensor.key} icon={sensor.icon} label={sensor.label} />
@@ -671,15 +681,15 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                     </button>
                 </div>
 
-                {/* Arrow 1 - Responsive: down on mobile, right on desktop */}
-                <div className="flex items-center justify-start md:justify-center py-2 md:py-0 pl-1 md:pl-0">
-                    <ChevronRight className="w-4 h-4 text-gray-400 rotate-90 md:rotate-0" />
+                {/* Arrow 1 - down when stacked, right once it's a row */}
+                <div className={`flex items-center justify-start py-2 pl-1 ${isWide ? 'justify-center py-0 pl-0' : ''}`}>
+                    <ChevronRight className={`w-4 h-4 text-gray-400 rotate-90 ${isWide ? 'rotate-0' : ''}`} />
                 </div>
 
                 {/* Column 2: Model */}
-                <div className="flex flex-col flex-1 w-full md:w-auto">
-                    {/* Desktop: vertical layout */}
-                    <div className="hidden md:flex flex-col items-center">
+                <div className={`flex flex-col flex-1 w-full ${isWide ? 'w-auto' : ''}`}>
+                    {/* Wide: vertical layout */}
+                    <div className={`flex-col items-center ${isWide ? 'flex' : 'hidden'}`}>
                         <div className="flex justify-center mb-4">
                             <Brain className="w-5 h-5 text-gray-500" />
                         </div>
@@ -739,8 +749,8 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                         </div>
                     </div>
 
-                    {/* Mobile: 3-column grid */}
-                    <div className="grid md:hidden grid-cols-[auto_1fr_auto] gap-3 items-center w-full">
+                    {/* Narrow: 3-column grid */}
+                    <div className={`grid grid-cols-[auto_1fr_auto] gap-3 items-center w-full ${isWide ? 'hidden' : ''}`}>
                         {/* Column 1: Brain icon */}
                         <div className="flex items-center justify-center">
                             <Brain className="w-5 h-5 text-gray-500" />
@@ -807,23 +817,23 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                     </div>
                 </div>
 
-                {/* Arrow 2 - Responsive: down on mobile, right on desktop */}
-                <div className="flex items-center justify-start md:justify-center py-2 md:py-0 pl-1 md:pl-0">
-                    <ChevronRight className="w-4 h-4 text-gray-400 rotate-90 md:rotate-0" />
+                {/* Arrow 2 - down when stacked, right once it's a row */}
+                <div className={`flex items-center justify-start py-2 pl-1 ${isWide ? 'justify-center py-0 pl-0' : ''}`}>
+                    <ChevronRight className={`w-4 h-4 text-gray-400 rotate-90 ${isWide ? 'rotate-0' : ''}`} />
                 </div>
 
                 {/* Column 3: Tools */}
-                <div className="flex flex-col flex-1 w-full md:w-auto">
+                <div className={`flex flex-col flex-1 w-full ${isWide ? 'w-auto' : ''}`}>
                     <button
                         onClick={handleOpenToolsModal}
                         data-tutorial-tools-button={agent.id}
-                        className="flex md:flex-col items-start md:items-center w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
+                        className={`flex w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group ${isWide ? 'flex-col items-center' : 'items-start'}`}
                         title="View agent code"
                     >
-                        <div className="flex justify-start mb-0 md:mb-4 w-6 md:w-auto flex-shrink-0 transition-colors">
+                        <div className={`flex justify-start w-6 flex-shrink-0 transition-colors ${isWide ? 'mb-4 w-auto' : 'mb-0'}`}>
                             <Wrench className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />
                         </div>
-                        <div className="flex flex-wrap gap-2 md:flex-col md:space-y-2 items-start md:items-center min-h-[44px] md:min-h-0 flex-1 ml-3 md:ml-0">
+                        <div className={`flex flex-wrap gap-2 items-start min-h-[44px] flex-1 ml-3 ${isWide ? 'flex-col space-y-2 items-center min-h-0 ml-0' : ''}`}>
                             {detectedTools.length > 0 ? (
                                 detectedTools.map(tool => (
                                     <InfoTag

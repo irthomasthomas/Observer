@@ -5,6 +5,8 @@ import { wakeAgentLoop } from '@utils/main_loop';
 import { StreamState, StreamManager } from '@utils/streamManager';
 import { CompleteAgent } from '@utils/agent_database';
 import { useLastTools, useLastCapture } from '@hooks/useIterations';
+import { useElementWidth } from '@hooks/useElementWidth';
+import { CARD_LAYOUT_BREAKPOINT_PX } from './layoutBreakpoint';
 import { DetectionMode } from '@utils/change_detector';
 import { isMobile } from '@utils/platform';
 import ToolStatus from '@components/AgentCard/ToolStatus';
@@ -116,7 +118,7 @@ const ModelStatePanel: React.FC<{
         <img
           src={src}
           alt="Frame sent to the model"
-          className="h-16 w-16 md:h-20 md:w-20 rounded object-cover flex-shrink-0 border border-gray-200"
+          className="h-16 w-16 rounded object-cover flex-shrink-0 border border-gray-200"
         />
       )}
       {/* Right: live status, then the prompt that went with the frame. */}
@@ -461,9 +463,18 @@ const ActiveAgentView: React.FC<ActiveAgentViewProps> = ({
         return () => StreamManager.setPipOverlayStatus(null);
     }, [liveStatus, loopProgress, sleepProgress, loopDurationMs, sleepDurationMs, isOverrun]);
 
+    // Responsive to the card's own rendered width (ResizeObserver), not the
+    // viewport — this card lives in a resizable tiling grid, so a "desktop"
+    // viewport says nothing about how wide this particular tile is.
+    const { ref: gridRef, width: gridWidth } = useElementWidth<HTMLDivElement>(750);
+    const isWide = gridWidth >= CARD_LAYOUT_BREAKPOINT_PX;
+
     return (
         <>
-            <div className={`grid ${isMobile() ? 'grid-cols-1' : 'md:grid-cols-2'} md:gap-6 animate-fade-in overflow-visible`}>
+            <div
+                ref={gridRef}
+                className={`grid animate-fade-in overflow-visible ${isWide ? 'grid-cols-2 gap-6' : 'grid-cols-1'}`}
+            >
                 {/* Left Column: Sensor Previews */}
                 <SensorPreviewPanel
                     agentId={agentId}

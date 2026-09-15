@@ -8,6 +8,9 @@ import { platform as getPlatform } from '@tauri-apps/plugin-os';
 import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
+import { useAgentGridLayout, GRID_ROW_HEIGHT, GRID_MARGIN } from '@hooks/useAgentGridLayout';
+import GridLayout from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
 import { isMobile, confirm, isDesktop, getPlatformName } from '@utils/platform';
 import { version as appVersion } from '../../package.json';
 import type { QuotaInfo } from '@/types/quota';
@@ -773,6 +776,22 @@ function AppContent() {
     });
   }, [agents, runningAgents, startingAgents]);
 
+  // Tiling grid layout for the (non-minimized) agent cards — drag to move,
+  // drag the corner to resize, position/size persisted per agent.
+  const visibleAgentIds = useMemo(
+    () => sortedAgents.filter(a => !minimizedAgents.has(a.id)).map(a => a.id),
+    [sortedAgents, minimizedAgents]
+  );
+  const {
+    layout: gridLayout,
+    onDragStop: onGridDragStop,
+    onResizeStop: onGridResizeStop,
+    containerRef: gridContainerRef,
+    width: gridWidth,
+    cols: gridCols,
+    mounted: gridMounted,
+  } = useAgentGridLayout(visibleAgentIds);
+
   // Hero (full-width MCP co-pilot) when there are no agents OR all of them are minimized.
   // Show GetStarted when no agents exist OR all are minimized
   const showGetStarted = agents.length === 0 || minimizedAgents.size === agents.length;
@@ -900,46 +919,94 @@ function AppContent() {
               onRefresh={fetchAgents}
             />
 
-            <div className="flex flex-wrap gap-6 items-start overflow-x-hidden">
-              {sortedAgents.map(agent => {
-                const isMinimized = minimizedAgents.has(agent.id);
-                const isAgentLive = runningAgents.has(agent.id) || startingAgents.has(agent.id);
-                return (
-                  <div
-                    key={agent.id}
-                    className={`flex-shrink-0 transition-all duration-700 ease-in-out ${
-                      isAgentLive ? 'w-full' : 'w-full xl:w-[calc(50%-12px)]'
-                    } ${isMinimized ? 'hidden' : ''}`}
-                  >
-                    <AgentCard
-                      agent={agent}
-                      code={agentCodes[agent.id]}
-                      isRunning={runningAgents.has(agent.id)}
-                      isStarting={startingAgents.has(agent.id)}
-                      isMemoryFlashing={flashingMemories.has(agent.id)}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteClick}
-                      onToggle={toggleAgent}
-                      onMemory={handleMemoryClick}
-                      onActivity={handleActivityClick}
-                      onShowJupyterModal={() => setIsJupyterModalOpen(true)}
-                      getToken={getToken}
-                      isAuthenticated={isAuthenticated}
-                      hasQuotaError={agentsWithQuotaError.has(agent.id)}
-                      onUpgradeClick={() => {
-                        setIsHalfwayWarning(false);
-                        setIsUpgradeModalOpen(true);
-                      }}
-                      onSave={handleSaveAgent}
-                      isProUser={isProUser}
-                      onAIEdit={handleAIEditClick}
-                      hostingContext={hostingContext}
-                      onMinimize={() => handleMinimize(agent.id)}
-                      isMinimized={minimizedAgents.has(agent.id)}
-                    />
-                  </div>
-                );
-              })}
+            {/* Tiling grid — drag a card by its title to move it, drag the bottom-right
+                corner to resize. Position/size persist per agent (see useAgentGridLayout). */}
+            <div ref={gridContainerRef as React.Ref<HTMLDivElement>} className="overflow-x-hidden">
+              {gridMounted && (
+                <GridLayout
+                  layout={gridLayout}
+                  width={gridWidth}
+                  gridConfig={{ cols: gridCols, rowHeight: GRID_ROW_HEIGHT, margin: GRID_MARGIN }}
+                  dragConfig={{
+                    enabled: !isMobile(),
+                    bounded: true,
+                    handle: '.agent-drag-handle',
+                    cancel: 'button, a, input, textarea, select, [data-no-drag]',
+                  }}
+                  resizeConfig={{ enabled: !isMobile() }}
+                  onDragStop={onGridDragStop}
+                  onResizeStop={onGridResizeStop}
+                >
+                  {gridLayout.map(item => {
+                    const agent = sortedAgents.find(a => a.id === item.i);
+                    if (!agent) return null;
+                    return (
+                      <div key={agent.id} className="h-full">
+                        <AgentCard
+                          agent={agent}
+                          code={agentCodes[agent.id]}
+                          isRunning={runningAgents.has(agent.id)}
+                          isStarting={startingAgents.has(agent.id)}
+                          isMemoryFlashing={flashingMemories.has(agent.id)}
+                          onEdit={handleEditClick}
+                          onDelete={handleDeleteClick}
+                          onToggle={toggleAgent}
+                          onMemory={handleMemoryClick}
+                          onActivity={handleActivityClick}
+                          onShowJupyterModal={() => setIsJupyterModalOpen(true)}
+                          getToken={getToken}
+                          isAuthenticated={isAuthenticated}
+                          hasQuotaError={agentsWithQuotaError.has(agent.id)}
+                          onUpgradeClick={() => {
+                            setIsHalfwayWarning(false);
+                            setIsUpgradeModalOpen(true);
+                          }}
+                          onSave={handleSaveAgent}
+                          isProUser={isProUser}
+                          onAIEdit={handleAIEditClick}
+                          hostingContext={hostingContext}
+                          onMinimize={() => handleMinimize(agent.id)}
+                          isMinimized={false}
+                        />
+                      </div>
+                    );
+                  })}
+                </GridLayout>
+              )}
+            </div>
+
+            {/* Minimized cards stay mounted (off-grid, hidden) so their agent-loop
+                subscriptions and local state survive being tucked into the footer tray. */}
+            <div className="hidden">
+              {sortedAgents.filter(agent => minimizedAgents.has(agent.id)).map(agent => (
+                <AgentCard
+                  key={agent.id}
+                  agent={agent}
+                  code={agentCodes[agent.id]}
+                  isRunning={runningAgents.has(agent.id)}
+                  isStarting={startingAgents.has(agent.id)}
+                  isMemoryFlashing={flashingMemories.has(agent.id)}
+                  onEdit={handleEditClick}
+                  onDelete={handleDeleteClick}
+                  onToggle={toggleAgent}
+                  onMemory={handleMemoryClick}
+                  onActivity={handleActivityClick}
+                  onShowJupyterModal={() => setIsJupyterModalOpen(true)}
+                  getToken={getToken}
+                  isAuthenticated={isAuthenticated}
+                  hasQuotaError={agentsWithQuotaError.has(agent.id)}
+                  onUpgradeClick={() => {
+                    setIsHalfwayWarning(false);
+                    setIsUpgradeModalOpen(true);
+                  }}
+                  onSave={handleSaveAgent}
+                  isProUser={isProUser}
+                  onAIEdit={handleAIEditClick}
+                  hostingContext={hostingContext}
+                  onMinimize={() => handleMinimize(agent.id)}
+                  isMinimized={true}
+                />
+              ))}
             </div>
           </div>
 
