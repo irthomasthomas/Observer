@@ -27,9 +27,11 @@ import {
   Blend,
   Images,
   Info,
+  Settings,
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { useEditAgentModalLogic } from './useEditAgentModalLogic';
+import ChangeDetectionSettings from '@components/ChangeDetectionSettings';
 
 import LazyCodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
@@ -187,6 +189,17 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
   availableModels, loopInterval, setLoopInterval, onlyOnSignificantChange, setOnlyOnSignificantChange,
   description, setDescription, isProUser = false,
 }) => {
+  const [isChangeSettingsOpen, setIsChangeSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isChangeSettingsOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsChangeSettingsOpen(false);
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isChangeSettingsOpen]);
+
   return (
     <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
       {/* Mobile-only header */}
@@ -275,11 +288,21 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
           </div>
           <div className="flex-1">
             <label className="block text-gray-600 mb-1 flex items-center"><Zap size={14} className="mr-1.5 text-gray-500" />Only on Change</label>
-            <label className="relative inline-flex items-center cursor-pointer mt-1">
-              <input type="checkbox" checked={onlyOnSignificantChange} onChange={(e) => setOnlyOnSignificantChange(e.target.checked)} className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              <span className="ml-3 text-sm font-medium text-gray-700">{onlyOnSignificantChange ? 'On' : 'Off'}</span>
-            </label>
+            <div className="flex items-center gap-2 mt-1">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={onlyOnSignificantChange} onChange={(e) => setOnlyOnSignificantChange(e.target.checked)} className="sr-only peer" />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <span className="ml-3 text-sm font-medium text-gray-700">{onlyOnSignificantChange ? 'On' : 'Off'}</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsChangeSettingsOpen(true)}
+                className="p-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-indigo-600 transition-colors"
+                title="Change detection settings"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
           <div className="col-span-1 sm:col-span-2">
@@ -287,6 +310,34 @@ const ConfigContent: React.FC<ConfigContentProps> = ({
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full p-2 bg-gray-100 border-gray-300 rounded-md" placeholder="Optional description" />
           </div>
         </div>
+
+      {isChangeSettingsOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
+          onClick={() => setIsChangeSettingsOpen(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto m-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Change Detection Settings</h2>
+              <button
+                onClick={() => setIsChangeSettingsOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <ChangeDetectionSettings
+                compact={true}
+                focusedThreshold="dhash"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

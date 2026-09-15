@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Zap, Settings, Cloud, Download, Cpu, CheckCircle, FileDown, StopCircle, MinusCircle
+    Brain, Clock, Eye, ChevronDown, AlertTriangle, Server, Wrench, ChevronRight, Cloud, Download, Cpu, CheckCircle, FileDown, StopCircle, MinusCircle
 } from 'lucide-react';
 import { CompleteAgent } from '@utils/agent_database';
 import { BROWSER_LOCAL_SENTINEL, LLAMA_CPP_LOCAL_SENTINEL, SKIP_MODEL_SENTINEL } from '@utils/inferenceServer';
@@ -11,7 +11,6 @@ import { detectAgentCapabilities } from './agentCapabilities';
 import { CARD_LAYOUT_BREAKPOINT_PX } from './layoutBreakpoint';
 import SensorModal from './SensorModal';
 import ToolsModal from './ToolsModal';
-import ChangeDetectionSettings from '@components/ChangeDetectionSettings';
 
 
 
@@ -548,7 +547,6 @@ interface StaticAgentViewProps {
     code?: string;
     currentModel: string;
     onModelChange: (modelName: string) => void;
-    onToggleSignificantChange: (enabled: boolean) => void;
     onSystemPromptChange?: (newPrompt: string) => void;
     onCodeChange?: (newCode: string) => void;
     startWarning: string | null;
@@ -563,7 +561,6 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     code,
     currentModel,
     onModelChange,
-    onToggleSignificantChange,
     onSystemPromptChange,
     onCodeChange,
     startWarning,
@@ -575,7 +572,6 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
     const [detectedTools, setDetectedTools] = useState<any[]>([]);
     const [isSensorModalOpen, setIsSensorModalOpen] = useState(false);
     const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
-    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [currentModelInfo, setCurrentModelInfo] = useState<{ server?: string; ownedBy?: string; status?: 'loaded' | 'loading' | 'unloaded' | 'unloading' | 'error'; localModelId?: string } | null>(null);
 
     // Look up current model info for location indicator
@@ -631,17 +627,6 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
 
         loadCapabilities();
     }, [agent.system_prompt, code, hostingContext]);
-
-    // ESC key to close settings modal
-    useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && isSettingsModalOpen) {
-                setIsSettingsModalOpen(false);
-            }
-        };
-        window.addEventListener('keydown', handleEscape);
-        return () => window.removeEventListener('keydown', handleEscape);
-    }, [isSettingsModalOpen]);
 
     const handleOpenToolsModal = () => {
         setIsToolsModalOpen(true);
@@ -708,43 +693,9 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                                     />
                                 )}
                             </div>
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1" data-tutorial-loop-timer={agent.id}>
-                                    <Clock className="w-4 h-4 text-gray-500" />
-                                    <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="relative group">
-                                        <button
-                                            onClick={() => onToggleSignificantChange(!(agent.only_on_significant_change ?? false))}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
-                                                (agent.only_on_significant_change ?? false)
-                                                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                            }`}
-                                        >
-                                            <Zap className="w-4 h-4" />
-                                            <span className="text-xs font-medium">
-                                                {(agent.only_on_significant_change ?? false) ? 'On' : 'Off'}
-                                            </span>
-                                        </button>
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                            Only run model when there's significant change in inputs
-                                        </div>
-                                    </div>
-                                    <div className="relative group">
-                                        <button
-                                            onClick={() => setIsSettingsModalOpen(true)}
-                                            className="p-0.5 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-indigo-600 transition-colors"
-                                            title="Change detection settings"
-                                        >
-                                            <Settings className="w-3 h-3" />
-                                        </button>
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                            Configure change detection sensitivity
-                                        </div>
-                                    </div>
-                                </div>
+                            <div className="flex items-center gap-1" data-tutorial-loop-timer={agent.id}>
+                                <Clock className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
                             </div>
                         </div>
                     </div>
@@ -772,47 +723,10 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                             )}
                         </div>
 
-                        {/* Column 3: Timer, Flash button, and Settings button stacked */}
-                        <div className="flex flex-col gap-1.5 items-center">
-                            {/* Timer */}
-                            <div className="flex items-center gap-1" data-tutorial-loop-timer={agent.id}>
-                                <Clock className="w-4 h-4 text-gray-500" />
-                                <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
-                            </div>
-
-                            {/* Flash button and Settings button side by side */}
-                            <div className="flex items-center gap-1.5">
-                                <div className="relative group">
-                                    <button
-                                        onClick={() => onToggleSignificantChange(!(agent.only_on_significant_change ?? false))}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
-                                            (agent.only_on_significant_change ?? false)
-                                                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                    >
-                                        <Zap className="w-4 h-4" />
-                                        <span className="text-xs font-medium">
-                                            {(agent.only_on_significant_change ?? false) ? 'On' : 'Off'}
-                                        </span>
-                                    </button>
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                        Only run model when there's significant change in inputs
-                                    </div>
-                                </div>
-                                <div className="relative group">
-                                    <button
-                                        onClick={() => setIsSettingsModalOpen(true)}
-                                        className="p-0.5 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-indigo-600 transition-colors"
-                                        title="Change detection settings"
-                                    >
-                                        <Settings className="w-3 h-3" />
-                                    </button>
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                        Configure change detection sensitivity
-                                    </div>
-                                </div>
-                            </div>
+                        {/* Column 3: Timer */}
+                        <div className="flex items-center gap-1" data-tutorial-loop-timer={agent.id}>
+                            <Clock className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-600">{agent.loop_interval_seconds}s</span>
                         </div>
                     </div>
                 </div>
@@ -880,37 +794,6 @@ const StaticAgentView: React.FC<StaticAgentViewProps> = ({
                 getToken={getToken}
                 onCodeChange={onCodeChange}
             />
-
-            {/* Change Detection Settings Modal */}
-            {isSettingsModalOpen && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
-                    onClick={() => setIsSettingsModalOpen(false)}
-                >
-                    <div
-                        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto m-4"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-900">Change Detection Settings</h2>
-                            <button
-                                onClick={() => setIsSettingsModalOpen(false)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="p-6">
-                            <ChangeDetectionSettings
-                                compact={true}
-                                focusedThreshold="dhash"
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

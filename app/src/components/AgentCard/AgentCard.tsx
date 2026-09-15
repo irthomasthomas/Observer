@@ -130,12 +130,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
     }
   }, [currentModel, agent, code, onSave]);
 
-  const handleToggleSignificantChange = async (enabled: boolean) => {
-    if (onSave && code !== undefined) {
-      await onSave({ ...agent, only_on_significant_change: enabled }, code);
-    }
-  };
-
   const handleSystemPromptChange = async (newPrompt: string) => {
     if (onSave && code !== undefined) {
       await onSave({ ...agent, system_prompt: newPrompt }, code);
@@ -456,7 +450,6 @@ const AgentCard: React.FC<AgentCardProps> = ({
               code={code}
               currentModel={currentModel}
               onModelChange={setCurrentModel}
-              onToggleSignificantChange={handleToggleSignificantChange}
               onSystemPromptChange={handleSystemPromptChange}
               onCodeChange={handleCodeChange}
               startWarning={startWarning}
