@@ -359,16 +359,18 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
             {tutorialBubble("Perfect! I have everything I need, click build it and I'll handle the rest.")}
           </div>
         )}
-        {/* Never disabled: whatever the wheels show is buildable. */}
+        {/* Whatever the wheels show is buildable — except during the 'hello' tutorial
+            step, where the user hasn't yet accepted or skipped the walkthrough. */}
         <button
           onClick={handleBuild}
+          disabled={tutorialStep === 'hello'}
           // Pointer-down covers touch, where there's no hover to settle the wheels on.
           onPointerDown={() => setAiming(true)}
           onMouseEnter={() => setAiming(true)}
           onMouseLeave={() => setAiming(false)}
           onFocus={() => setAiming(true)}
           onBlur={() => setAiming(false)}
-          className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-white text-slate-900 font-bold text-xl md:text-2xl shadow-[0_0_40px_-8px_rgba(255,255,255,0.6)] hover:shadow-[0_0_60px_-6px_rgba(255,255,255,0.8)] hover:scale-[1.02] transition-all"
+          className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-white text-slate-900 font-bold text-xl md:text-2xl shadow-[0_0_40px_-8px_rgba(255,255,255,0.6)] hover:shadow-[0_0_60px_-6px_rgba(255,255,255,0.8)] hover:scale-[1.02] transition-all disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-[0_0_40px_-8px_rgba(255,255,255,0.6)]"
         >
           Build it
           <ArrowRight className="h-6 w-6" />
