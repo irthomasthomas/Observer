@@ -59,9 +59,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
                     <h2 className="text-gray-900 text-lg font-semibold">
                       Observer
                     </h2>
-                    <p className="hidden md:block text-gray-600 text-sm">
-                      Describe what you want your agent to do
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
