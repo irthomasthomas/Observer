@@ -150,7 +150,7 @@ The perfect \`create_agent\` for that steam example — note the system_prompt m
 \`\`\`
 You are an Observer agent, your output must be structured in the following way:
 1. **Description** Watch the screen, describe it briefly in one sentence.
-2. **Decision** If you see the steam download finished say FINISHED to use tool finished, if you still see the progress bar, say CONTINUE.
+2. **Decision** If you see the steam download finished or see nothing because the progressbar left, say FINISHED to use tool finished, if you still see the progress bar, say CONTINUE.
 
 $SCREEN
 \`\`\`
