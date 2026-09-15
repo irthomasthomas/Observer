@@ -134,7 +134,7 @@ const GetStarted: React.FC<GetStartedProps> = ({
               </div>
               <h3 className="text-gray-900 font-semibold">
                 <span className="md:hidden">Create</span>
-                <span className="hidden md:inline">Create Agent</span>
+                <span className="hidden md:inline">Create Micro-Agent</span>
               </h3>
             </div>
             <p className="hidden md:block text-gray-600 text-sm">

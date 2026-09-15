@@ -463,7 +463,7 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
     <Modal open={isOpen} onClose={handleCloseAndReset} onRequestClose={handleRequestClose} className="w-full max-w-4xl h-[700px] flex flex-col relative">
       {showConfirmClose && <ConfirmCloseOverlay onConfirm={handleCloseAndReset} onCancel={() => setShowConfirmClose(false)} />}
       <div className="p-6 border-b flex-shrink-0 relative">
-        <h2 className="text-2xl font-bold text-gray-900">Create a New Agent</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Create a New Micro-Agent</h2>
         <p className="text-gray-500 mt-1">Step {step} of 3: {step === 1 ? 'Setup' : step === 2 ? 'Prompt' : 'Actions'}</p>
         <button onClick={restartTutorial} title="Restart tutorial" className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
           <HelpCircle className="h-5 w-5" />
@@ -681,10 +681,13 @@ const SimpleCreatorModal: React.FC<SimpleCreatorModalProps> = ({ isOpen, onClose
                     />
                   </div>
                 ) : <div className="flex-1" />}
-                <button data-tutorial="finish-button" onClick={handleNext} disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)} className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                  {buttonText}
-                  {step < 3 && <ArrowRight className="h-5 w-5 ml-2" />}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleRequestClose} className="inline-flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-md">Cancel</button>
+                  <button data-tutorial="finish-button" onClick={handleNext} disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)} className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                    {buttonText}
+                    {step < 3 && <ArrowRight className="h-5 w-5 ml-2" />}
+                  </button>
+                </div>
               </div>
             </>
           );
