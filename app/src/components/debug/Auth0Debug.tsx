@@ -16,7 +16,7 @@ export const Auth0Debug = () => {
   const fetchToken = async () => {
     try {
       const accessToken = await getAccessTokenSilently();
-      setToken(accessToken);
+      setToken(accessToken ?? null);
       setTokenError(null);
     } catch (err) {
       setToken(null);
