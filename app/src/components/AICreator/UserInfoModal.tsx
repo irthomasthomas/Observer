@@ -400,17 +400,19 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
   return (
     <Modal open onClose={skip} className="w-full max-w-xl mx-4">
       {/* Header */}
-      <div className="flex items-start gap-3 px-6 py-4 rounded-t-lg bg-gradient-to-br from-purple-600 to-indigo-600 text-white">
-        <div className="flex-shrink-0 mt-0.5">{KIND_ICON[kind]}</div>
+      <div className="flex items-start gap-3 px-6 py-4 rounded-t-lg border-b border-gray-100">
+        <div className="flex-shrink-0 mt-0.5 flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 text-gray-700">
+          {KIND_ICON[kind]}
+        </div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold leading-tight">{title}</h2>
-          {req.reason && <p className="text-sm text-white/80 mt-0.5">{req.reason}</p>}
+          <h2 className="text-lg font-semibold leading-tight text-gray-900">{title}</h2>
+          {req.reason && <p className="text-sm text-gray-500 mt-0.5">{req.reason}</p>}
         </div>
         <button
           onClick={skip}
           aria-label="Skip"
           title="Skip — I'll do this later"
-          className="flex-shrink-0 p-1 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          className="flex-shrink-0 p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
         >
           <X className="h-5 w-5" />
         </button>

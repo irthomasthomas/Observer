@@ -18,14 +18,14 @@ interface AttributionSplashProps {
 
 // Ordered by actual channel strength (Reddit is the biggest driver right now), not
 // alphabetically — first options get the most eyeballs.
-const OPTIONS: { id: AttributionSource; label: string; emoji: string }[] = [
-  { id: 'reddit', label: 'Reddit', emoji: '👽' },
-  { id: 'github', label: 'GitHub', emoji: '💻' },
-  { id: 'google', label: 'Google', emoji: '🔎' },
-  { id: 'youtube', label: 'YouTube', emoji: '▶️' },
-  { id: 'tiktok', label: 'TikTok', emoji: '🎵' },
-  { id: 'instagram', label: 'Instagram', emoji: '📸' },
-  { id: 'friend', label: 'A friend told me', emoji: '🗣️' },
+const OPTIONS: { id: AttributionSource; label: string }[] = [
+  { id: 'reddit', label: 'Reddit' },
+  { id: 'github', label: 'GitHub' },
+  { id: 'google', label: 'Google' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'tiktok', label: 'TikTok' },
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'friend', label: 'A friend told me' },
 ];
 
 export const AttributionSplash: React.FC<AttributionSplashProps> = ({ isOpen, onDone }) => {
@@ -49,13 +49,13 @@ export const AttributionSplash: React.FC<AttributionSplashProps> = ({ isOpen, on
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] backdrop-blur-sm p-2 md:p-4">
       <div className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg overflow-hidden transition-all duration-300">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-5">
-          <div className="flex items-center gap-3">
-            <Compass className="h-8 w-8 flex-shrink-0" />
-            <div>
-              <h2 className="text-xl font-bold">One quick question</h2>
-              <p className="text-sm text-blue-100 mt-1">Where did you hear about Observer?</p>
-            </div>
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100">
+          <div className="flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 flex-shrink-0">
+            <Compass className="h-5 w-5 text-gray-700" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">One quick question</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Where did you hear about Observer?</p>
           </div>
         </div>
 
@@ -67,17 +67,15 @@ export const AttributionSplash: React.FC<AttributionSplashProps> = ({ isOpen, on
                   <button
                     key={opt.id}
                     onClick={() => choose(opt.id)}
-                    className="flex items-center gap-2.5 px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-colors text-left"
+                    className="px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
                   >
-                    <span className="text-lg">{opt.emoji}</span>
                     <span className="text-sm font-medium text-gray-800">{opt.label}</span>
                   </button>
                 ))}
                 <button
                   onClick={() => setShowOther(true)}
-                  className="flex items-center gap-2.5 px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-colors text-left"
+                  className="px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
                 >
-                  <span className="text-lg">✨</span>
                   <span className="text-sm font-medium text-gray-800">Other</span>
                 </button>
               </div>
@@ -98,11 +96,11 @@ export const AttributionSplash: React.FC<AttributionSplashProps> = ({ isOpen, on
                 onChange={e => setOtherText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') submitOther(); }}
                 placeholder="Where did you hear about us?"
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-gray-800"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm text-gray-800"
               />
               <button
                 onClick={submitOther}
-                className="w-full mt-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-semibold text-sm"
+                className="w-full mt-3 px-6 py-3 bg-gray-900 text-white rounded-full hover:bg-black transition-colors font-medium text-sm"
               >
                 Continue
               </button>

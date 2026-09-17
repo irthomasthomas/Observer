@@ -842,51 +842,51 @@ ${reportComment}
   return (
     <div className="mt-4">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Community Agents</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Community Agents</h2>
         <div className="flex items-center space-x-2">
-          <button 
+          <button
             onClick={fetchAgents}
-            className="flex items-center space-x-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+            className="flex items-center space-x-2 px-3 py-2 rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
             disabled={isLoadingAgents}
           >
             <RefreshCw className={`h-4 w-4 ${isLoadingAgents ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
-          
+
           <button
             onClick={handleUploadClick}
-            className="flex items-center space-x-2 px-3 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200"
+            className="flex items-center space-x-2 px-3 py-2 rounded-full bg-gray-900 text-white hover:bg-black transition-colors text-sm font-medium"
           >
             <Upload className="h-4 w-4" />
             <span>Upload Agent</span>
           </button>
         </div>
       </div>
-      
+
       {!isAuthenticated && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md flex items-center">
-          <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
-          <p className="text-sm text-yellow-700">
+        <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center">
+          <AlertTriangle className="h-5 w-5 mr-2 text-gray-400 flex-shrink-0" />
+          <p className="text-sm text-gray-600">
             You need to sign in to upload agents to the community.
           </p>
         </div>
       )}
-      
+
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl">
           {error}
         </div>
       )}
-      
+
       {isLoadingAgents ? (
         <div className="text-center p-8">
           <div className="inline-block animate-spin mr-2">
-            <RefreshCw className="h-6 w-6 text-blue-500" />
+            <RefreshCw className="h-6 w-6 text-gray-400" />
           </div>
-          <span>Loading community agents...</span>
+          <span className="text-gray-500">Loading community agents...</span>
         </div>
       ) : agents.length === 0 ? (
-        <div className="text-center p-8 bg-gray-50 rounded-md">
+        <div className="text-center p-8 bg-gray-50 rounded-xl border border-gray-200">
           <p className="text-gray-500">No community agents available</p>
         </div>
       ) : (
@@ -894,25 +894,25 @@ ${reportComment}
           {sortedAgents.map(agent => (
             <div
               key={agent.id}
-              className={`bg-white rounded-lg shadow-md p-4 flex flex-col ${
+              className={`bg-white rounded-2xl border p-4 flex flex-col transition-shadow hover:shadow-sm ${
                 agent.featured_order != null
-                  ? 'ring-2 ring-yellow-400 ring-offset-2'
-                  : ''
+                  ? 'border-amber-300 ring-1 ring-amber-200'
+                  : 'border-gray-200'
               }`}
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">{agent.name}</h3>
-                <div className="flex space-x-2">
+                <h3 className="text-lg font-semibold text-gray-900">{agent.name}</h3>
+                <div className="flex space-x-1">
                   <button
                     onClick={() => viewDetails(agent)}
-                    className="p-2 rounded-md hover:bg-gray-100"
+                    className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                     title="View details"
                   >
                     <Info className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => handleShare(agent)}
-                    className="p-2 rounded-md hover:bg-gray-100 relative"
+                    className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors relative"
                     title="Copy share link"
                     style={{ overflow: 'visible' }}
                   >
@@ -923,7 +923,7 @@ ${reportComment}
                     <>
                       <button
                         onClick={() => handleEditClick(agent)}
-                        className="p-2 rounded-md hover:bg-green-100 text-green-600"
+                        className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                         title="Edit your agent"
                       >
                         <Edit className="h-5 w-5" />
@@ -931,7 +931,7 @@ ${reportComment}
                       <button
                         onClick={() => handleDeleteAgent(agent)}
                         disabled={isDeleting === agent.id}
-                        className="p-2 rounded-md hover:bg-red-100 text-red-500 disabled:opacity-50"
+                        className="p-2 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
                         title="Delete your agent"
                       >
                         <Trash2 className={`h-5 w-5 ${isDeleting === agent.id ? 'animate-pulse' : ''}`} />
@@ -940,33 +940,33 @@ ${reportComment}
                   )}
                 </div>
               </div>
-              
+
               <div className="flex-1">
-                <div className="mb-4">
+                <div className="mb-4 flex flex-wrap gap-2">
                   {agent.featured_order != null && (
-                    <span className="inline-block px-2 py-1 rounded-full text-sm bg-yellow-100 text-yellow-700 font-semibold">
-                      ⭐ Featured
+                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                      Featured
                     </span>
                   )}
 
-                  <span className={`inline-block px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-700 ${agent.featured_order != null ? 'ml-2' : ''}`}>
+                  <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                     Community
                   </span>
 
                   {isAuthorOfAgent(agent) && (
-                    <span className="inline-block ml-2 px-2 py-1 rounded-full text-sm bg-green-100 text-green-700">
+                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700">
                       Your Agent
                     </span>
                   )}
                 </div>
-              
+
                 <div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-500">
                     Model: {agent.model_name}
                   </p>
-                  <p className="mt-2 text-sm">{agent.description}</p>
+                  <p className="mt-2 text-sm text-gray-700">{agent.description}</p>
                   {agent.author && !isIOS() && (
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-400">
                       Contributed by: {agent.author}
                       {agent.date_added && (
                         <span> • {new Date(agent.date_added).toLocaleDateString()}</span>
@@ -975,8 +975,8 @@ ${reportComment}
                   )}
                 </div>
               </div>
-              
-              <div className="mt-auto pt-4 flex items-center space-x-4">
+
+              <div className="mt-auto pt-4 flex items-center space-x-3">
                 <button
                   onClick={async () => {
                     const fullAgent = await handleGetAgent(agent.id);
@@ -984,17 +984,17 @@ ${reportComment}
                       await handleImport(fullAgent);
                     }
                   }}
-                  className={`px-4 py-2 rounded-md flex items-center gap-2 ${
+                  className={`px-4 py-2 rounded-full flex items-center gap-2 text-sm font-medium transition-colors ${
                     importing === agent.id
-                      ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                      ? 'bg-gray-300 text-gray-600'
+                      : 'bg-gray-900 text-white hover:bg-black'
                   }`}
                 >
                   <Download className={`h-4 w-4 ${importing === agent.id ? 'animate-pulse' : ''}`} />
                   {importing === agent.id ? 'Importing...' : 'Import'}
                 </button>
 
-                <div className="text-sm bg-gray-100 px-2 py-1 rounded">
+                <div className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1.5 rounded-full">
                   {agent.loop_interval_seconds}s
                 </div>
               </div>
@@ -1038,7 +1038,7 @@ ${reportComment}
                 <p className="break-words"><strong>Description:</strong> {selectedAgent.description}</p>
                 
                 {selectedAgent.author && !isIOS() && (
-                  <div className="mt-2 p-2 bg-blue-50 rounded-md text-sm">
+                  <div className="mt-2 p-2 bg-gray-50 rounded-lg text-sm">
                     <p><strong>Author:</strong> {selectedAgent.author}</p>
                     {selectedAgent.date_added && (
                       <p><strong>Added:</strong> {new Date(selectedAgent.date_added).toLocaleString()}</p>
@@ -1069,7 +1069,7 @@ ${reportComment}
                 onClick={() => {
                   handleReportClick(selectedAgent);
                 }}
-                className="px-4 py-3 sm:py-2 rounded-md border border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 order-last sm:order-first"
+                className="px-4 py-3 sm:py-2 rounded-full border border-gray-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 order-last sm:order-first transition-colors"
               >
                 <Flag className="h-4 w-4" />
                 Report
@@ -1077,7 +1077,7 @@ ${reportComment}
               <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3">
                 <button
                   onClick={() => handleShare(selectedAgent)}
-                  className="px-4 py-3 sm:py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors relative"
+                  className="px-4 py-3 sm:py-2 rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors relative"
                   style={{ overflow: 'visible' }}
                 >
                   <Link className="h-4 w-4" />
@@ -1090,7 +1090,7 @@ ${reportComment}
                       handleEditClick(selectedAgent);
                       closeDetails();
                     }}
-                    className="px-4 py-3 sm:py-2 rounded-md bg-green-500 text-white hover:bg-green-600"
+                    className="px-4 py-3 sm:py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition-colors"
                   >
                     Edit Agent
                   </button>
@@ -1100,7 +1100,7 @@ ${reportComment}
                     handleImport(selectedAgent);
                     closeDetails();
                   }}
-                  className="px-4 py-3 sm:py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"
+                  className="px-4 py-3 sm:py-2 rounded-full bg-gray-900 text-white hover:bg-black transition-colors"
                 >
                   Import Agent
                 </button>

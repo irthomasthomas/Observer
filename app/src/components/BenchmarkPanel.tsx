@@ -240,7 +240,7 @@ const BenchmarkPanel: React.FC<BenchmarkPanelProps> = ({ isVisible }) => {
     <div className="space-y-5">
       {/* Active model info or no model warning */}
       {backendInfo.backend ? (
-        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
+        <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl">
           <div className="w-10 h-10 rounded-lg bg-green-200 flex items-center justify-center">
             <Cpu size={20} className="text-green-700" />
           </div>
@@ -330,7 +330,7 @@ const BenchmarkPanel: React.FC<BenchmarkPanelProps> = ({ isVisible }) => {
           placeholder={capturedImage ? "Describe what you want to know about the image..." : "Enter a test prompt..."}
           rows={3}
           disabled={isGenerating || !backendInfo.backend}
-          className="w-full p-3 text-sm border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full p-3 text-sm border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
         />
 
         {/* Run/Stop button */}
@@ -349,7 +349,7 @@ const BenchmarkPanel: React.FC<BenchmarkPanelProps> = ({ isVisible }) => {
             className={`w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors ${
               capturedImage
                 ? 'bg-purple-600 hover:bg-purple-700'
-                : 'bg-orange-500 hover:bg-orange-600'
+                : 'bg-purple-600 hover:bg-purple-700'
             }`}
           >
             {capturedImage && <ImageIcon size={14} />}
@@ -371,17 +371,17 @@ const BenchmarkPanel: React.FC<BenchmarkPanelProps> = ({ isVisible }) => {
             <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">Response</div>
             <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 max-h-48 overflow-y-auto whitespace-pre-wrap font-mono leading-relaxed">
               {testResponse}
-              {isGenerating && <span className="inline-block w-2 h-4 bg-orange-500 ml-0.5 animate-pulse" />}
+              {isGenerating && <span className="inline-block w-2 h-4 bg-purple-600 ml-0.5 animate-pulse" />}
             </div>
           </div>
         )}
 
         {/* Metrics display */}
         {testMetrics && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
             <div className="flex items-center gap-1">
               <span className="text-gray-500">Tokens/sec:</span>
-              <span className="font-mono font-semibold text-orange-700">{testMetrics.tokensPerSecond.toFixed(1)}</span>
+              <span className="font-mono font-semibold text-purple-700">{testMetrics.tokensPerSecond.toFixed(1)}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-gray-500">TTFT:</span>

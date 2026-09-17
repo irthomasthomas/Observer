@@ -125,7 +125,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
           <div className="p-4 md:p-8">
             {/* Header */}
             <div className="mb-3 md:mb-6">
-              <h2 className="text-lg md:text-2xl font-bold text-gray-900 mb-1">Trust me, the UX will suck.</h2>
+              <h2 className="text-lg md:text-2xl font-semibold text-gray-900 mb-1">Trust me, the UX will suck.</h2>
               <p className="text-xs md:text-base text-gray-600 leading-relaxed">
                 Observer <em>works</em> without an account. But a lot of things are limited:
               </p>
@@ -133,14 +133,14 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
 
             {/* What's limited */}
             <div className="space-y-2 mb-3 md:mb-6">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 md:p-3">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 md:p-3">
                 <ul className="space-y-1.5">
-                  <li className="flex items-center gap-2.5 text-xs md:text-sm font-semibold text-gray-800">
-                    <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  <li className="flex items-center gap-2.5 text-xs md:text-sm font-medium text-gray-700">
+                    <Sparkles className="h-4 w-4 text-gray-400 flex-shrink-0" />
                     Agent creator won't work, you'll have to create them manually!
                   </li>
-                  <li className="flex items-center gap-2.5 text-xs md:text-sm font-semibold text-gray-800">
-                    <Zap className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  <li className="flex items-center gap-2.5 text-xs md:text-sm font-medium text-gray-700">
+                    <Zap className="h-4 w-4 text-gray-400 flex-shrink-0" />
                     Most notifications won't work
                   </li>
                 </ul>
@@ -149,10 +149,10 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
 
             {/* Mobile web + local model warning */}
             {isMobileWeb && (
-              <div className="md:hidden bg-red-50 border border-red-300 rounded-lg p-2.5 mb-3 flex items-start gap-2">
-                <span className="text-red-500 text-base flex-shrink-0">⚠️</span>
-                <p className="text-xs text-red-700 leading-relaxed">
-                  <strong>Local models crash mobile browsers.</strong> This is a known transformers.js limitation, download the app if you want to run local models on your phone.
+              <div className="md:hidden bg-gray-50 border border-gray-200 rounded-xl p-2.5 mb-3 flex items-start gap-2">
+                <span className="text-gray-400 text-base flex-shrink-0">⚠️</span>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  <strong className="text-gray-900">Local models crash mobile browsers.</strong> This is a known transformers.js limitation, download the app if you want to run local models on your phone.
                 </p>
               </div>
             )}
@@ -161,7 +161,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
             <div className="mb-3 md:mb-6">
               <button
                 onClick={handleSignIn}
-                className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium shadow-sm hover:shadow-md"
+                className="w-full px-6 py-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors font-medium"
               >
                 Sign In
               </button>
@@ -177,7 +177,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
         {mode === 'upsell' && (
           <div className="p-4 md:p-8">
             {/* ============ WELCOME SECTION (Top 60%) ============ */}
-            <div className="text-center mb-4 pb-4 md:mb-6 md:pb-6 border-b-2 border-gray-200">
+            <div className="text-center mb-4 pb-4 md:mb-6 md:pb-6 border-b border-gray-200">
               <div className="flex justify-center items-center mb-2 md:mb-3">
                 <img src="/eye-logo-black.svg" alt="Observer AI Logo" className="h-10 w-10 md:h-16 md:w-16 mr-2 md:mr-3" />
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">
@@ -207,7 +207,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                 <div className="flex justify-center mb-4">
                   <button
                     onClick={() => { Analytics.upsellGithub(upsellSource); handleStarGithub(); }}
-                    className="px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium flex items-center justify-center gap-2 group shadow-md text-sm md:text-base"
+                    className="px-4 py-3 bg-gray-900 text-white rounded-full hover:bg-black transition-colors font-medium flex items-center justify-center gap-2 group text-sm md:text-base"
                   >
                     <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 group-hover:scale-110 transition-transform" />
                     <span>Star on GitHub</span>
@@ -234,25 +234,25 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                 </p>
 
                 {/* Observer Pro - Hero Free Trial Option */}
-                <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-xl p-4 md:p-6 max-w-md mx-auto mb-4 hover:shadow-xl transition-all duration-200 relative">
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 md:p-6 max-w-md mx-auto mb-4 relative">
                   {!isAppleDevice && (
                     <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2">
-                      <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap shadow-lg">
+                      <div className="bg-gray-900 text-white text-xs font-semibold uppercase tracking-wider rounded-full px-4 py-1 whitespace-nowrap">
                         Free Trial
                       </div>
                     </div>
                   )}
 
                   <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4 mt-2">
-                    <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-purple-500" />
+                    <Sparkles className="h-7 w-7 md:h-8 md:w-8 text-purple-600" />
                     <div className="text-left">
-                      <h3 className="text-lg md:text-xl font-bold text-purple-900">Observer Pro</h3>
-                      <p className="text-sm text-purple-700">
+                      <h3 className="text-lg md:text-xl font-semibold text-gray-900">Observer Pro</h3>
+                      <p className="text-sm text-gray-500">
                         {isAppleDevice ? (
-                          <span className="text-xl md:text-2xl font-bold text-purple-900">${'22.99'}/month</span>
+                          <span className="text-xl md:text-2xl font-semibold text-gray-900">${'22.99'}/month</span>
                         ) : (
                           <>
-                            <span className="text-xl md:text-2xl font-bold text-purple-900">7 days free</span>
+                            <span className="text-xl md:text-2xl font-semibold text-gray-900">7 days free</span>
                             <span className="text-xs ml-1">then $20/month</span>
                           </>
                         )}
@@ -260,29 +260,29 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 md:space-y-2 mb-3 md:mb-4 text-xs md:text-sm text-purple-900 text-left">
+                  <div className="space-y-1.5 md:space-y-2 mb-3 md:mb-4 text-xs md:text-sm text-gray-700 text-left">
                     <div className="flex items-start">
-                      <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span><strong>Unlock Agent Builder</strong> autonomous deployment</span>
+                      <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span><strong className="text-gray-900">Unlock Agent Builder</strong> autonomous deployment</span>
                     </div>
                     <div className="flex items-start">
-                      <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
                       <span>
-                        <strong>8 hours/day, 100 hours/month</strong> cloud monitoring
+                        <strong className="text-gray-900">8 hours/day, 100 hours/month</strong> cloud monitoring
                         <CreditInfoButton dailyCredits={480} monthlyCredits={6000} tierName="Pro tier" className="ml-1 align-middle" />
                       </span>
                     </div>
                     <div className="flex items-start">
-                      <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span><strong>Unlock </strong>Voice Call, Whatsapp and SMS notifications</span>
+                      <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span><strong className="text-gray-900">Unlock </strong>Voice Call, Whatsapp and SMS notifications</span>
                     </div>
                     <div className="flex items-start">
-                      <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span><strong>Premium AI models</strong> access</span>
+                      <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span><strong className="text-gray-900">Premium AI models</strong> access</span>
                     </div>
                     <div className="flex items-start">
-                      <Heart className="h-3.5 w-3.5 md:h-4 md:w-4 text-pink-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span><strong>Support open source</strong> development</span>
+                      <Heart className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 mr-2 flex-shrink-0 mt-0.5" />
+                      <span><strong className="text-gray-900">Support open source</strong> development</span>
                     </div>
                   </div>
 
@@ -292,12 +292,12 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                       if (isAppleDevice) handleApplePurchasePro(); else handleProCheckout();
                     }}
                     disabled={isButtonLoading || isAppleLoading}
-                    className="w-full px-4 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all duration-200 font-semibold text-sm md:text-base shadow-md hover:shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="w-full px-4 py-2.5 md:px-6 md:py-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-300 transition-colors font-medium text-sm md:text-base disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {isButtonLoading || isAppleLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
                     Start Free Trial
                   </button>
-                  <p className="text-xs text-gray-500 mt-2 text-center">
+                  <p className="text-xs text-gray-400 mt-2 text-center">
                     <a href="https://observer-ai.com/#/Terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms</a>
                     {' · '}
                     <a href="https://observer-ai.com/#/Privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy</a>
@@ -315,7 +315,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                 <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3">
                   <button
                     onClick={() => { Analytics.upsellGithub(upsellSource); handleStarGithub(); }}
-                    className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium flex items-center gap-2 group shadow-md text-sm md:text-base"
+                    className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-900 text-white rounded-full hover:bg-black transition-colors font-medium flex items-center gap-2 group text-sm md:text-base"
                   >
                     <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 group-hover:scale-110 transition-transform" />
                     <span>Star on GitHub</span>

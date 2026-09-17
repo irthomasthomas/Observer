@@ -70,7 +70,7 @@ const ObserverHero: React.FC = () => {
           onKeyDown={handleKeyDown}
           placeholder="Describe what you want monitored…"
           disabled={isRunning}
-          className="flex-1 min-w-0 p-4 md:p-5 text-base md:text-lg text-gray-700 bg-white border border-gray-200 rounded-3xl shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none leading-snug max-h-56 overflow-y-auto"
+          className="flex-1 min-w-0 p-4 md:p-5 text-base md:text-lg text-gray-700 bg-white border border-gray-200 rounded-3xl shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none leading-snug max-h-56 overflow-y-auto"
         />
         <button
           type="submit"
