@@ -70,7 +70,8 @@ const RecipeInline: React.FC<RecipeInlineProps> = ({ onPromptChange }) => {
         onCustom={text => { markInteracted(); setTriggerOverrides(prev => ({ ...prev, [triggerId]: text })); }}
         onInteract={markInteracted}
         ariaLabel="Choose a trigger"
-        widthClass="w-[7rem] md:w-[15rem]"
+        widthClass="w-[9rem] md:w-[15rem]"
+        textClass="text-[10px] md:text-sm"
         dark={false}
       />
       <span className="text-xs md:text-base font-semibold text-slate-400 select-none pointer-events-none shrink-0">then</span>
@@ -82,6 +83,7 @@ const RecipeInline: React.FC<RecipeInlineProps> = ({ onPromptChange }) => {
         onInteract={markInteracted}
         ariaLabel="Choose an action"
         widthClass="w-[6.5rem] md:w-[12rem]"
+        textClass="text-[10px] md:text-sm"
         dark={false}
       />
     </div>

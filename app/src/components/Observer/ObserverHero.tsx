@@ -58,7 +58,7 @@ const ObserverHero: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 relative">
       <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-6 text-center">
-        What do you want Observer to watch for?
+        What do you want Observer<br className="md:hidden" /> to watch for?
       </h1>
       <form onSubmit={handleSubmit} className="w-full max-w-2xl flex items-end gap-2 relative z-10">
         <textarea

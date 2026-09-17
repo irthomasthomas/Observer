@@ -55,6 +55,8 @@ interface OptionWheelProps {
   locked?: boolean;
   /** Light-on-white palette for the inline (Cowork-hero) widget. Defaults to the original white-on-dark splash look. */
   dark?: boolean;
+  /** Tailwind text-size classes for the row labels. Defaults to the original splash size. */
+  textClass?: string;
 }
 
 const CYCLE_MS = 2100;         // auto-cycle cadence
@@ -96,6 +98,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   onLabelClick,
   locked = false,
   dark = true,
+  textClass = 'text-lg md:text-xl',
 }) => {
   const startIndex = Math.max(0, options.findIndex(o => o.id === value));
   const [index, setIndex] = useState(startIndex);
@@ -353,7 +356,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
                   else if (offset === 0 && onLabelClick) onLabelClick();
                 }}
                 title={offset === 0 && onLabelClick && !locked ? 'Click to type' : undefined}
-                className={`flex items-center justify-center text-center px-2 text-lg md:text-xl font-medium truncate ${dark ? 'text-white' : 'text-slate-800'} ${
+                className={`flex items-center justify-center text-center px-2 ${textClass} font-medium truncate ${dark ? 'text-white' : 'text-slate-800'} ${
                   locked ? '' : offset !== 0 ? 'cursor-pointer' : onLabelClick ? `cursor-text transition-colors ${dark ? 'hover:text-cyan-200' : 'hover:text-purple-600'}` : ''
                 }`}
                 style={{ height: `${rowRem}rem` }}
