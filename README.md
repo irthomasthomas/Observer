@@ -278,6 +278,10 @@ Cool easter egg, the app comes bundled with the CLI binary. You can use it doing
 
 `observe sleep 5` and the bash wrapper will call you when the command exits. Enjoy!
 
+Or built it from source:
+
+`cd app && cargo build`
+
 ## Contributing
 
 We welcome contributions from the community! Here's how you can help:
