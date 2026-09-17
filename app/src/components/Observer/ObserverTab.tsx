@@ -28,6 +28,7 @@ interface ObserverTabProps {
   runningAgents: Set<string>;
   startingAgents: Set<string>;
   onToggleAgent: (agentId: string, isCurrentlyRunning: boolean) => void;
+  onOpenMicroAgents?: () => void;
 }
 
 const ObserverTab: React.FC<ObserverTabProps> = ({
@@ -42,6 +43,7 @@ const ObserverTab: React.FC<ObserverTabProps> = ({
   runningAgents,
   startingAgents,
   onToggleAgent,
+  onOpenMicroAgents,
 }) => {
   const { messages, isRunning, pendingApproval } = useMCPContext();
   const isEmpty = messages.length === 0 && !isRunning && !pendingApproval;
@@ -53,6 +55,7 @@ const ObserverTab: React.FC<ObserverTabProps> = ({
         runningAgents={runningAgents}
         startingAgents={startingAgents}
         onToggle={onToggleAgent}
+        onSelectAgent={onOpenMicroAgents}
       />
       {isEmpty ? (
         <ObserverHero />

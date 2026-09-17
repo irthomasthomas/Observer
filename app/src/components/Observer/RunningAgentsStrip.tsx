@@ -20,6 +20,9 @@ interface RunningAgentsStripProps {
   runningAgents: Set<string>;
   startingAgents: Set<string>;
   onToggle: (agentId: string, isCurrentlyRunning: boolean) => void;
+  /** A chip is a preview, not the real card — clicking it (anywhere but the stop button)
+   *  jumps to the Micro Agents tab where the full ActiveAgentView lives. */
+  onSelectAgent?: (agentId: string) => void;
 }
 
 // Mirrors the loop/sleep progress tracking in AgentCard.tsx, trimmed down to just what the
@@ -123,7 +126,8 @@ const StripItem: React.FC<{
   isStarting: boolean;
   streams: StreamState;
   onToggle: (agentId: string, isCurrentlyRunning: boolean) => void;
-}> = ({ agent, isRunning, isStarting, streams, onToggle }) => {
+  onSelectAgent?: (agentId: string) => void;
+}> = ({ agent, isRunning, isStarting, streams, onToggle, onSelectAgent }) => {
   const { progress, durationMs, isSleeping } = useLoopRing(agent.id);
 
   const liveStream = agentHasScreenSensor(agent.system_prompt)
@@ -133,7 +137,13 @@ const StripItem: React.FC<{
       : null;
 
   return (
-    <div className="flex-shrink-0 flex items-center gap-2 pl-1.5 pr-1 py-1 bg-white border border-gray-200 rounded-full shadow-sm">
+    <div
+      onClick={onSelectAgent ? () => onSelectAgent(agent.id) : undefined}
+      role={onSelectAgent ? 'button' : undefined}
+      tabIndex={onSelectAgent ? 0 : undefined}
+      title={onSelectAgent ? `Open "${agent.name}" in Micro Agents` : undefined}
+      className={`flex-shrink-0 flex items-center gap-2 pl-1.5 pr-1 py-1 bg-white border border-gray-200 rounded-full shadow-sm ${onSelectAgent ? 'cursor-pointer hover:bg-gray-50 transition-colors' : ''}`}
+    >
       <div className="relative w-10 h-10 flex-shrink-0">
         <div className="absolute inset-1 rounded-full overflow-hidden bg-gray-900 flex items-center justify-center">
           <LiveAvatar stream={liveStream} />
@@ -152,7 +162,7 @@ const StripItem: React.FC<{
       </div>
       <span className="text-xs font-medium text-gray-700 max-w-[8rem] truncate">{agent.name}</span>
       <button
-        onClick={() => onToggle(agent.id, isRunning)}
+        onClick={(e) => { e.stopPropagation(); onToggle(agent.id, isRunning); }}
         disabled={isStarting}
         className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-red-500 hover:bg-red-50 disabled:text-gray-400 transition-colors"
         title={isStarting ? 'Starting…' : 'Stop agent'}
@@ -163,7 +173,7 @@ const StripItem: React.FC<{
   );
 };
 
-const RunningAgentsStrip: React.FC<RunningAgentsStripProps> = ({ agents, runningAgents, startingAgents, onToggle }) => {
+const RunningAgentsStrip: React.FC<RunningAgentsStripProps> = ({ agents, runningAgents, startingAgents, onToggle, onSelectAgent }) => {
   const [streams, setStreams] = useState<StreamState>(StreamManager.getCurrentState());
 
   useEffect(() => {
@@ -184,6 +194,7 @@ const RunningAgentsStrip: React.FC<RunningAgentsStripProps> = ({ agents, running
           isStarting={startingAgents.has(agent.id)}
           streams={streams}
           onToggle={onToggle}
+          onSelectAgent={onSelectAgent}
         />
       ))}
     </div>

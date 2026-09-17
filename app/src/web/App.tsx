@@ -1345,6 +1345,7 @@ function AppContent() {
               runningAgents={runningAgents}
               startingAgents={startingAgents}
               onToggleAgent={toggleAgent}
+              onOpenMicroAgents={() => setActiveTab('myAgents')}
             />
           </div>
         )}
