@@ -24,10 +24,12 @@ interface EditableWheelProps<T extends WheelOption> {
   tooltip?: React.ReactNode;
   /** Freezes the wheel (no spin, no click-to-type) — see OptionWheel's `locked`. */
   locked?: boolean;
+  /** Light-on-white palette for the inline (Cowork-hero) widget. Defaults to the original white-on-dark splash look. */
+  dark?: boolean;
 }
 
 function EditableWheel<T extends WheelOption>({
-  options, value, onChange, onCustom, onInteract, paused, ariaLabel, widthClass, tooltip, locked,
+  options, value, onChange, onCustom, onInteract, paused, ariaLabel, widthClass, tooltip, locked, dark = true,
 }: EditableWheelProps<T>) {
   const displayText = options.find(o => o.id === value)?.label ?? '';
   const [editing, setEditing] = useState(false);
@@ -68,6 +70,7 @@ function EditableWheel<T extends WheelOption>({
         tooltip={tooltip}
         onLabelClick={locked ? undefined : startEdit}
         locked={locked}
+        dark={dark}
       />
     );
   }
@@ -82,7 +85,9 @@ function EditableWheel<T extends WheelOption>({
         onFocus={e => e.currentTarget.select()}
         onBlur={commit}
         aria-label={ariaLabel}
-        className="w-full bg-transparent border-0 border-b-2 border-white/40 focus:border-white/80 text-center text-lg md:text-xl font-medium text-white outline-none pb-0.5 transition-colors"
+        className={`w-full bg-transparent border-0 border-b-2 text-center text-lg md:text-xl font-medium outline-none pb-0.5 transition-colors ${
+          dark ? 'border-white/40 focus:border-white/80 text-white' : 'border-slate-300 focus:border-purple-500 text-slate-800'
+        }`}
       />
     </div>
   );
