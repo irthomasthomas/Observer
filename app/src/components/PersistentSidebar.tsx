@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Home, Users, Database, Settings, Cpu, Video, Sparkles, MessageCircle,
   PanelLeft, User as UserIcon, MessageSquare, Terminal,
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
-import { isIOS } from '../utils/platform';
+import { isIOS, isTauri } from '../utils/platform';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { version } from '../../package.json';
 import type { QuotaInfo } from '@/types/quota';
+import type { CustomServer } from '@utils/inferenceServer';
+import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
+import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 
 interface SidebarAuthState {
   isLoading: boolean;
@@ -31,6 +34,11 @@ interface PersistentSidebarProps {
    *  its width, since it's a real flex sibling of main now, not a fixed box floating on top. */
   isExpanded: boolean;
   onToggleExpanded: () => void;
+  /** Connectivity state, owned by App.tsx — drives the status dot on the Models item
+   *  (moved here from the old AppHeader floating cluster). */
+  isUsingObServer: boolean;
+  customServers: CustomServer[];
+  localServerOnline: boolean;
 }
 
 const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
@@ -46,7 +54,62 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   onToggleLogs,
   isExpanded,
   onToggleExpanded,
+  isUsingObServer,
+  customServers,
+  localServerOnline,
 }) => {
+  const isAuthenticated = authState?.isAuthenticated ?? false;
+
+  const [isNativeLoading, setIsNativeLoading] = useState(false);
+  const [isNativeDownloading, setIsNativeDownloading] = useState(false);
+  const [isModelLoading, setIsModelLoading] = useState(false);
+
+  // Track Transformers.js model loading state
+  useEffect(() => {
+    const manager = GemmaModelManager.getInstance();
+    const unsubscribe = manager.onStateChange((state) => {
+      setIsModelLoading(state.status === 'loading');
+    });
+    setIsModelLoading(manager.getState().status === 'loading');
+    return unsubscribe;
+  }, []);
+
+  // Track llama.cpp download/loading state (Tauri only)
+  useEffect(() => {
+    if (!isTauri()) return;
+    const manager = NativeLlmManager.getInstance();
+    const unsubscribe = manager.onStateChange((state) => {
+      setIsNativeDownloading(state.status === 'downloading');
+      setIsNativeLoading(state.status === 'loading');
+    });
+    const initial = manager.getState();
+    setIsNativeDownloading(initial.status === 'downloading');
+    setIsNativeLoading(initial.status === 'loading');
+    return unsubscribe;
+  }, []);
+
+  const anyModelDownloading = isNativeDownloading;
+  const anyModelLoading = isModelLoading || isNativeLoading;
+
+  // Calculate overall server status based on all enabled servers
+  const computedServerStatus: 'unchecked' | 'online' | 'offline' = (() => {
+    const enabledCustomServersOnline = customServers.some(s => s.enabled && s.status === 'online');
+    const obServerOnline = isUsingObServer && isAuthenticated;
+
+    // If ANY enabled server is online, show green
+    if (localServerOnline || obServerOnline || enabledCustomServersOnline) {
+      return 'online';
+    }
+
+    // If all checked servers are offline, show red
+    const hasCheckedServers = customServers.some(s => s.status !== 'unchecked');
+    if (!localServerOnline && (!isUsingObServer || !isAuthenticated) && (customServers.length === 0 || hasCheckedServers)) {
+      return 'offline';
+    }
+
+    // Otherwise show unchecked
+    return 'unchecked';
+  })();
   // On mobile the sidebar is always the full (expanded) drawer when open — there's no
   // separate "collapsed strip" concept there, only open/closed.
   const showExpanded = isExpanded || isMobileMenuOpen;
@@ -63,7 +126,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   const menuItems = [
     { id: 'observerChat', icon: MessageCircle, label: 'Observer', color: 'purple' },
     { id: 'myAgents', icon: Home, label: 'Micro Agents', color: 'blue' },
-    { id: 'models', icon: Cpu, label: 'Model List', color: 'blue' },
+    { id: 'models', icon: Cpu, label: 'Models', color: 'blue' },
     { id: 'memoryStore', icon: Database, label: 'Memories', color: 'blue' },
     { id: 'recordings', icon: Video, label: 'Recordings', color: 'blue' },
     { id: 'community', icon: Users, label: 'Community', color: 'blue' },
@@ -123,6 +186,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
                   const IconComponent = item.icon;
                   const isActive = activeTab === item.id;
                   const isPurple = item.color === 'purple';
+                  const isModels = item.id === 'models';
 
                   return (
                     <li key={item.id}>
@@ -135,11 +199,30 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
                               : 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                             : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
                         }`}
+                        {...(isModels ? { 'data-tutorial-models': true } : {})}
                       >
                         <IconComponent className="w-5 h-5 flex-shrink-0" />
-                        <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">
+                        <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden flex-1 text-left">
                           {item.label}
                         </span>
+                        {isModels && (
+                          anyModelDownloading ? (
+                            <svg className="h-3 w-3 flex-shrink-0 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none" aria-label="Downloading model…">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <span
+                              className={`w-2 h-2 rounded-full flex-shrink-0
+                                ${anyModelLoading ? 'bg-yellow-400 animate-pulse'
+                                : computedServerStatus === 'online' ? 'bg-green-500'
+                                : computedServerStatus === 'offline' ? 'bg-red-500'
+                                : 'bg-orange-500 animate-pulse'}
+                              `}
+                              title={anyModelLoading ? 'Loading model…' : `Status: ${computedServerStatus}`}
+                            />
+                          )
+                        )}
                       </button>
                     </li>
                   );

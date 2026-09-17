@@ -1128,7 +1128,6 @@ function AppContent() {
       />
 
       <AppHeader
-        isUsingObServer={isUsingObServer}
         authState={{
           isLoading,
           isAuthenticated,
@@ -1138,15 +1137,10 @@ function AppContent() {
         }}
         getToken={getToken}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={toggleDarkMode}
         isPermissionsModalOpen={isPermissionsModalOpen}
         onClosePermissionsModal={() => setIsPermissionsModalOpen(false)}
         isAccountModalOpen={isAccountModalOpen}
         onCloseAccountModal={() => setIsAccountModalOpen(false)}
-        customServers={customServers}
-        localServerOnline={localServerOnline}
-        onOpenModels={() => setActiveTab('models')}
       />
 
       {isObServerWarningOpen && (
@@ -1181,6 +1175,9 @@ function AppContent() {
           onToggleLogs={() => setShowGlobalLogs(prev => !prev)}
           isExpanded={isSidebarExpanded}
           onToggleExpanded={() => setIsSidebarExpanded(prev => !prev)}
+          isUsingObServer={isUsingObServer}
+          customServers={customServers}
+          localServerOnline={localServerOnline}
         />
 
         <main className="w-full min-w-0 pt-4 px-2 md:px-4 wide:px-4 max-w-7xl mx-auto pb-20 md:pb-4">
@@ -1398,7 +1395,7 @@ function AppContent() {
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="px-4">
-            <SettingsTab />
+            <SettingsTab isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />
           </div>
         )}
 

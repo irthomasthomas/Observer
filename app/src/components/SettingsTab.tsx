@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Settings, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2, Cloud, Server, Cpu, Mic, Monitor, Play, Square, Volume2, Keyboard, Check, AlertTriangle, Eye, EyeOff, Layers, Move, Maximize2, Zap, ChevronDown, ChevronRight } from 'lucide-react';
+import { Palette, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2, Cloud, Server, Cpu, Mic, Monitor, Play, Square, Volume2, Keyboard, Check, AlertTriangle, Eye, EyeOff, Layers, Move, Maximize2, Zap, ChevronDown, ChevronRight, ScanText, AudioLines, SlidersHorizontal } from 'lucide-react';
 import { SensorSettings } from '../utils/settings';
 import { StreamManager } from '../utils/streamManager';
 import { isDesktop } from '../utils/platform';
@@ -16,6 +16,11 @@ import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
 // Change Detection component
 import ChangeDetectionSettings from './ChangeDetectionSettings';
 
+interface SettingsTabProps {
+  isDarkMode?: boolean;
+  onToggleDarkMode?: () => void;
+}
+
 // Helper function to format bytes
 const formatBytes = (bytes: number, decimals = 1) => {
   if (!+bytes) return '0 B';
@@ -25,20 +30,76 @@ const formatBytes = (bytes: number, decimals = 1) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(decimals))} ${sizes[i]}`;
 };
 
-// Reusable Card Component (Your existing component)
-const SettingsCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="bg-white shadow-md rounded-lg mb-6">
-    <div className="p-4 border-b">
-      <h3 className="text-lg font-semibold flex items-center">
-        <Settings className="h-5 w-5 mr-2 text-gray-500" />
-        {title}
-      </h3>
+// Calm, bordered section — no drop shadows, no gradients, dark-mode aware.
+// This is the one visual container settings uses instead of the old
+// heavy-shadow "SaaS card" look.
+const Section: React.FC<{
+  title: string;
+  description?: string;
+  icon?: React.ReactNode;
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ title, description, icon, badge, children }) => (
+  <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex items-center gap-2.5 min-w-0">
+        {icon && <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">{icon}</span>}
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{title}</h3>
+          {description && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
+          )}
+        </div>
+      </div>
+      {badge}
     </div>
-    <div className="p-6">{children}</div>
-  </div>
+    <div className="px-5 py-5">{children}</div>
+  </section>
 );
 
-const SettingsTab = () => {
+// Simple on/off switch, purple accent to match the rest of the app's brand color.
+const Switch: React.FC<{ checked: boolean; onChange: () => void; label?: string }> = ({ checked, onChange, label }) => (
+  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="sr-only peer"
+      aria-label={label}
+    />
+    <div className="w-10 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-900 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-checked:border-purple-600" />
+  </label>
+);
+
+// Neutral segmented-control button — replaces the old bright-bordered/gradient
+// "mode card" buttons throughout this tab.
+const SegmentButton: React.FC<{
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  icon?: React.ReactNode;
+  label: string;
+  sublabel?: string;
+}> = ({ active, onClick, disabled, icon, label, sublabel }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`flex-1 px-3 py-2.5 rounded-xl border text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+      active
+        ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300'
+        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+    }`}
+  >
+    {icon && <div className="flex justify-center mb-1">{icon}</div>}
+    <div className="text-sm font-medium">{label}</div>
+    {sublabel && <div className="text-xs mt-0.5 opacity-75">{sublabel}</div>}
+  </button>
+);
+
+const inputClass = "block w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-800/50 disabled:cursor-not-allowed";
+const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5";
+
+const SettingsTab: React.FC<SettingsTabProps> = ({ isDarkMode = false, onToggleDarkMode }) => {
 
   // --- OCR State Management ---
   const [ocrLang, setOcrLang] = useState(SensorSettings.getOcrLanguage());
@@ -557,97 +618,99 @@ const SettingsTab = () => {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-gray-800">Application Settings</h1>
+    <div className="max-w-3xl mx-auto space-y-6 pb-16">
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Appearance, sensors, and behavior for this device.</p>
+      </div>
+
+      {/* --- Appearance --- */}
+      <Section title="Appearance" icon={<Palette className="h-4 w-4" />}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Dark mode</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Switch the interface between light and dark themes.</p>
+          </div>
+          {onToggleDarkMode && (
+            <Switch checked={isDarkMode} onChange={onToggleDarkMode} label="Toggle dark mode" />
+          )}
+        </div>
+      </Section>
 
       {/* --- Desktop Only Settings --- */}
       {isDesktop() && (
         <>
-          {/* --- Overlay Controls Card --- */}
-          <div className="bg-white shadow-md rounded-lg mb-6">
-            <div className="p-4 border-b">
-              <h3 className="text-lg font-semibold flex items-center">
-                <Layers className="h-5 w-5 mr-2 text-purple-500" />
-                Overlay Controls
-              </h3>
+          {/* --- Overlay Controls --- */}
+          <Section title="Overlay Controls" description="Show, hide, or clear the floating overlay window." icon={<Layers className="h-4 w-4" />}>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleShowOverlay}
+                className="flex items-center px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-sm transition-colors"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Show Overlay
+              </button>
+              <button
+                onClick={handleHideOverlay}
+                className="flex items-center px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-sm transition-colors"
+              >
+                <EyeOff className="h-4 w-4 mr-2" />
+                Hide Overlay
+              </button>
+              <button
+                onClick={handleClearOverlay}
+                className="flex items-center px-4 py-2 border border-gray-200 dark:border-gray-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 font-medium text-sm transition-colors"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear Messages
+              </button>
             </div>
-            <div className="p-6">
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={handleShowOverlay}
-                  className="flex items-center px-4 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 font-medium text-sm transition-all"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Show Overlay
-                </button>
-                <button
-                  onClick={handleHideOverlay}
-                  className="flex items-center px-4 py-2.5 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 font-medium text-sm transition-all"
-                >
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Hide Overlay
-                </button>
-                <button
-                  onClick={handleClearOverlay}
-                  className="flex items-center px-4 py-2.5 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 font-medium text-sm transition-all"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear Messages
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-3">
-                Control the overlay window visibility or clear all displayed messages.
-              </p>
-            </div>
-          </div>
+          </Section>
 
-          {/* --- Keyboard Shortcuts Card --- */}
-          <div className="bg-white shadow-md rounded-lg mb-6">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold flex items-center">
-                <Keyboard className="h-5 w-5 mr-2 text-indigo-500" />
-                Keyboard Shortcuts
-              </h3>
-              {activeShortcuts.length > 0 && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                  {activeShortcuts.length} active
-                </span>
-              )}
-            </div>
-            <div className="p-6 space-y-6">
+          {/* --- Keyboard Shortcuts --- */}
+          <Section
+            title="Keyboard Shortcuts"
+            icon={<Keyboard className="h-4 w-4" />}
+            badge={activeShortcuts.length > 0 ? (
+              <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full font-medium">
+                {activeShortcuts.length} active
+              </span>
+            ) : undefined}
+          >
+            <div className="space-y-6">
 
               {/* Feedback Messages - Show at top */}
               {shortcutFeedback && (
-                <div className={`flex items-center text-sm p-3 rounded-lg ${
+                <div className={`flex items-center text-sm p-3 rounded-lg border ${
                   shortcutFeedback.type === 'success'
-                    ? 'bg-green-50 text-green-700 border border-green-200'
-                    : 'bg-red-50 text-red-700 border border-red-200'
+                    ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900'
+                    : 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900'
                 }`}>
-                  {shortcutFeedback.type === 'success' ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
+                  {shortcutFeedback.type === 'success' ? <Check className="h-4 w-4 mr-2 flex-shrink-0" /> : <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />}
                   {shortcutFeedback.message}
                 </div>
               )}
 
               {/* Toggle Overlay Shortcut - Primary */}
-              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-4 rounded-lg border border-purple-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Eye className="h-5 w-5 mr-3 text-purple-600" />
-                    <div>
-                      <span className="text-sm font-semibold text-gray-800">Toggle Overlay</span>
-                      <p className="text-xs text-gray-500">Show or hide the overlay window</p>
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center min-w-0">
+                    <Eye className="h-5 w-5 mr-3 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">Toggle Overlay</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Show or hide the overlay window</p>
                     </div>
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center flex-shrink-0">
                     <button
                       onClick={() => setCapturingFor('overlay_toggle')}
                       disabled={capturingFor === 'overlay_toggle'}
-                      className={`px-4 py-2 text-sm rounded-lg font-mono transition-all min-w-[140px] text-center ${
+                      className={`px-4 py-2 text-sm rounded-lg font-mono transition-all min-w-[140px] text-center border ${
                         capturingFor === 'overlay_toggle'
-                          ? 'bg-orange-100 text-orange-700 border-2 border-orange-400 animate-pulse'
+                          ? 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-800 animate-pulse'
                           : overlayShortcuts.toggle
-                          ? 'bg-white text-purple-700 border-2 border-purple-300 hover:border-purple-400 shadow-sm'
-                          : 'bg-white text-gray-500 border-2 border-dashed border-gray-300 hover:border-purple-300'
+                          ? 'bg-white dark:bg-gray-900 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 hover:border-purple-300'
+                          : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-dashed border-gray-300 dark:border-gray-700 hover:border-gray-400'
                       }`}
                     >
                       {capturingFor === 'overlay_toggle' ? 'Press keys...' : overlayShortcuts.toggle || 'Click to set'}
@@ -666,35 +729,35 @@ const SettingsTab = () => {
               </div>
 
               {/* Move Shortcuts - Collapsible */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setShowMoveShortcuts(!showMoveShortcuts)}
-                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="flex items-center">
-                    <Move className="h-4 w-4 mr-2 text-blue-500" />
-                    <span className="text-sm font-medium text-gray-700">Move Overlay</span>
-                    <span className="ml-2 text-xs text-gray-400">
+                    <Move className="h-4 w-4 mr-2 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Move Overlay</span>
+                    <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
                       ({Object.entries(overlayShortcuts).filter(([k, v]) => k.startsWith('move_') && v).length}/4 set)
                     </span>
                   </div>
                   {showMoveShortcuts ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
                 </button>
                 {showMoveShortcuts && (
-                  <div className="p-4 grid grid-cols-2 gap-3 bg-white">
+                  <div className="p-4 grid grid-cols-2 gap-3 bg-white dark:bg-gray-900">
                     {(['move_up', 'move_down', 'move_left', 'move_right'] as const).map((key) => (
-                      <div key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                        <span className="text-sm text-gray-600 capitalize">{key.replace('move_', '').replace('_', ' ')}</span>
+                      <div key={key} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">{key.replace('move_', '').replace('_', ' ')}</span>
                         <div className="flex items-center">
                           <button
                             onClick={() => setCapturingFor(`overlay_${key}`)}
                             disabled={capturingFor === `overlay_${key}`}
-                            className={`px-3 py-1.5 text-xs rounded font-mono transition-all min-w-[80px] text-center ${
+                            className={`px-3 py-1.5 text-xs rounded font-mono transition-all min-w-[80px] text-center border ${
                               capturingFor === `overlay_${key}`
-                                ? 'bg-orange-100 text-orange-700 border border-orange-300 animate-pulse'
+                                ? 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-800 animate-pulse'
                                 : overlayShortcuts[key]
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : 'bg-white text-gray-400 border border-dashed border-gray-300'
+                                ? 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                                : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-dashed border-gray-300 dark:border-gray-700'
                             }`}
                           >
                             {capturingFor === `overlay_${key}` ? '...' : overlayShortcuts[key] || 'Set'}
@@ -702,7 +765,7 @@ const SettingsTab = () => {
                           {overlayShortcuts[key] && (
                             <button
                               onClick={() => setOverlayShortcuts(prev => ({ ...prev, [key]: '' }))}
-                              className="ml-1 p-1 text-gray-300 hover:text-red-500"
+                              className="ml-1 p-1 text-gray-300 dark:text-gray-600 hover:text-red-500"
                             >
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -715,35 +778,35 @@ const SettingsTab = () => {
               </div>
 
               {/* Resize Shortcuts - Collapsible */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setShowResizeShortcuts(!showResizeShortcuts)}
-                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="flex items-center">
-                    <Maximize2 className="h-4 w-4 mr-2 text-green-500" />
-                    <span className="text-sm font-medium text-gray-700">Resize Overlay</span>
-                    <span className="ml-2 text-xs text-gray-400">
+                    <Maximize2 className="h-4 w-4 mr-2 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Resize Overlay</span>
+                    <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
                       ({Object.entries(overlayShortcuts).filter(([k, v]) => k.startsWith('resize_') && v).length}/4 set)
                     </span>
                   </div>
                   {showResizeShortcuts ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
                 </button>
                 {showResizeShortcuts && (
-                  <div className="p-4 grid grid-cols-2 gap-3 bg-white">
+                  <div className="p-4 grid grid-cols-2 gap-3 bg-white dark:bg-gray-900">
                     {(['resize_up', 'resize_down', 'resize_left', 'resize_right'] as const).map((key) => (
-                      <div key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                        <span className="text-sm text-gray-600 capitalize">{key.replace('resize_', '').replace('_', ' ')}</span>
+                      <div key={key} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">{key.replace('resize_', '').replace('_', ' ')}</span>
                         <div className="flex items-center">
                           <button
                             onClick={() => setCapturingFor(`overlay_${key}`)}
                             disabled={capturingFor === `overlay_${key}`}
-                            className={`px-3 py-1.5 text-xs rounded font-mono transition-all min-w-[80px] text-center ${
+                            className={`px-3 py-1.5 text-xs rounded font-mono transition-all min-w-[80px] text-center border ${
                               capturingFor === `overlay_${key}`
-                                ? 'bg-orange-100 text-orange-700 border border-orange-300 animate-pulse'
+                                ? 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-800 animate-pulse'
                                 : overlayShortcuts[key]
-                                ? 'bg-green-50 text-green-700 border border-green-200'
-                                : 'bg-white text-gray-400 border border-dashed border-gray-300'
+                                ? 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                                : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-dashed border-gray-300 dark:border-gray-700'
                             }`}
                           >
                             {capturingFor === `overlay_${key}` ? '...' : overlayShortcuts[key] || 'Set'}
@@ -751,7 +814,7 @@ const SettingsTab = () => {
                           {overlayShortcuts[key] && (
                             <button
                               onClick={() => setOverlayShortcuts(prev => ({ ...prev, [key]: '' }))}
-                              className="ml-1 p-1 text-gray-300 hover:text-red-500"
+                              className="ml-1 p-1 text-gray-300 dark:text-gray-600 hover:text-red-500"
                             >
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -764,13 +827,13 @@ const SettingsTab = () => {
               </div>
 
               {/* Agent Shortcuts Section */}
-              <div className="border-t border-gray-200 pt-6">
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
-                    <Zap className="h-5 w-5 mr-2 text-amber-500" />
-                    <span className="text-sm font-semibold text-gray-800">Agent Shortcuts</span>
+                    <Zap className="h-4 w-4 mr-2 text-gray-400" />
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">Agent Shortcuts</span>
                   </div>
-                  <span className="text-xs text-gray-400">{availableAgents.length} configured</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{availableAgents.length} configured</span>
                 </div>
 
                 {/* Add New Agent */}
@@ -780,13 +843,13 @@ const SettingsTab = () => {
                     value={newAgentId}
                     onChange={(e) => setNewAgentId(e.target.value)}
                     placeholder="Enter agent ID..."
-                    className="flex-grow px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className={`flex-grow ${inputClass}`}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddAgent()}
                   />
                   <button
                     onClick={handleAddAgent}
                     disabled={!newAgentId.trim()}
-                    className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+                    className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors font-medium"
                   >
                     Add
                   </button>
@@ -801,20 +864,20 @@ const SettingsTab = () => {
                         .filter(([id, s]) => id !== agent.id && s === shortcut).length > 0;
 
                       return (
-                        <div key={agent.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                          <span className="text-sm text-gray-700 font-medium">{agent.name}</span>
+                        <div key={agent.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                          <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{agent.name}</span>
                           <div className="flex items-center">
                             <button
                               onClick={() => setCapturingFor(agent.id)}
                               disabled={capturingFor === agent.id}
-                              className={`px-3 py-1.5 text-xs rounded-lg font-mono transition-all min-w-[120px] text-center ${
+                              className={`px-3 py-1.5 text-xs rounded-lg font-mono transition-all min-w-[120px] text-center border ${
                                 capturingFor === agent.id
-                                  ? 'bg-orange-100 text-orange-700 border-2 border-orange-400 animate-pulse'
+                                  ? 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-800 animate-pulse'
                                   : isDuplicate
-                                  ? 'bg-red-50 text-red-700 border border-red-300'
+                                  ? 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-800'
                                   : agentShortcuts[agent.id]
-                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                  : 'bg-white text-gray-400 border border-dashed border-gray-300'
+                                  ? 'bg-white dark:bg-gray-900 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                                  : 'bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 border-dashed border-gray-300 dark:border-gray-700'
                               }`}
                             >
                               {capturingFor === agent.id ? 'Press keys...' : agentShortcuts[agent.id] || 'Click to set'}
@@ -829,7 +892,7 @@ const SettingsTab = () => {
                                   return updated;
                                 });
                               }}
-                              className="ml-2 p-1 text-gray-300 hover:text-red-500 transition-colors"
+                              className="ml-2 p-1 text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors"
                               title="Remove agent"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -840,155 +903,131 @@ const SettingsTab = () => {
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                    <Zap className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                    <p className="text-sm text-gray-500">No agent shortcuts configured</p>
-                    <p className="text-xs text-gray-400 mt-1">Add an agent ID above to create a shortcut</p>
+                  <div className="text-center py-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
+                    <Zap className="h-8 w-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No agent shortcuts configured</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Add an agent ID above to create a shortcut</p>
                   </div>
                 )}
               </div>
 
               {/* Save Button & Help */}
-              <div className="border-t border-gray-200 pt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-6 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Click any button and press your desired key combination. Press Escape to cancel.
                   </p>
                   <button
                     onClick={handleSaveAllShortcuts}
-                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-sm font-semibold shadow-sm transition-all"
+                    className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 text-sm font-semibold transition-colors flex-shrink-0"
                   >
                     Save Shortcuts
                   </button>
                 </div>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 dark:text-gray-500">
                   Overlay shortcuts require an app restart to take effect. Agent shortcuts are applied immediately.
                 </p>
               </div>
             </div>
-          </div>
-          {/* --- Screen Capture Quality Card --- */}
-          <div className="bg-white shadow-md rounded-lg mb-6">
-            <div className="p-4 border-b">
-              <h3 className="text-lg font-semibold flex items-center">
-                <Monitor className="h-5 w-5 mr-2 text-purple-500" />
-                Screen Capture Quality
-              </h3>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="cap-max-width" className="block text-sm font-medium text-gray-700 mb-1">Max width (px)</label>
-                  <input
-                    id="cap-max-width"
-                    type="number"
-                    min={160}
-                    max={7680}
-                    step={2}
-                    value={captureQuality.maxWidth}
-                    onChange={(e) => handleCaptureQualityChange('maxWidth', parseInt(e.target.value, 10) || 0)}
-                    className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="cap-jpeg-quality" className="block text-sm font-medium text-gray-700 mb-1">JPEG quality (1–100)</label>
-                  <input
-                    id="cap-jpeg-quality"
-                    type="number"
-                    min={1}
-                    max={100}
-                    step={1}
-                    value={captureQuality.jpegQuality}
-                    onChange={(e) => handleCaptureQualityChange('jpegQuality', parseInt(e.target.value, 10) || 0)}
-                    className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="cap-fps" className="block text-sm font-medium text-gray-700 mb-1">FPS</label>
-                  <input
-                    id="cap-fps"
-                    type="number"
-                    min={1}
-                    max={120}
-                    step={1}
-                    value={captureQuality.fps}
-                    onChange={(e) => handleCaptureQualityChange('fps', parseInt(e.target.value, 10) || 0)}
-                    className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+          </Section>
+
+          {/* --- Screen Capture Quality --- */}
+          <Section title="Screen Capture Quality" icon={<Monitor className="h-4 w-4" />}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="cap-max-width" className={labelClass}>Max width (px)</label>
+                <input
+                  id="cap-max-width"
+                  type="number"
+                  min={160}
+                  max={7680}
+                  step={2}
+                  value={captureQuality.maxWidth}
+                  onChange={(e) => handleCaptureQualityChange('maxWidth', parseInt(e.target.value, 10) || 0)}
+                  className={inputClass}
+                />
               </div>
-              <p className="text-xs text-gray-500 mt-3">
-                Higher values are sharper but use more CPU. Changes apply the next time screen capture starts — toggle the screen sensor off and on to re-tune. Defaults: 1280 / 55 / 10.
-              </p>
+              <div>
+                <label htmlFor="cap-jpeg-quality" className={labelClass}>JPEG quality (1–100)</label>
+                <input
+                  id="cap-jpeg-quality"
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={captureQuality.jpegQuality}
+                  onChange={(e) => handleCaptureQualityChange('jpegQuality', parseInt(e.target.value, 10) || 0)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="cap-fps" className={labelClass}>FPS</label>
+                <input
+                  id="cap-fps"
+                  type="number"
+                  min={1}
+                  max={120}
+                  step={1}
+                  value={captureQuality.fps}
+                  onChange={(e) => handleCaptureQualityChange('fps', parseInt(e.target.value, 10) || 0)}
+                  className={inputClass}
+                />
+              </div>
             </div>
-          </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+              Higher values are sharper but use more CPU. Changes apply the next time screen capture starts — toggle the screen sensor off and on to re-tune. Defaults: 1280 / 55 / 10.
+            </p>
+          </Section>
         </>
       )}
 
-      {/* --- Change Detection Settings Card --- */}
-      <SettingsCard title="Change Detection Settings">
+      {/* --- Change Detection Settings --- */}
+      <Section title="Change Detection" icon={<SlidersHorizontal className="h-4 w-4" />}>
         <ChangeDetectionSettings compact={false} />
-      </SettingsCard>
+      </Section>
 
-      {/* --- Existing Screen OCR Settings Card --- */}
-      <SettingsCard title="OCR Settings">
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="ocr-lang" className="block text-sm font-medium text-gray-700">Recognition Language</label>
-            <select id="ocr-lang" value={ocrLang} onChange={handleOcrLangChange} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-            {AVAILABLE_OCR_LANGUAGES.map(lang => <option key={lang.code} value={lang.code}>{lang.label}</option>)}
-            </select>
-          </div>
+      {/* --- Screen OCR Settings --- */}
+      <Section title="OCR Settings" icon={<ScanText className="h-4 w-4" />}>
+        <div>
+          <label htmlFor="ocr-lang" className={labelClass}>Recognition Language</label>
+          <select id="ocr-lang" value={ocrLang} onChange={handleOcrLangChange} className={inputClass}>
+          {AVAILABLE_OCR_LANGUAGES.map(lang => <option key={lang.code} value={lang.code}>{lang.label}</option>)}
+          </select>
         </div>
-      </SettingsCard>
+      </Section>
 
-      {/* --- Whisper Model Management Card --- */}
-      <SettingsCard title="Whisper Speech Recognition">
+      {/* --- Whisper Model Management --- */}
+      <Section title="Whisper Speech Recognition" icon={<AudioLines className="h-4 w-4" />}>
         <div className="space-y-6">
           {/* Transcription Mode Toggle */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+            <label className={labelClass}>
               Transcription Mode
             </label>
-            <div className="flex space-x-3">
-              <button
+            <div className="flex gap-2">
+              <SegmentButton
+                active={transcriptionMode === 'cloud'}
                 onClick={() => handleTranscriptionModeChange('cloud')}
-                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
-                  transcriptionMode === 'cloud'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                <Cloud className="h-4 w-4 mx-auto mb-1" />
-                <div className="font-medium text-sm">Cloud</div>
-                <div className="text-xs mt-1 opacity-75">Real-time, low overhead</div>
-              </button>
-              <button
+                icon={<Cloud className="h-4 w-4" />}
+                label="Cloud"
+                sublabel="Real-time, low overhead"
+              />
+              <SegmentButton
+                active={transcriptionMode === 'self-hosted'}
                 onClick={() => handleTranscriptionModeChange('self-hosted')}
-                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
-                  transcriptionMode === 'self-hosted'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                <Server className="h-4 w-4 mx-auto mb-1" />
-                <div className="font-medium text-sm">Self-Hosted</div>
-                <div className="text-xs mt-1 opacity-75">Your own Whisper server</div>
-              </button>
-              <button
+                icon={<Server className="h-4 w-4" />}
+                label="Self-Hosted"
+                sublabel="Your own Whisper server"
+              />
+              <SegmentButton
+                active={transcriptionMode === 'local'}
                 onClick={() => handleTranscriptionModeChange('local')}
-                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
-                  transcriptionMode === 'local'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                <Cpu className="h-4 w-4 mx-auto mb-1" />
-                <div className="font-medium text-sm">Browser</div>
-                <div className="text-xs mt-1 opacity-75">Offline, uses CPU</div>
-              </button>
+                icon={<Cpu className="h-4 w-4" />}
+                label="Browser"
+                sublabel="Offline, uses CPU"
+              />
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
               {transcriptionMode === 'cloud'
                 ? 'Audio is streamed to Observer servers for real-time transcription.'
                 : transcriptionMode === 'self-hosted'
@@ -999,8 +1038,8 @@ const SettingsTab = () => {
 
           {/* Self-Hosted URL input */}
           {transcriptionMode === 'self-hosted' && (
-            <div className="bg-gray-50 p-4 rounded-lg border">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+              <label className={labelClass}>
                 Whisper Server URL
               </label>
               <input
@@ -1008,9 +1047,9 @@ const SettingsTab = () => {
                 placeholder="http://localhost:8000"
                 value={selfHostedUrl}
                 onChange={handleSelfHostedUrlChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className={inputClass}
               />
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 OpenAI-compatible endpoint (faster-whisper, whisper.cpp, speaches, etc.)
               </p>
             </div>
@@ -1020,7 +1059,7 @@ const SettingsTab = () => {
           {transcriptionMode === 'local' && (
           <>
           <div>
-            <label htmlFor="model-id" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="model-id" className={labelClass}>
               Model ID
             </label>
             <input
@@ -1031,32 +1070,32 @@ const SettingsTab = () => {
               placeholder="Enter any HuggingFace model ID"
               list="model-suggestions"
               disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
-              className="block w-full px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
+              className={inputClass}
             />
             <datalist id="model-suggestions">
               {SUGGESTED_MODELS.map(model => (
                 <option key={model} value={model} />
               ))}
             </datalist>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Examples: onnx-community/whisper-small.en (English only), onnx-community/whisper-small (multilingual)
             </p>
           </div>
 
           {/* Responsive Options - Only show for multilingual models */}
           {!whisperSettings.modelId.endsWith('.en') && (
-            <div className="bg-gray-50 p-4 rounded-lg border">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Multilingual Options</h4>
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Multilingual Options</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="task" className="block text-xs font-medium text-gray-700 mb-1">
+                  <label htmlFor="task" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Task
                   </label>
                   <select
                     id="task"
                     value={whisperSettings.task || ''}
                     onChange={handleTaskChange}
-                    className="block w-full px-3 py-2 text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className={inputClass}
                   >
                     <option value="">Default (transcribe)</option>
                     <option value="transcribe">Transcribe</option>
@@ -1064,14 +1103,14 @@ const SettingsTab = () => {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="language" className="block text-xs font-medium text-gray-700 mb-1">
+                  <label htmlFor="language" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Language
                   </label>
                   <select
                     id="language"
                     value={whisperSettings.language || ''}
                     onChange={handleLanguageChange}
-                    className="block w-full px-3 py-2 text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className={inputClass}
                   >
                     <option value="">Auto-detect</option>
                     {Object.entries(LANGUAGE_NAMES).map(([code, name]) => (
@@ -1090,16 +1129,16 @@ const SettingsTab = () => {
               id="quantized"
               checked={whisperSettings.quantized}
               onChange={handleQuantizedChange}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="h-4 w-4 text-purple-600 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500"
             />
-            <label htmlFor="quantized" className="ml-2 text-sm font-medium text-gray-700">
+            <label htmlFor="quantized" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               Quantized (smaller file sizes, faster loading)
             </label>
           </div>
 
           {/* Compute Backend */}
           <div>
-            <label htmlFor="whisper-device" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="whisper-device" className={labelClass}>
               Compute Backend
             </label>
             <select
@@ -1107,12 +1146,12 @@ const SettingsTab = () => {
               value={whisperSettings.device || 'wasm'}
               onChange={handleDeviceChange}
               disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
-              className="block w-full px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
+              className={inputClass}
             >
               <option value="wasm">WASM (CPU — works everywhere)</option>
               <option value="webgpu">WebGPU (GPU — faster, needs browser support)</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               WebGPU is much faster for larger models but isn't available in every browser. If the model fails to load, switch back to WASM.
             </p>
           </div>
@@ -1122,7 +1161,7 @@ const SettingsTab = () => {
           {/* Chunk Duration - Shared by both modes */}
           {transcriptionMode !== 'cloud' && (
           <div>
-            <label htmlFor="chunk-duration" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="chunk-duration" className={labelClass}>
               Chunk Duration ({Math.round(whisperSettings.chunkDurationMs / 1000)}s)
             </label>
             <input
@@ -1134,26 +1173,26 @@ const SettingsTab = () => {
               value={whisperSettings.chunkDurationMs}
               onChange={handleChunkDurationChange}
               disabled={isTestRunning}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed"
+              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed accent-purple-600"
             />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
               <span>1s</span>
               <span>30s</span>
               <span>60s</span>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
               Each agent accumulates transcripts during its loop window and clears them after processing.
             </p>
           </div>
           )}
-          
+
           {/* Local Mode: Model Management Buttons */}
           {transcriptionMode === 'local' && (
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={handleLoadModel}
                 disabled={modelState?.status === 'loading' || modelState?.status === 'loaded'}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center transition-all"
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed flex items-center transition-colors text-sm font-medium"
               >
                 {modelState?.status === 'loading' ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1168,7 +1207,7 @@ const SettingsTab = () => {
               {modelState?.status === 'loaded' && (
                 <button
                   onClick={handleUnloadModel}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center transition-all"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center transition-colors text-sm font-medium"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Unload Model
@@ -1178,18 +1217,18 @@ const SettingsTab = () => {
           )}
 
           {/* Audio Source Toggle + Test Button */}
-          <div className="bg-gray-50 p-4 rounded-lg border">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+            <label className={labelClass}>
               Test Audio Source
             </label>
             <div className="flex flex-wrap gap-2 mb-4">
               <button
                 onClick={() => setAudioTestSource('microphone')}
                 disabled={isTestRunning}
-                className={`flex items-center px-3 py-2 rounded-lg border-2 transition-all ${
+                className={`flex items-center px-3 py-2 rounded-lg border transition-colors ${
                   audioTestSource === 'microphone'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <Mic className="h-4 w-4 mr-2" />
@@ -1198,10 +1237,10 @@ const SettingsTab = () => {
               <button
                 onClick={() => setAudioTestSource('screenAudio')}
                 disabled={isTestRunning}
-                className={`flex items-center px-3 py-2 rounded-lg border-2 transition-all ${
+                className={`flex items-center px-3 py-2 rounded-lg border transition-colors ${
                   audioTestSource === 'screenAudio'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <Monitor className="h-4 w-4 mr-2" />
@@ -1210,10 +1249,10 @@ const SettingsTab = () => {
               <button
                 onClick={() => setAudioTestSource('allAudio')}
                 disabled={isTestRunning}
-                className={`flex items-center px-3 py-2 rounded-lg border-2 transition-all ${
+                className={`flex items-center px-3 py-2 rounded-lg border transition-colors ${
                   audioTestSource === 'allAudio'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <Volume2 className="h-4 w-4 mr-2" />
@@ -1221,34 +1260,34 @@ const SettingsTab = () => {
               </button>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center flex-wrap gap-3">
               <button
                 onClick={isTestRunning ? handleStopTest : handleStartTest}
               disabled={
                 (transcriptionMode === 'local' && modelState?.status !== 'loaded') ||
                 (transcriptionMode === 'self-hosted' && !selfHostedUrl.trim())
               }
-              className={`px-4 py-2 rounded-md text-white flex items-center transition-all disabled:bg-gray-400 disabled:cursor-not-allowed ${
-                isTestRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+              className={`px-4 py-2 rounded-lg text-white flex items-center transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-sm font-medium ${
+                isTestRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'
               }`}
             >
               <TestTube2 className="mr-2 h-4 w-4" />
               {isTestRunning ? 'Stop Test' : 'Start Test'}
             </button>
             {transcriptionMode === 'cloud' && (
-              <span className="text-sm text-green-600 flex items-center">
+              <span className="text-sm text-green-600 dark:text-green-400 flex items-center">
                 <CheckCircle2 className="h-4 w-4 mr-1" />
                 Cloud Ready
               </span>
             )}
             {transcriptionMode === 'self-hosted' && selfHostedUrl.trim() && (
-              <span className="text-sm text-green-600 flex items-center">
+              <span className="text-sm text-green-600 dark:text-green-400 flex items-center">
                 <CheckCircle2 className="h-4 w-4 mr-1" />
                 Server Configured
               </span>
             )}
             {transcriptionMode === 'self-hosted' && !selfHostedUrl.trim() && (
-              <span className="text-sm text-amber-600 flex items-center">
+              <span className="text-sm text-amber-600 dark:text-amber-400 flex items-center">
                 Enter server URL to enable
               </span>
             )}
@@ -1258,20 +1297,20 @@ const SettingsTab = () => {
           {/* Local Mode: Model Loading Progress */}
           {transcriptionMode === 'local' && modelState?.status === 'loading' && modelState.progress.length > 0 && (
             <div className="space-y-3 pt-2">
-              <h4 className="text-md font-semibold text-gray-700">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Loading Model: {modelState.config?.modelId}
               </h4>
               {modelState.progress.map((item) => (
                 <div key={item.file}>
                   <div className="flex justify-between items-center text-sm mb-1">
-                    <span className="text-gray-600 flex items-center truncate max-w-[60%]">
+                    <span className="text-gray-600 dark:text-gray-400 flex items-center truncate max-w-[60%]">
                       {item.status === 'done'
                         ? <CheckCircle2 className="h-4 w-4 text-green-500 mr-2 flex-shrink-0"/>
                         : <FileDown className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0"/>
                       }
                       <span className="truncate">{item.file}</span>
                     </span>
-                    <span className="font-medium text-gray-500 flex-shrink-0">
+                    <span className="font-medium text-gray-500 dark:text-gray-400 flex-shrink-0">
                       {item.status === 'done'
                         ? 'Done'
                         : item.total > 0
@@ -1280,10 +1319,10 @@ const SettingsTab = () => {
                       }
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        item.status === 'done' ? 'bg-green-500' : 'bg-blue-600'
+                        item.status === 'done' ? 'bg-green-500' : 'bg-purple-600'
                       }`}
                       style={{ width: `${item.progress}%` }}
                     />
@@ -1295,8 +1334,8 @@ const SettingsTab = () => {
 
           {/* Local Mode: Error Display */}
           {transcriptionMode === 'local' && modelState?.error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
-              <p className="text-sm text-red-800">
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg p-3">
+              <p className="text-sm text-red-800 dark:text-red-300">
                 <strong>Error:</strong> {modelState.error}
               </p>
             </div>
@@ -1304,28 +1343,28 @@ const SettingsTab = () => {
 
           {/* Transcription Results */}
           <div>
-            <h4 className="text-md font-semibold text-gray-700 mb-2">Live Transcription</h4>
-            <div className="border rounded-lg bg-gray-50 max-h-96 overflow-y-auto">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Live Transcription</h4>
+            <div className="border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-800/50 max-h-96 overflow-y-auto">
               {/* Currently running test */}
               {isTestRunning && (
-                <div className="p-3 border-b bg-blue-50">
+                <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-purple-50/60 dark:bg-purple-950/20">
                   <div className="flex items-start gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                        <span className="text-xs font-medium text-blue-600">
+                        <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
+                        <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
                           Recording ({audioTestSource === 'microphone' ? 'Mic' : audioTestSource === 'screenAudio' ? 'Screen' : 'All'})
                         </span>
                       </div>
-                      <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+                      <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
                         {(committedText || interimText) ? (
                           <>
                             <span>{committedText}</span>
                             {committedText && interimText && ' '}
-                            <span className="text-gray-500 italic">{interimText}</span>
+                            <span className="text-gray-500 dark:text-gray-400 italic">{interimText}</span>
                           </>
                         ) : (
-                          <span className="text-gray-400 italic">
+                          <span className="text-gray-400 dark:text-gray-500 italic">
                             {audioTestSource === 'microphone' ? 'Speak into your microphone...' : 'Play some audio on your device...'}
                           </span>
                         )}
@@ -1337,11 +1376,11 @@ const SettingsTab = () => {
 
               {/* Transcription history */}
               {transcriptionHistory.map((record) => (
-                <div key={record.id} className="p-3 border-b last:border-b-0 hover:bg-gray-100 transition-colors">
+                <div key={record.id} className="p-3 border-b border-gray-200 dark:border-gray-800 last:border-b-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           {record.source === 'microphone' ? (
                             <Mic className="h-3 w-3 inline mr-1" />
                           ) : record.source === 'screenAudio' ? (
@@ -1352,17 +1391,17 @@ const SettingsTab = () => {
                           {record.timestamp.toLocaleTimeString()}
                         </span>
                       </div>
-                      <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+                      <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
                         {record.transcript}
                       </p>
                     </div>
                     {record.audioUrl && (
                       <button
                         onClick={() => handlePlayRecording(record)}
-                        className={`flex-shrink-0 p-2 rounded-full transition-all ${
+                        className={`flex-shrink-0 p-2 rounded-full transition-colors ${
                           playingRecordId === record.id
-                            ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                            : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                            ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200'
+                            : 'bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 hover:bg-purple-200'
                         }`}
                         title={playingRecordId === record.id ? 'Stop' : 'Play recording'}
                       >
@@ -1379,14 +1418,14 @@ const SettingsTab = () => {
 
               {/* Empty state */}
               {!isTestRunning && transcriptionHistory.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-8">
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
                   Start a test to see transcription results here.
                 </p>
               )}
             </div>
           </div>
         </div>
-      </SettingsCard>
+      </Section>
     </div>
   );
 };
