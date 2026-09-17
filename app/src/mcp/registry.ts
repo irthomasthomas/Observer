@@ -239,7 +239,6 @@ export const TOOLS: ToolDefinition[] = [
     name: 'list_agents',
     description: 'List all Observer agents the user has saved, with their basic config (id, name, description, model, loop interval).',
     parameters: { type: 'object', properties: {} },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (): Promise<ToolResult> => {
       const agents = await listAgents();
@@ -263,7 +262,6 @@ export const TOOLS: ToolDefinition[] = [
       properties: { id: { type: 'string', description: 'The agent id.' } },
       required: ['id'],
     },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
       const agent = await getAgent(args.id);
@@ -279,7 +277,6 @@ export const TOOLS: ToolDefinition[] = [
       type: 'object',
       properties: { id: { type: 'string', description: 'Optional agent id to check.' } },
     },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
       if (args.id) {
@@ -299,7 +296,6 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ['agent_id'],
     },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
       const limit = typeof args.limit === 'number' && args.limit > 0 ? args.limit : 20;
@@ -335,7 +331,6 @@ export const TOOLS: ToolDefinition[] = [
         agent_id: { type: 'string', description: 'The owning agent id. Required when iteration_id is omitted; also needed to locate historical iterations.' },
       },
     },
-    requiresConfirmation: false,
     multimodal: true,
     execute: async (args, ctx): Promise<ToolResult> => {
       if (!args.iteration_id && !args.agent_id) {
@@ -379,7 +374,6 @@ export const TOOLS: ToolDefinition[] = [
     name: 'list_models',
     description: 'List the inference models available to power agents, with their server and multimodal capability.',
     parameters: { type: 'object', properties: {} },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (): Promise<ToolResult> => {
       const { models } = ModelManager.getInstance().listModels();
@@ -411,7 +405,6 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ['id', 'name', 'model_name', 'system_prompt', 'code'],
     },
-    requiresConfirmation: true,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
       if (!/\$(?:SCREEN|CAMERA|MICROPHONE|CLIPBOARD|MEMORY|LOCATION)\b/.test(args.system_prompt)) {
@@ -449,7 +442,6 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ['id', 'name', 'model_name', 'system_prompt', 'code'],
     },
-    requiresConfirmation: true,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
       const existing = await getAgent(args.id);
@@ -481,7 +473,6 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ['phone_number'],
     },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (args, ctx): Promise<ToolResult> => {
       if (!args.phone_number) return { error: 'Provide a phone_number to check.' };
@@ -554,7 +545,6 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ['kind'],
     },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (args, ctx): Promise<ToolResult> => {
       const kind = args.kind as UserInfoKind;
@@ -601,13 +591,12 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'start_agent',
-    description: 'Start an agent\'s run loop. This runs the agent\'s sandboxed code on a schedule (which may send emails/SMS, click, etc.), so it requires confirmation.',
+    description: 'Start an agent\'s run loop. This runs the agent\'s sandboxed code on a schedule (which may send emails/SMS, click, etc.).',
     parameters: {
       type: 'object',
       properties: { id: { type: 'string', description: 'The agent id to start.' } },
       required: ['id'],
     },
-    requiresConfirmation: true,
     multimodal: false,
     execute: async (args, ctx): Promise<ToolResult> => {
       const agent = await getAgent(args.id);
@@ -628,7 +617,6 @@ export const TOOLS: ToolDefinition[] = [
       properties: { id: { type: 'string', description: 'The agent id to stop.' } },
       required: ['id'],
     },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
       await stopAgentLoop(args.id);
@@ -639,7 +627,6 @@ export const TOOLS: ToolDefinition[] = [
     name: 'list_screen_targets',
     description: 'List the screens (monitors) and windows available to capture for a $SCREEN agent, as a text-only catalog (NO images — a desktop can have many windows, so thumbnails are fetched one at a time with see_screen_target). Call this on desktop BEFORE start_agent for any agent whose system_prompt uses $SCREEN: read the list, see_screen_target the few that plausibly match what the user wants to watch, then select_screen_target the best one. On the web/mobile app this returns a note instead — there the OS picker appears automatically when the agent starts, so just go straight to start_agent. Each target has an id (for see_screen_target / select_screen_target), kind (monitor/window), name, appName, and width/height in pixels (for context; set_screen_crop takes a normalized box_2d, not these pixels).',
     parameters: { type: 'object', properties: {} },
-    requiresConfirmation: false,
     multimodal: false,
     execute: async (): Promise<ToolResult> => {
       if (!isDesktop()) {
@@ -693,7 +680,6 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ['target_id'],
     },
-    requiresConfirmation: false,
     multimodal: true,
     execute: async (args): Promise<ToolResult> => {
       if (!isDesktop()) {
@@ -740,7 +726,6 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ['target_id'],
     },
-    requiresConfirmation: true,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
       if (!isDesktop()) {
@@ -782,7 +767,6 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ['agent_id'],
     },
-    requiresConfirmation: true,
     multimodal: false,
     execute: async (args): Promise<ToolResult> => {
       if (args.clear) {
@@ -821,16 +805,14 @@ export const TOOLS: ToolDefinition[] = [
     name: 'capture_screen',
     description: 'Trigger a screen-share preview so you can SEE what will be monitored before building the agent, then return one captured frame as an image. On web / mobile web this opens the browser screen-share picker (pick a screen, window, or tab). On the mobile app it triggers the OS screen-capture picker and captures the WHOLE screen (iOS broadcast / Android screen-record permission): the user must approve the system prompt, and on iOS there can be a few seconds of delay before the first frame — if this returns a "no frame yet" message, just call it again. The stream stays live — start_agent reuses it without prompting again. Use this on web and mobile app instead of list_screen_targets/see_screen_target/select_screen_target. Call it BEFORE create_agent for any agent whose system_prompt uses $SCREEN.',
     parameters: { type: 'object', properties: {} },
-    requiresConfirmation: false,
     multimodal: true,
     // Same platform split as StreamManager: browser → getDisplayMedia; Tauri → native plugin.
     execute: async (): Promise<ToolResult> => isWeb() ? captureScreenWeb() : captureScreenTauri(),
   },
   {
     name: 'download_model',
-    description: 'Download and load the default on-device model so agents can run locally with NO cloud and NO API key. Takes no arguments — Observer picks the right Gemma 4 E2B build for the platform (a transformers.js ONNX model in the browser, a llama.cpp GGUF in the desktop app). This BLOCKS while it downloads (a few GB) and loads; progress bars are shown to the user. When it resolves, the returned `model_name` is immediately usable as a `create_agent` model_name. Only one local model is needed; call list_models afterward to confirm. Asks the user to approve.',
+    description: 'Download and load the default on-device model so agents can run locally with NO cloud and NO API key. Takes no arguments — Observer picks the right Gemma 4 E2B build for the platform (a transformers.js ONNX model in the browser, a llama.cpp GGUF in the desktop app). This BLOCKS while it downloads (a few GB) and loads; progress bars are shown to the user. When it resolves, the returned `model_name` is immediately usable as a `create_agent` model_name. Only one local model is needed; call list_models afterward to confirm.',
     parameters: { type: 'object', properties: {} },
-    requiresConfirmation: true,
     multimodal: false,
     execute: async (): Promise<ToolResult> => {
       try {

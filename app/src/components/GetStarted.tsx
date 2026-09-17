@@ -1,10 +1,9 @@
 // src/components/GetStarted.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import { Users, Plus, Trash2, Sparkles } from 'lucide-react';
 import MCP from './AICreator/MCP';
 import type { TokenProvider } from '@utils/main_loop';
 import { useMCPContext } from '../mcp/MCPContext';
-import { SensorSettings } from '@utils/settings';
 
 
 interface GetStartedProps {
@@ -35,13 +34,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
   onOpenRecipe,
 }) => {
   const { clear, isRunning } = useMCPContext();
-  const [yolo, setYolo] = useState(() => SensorSettings.getMcpYoloMode());
-
-  const toggleYolo = () => {
-    const next = !yolo;
-    SensorSettings.setMcpYoloMode(next);
-    setYolo(next);
-  };
 
   return (
     <div className="w-full max-w-6xl mx-auto">
@@ -62,16 +54,6 @@ const GetStarted: React.FC<GetStartedProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={toggleYolo}
-                    title={yolo ? 'Yolo mode on — auto-approves all actions' : 'Yolo mode off'}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 px-1"
-                  >
-                    Yolo
-                    <span className={`relative inline-flex h-4 w-7 shrink-0 rounded-full transition-colors duration-200 ${yolo ? 'bg-amber-400' : 'bg-gray-200'}`}>
-                      <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200 self-center ${yolo ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
-                    </span>
-                  </button>
                   <button
                     onClick={clear}
                     disabled={isRunning}

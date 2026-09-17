@@ -5,7 +5,7 @@
 // OpenAI function calls (see src/mcp/). This component is pure UI over the useMCP hook.
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Download, Cpu, Sparkles, StopCircle, Mic, Trash2 } from 'lucide-react';
+import { Send, Loader2, Plus, CheckCircle2, XCircle, Loader, Square, Download, Cpu, Sparkles, StopCircle, Mic, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
@@ -17,8 +17,6 @@ import { useSubscriberText } from '@hooks/useTranscriptionState';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
 import { SensorSettings } from '@utils/settings';
 import { isTauri } from '@utils/platform';
-import { tauriStreamCapture, type CaptureTarget } from '@utils/tauriStreamCapture';
-import { Monitor } from 'lucide-react';
 import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 import type { GemmaModelState, NativeModelState } from '@utils/localLlm/types';
@@ -79,8 +77,7 @@ const Markdown: React.FC<{ text: string }> = ({ text }) => (
 const StatusIcon: React.FC<{ status?: string }> = ({ status }) => {
   switch (status) {
     case 'done': return <CheckCircle2 className="h-3 w-3 text-green-600" />;
-    case 'error':
-    case 'denied': return <XCircle className="h-3 w-3 text-red-500" />;
+    case 'error': return <XCircle className="h-3 w-3 text-red-500" />;
     case 'running': return <Loader className="h-3 w-3 text-gray-400 animate-spin" />;
     default: return <Loader className="h-3 w-3 text-gray-400 animate-spin" />;
   }
@@ -245,187 +242,6 @@ const DownloadModelProgress: React.FC = () => {
 };
 
 // ===================================================================================
-//  AGENT APPROVAL CARD  (the human gate — a tool whose promise resolves from the UI)
-// ===================================================================================
-interface ApprovalCall { id: string; name: string; args: any; }
-
-/**
- * Preview for select_screen_target / set_screen_crop calls: shows the chosen monitor/window
- * thumbnail (fetched live from the same source of truth the capture path reads) with the
- * proposed crop drawn as an overlay box, so the user sees exactly what will be captured.
- */
-const ScreenCaptureApproval: React.FC<{
-  targetId?: string;
-  crop?: { x: number; y: number; width: number; height: number };
-  clearCrop?: boolean;
-}> = ({ targetId, crop, clearCrop }) => {
-  const [target, setTarget] = useState<CaptureTarget | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    tauriStreamCapture.getTargets(true)
-      .then(targets => { if (!cancelled) setTarget(targets.find(t => t.id === targetId) ?? null); })
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
-    return () => { cancelled = true; };
-  }, [targetId]);
-
-  const thumb = target?.thumbnail
-    ? (target.thumbnail.startsWith('data:') ? target.thumbnail : `data:image/png;base64,${target.thumbnail}`)
-    : null;
-
-  // Crop overlay expressed as % of the target's pixel space, so it tracks the scaled thumbnail.
-  const overlay = crop && target
-    ? {
-        left: `${(crop.x / target.width) * 100}%`,
-        top: `${(crop.y / target.height) * 100}%`,
-        width: `${(crop.width / target.width) * 100}%`,
-        height: `${(crop.height / target.height) * 100}%`,
-      }
-    : null;
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3">
-      <div className="flex items-center mb-2">
-        <Monitor className="h-4 w-4 text-blue-600 mr-2" />
-        <span className="text-sm text-gray-800">
-          Capture {target ? <strong>{target.name}</strong> : <code className="font-mono text-xs">{targetId}</code>}
-          {target?.appName && target.appName !== target.name ? ` (${target.appName})` : ''}
-          {clearCrop ? ' · full screen' : crop ? ` · cropped to ${crop.width}×${crop.height}` : ''}
-        </span>
-      </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      {thumb && (
-        <div className="relative inline-block max-w-full rounded overflow-hidden border border-gray-200">
-          <img src={thumb} alt={target?.name ?? 'screen'} className="block max-h-48 w-auto" />
-          {overlay && (
-            <div
-              className="absolute border-2 border-blue-500 bg-blue-500/20"
-              style={overlay}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const AgentApprovalCard: React.FC<{
-  calls: ApprovalCall[];
-  onDecision: (approved: boolean) => void;
-}> = ({ calls, onDecision }) => {
-  const agentBuilds = calls.filter(c => c.name === 'create_agent' || c.name === 'edit_agent');
-  const lifecycle = calls.filter(c => c.name === 'start_agent' || c.name === 'stop_agent');
-  const targetSelect = calls.find(c => c.name === 'select_screen_target');
-  const cropCalls = calls.filter(c => c.name === 'set_screen_crop');
-  // Pair a crop with its target so the overlay can be drawn on the right thumbnail.
-  const cropForTarget = cropCalls.find(c => !c.args.clear)?.args;
-  const showScreenCapture = !!targetSelect || cropCalls.length > 0;
-
-  return (
-    <div className="w-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 md:p-6">
-      <div className="flex items-center justify-center mb-4">
-        <Users className="h-6 w-6 text-purple-600 mr-2" />
-        <h3 className="text-lg font-bold text-purple-800">
-          {agentBuilds.length > 0
-            ? `Review ${agentBuilds.length} proposed agent${agentBuilds.length === 1 ? '' : 's'}`
-            : 'Confirm action'}
-        </h3>
-      </div>
-
-      {agentBuilds.length > 0 && (
-        <div className="space-y-4 mb-4">
-          {agentBuilds.map((c, index) => (
-            <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center mb-3">
-                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-purple-600 font-bold text-sm">{index + 1}</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">{c.args.name || c.args.id}</h4>
-                  <p className="text-sm text-gray-600">{c.args.description}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {c.name === 'edit_agent' ? 'edit' : 'create'} · {c.args.model_name} · every {c.args.loop_interval_seconds ?? 30}s
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <h5 className="font-medium text-gray-700 mb-2">System Prompt:</h5>
-                  <div className="bg-gray-50 border rounded p-2 max-h-24 overflow-y-auto">
-                    <code className="text-gray-600 whitespace-pre-wrap text-xs">{c.args.system_prompt}</code>
-                  </div>
-                </div>
-                <div>
-                  <h5 className="font-medium text-gray-700 mb-2">Code:</h5>
-                  <div className="bg-gray-50 border rounded p-2 max-h-24 overflow-y-auto">
-                    <code className="text-gray-600 whitespace-pre-wrap text-xs">{c.args.code}</code>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {showScreenCapture && (
-        <div className="space-y-2 mb-4">
-          {targetSelect ? (
-            <ScreenCaptureApproval
-              targetId={targetSelect.args.target_id}
-              crop={cropForTarget ? { x: cropForTarget.x, y: cropForTarget.y, width: cropForTarget.width, height: cropForTarget.height } : undefined}
-            />
-          ) : (
-            // Crop without a target in the same batch (e.g. re-cropping a running agent).
-            cropCalls.map(c => (
-              <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center">
-                <Monitor className="h-4 w-4 text-blue-600 mr-2" />
-                <span className="text-sm text-gray-800">
-                  {c.args.clear
-                    ? <>Remove screen crop for <code className="font-mono">{c.args.agent_id}</code></>
-                    : <>Crop <code className="font-mono">{c.args.agent_id}</code> to {c.args.width}×{c.args.height} at ({c.args.x}, {c.args.y})</>}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {lifecycle.length > 0 && (
-        <div className="space-y-2 mb-4">
-          {lifecycle.map(c => (
-            <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center">
-              {c.name === 'start_agent'
-                ? <Play className="h-4 w-4 text-green-600 mr-2" />
-                : <Square className="h-4 w-4 text-red-500 mr-2" />}
-              <span className="text-sm text-gray-800">
-                {c.name === 'start_agent' ? 'Start' : 'Stop'} agent <code className="font-mono">{c.args.id}</code>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-center justify-center gap-3">
-        <button
-          onClick={() => onDecision(false)}
-          className="px-5 py-2.5 text-base bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
-        >
-          Deny
-        </button>
-        <button
-          onClick={() => onDecision(true)}
-          className="px-6 py-2.5 text-base bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-medium transition-colors flex items-center shadow-lg"
-        >
-          <Save className="h-5 w-5 mr-2" />
-          Approve
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ===================================================================================
 //  MAIN COMPONENT
 // ===================================================================================
 const MCP: React.FC<MCPProps> = ({
@@ -447,8 +263,6 @@ const MCP: React.FC<MCPProps> = ({
     streamingText,
     isRunning,
     toolStatus,
-    pendingApproval,
-    resolveInteraction,
     subscribeMutation,
     stop,
     send,
@@ -556,7 +370,7 @@ const MCP: React.FC<MCPProps> = ({
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingText, pendingApproval]);
+  }, [messages, streamingText]);
 
   useEffect(() => {
     if (initialMessage && !hasInitialMessageSet.current) {
@@ -590,12 +404,6 @@ const MCP: React.FC<MCPProps> = ({
       reader.readAsDataURL(file);
     });
     if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleApproval = (approved: boolean) => {
-    if (!pendingApproval) return;
-    // onSaveComplete / onRefresh fire from useMCP's onAgentMutated once the save resolves.
-    resolveInteraction(pendingApproval.batchId, { approved });
   };
 
   const renderMessage = (msg: WireMessage, idx: number) => {
@@ -660,13 +468,12 @@ const MCP: React.FC<MCPProps> = ({
     'Notify me when my battery is low',
   ];
 
-  const isInputDisabled = isRunning || (isUsingObServer && !isAuthenticated) || !!pendingApproval;
+  const isInputDisabled = isRunning || (isUsingObServer && !isAuthenticated);
   const isSendDisabled = isInputDisabled || (!userInput.trim() && previewImages.length === 0);
-  const showSuggestions = !hideSuggestions && messages.length === 0 && !isRunning && !pendingApproval;
+  const showSuggestions = !hideSuggestions && messages.length === 0 && !isRunning;
 
   const getPlaceholder = () => {
     if (isUsingObServer && !isAuthenticated) return 'Enable Ob-Server and log in to use Observer';
-    if (pendingApproval) return 'Approve or deny the proposed action above…';
     return 'Describe what you want monitored…';
   };
 
@@ -712,13 +519,7 @@ const MCP: React.FC<MCPProps> = ({
           </div>
         )}
 
-        {pendingApproval && (
-          <div className="flex justify-start w-full">
-            <AgentApprovalCard calls={pendingApproval.calls} onDecision={handleApproval} />
-          </div>
-        )}
-
-        {isRunning && !streamingText && !pendingApproval && (
+        {isRunning && !streamingText && (
           <div className="flex justify-start">
             <div className={`text-gray-800 p-2 md:p-3 inline-flex items-center ${boxed ? 'bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg shadow-sm' : 'bg-gray-100 rounded-2xl'}`}>
               <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" />

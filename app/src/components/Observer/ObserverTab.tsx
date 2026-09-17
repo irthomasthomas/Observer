@@ -45,8 +45,8 @@ const ObserverTab: React.FC<ObserverTabProps> = ({
   onToggleAgent,
   onOpenMicroAgents,
 }) => {
-  const { messages, isRunning, pendingApproval } = useMCPContext();
-  const isEmpty = messages.length === 0 && !isRunning && !pendingApproval;
+  const { messages, isRunning } = useMCPContext();
+  const isEmpty = messages.length === 0 && !isRunning;
 
   return (
     <div className="flex flex-col h-full">

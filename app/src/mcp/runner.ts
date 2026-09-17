@@ -4,7 +4,7 @@
 // browser-bound is injected via deps. This is the portability line — the same loop runs
 // in a future MCP server with only `send` and the registry's executors swapped.
 //
-//   send → tool_calls → run (auto) or await human gate (confirm) → append results → repeat
+//   send → tool_calls → run → append results → repeat
 // until the model returns a turn with no tool calls, or MAX_ITERATIONS is hit.
 
 import type {
@@ -31,16 +31,6 @@ export interface PreparedCall {
   tool: ToolDefinition;
 }
 
-/** A batch of confirmable calls handed to the UI for a single approve/deny decision. */
-export interface InteractionRequest {
-  batchId: string;
-  calls: Array<{ id: string; name: string; args: any }>;
-}
-
-export interface InteractionDecision {
-  approved: boolean;
-}
-
 export interface RunnerDeps {
   /** Streamed model call. Resolves with the full assistant response for one turn. */
   send: (wire: WireMessage[], onTextDelta?: (chunk: string) => void) => Promise<AssistantResponse>;
@@ -48,11 +38,7 @@ export interface RunnerDeps {
   getTool: (name: string) => ToolDefinition | undefined;
   /** Ambient context passed to executors (e.g. getToken). */
   context: ToolContext;
-  /** Read live at each gate. When it returns true, confirmable tools run without a human
-   *  gate ("yolo mode"). A getter (not a boolean) so a runtime toggle takes effect on the
-   *  next batch without rebuilding the loop — same injection idiom as ToolContext.getToken. */
-  skipPermissions?: () => boolean;
-  /** Aborts the loop. Checked at each safe boundary; an in-flight `send`/gate should also
+  /** Aborts the loop. Checked at each safe boundary; an in-flight `send` should also
    *  reject when this fires so the loop unwinds promptly. */
   signal?: AbortSignal;
   /** Called whenever the wire changes (new assistant/tool message appended). */
@@ -61,14 +47,6 @@ export interface RunnerDeps {
   onAssistantDelta?: (chunk: string) => void;
   /** Per-tool-call status transitions. */
   onStatus?: (toolCallId: string, status: ToolCallStatus, meta?: { name: string; args: any }) => void;
-  /** Human gate: resolves from the UI (the deferred-promise pattern). */
-  requestInteraction: (req: InteractionRequest) => Promise<InteractionDecision>;
-}
-
-let batchCounter = 0;
-function nextBatchId(): string {
-  batchCounter += 1;
-  return `batch_${Date.now()}_${batchCounter}`;
 }
 
 /** Serialize a ToolResult into the string content of a `role: 'tool'` message. */
@@ -166,10 +144,6 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
         pushTool(tc.id, { error: validation.error }, tc.function.name);
         continue;
       }
-      deps.onStatus?.(tc.id, tool.requiresConfirmation ? 'pending' : 'approved', {
-        name: tc.function.name,
-        args: validation.value,
-      });
       executable.push({ id: tc.id, name: tc.function.name, args: validation.value, tool });
     }
 
@@ -189,36 +163,12 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
       if (result.images && result.images.length > 0) pendingImages.push(...result.images);
     };
 
-    const auto = executable.filter(c => !c.tool.requiresConfirmation);
-    const confirm = executable.filter(c => c.tool.requiresConfirmation);
-
-    // Auto (read/benign) tools run in parallel: the model issued them as one independent
-    // batch (the common opener is list_agents + list_models), and nothing here depends on
-    // ordering — each runOne appends its own result keyed by tool_call_id (the API only
-    // requires every id be answered, not in call order) and the UI keys each chip's status
-    // by id too. Results land in completion order, so chips resolve as each read finishes.
-    await Promise.all(auto.map(c => runOne(c)));
-
-    // Confirmable tools: one batched human gate for the whole turn.
-    if (confirm.length > 0) {
-      if (deps.skipPermissions?.()) {
-        for (const call of confirm) await runOne(call);
-      } else {
-        const batchId = nextBatchId();
-        const decision = await deps.requestInteraction({
-          batchId,
-          calls: confirm.map(c => ({ id: c.id, name: c.name, args: c.args })),
-        });
-        for (const call of confirm) {
-          if (decision.approved) {
-            await runOne(call);
-          } else {
-            deps.onStatus?.(call.id, 'denied', { name: call.name, args: call.args });
-            pushTool(call.id, { error: 'User denied this action.' }, call.name);
-          }
-        }
-      }
-    }
+    // Every validated call runs immediately, in parallel: the model issued them as one
+    // independent batch (the common opener is list_agents + list_models), and nothing here
+    // depends on ordering — each runOne appends its own result keyed by tool_call_id (the API
+    // only requires every id be answered, not in call order) and the UI keys each chip's
+    // status by id too. Results land in completion order, so chips resolve as each finishes.
+    await Promise.all(executable.map(c => runOne(c)));
 
     // Multimodal results: OpenAI tool messages are text-only, so images ride in a
     // follow-up user message with image_url parts.

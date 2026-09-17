@@ -185,9 +185,6 @@ const RecipeSplash: React.FC<RecipeSplashProps> = ({ isOpen, onClose }) => {
   const handleBuild = () => {
     const prompt = composePrompt();
     Analytics.recipeBuilt(triggerOverrides[triggerId] ? 'custom' : triggerId, actionOverrides[actionId] ? 'custom' : actionId, modelMode);
-    // First-run agents should just run — nobody's here yet to click through tool
-    // confirmations, so building from the splash turns on yolo mode.
-    SensorSettings.setMcpYoloMode(true);
     send(prompt);
     onClose();
   };

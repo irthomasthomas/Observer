@@ -84,8 +84,6 @@ export interface ToolDefinition {
   name: string;
   description: string;
   parameters: JsonSchema;
-  /** Confirmable (write/side-effecting) tools require a human gate before executing. */
-  requiresConfirmation: boolean;
   /** Whether this tool may return images in its ToolResult. */
   multimodal: boolean;
   execute: (args: any, ctx: ToolContext) => Promise<ToolResult>;
@@ -130,9 +128,8 @@ export interface ToolContext {
   signal?: AbortSignal;
   /**
    * Blocks until the user supplies a piece of contact info via the guided modal. Injected by
-   * the React layer (useMCP) using the same deferred-promise idiom as `requestInteraction`.
-   * Absent in non-React hosts, where `ask_user_info` degrades to telling the model to ask in
-   * chat instead.
+   * the React layer (useMCP) via a deferred promise. Absent in non-React hosts, where
+   * `ask_user_info` degrades to telling the model to ask in chat instead.
    */
   requestUserInfo?: (req: UserInfoRequest) => Promise<UserInfoResponse>;
 }
@@ -141,9 +138,6 @@ export interface ToolContext {
  * Lifecycle status of a single tool call, surfaced to the UI.
  */
 export type ToolCallStatus =
-  | 'pending'   // awaiting human approval
-  | 'approved'  // human approved, about to run
-  | 'denied'    // human denied
   | 'running'   // executor in flight
   | 'done'      // executor resolved
   | 'error';    // executor threw / returned error
