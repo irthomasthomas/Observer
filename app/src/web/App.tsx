@@ -1,8 +1,7 @@
 import { datadogRum } from '@datadog/browser-rum';
 import { reactPlugin } from '@datadog/browser-rum-react';
 import { Analytics } from '@utils/analytics';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Terminal, MessageSquare, ChevronUp, HelpCircle, Sparkles } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { platform as getPlatform } from '@tauri-apps/plugin-os';
 import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
@@ -11,9 +10,23 @@ import { useIOSKeyboard } from '@hooks/useIOSKeyboard';
 import { useAgentGridLayout, GRID_ROW_HEIGHT, GRID_MARGIN } from '@hooks/useAgentGridLayout';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
-import { isMobile, confirm, isDesktop, getPlatformName } from '@utils/platform';
+import { isMobile, confirm, isDesktop, isTauri, getPlatformName } from '@utils/platform';
 import { version as appVersion } from '../../package.json';
 import type { QuotaInfo } from '@/types/quota';
+import { fetchQuota, remaining as remainingOf } from '@/types/quota';
+import {
+  addInferenceAddress,
+  removeInferenceAddress,
+  fetchModels,
+  loadCustomServers,
+  getCustomServers,
+  addCustomServer,
+  removeCustomServer,
+  toggleCustomServer,
+  checkCustomServer,
+  checkInferenceServer,
+  type CustomServer,
+} from '@utils/inferenceServer';
 import {
   listAgents,
   getAgentCode,
@@ -40,7 +53,7 @@ import PersistentSidebar from '@components/PersistentSidebar';
 import AvailableModels from '@components/AvailableModels';
 import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
-import MCPPanel from '@components/AICreator/MCPPanel';
+import ObserverTab from '@components/Observer/ObserverTab';
 import RecipeSplash from '@components/AICreator/RecipeSplash';
 import JupyterServerModal from '@components/JupyterServerModal';
 import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
@@ -104,14 +117,16 @@ function AppContent() {
   const [isMemoryManagerOpen, setIsMemoryManagerOpen] = useState(false);
   const [memoryAgentId, setMemoryAgentId] = useState<string | null>(null);
   const [flashingMemories, setFlashingMemories] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState('myAgents');
+  const [activeTab, setActiveTab] = useState('observerChat');
   const [isUsingObServer, setIsUsingObServer] = useState(false);
   const [isJupyterModalOpen, setIsJupyterModalOpen] = useState(false);
   const [isSimpleCreatorOpen, setIsSimpleCreatorOpen] = useState(false);
   const [stagedAgentConfig, setStagedAgentConfig] = useState<{ agent: CompleteAgent, code: string } | null>(null);
   const [hasPendingImport, setHasPendingImport] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isMCPPanelOpen, setIsMCPPanelOpen] = useState(false);
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
 
   // Quota error state
   const [agentsWithQuotaError, setAgentsWithQuotaError] = useState<Set<string>>(new Set());
@@ -128,7 +143,6 @@ function AppContent() {
 
   // Mobile UI state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobileFooterOpen, setIsMobileFooterOpen] = useState(false);
 
   // Feedback dialog state
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -248,6 +262,256 @@ function AppContent() {
     return 'self-hosted';
   }, []);
 
+  // ── Model connectivity: custom servers, local server, Ob-Server quota/toggle ──
+  // Owned here (not in AppHeader) so the header's status dot and the Models tab
+  // share one source of truth instead of each keeping a partial copy.
+  const [customServers, setCustomServers] = useState<CustomServer[]>([]);
+  const [localServerOnline, setLocalServerOnline] = useState(false);
+  const [appInferenceUrl, setAppInferenceUrl] = useState<string | null>(null);
+  const [isLoadingQuota, setIsLoadingQuota] = useState(false);
+  const [showLoginMessage, setShowLoginMessage] = useState(false);
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
+  const [isQuotaHovered, setIsQuotaHovered] = useState(false);
+  const [has70PercentWarningBeenShown, setHas70PercentWarningBeenShown] = useState(false);
+  const [isObServerWarningOpen, setIsObServerWarningOpen] = useState(false);
+
+  const fetchQuotaInfo = useCallback(async (forceObServer = false) => {
+    const usingObServer = forceObServer || isUsingObServer;
+    if (!usingObServer || !isAuthenticated) {
+      setQuotaInfo(null);
+      setIsSessionExpired(false);
+      return;
+    }
+
+    try {
+      setIsLoadingQuota(true);
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token not available.");
+
+      const data = await fetchQuota(token);
+      setQuotaInfo(data);
+      setIsSessionExpired(false);
+      if (data && data.daily) {
+        localStorage.setItem('observer-quota-remaining', remainingOf(data.daily).toString());
+
+        // Trigger upgrade modal at 50% usage for non-pro users
+        if (data.tier !== 'pro' && data.tier !== 'max' && data.tier !== 'plus' && data.daily.limit > 0) {
+          const usagePercentage = (data.daily.used / data.daily.limit) * 100;
+          if (usagePercentage >= 50 && !has70PercentWarningBeenShown) {
+            setHas70PercentWarningBeenShown(true);
+            setIsHalfwayWarning(true);
+            setIsUpgradeModalOpen(true);
+          }
+        }
+      } else {
+        localStorage.removeItem('observer-quota-remaining');
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message === 'unauthorized') {
+        Logger.warn('AUTH', 'Session expired. Quota check failed with 401.');
+        setQuotaInfo(null);
+        setIsSessionExpired(true);
+        localStorage.removeItem('observer-quota-remaining');
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        Logger.error('QUOTA', `Error fetching quota info: ${errorMessage}`, err);
+        setQuotaInfo(null);
+        setIsSessionExpired(false);
+        localStorage.removeItem('observer-quota-remaining');
+      }
+    } finally {
+      setIsLoadingQuota(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isUsingObServer, isAuthenticated, getToken, has70PercentWarningBeenShown]);
+
+  const handleToggleObServer = useCallback(() => {
+    const newValue = !isUsingObServer;
+
+    if (newValue && !isAuthenticated) {
+      Logger.warn('AUTH', 'User attempted to enable ObServer while not authenticated.');
+      setShowLoginMessage(true);
+      setTimeout(() => setShowLoginMessage(false), 3000);
+      return;
+    }
+
+    // If switching FROM ObServer TO local on official web app, warn first
+    if (!newValue && hostingContext === 'official-web') {
+      setIsObServerWarningOpen(true);
+      return;
+    }
+
+    if (newValue) {
+      addInferenceAddress('https://api.observer-ai.com:443');
+      fetchModels();
+      if (isAuthenticated) fetchQuotaInfo(true);
+    } else {
+      removeInferenceAddress('https://api.observer-ai.com:443');
+      fetchModels();
+    }
+
+    setIsUsingObServer(newValue);
+  }, [isUsingObServer, isAuthenticated, hostingContext, fetchQuotaInfo]);
+
+  const checkLocalServer = useCallback(async () => {
+    const LOCAL_SERVER_ADDRESS = 'http://localhost:3838';
+    try {
+      Logger.info('SERVER', `Checking local server connection at ${LOCAL_SERVER_ADDRESS}...`);
+      const result = await checkInferenceServer(LOCAL_SERVER_ADDRESS);
+
+      if (result.status === 'online') {
+        setLocalServerOnline(true);
+        addInferenceAddress(LOCAL_SERVER_ADDRESS);
+        await fetchModels();
+      } else {
+        setLocalServerOnline(false);
+        removeInferenceAddress(LOCAL_SERVER_ADDRESS);
+        await fetchModels();
+      }
+    } catch (err) {
+      setLocalServerOnline(false);
+      removeInferenceAddress(LOCAL_SERVER_ADDRESS);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      Logger.error('SERVER', `Error checking local server: ${errorMessage}`, err);
+    }
+  }, []);
+
+  const handleAddCustomServer = (address: string) => { setCustomServers(addCustomServer(address)); fetchModels(); };
+  const handleRemoveCustomServer = (address: string) => { setCustomServers(removeCustomServer(address)); fetchModels(); };
+  const handleToggleCustomServer = (address: string) => { setCustomServers(toggleCustomServer(address)); fetchModels(); };
+  const handleCheckCustomServer = async (address: string) => {
+    await checkCustomServer(address);
+    setCustomServers(getCustomServers());
+    fetchModels();
+  };
+
+  const handleSetAppInferenceUrl = async (url: string) => {
+    if (!isTauri()) return;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('set_ollama_url', { newUrl: url });
+      setAppInferenceUrl(url);
+      Logger.info('SETTINGS', `Saved inference URL: ${url}`);
+      checkLocalServer();
+    } catch (err) {
+      Logger.error('SETTINGS', `Failed to save inference URL: ${err}`);
+    }
+  };
+
+  const renderQuotaStatus = () => {
+    if (isSessionExpired) {
+      return (
+        <button
+          type="button"
+          onClick={() => login()}
+          className="text-red-500 font-semibold hover:underline cursor-pointer"
+          title="Your session has expired. Click to log in again."
+        >
+          Session Expired
+        </button>
+      );
+    }
+
+    if (isLoadingQuota) {
+      return <span className="text-gray-500">Loading...</span>;
+    }
+
+    if (quotaInfo) {
+      if (quotaInfo.tier === 'max') {
+        return <span className="font-semibold text-green-600">MAX unlimited</span>;
+      }
+      const dailyRemaining = quotaInfo.daily ? remainingOf(quotaInfo.daily) : undefined;
+      const monthlyRemaining = quotaInfo.monthly ? remainingOf(quotaInfo.monthly) : undefined;
+      const hoverDetail = dailyRemaining !== undefined && monthlyRemaining !== undefined
+        ? `${dailyRemaining} / ${quotaInfo.daily.limit} today · ${monthlyRemaining} / ${quotaInfo.monthly.limit} this month`
+        : undefined;
+
+      if (quotaInfo.tier === 'plus') {
+        return (
+          <div className="font-semibold text-blue-600 cursor-help" onMouseEnter={() => setIsQuotaHovered(true)} onMouseLeave={() => setIsQuotaHovered(false)}>
+            {isQuotaHovered && hoverDetail ? hoverDetail : 'Plus monitoring'}
+          </div>
+        );
+      }
+      if (quotaInfo.tier === 'pro') {
+        return (
+          <div className="font-semibold text-green-600 cursor-help" onMouseEnter={() => setIsQuotaHovered(true)} onMouseLeave={() => setIsQuotaHovered(false)}>
+            {isQuotaHovered && hoverDetail ? hoverDetail : 'Pro extended'}
+          </div>
+        );
+      }
+      if (dailyRemaining !== undefined) {
+        if (dailyRemaining <= 0) {
+          return <span className="font-medium text-red-500">No credits left!</span>;
+        }
+        return (
+          <div
+            className={`font-medium cursor-help ${dailyRemaining <= 10 ? 'text-orange-500' : 'text-green-600'}`}
+            onMouseEnter={() => setIsQuotaHovered(true)}
+            onMouseLeave={() => setIsQuotaHovered(false)}
+          >
+            {isQuotaHovered && hoverDetail ? hoverDetail : 'Limited Use'}
+          </div>
+        );
+      }
+    }
+    return <span className="text-gray-500">Quota N/A</span>;
+  };
+
+  // Optimistic quota decrement — a request elsewhere in the app just consumed a credit.
+  useEffect(() => {
+    const handleQuotaUpdate = () => {
+      const storedRemaining = localStorage.getItem('observer-quota-remaining');
+      if (storedRemaining) {
+        const newRemaining = parseInt(storedRemaining, 10);
+        setQuotaInfo(prev => (prev && prev.daily)
+          ? { ...prev, daily: { ...prev.daily, used: Math.max(0, prev.daily.limit - newRemaining) } }
+          : prev);
+      }
+    };
+    window.addEventListener('quotaUpdated', handleQuotaUpdate);
+    return () => window.removeEventListener('quotaUpdated', handleQuotaUpdate);
+  }, []);
+
+  // Load custom servers + (Tauri) the saved inference URL once on mount
+  useEffect(() => {
+    setCustomServers(loadCustomServers());
+    if (isTauri()) {
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke<string | null>('get_ollama_url').then(url => {
+          Logger.info('SETTINGS', `Loaded inference URL: ${url}`);
+          setAppInferenceUrl(url);
+        }).catch(err => {
+          Logger.error('SETTINGS', `Failed to load inference URL: ${err}`);
+        });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isUsingObServer) {
+      setQuotaInfo(null);
+      setIsSessionExpired(false);
+    }
+  }, [isUsingObServer]);
+
+  useEffect(() => {
+    if (isUsingObServer) {
+      addInferenceAddress('https://api.observer-ai.com:443');
+      fetchModels();
+    } else {
+      removeInferenceAddress('https://api.observer-ai.com:443');
+      fetchModels();
+    }
+  }, [isUsingObServer]);
+
+  useEffect(() => {
+    if (isUsingObServer && isAuthenticated) {
+      fetchQuotaInfo(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isUsingObServer, isAuthenticated]);
+
   // Check if we're on mobile (for SSE and other platform-specific behavior)
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   useEffect(() => {
@@ -360,10 +624,6 @@ function AppContent() {
     Logger.info('APP', `Opening editor for agent ${agentId}`);
   };
 
-  const handleReplayTutorial = () => {
-    localStorage.removeItem('observer_creator_tutorial_seen');
-    setIsLocalOnboardingActive(true);
-  };
 
   const handleAddAgentClick = () => {
     setSelectedAgent(null);
@@ -741,9 +1001,9 @@ function AppContent() {
   }, [isLoading, isAuthenticated, user]);
 
 
-  // Reload agents when switching to My Agents tab
+  // Reload agents when switching to My Agents or the Observer tab
   useEffect(() => {
-    if (activeTab === 'myAgents') {
+    if (activeTab === 'myAgents' || activeTab === 'observerChat') {
       fetchAgents();
     }
   }, [activeTab, fetchAgents]);
@@ -805,17 +1065,6 @@ function AppContent() {
   // Hero (full-width MCP co-pilot) when there are no agents OR all of them are minimized.
   // Show GetStarted when no agents exist OR all are minimized
   const showGetStarted = agents.length === 0 || minimizedAgents.size === agents.length;
-
-  // When we cross from hero → docked (e.g. the first agent is created), auto-open the
-  // docked MCP panel so the user sees their conversation "moved" to the side rather than
-  // silently vanishing. Only fires on the actual transition, not on loads that start docked.
-  const wasShowingGetStarted = useRef(showGetStarted);
-  useEffect(() => {
-    if (wasShowingGetStarted.current && !showGetStarted) {
-      setIsMCPPanelOpen(true);
-    }
-    wasShowingGetStarted.current = showGetStarted;
-  }, [showGetStarted]);
 
   return (
     <div className="app-container bg-gray-50">
@@ -880,8 +1129,6 @@ function AppContent() {
 
       <AppHeader
         isUsingObServer={isUsingObServer}
-        setIsUsingObServer={setIsUsingObServer}
-        hostingContext={hostingContext}
         authState={{
           isLoading,
           isAuthenticated,
@@ -890,31 +1137,53 @@ function AppContent() {
           logout
         }}
         getToken={getToken}
-        onUpgradeClick={() => {
-          setIsHalfwayWarning(true);
-          setIsUpgradeModalOpen(true);
-        }}
-        quotaInfo={quotaInfo}
-        setQuotaInfo={setQuotaInfo}
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isDarkMode={isDarkMode}
         onToggleDarkMode={toggleDarkMode}
+        isPermissionsModalOpen={isPermissionsModalOpen}
+        onClosePermissionsModal={() => setIsPermissionsModalOpen(false)}
+        isAccountModalOpen={isAccountModalOpen}
+        onCloseAccountModal={() => setIsAccountModalOpen(false)}
+        customServers={customServers}
+        localServerOnline={localServerOnline}
+        onOpenModels={() => setActiveTab('models')}
       />
 
-      <PersistentSidebar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        isMobileMenuOpen={isMobileMenuOpen}
-        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
-        onOpenRecipe={() => setIsRecipeSplashOpen(true)}
-      />
+      {isObServerWarningOpen && (
+        <StartupDialogs
+          onDismiss={() => setIsObServerWarningOpen(false)}
+          onLogin={login}
+          onToggleObServer={handleToggleObServer}
+          isAuthenticated={isAuthenticated}
+          hostingContext={hostingContext}
+        />
+      )}
 
       <JupyterServerModal
         isOpen={isJupyterModalOpen}
         onClose={() => setIsJupyterModalOpen(false)}
       />
 
-      <main className="w-full pt-4 px-2 md:px-4 md:pl-20 wide:px-4 max-w-7xl mx-auto pb-20 md:pb-4">
+      {/* Sidebar + main content, side by side — a standard in-flow layout (the sidebar
+          used to be position:fixed and overlay main, which needed main's own padding kept
+          in sync with the sidebar's width by hand; a flex row does that for free). */}
+      <div className="flex-1 min-h-0 flex flex-row">
+        <PersistentSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          isMobileMenuOpen={isMobileMenuOpen}
+          onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+          authState={{ isLoading, isAuthenticated, user, loginWithRedirect: login }}
+          quotaInfo={quotaInfo}
+          onOpenAccount={() => setIsAccountModalOpen(true)}
+          onOpenPermissions={() => setIsPermissionsModalOpen(true)}
+          onFeedbackClick={() => setIsFeedbackOpen(true)}
+          onToggleLogs={() => setShowGlobalLogs(prev => !prev)}
+          isExpanded={isSidebarExpanded}
+          onToggleExpanded={() => setIsSidebarExpanded(prev => !prev)}
+        />
+
+        <main className="w-full min-w-0 pt-4 px-2 md:px-4 wide:px-4 max-w-7xl mx-auto pb-20 md:pb-4">
         {error && <ErrorDisplay message={error} />}
 
         {/* My Agents Tab */}
@@ -928,6 +1197,23 @@ function AppContent() {
               isRefreshing={isRefreshing}
               onRefresh={fetchAgents}
             />
+
+            {/* Minimized agent chips — tucked away from the grid, but still reachable
+                to restore, right here on the tab they were minimized from. */}
+            {minimizedAgents.size > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-3" style={{ scrollbarWidth: 'none' }}>
+                {agents.map(a => minimizedAgents.has(a.id) ? (
+                  <AgentChip
+                    key={a.id}
+                    agent={a}
+                    isRunning={runningAgents.has(a.id)}
+                    isStarting={startingAgents.has(a.id)}
+                    isMinimized={true}
+                    onRestore={() => handleRestore(a.id)}
+                  />
+                ) : null)}
+              </div>
+            )}
 
             {/* Tiling grid — drag a card by its title to move it, drag the bottom-right
                 corner to resize. Position/size persist per agent (see useAgentGridLayout). */}
@@ -1041,6 +1327,28 @@ function AppContent() {
           )}
         </div>
 
+        {/* Observer Tab — default landing view, chat-first */}
+        {activeTab === 'observerChat' && (
+          <div className="px-0 md:px-4 h-full">
+            <ObserverTab
+              getToken={getToken}
+              isAuthenticated={isAuthenticated}
+              isUsingObServer={isUsingObServer}
+              onSignIn={login}
+              onSwitchToObServer={() => setIsUsingObServer(true)}
+              onUpgrade={() => {
+                setActiveTab('obServer');
+                setIsUsingObServer(true);
+              }}
+              onRefresh={fetchAgents}
+              agents={agents}
+              runningAgents={runningAgents}
+              startingAgents={startingAgents}
+              onToggleAgent={toggleAgent}
+            />
+          </div>
+        )}
+
         {/* Community Tab */}
         {activeTab === 'community' && (
           <div className="px-4">
@@ -1054,8 +1362,20 @@ function AppContent() {
             <AvailableModels
               isProUser={isProUser}
               isUsingObServer={isUsingObServer}
+              handleToggleObServer={handleToggleObServer}
+              showLoginMessage={showLoginMessage}
               isAuthenticated={isAuthenticated}
               quotaInfo={quotaInfo}
+              renderQuotaStatus={renderQuotaStatus}
+              localServerOnline={localServerOnline}
+              checkLocalServer={checkLocalServer}
+              customServers={customServers}
+              onAddCustomServer={handleAddCustomServer}
+              onRemoveCustomServer={handleRemoveCustomServer}
+              onToggleCustomServer={handleToggleCustomServer}
+              onCheckCustomServer={handleCheckCustomServer}
+              appInferenceUrl={appInferenceUrl}
+              onSetAppInferenceUrl={handleSetAppInferenceUrl}
             />
           </div>
         )}
@@ -1089,31 +1409,13 @@ function AppContent() {
         )}
 
         {/* Fallback for unknown tabs */}
-        {!['myAgents', 'community', 'models', 'recordings', 'memoryStore', 'settings', 'obServer'].includes(activeTab) && (
+        {!['myAgents', 'observerChat', 'community', 'models', 'recordings', 'memoryStore', 'settings', 'obServer'].includes(activeTab) && (
           <div className="text-center p-8">
             <p className="text-gray-500">This feature is coming soon!</p>
           </div>
         )}
-      </main>
-
-      {/* Docked MCP panel — only in non-hero posture (agents exist). In hero posture
-          the GetStarted card is the visible MCP surface; they share one conversation. */}
-      {!showGetStarted && (
-        <MCPPanel
-          isOpen={isMCPPanelOpen}
-          onClose={() => setIsMCPPanelOpen(false)}
-          getToken={getToken}
-          isAuthenticated={isAuthenticated}
-          isUsingObServer={isUsingObServer}
-          onSignIn={login}
-          onSwitchToObServer={() => setIsUsingObServer(true)}
-          onUpgrade={() => {
-            setActiveTab('obServer');
-            setIsUsingObServer(true);
-          }}
-          onRefresh={fetchAgents}
-        />
-      )}
+        </main>
+      </div>
 
       <SimpleCreatorModal
         isOpen={isSimpleCreatorOpen}
@@ -1155,190 +1457,6 @@ function AppContent() {
           }}
         />
       )}
-
-      {/* Mobile bottom nav — always visible floating bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-
-        {/* Expanded panel — floats above the bar */}
-        {isMobileFooterOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setIsMobileFooterOpen(false)} />
-            <div className="relative z-50 mx-4 mb-2 bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-100/80 px-5 py-4">
-              <div className="flex items-center gap-3">
-                {/* Small icon tiles - wrapping row */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => { setIsFeedbackOpen(true); setIsMobileFooterOpen(false); }}
-                    className="flex-shrink-0 w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
-                    title="Feedback"
-                  >
-                    <MessageSquare className="h-5 w-5 text-blue-500" />
-                  </button>
-                  <a href="https://discord.gg/wnBb7ZQDUC" target="_blank" rel="noopener noreferrer" className="flex-shrink-0 active:scale-95 transition-transform" title="Discord">
-                    <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center">
-                      <svg className="h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.127 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" /></svg>
-                    </div>
-                  </a>
-                  <a href="https://x.com/AppObserverAI" target="_blank" rel="noopener noreferrer" className="flex-shrink-0 active:scale-95 transition-transform" title="X / Twitter">
-                    <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center">
-                      <svg className="h-5 w-5 text-gray-800" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-                    </div>
-                  </a>
-                  <a href="https://buymeacoffee.com/roy3838" target="_blank" rel="noopener noreferrer" className="flex-shrink-0 active:scale-95 transition-transform" title="Support">
-                    <div className="w-11 h-11 bg-yellow-50 rounded-xl flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5 text-yellow-600"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-                    </div>
-                  </a>
-                  <a href="https://github.com/Roy3838/Observer" target="_blank" rel="noopener noreferrer" className="flex-shrink-0 active:scale-95 transition-transform" title="GitHub">
-                    <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5 text-gray-700"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg>
-                    </div>
-                  </a>
-                  <button
-                    className="flex-shrink-0 w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
-                    onClick={() => { setShowGlobalLogs(!showGlobalLogs); setIsMobileFooterOpen(false); }}
-                    title="Logs"
-                  >
-                    <Terminal className="h-5 w-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Always-visible pill bar */}
-        <div className="mr-4 ml-auto mb-3 h-14 w-fit bg-white/85 backdrop-blur-xl rounded-3xl shadow-xl border border-gray-100/80 px-3 flex items-center gap-2">
-          {/* Minimized agent chips — scrollable */}
-          <div className="flex items-center gap-2 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
-            {agents.map(a => minimizedAgents.has(a.id) ? (
-              <AgentChip
-                key={a.id}
-                agent={a}
-                isRunning={runningAgents.has(a.id)}
-                isStarting={startingAgents.has(a.id)}
-                isMinimized={true}
-                onRestore={() => handleRestore(a.id)}
-              />
-            ) : null)}
-          </div>
-
-          {/* Tutorial — always visible */}
-          <button
-            onClick={handleReplayTutorial}
-            className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-2xl bg-purple-50 text-purple-500 active:scale-90 transition-all duration-200"
-            title="Tutorial"
-          >
-            <HelpCircle size={18} />
-          </button>
-
-          {/* Chevron toggle — 44px touch target */}
-          <button
-            onClick={() => setIsMobileFooterOpen(!isMobileFooterOpen)}
-            className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-2xl active:scale-90 transition-all duration-200 ${
-              isMobileFooterOpen
-                ? 'bg-gray-800 text-white shadow-md'
-                : 'bg-gray-100 text-gray-500'
-            }`}
-          >
-            <ChevronUp size={18} className={`transition-transform duration-300 ${isMobileFooterOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* MCP launcher — single open/close control for the docked panel */}
-          {!showGetStarted && (
-            <button
-              onClick={() => setIsMCPPanelOpen(prev => !prev)}
-              className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-2xl active:scale-90 transition-all duration-200 ${
-                isMCPPanelOpen
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'bg-purple-500 text-white'
-              }`}
-              title="Open Observer"
-            >
-              <Sparkles size={18} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Desktop floating footer — info bubble plus a prominent standalone MCP pill */}
-      <div className="fixed bottom-4 right-4 z-40 hidden md:flex items-stretch gap-3">
-        {/* Standalone minimized-agents pill — its own surface, left of the footer */}
-        {minimizedAgents.size > 0 && (
-          <div className="flex items-center gap-1.5 max-w-[40vw] overflow-x-auto bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 px-4 py-2.5" style={{ scrollbarWidth: 'none' }}>
-            {agents.map(a => (
-              <div key={a.id} className={minimizedAgents.has(a.id) ? '' : 'hidden'}>
-                <AgentChip
-                  agent={a}
-                  isRunning={runningAgents.has(a.id)}
-                  isStarting={startingAgents.has(a.id)}
-                  isMinimized={minimizedAgents.has(a.id)}
-                  onRestore={() => handleRestore(a.id)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      <div className="flex items-center space-x-3 bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 px-4 py-2.5">
-        <button
-          onClick={handleReplayTutorial}
-          className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full hover:bg-gray-200 transition"
-          title="Tutorial: download a local model and create an agent"
-        >
-          <HelpCircle className="h-4 w-4" />
-        </button>
-        <div className="w-px h-5 bg-gray-200" />
-        <button
-          onClick={() => setIsFeedbackOpen(true)}
-          className="flex items-center space-x-1.5 px-2 py-1 text-xs font-medium text-gray-700 hover:text-blue-600 transition"
-          title="Send feedback"
-        >
-          <MessageSquare className="h-3.5 w-3.5" />
-          <span>Feedback</span>
-        </button>
-        <div className="w-px h-5 bg-gray-200" />
-        <span className="text-xs text-gray-500">Support the Project!</span>
-        <div className="flex items-center space-x-2">
-          <a href="https://discord.gg/wnBb7ZQDUC" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:text-indigo-600 transition" title="Join our Discord community">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.127 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" /></svg>
-          </a>
-          <a href="https://x.com/AppObserverAI" target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-gray-900 transition" title="Follow us on X (Twitter)">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-          </a>
-          <a href="https://buymeacoffee.com/roy3838" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition" title="Support the project">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-          </a>
-          <a href="https://github.com/Roy3838/Observer" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition" title="GitHub Repository">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg>
-          </a>
-        </div>
-        <div className="w-px h-5 bg-gray-200" />
-        <button
-          className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full hover:bg-gray-200 transition"
-          onClick={() => setShowGlobalLogs(!showGlobalLogs)}
-          title="Console"
-        >
-          <Terminal className="h-4 w-4" />
-        </button>
-      </div>
-
-        {/* Standalone MCP pill — full footer height, made prominent on desktop */}
-        {!showGetStarted && (
-          <button
-            onClick={() => setIsMCPPanelOpen(prev => !prev)}
-            data-tutorial-grid-generate
-            className={`flex items-center gap-2 px-6 rounded-full text-sm font-semibold shadow-lg border transition ${
-              isMCPPanelOpen
-                ? 'bg-purple-600 border-purple-600 text-white'
-                : 'bg-purple-500 border-purple-500 text-white hover:bg-purple-600 hover:border-purple-600'
-            }`}
-            title="Open Observer"
-          >
-            <Sparkles className="h-5 w-5" />
-            <span>Observer</span>
-          </button>
-        )}
-      </div>
 
       {showGlobalLogs && (
         <GlobalLogsViewer

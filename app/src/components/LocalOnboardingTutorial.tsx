@@ -31,10 +31,10 @@ function firstVisible(selector: string | string[]): Element | null {
 
 const STEPS: Step[] = [
   {
-    id: 'open-modelhub',
-    targetSelector: 'button[data-tutorial-modelhub]',
-    title: 'Open ModelHub',
-    message: 'Click the server icon to open the ModelHub — this is where you download AI models to run locally.',
+    id: 'open-models',
+    targetSelector: 'button[data-tutorial-models]',
+    title: 'Open Models',
+    message: 'Click here to see the Models tab — this is where you download AI models to run locally.',
     icon: <Server className="h-5 w-5 text-blue-500" />,
     action: 'click',
   },
@@ -45,15 +45,6 @@ const STEPS: Step[] = [
     message: '', // resolved dynamically below
     icon: <Download className="h-5 w-5 text-blue-500" />,
     action: 'click',
-  },
-  {
-    id: 'downloading',
-    targetSelector: 'button[data-tutorial-modelhub]',
-    title: 'Great, your model is downloading!',
-    message: "The download continues in the background. Close the ModelHub and let's create a simple agent.",
-    icon: <Download className="h-5 w-5 text-green-500" />,
-    action: 'event',
-    waitForEvent: 'modelHubClosed',
   },
   {
     id: 'build-custom',

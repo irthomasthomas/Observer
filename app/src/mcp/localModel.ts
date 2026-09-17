@@ -1,7 +1,7 @@
 // src/mcp/localModel.ts
 //
 // One-call acquisition of Observer's default *local* model, mirroring the primary
-// path of ModelHub.tsx's curated catalog:
+// path of AvailableModels.tsx's curated catalog:
 //   - Browser  → the Gemma 4 E2B ONNX transformers.js preset (download + load in one shot)
 //   - Desktop  → the Gemma 4 E2B llama.cpp preset (download gguf + mmproj, then load)
 //

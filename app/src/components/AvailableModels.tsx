@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { fetchModels as fetchAllModels, Model } from '@utils/inferenceServer';
 import {
-  Cpu, RefreshCw, Eye, CheckCircle, X, StopCircle, Sparkles,
-  AlertTriangle, Trash2, Settings2, BarChart3, FileDown, Cpu as CpuIcon, Cloud, MinusCircle,
+  Cpu, RefreshCw, X, Sparkles, Trash2, Settings2, BarChart3,
+  Cloud, MinusCircle, Server, ChevronDown, StopCircle, Plus, Zap, Play,
 } from 'lucide-react';
 import { BROWSER_LOCAL_SENTINEL, LLAMA_CPP_LOCAL_SENTINEL, SKIP_MODEL_SENTINEL } from '@utils/inferenceServer';
-import { Logger } from '@utils/logging';
-import ModelHub from '@components/ModelHub';
+import { Logger, LogEntry, LogLevel } from '@utils/logging';
 import BenchmarkPanel from '@components/BenchmarkPanel';
 import Modal from '@components/EditAgent/Modal';
 import LlamaCppSamplerPanel from '@components/ModelCard/LlamaCppSamplerPanel';
 import RemoteInferenceParamsPanel from '@components/ModelCard/RemoteInferenceParamsPanel';
-import { platformFetch, isTauri } from '@utils/platform';
+import { ModelRow, RowButtonPrimary, RowButtonGhost, RowIconButton } from '@components/ModelCard/ModelRow';
+import pullModelManager, { PullState } from '@utils/pullModelManager';
+import { platformFetch, isTauri, isWeb } from '@utils/platform';
+import { invoke } from '@tauri-apps/api/core';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import type { CustomServer } from '@utils/inferenceServer';
@@ -19,17 +21,35 @@ import {
   NativeModelState,
   GemmaModelState,
   GemmaModelId,
+  GemmaDevice,
+  GemmaDtype,
+  GemmaImageTokenBudget,
   GgufFileInfo,
+  NativeLocalModel,
+  LocalModelEntry,
   SamplerParams,
   DEFAULT_SAMPLER_PARAMS,
+  ContextParams,
+  DEFAULT_CONTEXT_PARAMS,
 } from '@utils/localLlm/types';
-import type { QuotaInfo as QuotaInfoBase } from '@/types/quota';
+import { MODEL_PRESETS, EXTENDED_PRESETS, type ModelPreset } from '@utils/modelPresets';
+import { remaining as remainingOf, type QuotaInfo as QuotaInfoBase, type QuotaBlock } from '@/types/quota';
 
 type QuotaInfo = QuotaInfoBase | null;
 
+const SUGGESTED_OLLAMA_MODELS = [
+  'gemma3:4b', 'gemma3:12b', 'gemma3:27b', 'gemma3:27b-it-qat',
+  'qwen2.5vl:3b', 'qwen2.5vl:7b', 'llava:7b', 'llava:13b',
+];
+
+// Matched against LocalOnboardingTutorial's `download-gemma` step — it spotlights
+// whichever engine's default preset applies (native on desktop, ONNX on web) and
+// polls `[data-tutorial-gemma-state]` for 'loaded' or 'installed' to advance.
+const TUTORIAL_GEMMA_NATIVE_NAME = 'Gemma 4 E2B';
+const TUTORIAL_GEMMA_ONNX_ID = 'onnx-community/gemma-4-E2B-it-ONNX';
+
 interface AvailableModelsProps {
   isProUser?: boolean;
-  // Ob-Server + server props threaded to ModelHub
   isUsingObServer?: boolean;
   handleToggleObServer?: () => void;
   showLoginMessage?: boolean;
@@ -56,6 +76,34 @@ const formatBytes = (bytes: number, decimals = 2) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 };
 
+const QuotaBar: React.FC<{ label: string; block: QuotaBlock }> = ({ label, block }) => {
+  const rem = remainingOf(block);
+  const pct = block.limit > 0 ? Math.min(100, (block.used / block.limit) * 100) : 0;
+  const barColor = rem <= block.limit * 0.1 ? 'bg-red-500' : rem <= block.limit * 0.3 ? 'bg-orange-400' : 'bg-indigo-500';
+  return (
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center justify-between text-[11px] text-gray-400 mb-0.5">
+        <span>{label}</span>
+        <span className="tabular-nums">{rem}/{block.limit}</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-1">
+        <div className={`h-1 rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+};
+
+async function deleteNativeModelCascade(model: NativeLocalModel, allModels: NativeLocalModel[]) {
+  const manager = NativeLlmManager.getInstance();
+  await manager.deleteModel(model.id);
+  if (model.projectorFilename) {
+    const stillUsed = allModels.some(m => m.id !== model.id && m.projectorFilename === model.projectorFilename);
+    if (!stillUsed) await manager.deleteModel(model.projectorFilename);
+  }
+}
+
+type AdvancedTab = 'hardware' | 'download' | 'servers';
+
 const AvailableModels: React.FC<AvailableModelsProps> = ({
   isProUser = false,
   isUsingObServer,
@@ -64,7 +112,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
   isAuthenticated,
   quotaInfo,
   renderQuotaStatus,
-  localServerOnline,
+  localServerOnline = false,
   checkLocalServer,
   customServers = [],
   onAddCustomServer,
@@ -76,60 +124,162 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
 }) => {
   const isTauriApp = isTauri();
 
-  // ── Remote model list
+  // ── Remote/cloud model list (fetched from configured inference addresses) ──
   const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [ollamaServers, setOllamaServers] = useState<string[]>([]);
 
-  // ── Local model state (llama.cpp)
+  // ── Local model state (llama.cpp) ──
   const [nativeState, setNativeState] = useState<NativeModelState>(NativeLlmManager.getInstance().getState());
-  const [ggufFiles, setGgufFiles] = useState<GgufFileInfo[]>([]);
-  const [mmprojAssignments, setMmprojAssignments] = useState<Record<string, string>>({});
+  const [nativeModels, setNativeModels] = useState<NativeLocalModel[]>(() => NativeLlmManager.getInstance().listNativeModels());
+  const [orphanProjectors, setOrphanProjectors] = useState<GgufFileInfo[]>(() => NativeLlmManager.getInstance().listOrphanProjectors());
   const [samplerParams, setSamplerParams] = useState<SamplerParams>({ ...DEFAULT_SAMPLER_PARAMS });
+  const [contextParams, setContextParams] = useState<ContextParams>({ ...DEFAULT_CONTEXT_PARAMS });
+  const [useGpu, setUseGpu] = useState<boolean>(() => (isWeb() ? true : NativeLlmManager.getInstance().getPersistedUseGpu()));
 
-  // ── Local model state (Transformers.js)
+  // ── Local model state (Transformers.js) ──
   const [gemmaState, setGemmaState] = useState<GemmaModelState>(GemmaModelManager.getInstance().getState());
+  const [transformersModels, setTransformersModels] = useState<LocalModelEntry[]>(GemmaModelManager.getInstance().listLocalModels());
+  const [gemmaDevice, setGemmaDevice] = useState<GemmaDevice>('webgpu');
+  const [gemmaDtype, setGemmaDtype] = useState<GemmaDtype>('q4');
+  const [gemmaTokenBudget, setGemmaTokenBudget] = useState<GemmaImageTokenBudget>(70);
+  const [gemmaEnableThinking, setGemmaEnableThinking] = useState(false);
+  const [customOnnxModelId, setCustomOnnxModelId] = useState('');
 
-  // ── UI state
+  // ── Preset download chaining (gguf → mmproj) ──
+  const [downloadingPreset, setDownloadingPreset] = useState<ModelPreset | null>(null);
+  const [ggufUrl, setGgufUrl] = useState('');
+
+  // ── UI state ──
   const [expandedSettings, setExpandedSettings] = useState<string | null>(null);
   const [showBenchmark, setShowBenchmark] = useState(false);
-  const [showModelHub, setShowModelHub] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedTab, setAdvancedTab] = useState<AdvancedTab>('hardware');
+  const [showMoreQuants, setShowMoreQuants] = useState(false);
+  const [showEngineLogs, setShowEngineLogs] = useState(false);
 
-  // ── Native subscriptions
+  // ── System memory (Tauri) ──
+  const [memInfo, setMemInfo] = useState<{ totalBytes: number; usedBytes: number; availableBytes: number } | null>(null);
+
+  // ── Engine debug ──
+  const [engineInitStatus, setEngineInitStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [engineInitError, setEngineInitError] = useState<string | null>(null);
+  const [engineLogs, setEngineLogs] = useState<LogEntry[]>([]);
+
+  // ── Custom servers (Servers tab) ──
+  const [isAddingServer, setIsAddingServer] = useState(false);
+  const [newServerAddress, setNewServerAddress] = useState('');
+  const [addError, setAddError] = useState('');
+  const [inferenceUrlInput, setInferenceUrlInput] = useState(appInferenceUrl || 'http://localhost:11434');
+
+  // ── Ollama pull ──
+  const [modelToPull, setModelToPull] = useState('');
+  const [downloadState, setDownloadState] = useState<PullState>(pullModelManager.getInitialState());
+  const [detectedServers, setDetectedServers] = useState<string[]>([]);
+  const availableServers = detectedServers;
+  const [selectedServer, setSelectedServer] = useState<string>('');
+
+  // ── Subscriptions ──────────────────────────────────────────
+
   useEffect(() => {
-    if (!isTauriApp) return;
     const unsub = NativeLlmManager.getInstance().onStateChange(state => {
       setNativeState(state);
-      NativeLlmManager.getInstance().listGgufFiles().then(setGgufFiles);
-      setMmprojAssignments(NativeLlmManager.getInstance().getMmprojAssignments());
+      setNativeModels(NativeLlmManager.getInstance().listNativeModels());
+      setOrphanProjectors(NativeLlmManager.getInstance().listOrphanProjectors());
     });
-    setNativeState(NativeLlmManager.getInstance().getState());
-    NativeLlmManager.getInstance().listGgufFiles().then(setGgufFiles);
-    setMmprojAssignments(NativeLlmManager.getInstance().getMmprojAssignments());
+    NativeLlmManager.getInstance().listGgufFiles();
     return unsub;
-  }, [isTauriApp]);
+  }, []);
 
-  // ── Sampler params sync
   useEffect(() => {
-    if (!isTauriApp) return;
     if (nativeState.status === 'loading' || nativeState.status === 'unloaded') {
       setSamplerParams({ ...DEFAULT_SAMPLER_PARAMS });
     } else if (nativeState.status === 'loaded') {
       NativeLlmManager.getInstance().getDebugInfo().then(info => {
         if (info.engine.samplerParams) setSamplerParams(info.engine.samplerParams);
+        if (info.engine.contextParams) setContextParams(info.engine.contextParams);
       }).catch(() => {});
     }
-  }, [isTauriApp, nativeState.status]);
+  }, [nativeState.status]);
 
-  // ── Gemma subscription
   useEffect(() => {
-    const unsub = GemmaModelManager.getInstance().onStateChange(setGemmaState);
-    setGemmaState(GemmaModelManager.getInstance().getState());
+    const manager = GemmaModelManager.getInstance();
+    const unsub = manager.onStateChange((state) => {
+      setGemmaState(state);
+      setTransformersModels(manager.listLocalModels());
+    });
+    const currentState = manager.getState();
+    setGemmaState(currentState);
+    setTransformersModels(manager.listLocalModels());
+    const runtime = manager.getRuntimeSettings();
+    setGemmaDevice(runtime.device);
+    setGemmaTokenBudget(runtime.imageTokenBudget);
+    setGemmaEnableThinking(runtime.enableThinking);
+    if (currentState.loadSettings?.dtype) setGemmaDtype(currentState.loadSettings.dtype);
     return unsub;
   }, []);
 
-  // ── Remote model fetching
+  useEffect(() => {
+    if (!showAdvanced || advancedTab !== 'hardware' || !showEngineLogs) return;
+    const existing = Logger.getFilteredLogs({ source: ['NativeLlmManager', 'LlmEngine'] }).slice(-200);
+    setEngineLogs(existing);
+    const listener = (entry: LogEntry) => {
+      if (entry.source === 'NativeLlmManager' || entry.source === 'LlmEngine') {
+        setEngineLogs(prev => [...prev, entry].slice(-200));
+      }
+    };
+    Logger.addListener(listener);
+    return () => Logger.removeListener(listener);
+  }, [showAdvanced, advancedTab, showEngineLogs]);
+
+  useEffect(() => {
+    if (!isTauriApp) return;
+    const poll = async () => {
+      try {
+        const info = await invoke<{ totalBytes: number; usedBytes: number; availableBytes: number }>('get_memory_info');
+        setMemInfo(info);
+      } catch {}
+    };
+    poll();
+    const id = setInterval(poll, 1000);
+    return () => clearInterval(id);
+  }, [isTauriApp]);
+
+  useEffect(() => {
+    return pullModelManager.subscribe((newState) => {
+      setDownloadState(newState);
+      if (newState.status === 'success') { fetchModelsList(); detectOllamaServers(); }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (availableServers.length > 0 && !selectedServer) setSelectedServer(availableServers[0]);
+  }, [availableServers, selectedServer]);
+
+  useEffect(() => {
+    if (appInferenceUrl) setInferenceUrlInput(appInferenceUrl);
+  }, [appInferenceUrl]);
+
+  // Clear preset download state once the native download finishes, chaining into the
+  // matching mmproj download when the preset has one.
+  useEffect(() => {
+    if (nativeState.status === 'downloading' || !downloadingPreset || downloadingPreset.engine !== 'llamacpp') return;
+    if (!downloadingPreset.mmprojUrl) {
+      setDownloadingPreset(null);
+      return;
+    }
+    const ggufFilename = downloadingPreset.ggufUrl!.split('/').pop()!;
+    const mmprojFilename = downloadingPreset.mmprojUrl.split('/').pop()!;
+    const alreadyAssigned = NativeLlmManager.getInstance().getMmprojAssignment(ggufFilename) === mmprojFilename;
+    if (alreadyAssigned) { setDownloadingPreset(null); return; }
+    NativeLlmManager.getInstance().setMmprojAssignment(ggufFilename, mmprojFilename);
+    NativeLlmManager.getInstance().downloadModel(downloadingPreset.mmprojUrl)
+      .catch(() => {})
+      .finally(() => setDownloadingPreset(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nativeState.status]);
+
   const checkOllamaSupport = async (address: string): Promise<boolean> => {
     try {
       const response = await platformFetch(`${address}/api/tags`, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
@@ -137,13 +287,12 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
     } catch { return false; }
   };
 
-  const fetchModels = async () => {
+  const fetchModelsList = async () => {
     setLoading(true);
     try {
       const response = await fetchAllModels();
       if (response.error) throw new Error(response.error);
       setModels(response.models);
-      Logger.info('MODELS', `Loaded ${response.models.length} models`);
     } catch (err) {
       Logger.error('MODELS', `Failed to fetch models: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -156,21 +305,19 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
     const { getInferenceAddresses } = await import('@utils/inferenceServer');
     const addresses = getInferenceAddresses();
     const checks = await Promise.all(addresses.map(async addr => ({ addr, ok: await checkOllamaSupport(addr) })));
-    setOllamaServers(checks.filter(c => c.ok).map(c => c.addr));
+    setDetectedServers(checks.filter(c => c.ok).map(c => c.addr));
   };
 
-  useEffect(() => {
-    fetchModels();
-    detectOllamaServers();
-  }, []);
+  useEffect(() => { fetchModelsList(); detectOllamaServers(); }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchModels();
+    fetchModelsList();
     detectOllamaServers();
   };
 
-  // ── Sampler handlers
+  // ── Sampler / context handlers ──────────────────────────────
+
   const handleSamplerParamChange = async (key: keyof SamplerParams, value: number) => {
     setSamplerParams(prev => ({ ...prev, [key]: value }));
     if (nativeState.status === 'loaded') {
@@ -185,469 +332,815 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
     }
   };
 
-  const isAnyNativeBusy = nativeState.status === 'loading' || nativeState.status === 'unloading' || nativeState.status === 'downloading';
-  const ggufModels = ggufFiles.filter(f => !f.filename.toLowerCase().includes('mmproj'));
-  const ggufProjectors = ggufFiles.filter(f => f.filename.toLowerCase().includes('mmproj'));
-
-  // Determine if a model has configurable settings
-  const hasSettings = (model: Model) => {
-    if (model.server === SKIP_MODEL_SENTINEL) return false;
-    if (model.server === LLAMA_CPP_LOCAL_SENTINEL) return nativeState.status === 'loaded';
-    if (model.server === BROWSER_LOCAL_SENTINEL) return false;
-    if (model.server.includes('api.observer-ai.com')) return false;
-    return true; // custom/Ollama server models get InferenceParams
+  const handleContextParamChange = async (key: keyof ContextParams, value: number) => {
+    setContextParams(prev => ({ ...prev, [key]: value }));
+    try { await NativeLlmManager.getInstance().setContextParams({ [key]: value }); } catch {}
   };
 
-  const toggleSettings = (modelName: string) => {
-    setExpandedSettings(prev => prev === modelName ? null : modelName);
+  const handleResetContextParams = async () => {
+    setContextParams({ ...DEFAULT_CONTEXT_PARAMS });
+    try { await NativeLlmManager.getInstance().setContextParams(DEFAULT_CONTEXT_PARAMS); } catch {}
+  };
+
+  const handleToggleUnifiedGpu = async (enabled: boolean) => {
+    setUseGpu(enabled);
+    setGemmaDevice(enabled ? 'webgpu' : 'wasm');
+    try { await NativeLlmManager.getInstance().setUseGpu(enabled); } catch {}
+  };
+
+  // ── Download handlers ────────────────────────────────────────
+
+  const handleDownloadPreset = async (preset: ModelPreset) => {
+    if (preset.engine === 'transformers') {
+      GemmaModelManager.getInstance().loadModelWithSettings(
+        preset.hfModelId! as GemmaModelId,
+        useGpu ? 'webgpu' : 'wasm',
+        gemmaDtype,
+        gemmaTokenBudget,
+        gemmaEnableThinking,
+      );
+      return;
+    }
+    setDownloadingPreset(preset);
+    try {
+      await NativeLlmManager.getInstance().downloadModel(preset.ggufUrl!);
+      if (!preset.mmprojUrl) setDownloadingPreset(null);
+    } catch {
+      setDownloadingPreset(null);
+    }
+  };
+
+  const handleCancelNativeDownload = () => {
+    NativeLlmManager.getInstance().cancelDownload();
+    setDownloadingPreset(null);
+  };
+
+  const handleDownloadGguf = async () => {
+    if (!ggufUrl.trim()) return;
+    try {
+      await NativeLlmManager.getInstance().downloadModel(ggufUrl.trim());
+      setGgufUrl('');
+    } catch {}
+  };
+
+  const handleLoadCustomOnnx = () => {
+    if (customOnnxModelId.trim()) {
+      GemmaModelManager.getInstance().loadModelWithSettings(
+        customOnnxModelId.trim() as GemmaModelId, gemmaDevice, gemmaDtype, gemmaTokenBudget, gemmaEnableThinking,
+      );
+    }
+  };
+
+  // ── Servers ──────────────────────────────────────────────────
+
+  const handleAddServer = () => {
+    setAddError('');
+    if (!newServerAddress.trim()) { setAddError('Please enter a server address'); return; }
+    if (!newServerAddress.match(/^https?:\/\//)) { setAddError('URL must start with http:// or https://'); return; }
+    try {
+      new URL(newServerAddress);
+      onAddCustomServer?.(newServerAddress);
+      setNewServerAddress('');
+      setIsAddingServer(false);
+    } catch {
+      setAddError('Invalid URL format');
+    }
+  };
+
+  const handleStartPull = () => {
+    if (modelToPull.trim() && selectedServer) pullModelManager.pullModel(modelToPull.trim(), selectedServer);
+  };
+  const handleCancelPull = () => pullModelManager.cancelPull();
+
+  // ── Toggle inline settings ──────────────────────────────────
+
+  const toggleSettings = (id: string) => setExpandedSettings(prev => (prev === id ? null : id));
+
+  const hasRemoteSettings = (model: Model) => {
+    if (model.server === SKIP_MODEL_SENTINEL) return false;
+    if (model.server === LLAMA_CPP_LOCAL_SENTINEL) return false;
+    if (model.server === BROWSER_LOCAL_SENTINEL) return false;
+    if (model.server.includes('api.observer-ai.com')) return false;
+    return true;
+  };
+
+  const isAnyNativeBusy = nativeState.status === 'loading' || nativeState.status === 'unloading' || nativeState.status === 'downloading';
+
+  // ── Merge presets + installed into one list per engine ───────
+
+  const nativeRows = MODEL_PRESETS
+    .filter(p => p.engine === 'llamacpp')
+    .map(preset => {
+      const filename = preset.ggufUrl!.split('/').pop()!;
+      const installed = nativeModels.find(m => m.id === filename) ?? null;
+      return { preset, installed };
+    });
+  const nativeExtraModels = nativeModels.filter(
+    m => !nativeRows.some(r => r.installed?.id === m.id)
+  );
+
+  const transformersRows = MODEL_PRESETS
+    .filter(p => p.engine === 'transformers')
+    .map(preset => {
+      const installed = transformersModels.find(m => m.id === preset.hfModelId) ?? null;
+      return { preset, installed };
+    });
+  const transformersExtraModels = transformersModels.filter(
+    m => !transformersRows.some(r => r.installed?.id === m.id)
+  );
+
+  const remoteModels = models.filter(m =>
+    m.server !== LLAMA_CPP_LOCAL_SENTINEL && m.server !== BROWSER_LOCAL_SENTINEL &&
+    m.server !== SKIP_MODEL_SENTINEL && !m.server.includes('api.observer-ai.com')
+  );
+  const cloudModels = models.filter(m => m.server.includes('api.observer-ai.com'));
+
+  // ── Row renderers ─────────────────────────────────────────────
+
+  const renderNativeInstalledRow = (model: NativeLocalModel, showTag = true, isTutorialTarget = false) => {
+    const isLoaded = model.runtime === 'loaded';
+    const isLoading = model.runtime === 'loading';
+    const isUnloading = nativeState.modelId === model.name && nativeState.status === 'unloading';
+    const modelFile = model.modelFile;
+    const projectorFile = model.projectorFile;
+    const isModelDownloading = modelFile.kind === 'partial' && modelFile.downloading;
+    const isProjectorDownloading = projectorFile.kind === 'partial' && projectorFile.downloading;
+    const isDownloading = isModelDownloading || isProjectorDownloading;
+    const isFullyOnDisk = modelFile.kind === 'complete' &&
+      (projectorFile.kind === 'complete' || projectorFile.kind === 'absent');
+    const settingsOpen = expandedSettings === model.id;
+
+    const progressPct =
+      modelFile.kind === 'partial' && modelFile.downloading ? modelFile.progress ?? 0
+      : projectorFile.kind === 'partial' && projectorFile.downloading ? projectorFile.progress ?? 0
+      : null;
+
+    const sizeText = modelFile.kind === 'complete' ? formatBytes(modelFile.bytes)
+      : isModelDownloading ? 'Downloading model…'
+      : isProjectorDownloading ? 'Downloading vision projector…'
+      : modelFile.kind === 'partial' ? 'Paused — resume from Download'
+      : 'Missing';
+
+    const action = isDownloading ? (
+      <RowIconButton onClick={handleCancelNativeDownload} title="Cancel download"><StopCircle size={14} /></RowIconButton>
+    ) : isUnloading ? (
+      <span className="text-xs text-gray-400">Unloading…</span>
+    ) : isLoaded ? (
+      <>
+        <RowIconButton onClick={() => toggleSettings(model.id)} title="Generation settings" className={settingsOpen ? 'text-gray-700 bg-gray-100' : ''}>
+          <Settings2 size={14} />
+        </RowIconButton>
+        <button
+          onClick={() => NativeLlmManager.getInstance().unloadModel()}
+          className="group px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+        >
+          <span className="group-hover:hidden">Ready</span>
+          <span className="hidden group-hover:inline">Unload</span>
+        </button>
+      </>
+    ) : isLoading ? (
+      <RowButtonGhost onClick={() => NativeLlmManager.getInstance().unloadModel()}>Loading…</RowButtonGhost>
+    ) : (
+      <>
+        <RowButtonPrimary
+          disabled={isAnyNativeBusy || !isFullyOnDisk}
+          onClick={() => NativeLlmManager.getInstance().loadModel(model.id, undefined, contextParams.imageMinTokens, contextParams.imageMaxTokens)}
+        >
+          Load
+        </RowButtonPrimary>
+        <RowIconButton disabled={isAnyNativeBusy} onClick={() => deleteNativeModelCascade(model, nativeModels)} title="Delete">
+          <Trash2 size={14} />
+        </RowIconButton>
+      </>
+    );
+
+    const meta = (
+      <span className="flex items-center gap-1.5">
+        {sizeText}{model.isMultimodal ? ' · Vision' : ''}
+        {isTutorialTarget && (
+          <span className="hidden" data-tutorial-gemma-state={modelFile.kind === 'complete' ? 'installed' : isModelDownloading ? 'downloading' : undefined} />
+        )}
+        {(orphanProjectors.length > 0 || model.projectorFilename !== null) && (
+          <select
+            value={model.projectorFilename ?? ''}
+            onChange={e => NativeLlmManager.getInstance().setMmprojAssignment(model.id, e.target.value || null)}
+            disabled={isLoaded || isLoading || isDownloading}
+            onClick={e => e.stopPropagation()}
+            className="text-xs border border-gray-200 rounded px-1 py-0.5 bg-white text-gray-500 disabled:opacity-50 max-w-[140px] truncate"
+            title="Assign a vision projector"
+          >
+            <option value="">No projector</option>
+            {model.projectorFilename && (
+              <option value={model.projectorFilename}>{model.projectorFilename.replace(/\.gguf$/i, '')}</option>
+            )}
+            {orphanProjectors.map(p => (
+              <option key={p.filename} value={p.filename}>{p.filename.replace(/\.gguf$/i, '')}</option>
+            ))}
+          </select>
+        )}
+      </span>
+    );
+
+    return (
+      <ModelRow
+        key={model.id}
+        icon={<Cpu size={16} />}
+        name={model.name}
+        tag={showTag ? 'llama.cpp' : undefined}
+        meta={meta}
+        progressPct={progressPct}
+        action={action}
+        settingsSlot={isLoaded && settingsOpen && (
+          <LlamaCppSamplerPanel
+            nativeStatus={nativeState.status}
+            samplerParams={samplerParams}
+            onParamChange={handleSamplerParamChange}
+            onReset={handleResetSamplerParams}
+          />
+        )}
+      />
+    );
+  };
+
+  const renderNativePresetRow = (preset: ModelPreset) => {
+    const isThisDownloading = downloadingPreset?.name === preset.name && isAnyNativeBusy;
+    const blocked = isAnyNativeBusy && !isThisDownloading;
+    const isTutorialTarget = preset.name === TUTORIAL_GEMMA_NATIVE_NAME;
+    return (
+      <ModelRow
+        key={preset.name}
+        icon={<Cpu size={16} />}
+        name={preset.name}
+        tag="llama.cpp"
+        dimmed={!isTauriApp}
+        meta={preset.sizeLabel}
+        action={!isTauriApp ? (
+          <span className="text-xs text-gray-400">App only</span>
+        ) : isThisDownloading ? (
+          <RowIconButton onClick={handleCancelNativeDownload} title="Cancel download" {...(isTutorialTarget ? { 'data-tutorial-gemma-state': 'downloading' } : {})}><StopCircle size={14} /></RowIconButton>
+        ) : (
+          <RowButtonPrimary disabled={blocked} onClick={() => handleDownloadPreset(preset)} {...(isTutorialTarget ? { 'data-tutorial-gemma-e2b': true } : {})}>Download</RowButtonPrimary>
+        )}
+      />
+    );
+  };
+
+  const renderTransformersInstalledRow = (model: LocalModelEntry, isTutorialTarget = false) => {
+    const isThisModel = gemmaState.modelId === model.id;
+    const status = isThisModel ? gemmaState.status : model.status;
+    const isLoaded = status === 'loaded';
+    const isLoading = status === 'loading';
+    const isError = status === 'error';
+    const loadSettings = isThisModel ? gemmaState.loadSettings : null;
+    const progress = isThisModel && isLoading && gemmaState.progress.length > 0
+      ? gemmaState.progress.reduce((sum, p) => sum + p.progress, 0) / gemmaState.progress.length
+      : null;
+    const tutorialAttrs = (state: string) => (isTutorialTarget ? { 'data-tutorial-gemma-state': state } : {});
+
+    const meta = isError ? (isThisModel ? gemmaState.error ?? 'Error' : 'Error')
+      : loadSettings ? `${loadSettings.device} · ${loadSettings.dtype} · ${loadSettings.imageTokenBudget} tokens`
+      : isLoading ? 'Downloading…' : undefined;
+
+    const action = isLoaded ? (
+      <button
+        onClick={() => GemmaModelManager.getInstance().unloadModel()}
+        className="group px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+        {...tutorialAttrs('loaded')}
+      >
+        <span className="group-hover:hidden">Ready</span>
+        <span className="hidden group-hover:inline">Unload</span>
+      </button>
+    ) : isLoading ? (
+      <RowButtonGhost onClick={() => GemmaModelManager.getInstance().unloadModel()} {...tutorialAttrs('loading')}>Cancel</RowButtonGhost>
+    ) : isError ? (
+      <RowButtonGhost onClick={() => GemmaModelManager.getInstance().deleteModel(model.id as GemmaModelId)} {...tutorialAttrs('error')}>Remove</RowButtonGhost>
+    ) : (
+      <>
+        <RowButtonPrimary onClick={() => GemmaModelManager.getInstance().loadModel(model.id as GemmaModelId)} {...(isTutorialTarget ? { 'data-tutorial-gemma-e2b': true, ...tutorialAttrs('load') } : {})}>Load</RowButtonPrimary>
+        <RowIconButton onClick={() => GemmaModelManager.getInstance().deleteModel(model.id as GemmaModelId)} title="Delete"><Trash2 size={14} /></RowIconButton>
+      </>
+    );
+
+    return (
+      <ModelRow key={model.id} icon={<Sparkles size={16} />} name={model.name} tag="Transformers.js" meta={meta} progressPct={progress} action={action} />
+    );
+  };
+
+  const renderTransformersPresetRow = (preset: ModelPreset) => {
+    const isThisDownloading = gemmaState.modelId === preset.hfModelId && gemmaState.status === 'loading';
+    const blocked = gemmaState.status === 'loading' && gemmaState.modelId !== preset.hfModelId;
+    const isTutorialTarget = preset.hfModelId === TUTORIAL_GEMMA_ONNX_ID;
+    const progress = isThisDownloading && gemmaState.progress.length > 0
+      ? gemmaState.progress.reduce((sum, p) => sum + p.progress, 0) / gemmaState.progress.length
+      : null;
+    return (
+      <ModelRow
+        key={preset.name}
+        icon={<Sparkles size={16} />}
+        name={preset.name}
+        tag="Transformers.js"
+        meta={isThisDownloading ? 'Downloading…' : preset.sizeLabel}
+        progressPct={progress}
+        action={isThisDownloading ? (
+          <RowButtonGhost onClick={() => GemmaModelManager.getInstance().unloadModel()} {...(isTutorialTarget ? { 'data-tutorial-gemma-state': 'downloading' } : {})}>Cancel</RowButtonGhost>
+        ) : (
+          <RowButtonPrimary disabled={blocked} onClick={() => handleDownloadPreset(preset)} {...(isTutorialTarget ? { 'data-tutorial-gemma-e2b': true } : {})}>Download</RowButtonPrimary>
+        )}
+      />
+    );
   };
 
   if (loading && !refreshing) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin mb-4"><Cpu className="h-8 w-8 text-blue-500" /></div>
-        <p className="text-gray-600">Loading available models...</p>
+      <div className="flex flex-col items-center justify-center py-16">
+        <div className="animate-spin mb-3"><Cpu className="h-6 w-6 text-gray-400" /></div>
+        <p className="text-sm text-gray-500">Loading models…</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="max-w-2xl mx-auto py-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-800">Models</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowBenchmark(b => !b)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              showBenchmark ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            title="Performance Benchmark"
-          >
-            <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Benchmark</span>
-          </button>
-          <button
-            onClick={() => setShowModelHub(true)}
-            className="px-3 py-2 rounded-md bg-green-50 text-green-700 hover:bg-green-100 text-sm font-medium"
-          >
-            Add Model
-          </button>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm ${
-              refreshing ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-            }`}
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </button>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Models</h2>
+        <div className="flex items-center gap-1">
+          <RowIconButton onClick={() => setShowBenchmark(v => !v)} title="Benchmark" className={showBenchmark ? 'text-gray-900 bg-gray-100' : ''}>
+            <BarChart3 size={16} />
+          </RowIconButton>
+          <RowIconButton onClick={handleRefresh} disabled={refreshing} title="Refresh">
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+          </RowIconButton>
+          <RowIconButton onClick={() => setShowAdvanced(v => !v)} title="Advanced" className={showAdvanced ? 'text-gray-900 bg-gray-100' : ''}>
+            <Settings2 size={16} />
+          </RowIconButton>
         </div>
       </div>
 
-      {/* llama.cpp local model cards */}
-      {isTauriApp && ggufModels.length > 0 && (
-        <div className="space-y-2 mb-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Local — llama.cpp</p>
-          {ggufModels.map(file => {
-            const modelId = file.filename.replace(/\.gguf$/i, '');
-            const isThisModel = nativeState.modelId === modelId;
-            const isLoaded = isThisModel && nativeState.status === 'loaded';
-            const isLoading = isThisModel && nativeState.status === 'loading';
-            const isUnloading = isThisModel && nativeState.status === 'unloading';
-            const assignedMmproj = mmprojAssignments[file.filename] ?? null;
-            const isMultimodal = isThisModel ? NativeLlmManager.getInstance().isMultimodal() : !!assignedMmproj;
-            const settingsOpen = expandedSettings === modelId;
-
-            return (
-              <div key={file.filename} className={`border rounded-xl transition-all ${
-                isLoaded ? 'border-gray-400 bg-gray-50' : 'border-gray-200 bg-white'
-              }`}>
-                <div className="flex items-center justify-between gap-3 p-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      isLoaded ? 'bg-gray-200' : 'bg-gray-100'
-                    }`}>
-                      <CpuIcon size={18} className={isLoaded ? 'text-gray-800' : 'text-gray-500'} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-medium text-gray-900 truncate">{modelId}</span>
-                        <span className="text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">llama.cpp</span>
-                        {isMultimodal && <span className="text-[10px] font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">Vision</span>}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs text-gray-500">{formatBytes(file.sizeBytes)}</p>
-                        {ggufProjectors.length > 0 && (
-                          <select
-                            value={assignedMmproj ?? ''}
-                            onChange={e => {
-                              NativeLlmManager.getInstance().setMmprojAssignment(file.filename, e.target.value || null);
-                              setMmprojAssignments(NativeLlmManager.getInstance().getMmprojAssignments());
-                            }}
-                            disabled={isLoaded || isLoading}
-                            className="text-xs border border-gray-200 rounded px-1.5 py-0.5 bg-white text-gray-600 focus:ring-1 focus:ring-purple-400 disabled:opacity-50 max-w-[160px] truncate"
-                            title="Assign a vision projector"
-                          >
-                            <option value="">No projector</option>
-                            {ggufProjectors.map(p => (
-                              <option key={p.filename} value={p.filename}>{p.filename.replace(/\.gguf$/i, '')}</option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {/* Settings gear — only when loaded */}
-                    {isLoaded && (
-                      <button
-                        onClick={() => toggleSettings(modelId)}
-                        className={`p-1.5 rounded transition-colors ${settingsOpen ? 'text-gray-800 bg-gray-200' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                        title="Generation settings"
-                      >
-                        <Settings2 size={14} />
-                      </button>
-                    )}
-                    {isUnloading ? (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-200 text-gray-600 rounded-lg font-medium">
-                        <CpuIcon size={12} className="animate-pulse" /> Unloading
-                      </span>
-                    ) : isLoaded ? (
-                      <button
-                        onClick={() => NativeLlmManager.getInstance().unloadModel()}
-                        className="group flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors bg-gray-200 text-gray-800 hover:bg-red-100 hover:text-red-700"
-                      >
-                        <span className="group-hover:hidden flex items-center gap-1.5"><CheckCircle size={12} /> Ready</span>
-                        <span className="hidden group-hover:flex items-center gap-1.5"><X size={12} /> Unload</span>
-                      </button>
-                    ) : isLoading ? (
-                      <button
-                        onClick={() => NativeLlmManager.getInstance().unloadModel()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-200 text-gray-600 rounded-lg font-medium"
-                      >
-                        <CpuIcon size={12} className="animate-pulse" /> Loading
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          disabled={isAnyNativeBusy}
-                          onClick={() => NativeLlmManager.getInstance().loadModel(file.filename)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
-                        >
-                          <CpuIcon size={12} /> Load
-                        </button>
-                        <button
-                          disabled={isAnyNativeBusy}
-                          onClick={() => NativeLlmManager.getInstance().deleteModel(file.filename)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Delete"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {settingsOpen && isLoaded && (
-                  <LlamaCppSamplerPanel
-                    nativeStatus={nativeState.status}
-                    samplerParams={samplerParams}
-                    onParamChange={handleSamplerParamChange}
-                    onReset={handleResetSamplerParams}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Transformers.js local model cards */}
-      {gemmaState.modelId && (
-        <div className="space-y-2 mb-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Local — Transformers.js</p>
-          {GemmaModelManager.getInstance().listLocalModels().map(model => {
-            const isThisModel = gemmaState.modelId === model.id;
-            const status = isThisModel ? gemmaState.status : model.status;
-            const isLoaded = status === 'loaded';
-            const isLoading = status === 'loading';
-            const isError = status === 'error';
-            const loadSettings = isThisModel ? gemmaState.loadSettings : null;
-
-            return (
-              <div key={model.id} className={`border rounded-xl p-3 transition-all ${
-                isLoaded ? 'border-gray-400 bg-gray-50' : 'border-gray-200 bg-white'
-              }`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      isLoaded ? 'bg-gray-200' : 'bg-gray-100'
-                    }`}>
-                      <CpuIcon size={18} className={isLoaded ? 'text-gray-800' : 'text-gray-500'} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-medium text-gray-900 truncate">{model.name}</span>
-                        <span className="text-[10px] font-semibold text-yellow-800 bg-yellow-300 px-1.5 py-0.5 rounded">Transformers.js</span>
-                      </div>
-                      {loadSettings && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {loadSettings.device} · {loadSettings.dtype} · {loadSettings.imageTokenBudget} tokens
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {isLoaded ? (
-                      <button
-                        onClick={() => GemmaModelManager.getInstance().unloadModel()}
-                        className="group flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors bg-gray-200 text-gray-800 hover:bg-red-100 hover:text-red-700"
-                      >
-                        <span className="group-hover:hidden flex items-center gap-1.5"><CheckCircle size={12} /> Ready</span>
-                        <span className="hidden group-hover:flex items-center gap-1.5"><X size={12} /> Unload</span>
-                      </button>
-                    ) : isLoading ? (
-                      <button
-                        onClick={() => GemmaModelManager.getInstance().unloadModel()}
-                        className="group flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-700 rounded-lg font-medium transition-colors"
-                      >
-                        <span className="group-hover:hidden flex items-center gap-1.5"><CpuIcon size={12} className="animate-pulse" /> Loading</span>
-                        <span className="hidden group-hover:flex items-center gap-1.5"><StopCircle size={12} /> Cancel</span>
-                      </button>
-                    ) : isError ? (
-                      <span className="flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-100 px-2 py-1 rounded-full">
-                        <AlertTriangle size={12} /> Error
-                      </span>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => GemmaModelManager.getInstance().loadModel(model.id as GemmaModelId)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg hover:bg-gray-900 font-medium shadow-sm"
-                        >
-                          <Sparkles size={12} /> Load
-                        </button>
-                        <button
-                          onClick={() => GemmaModelManager.getInstance().deleteModel(model.id as GemmaModelId)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
-                          title="Delete model"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {isThisModel && isLoading && gemmaState.progress.length > 0 && (
-                  <div className="space-y-1.5 mt-3">
-                    {gemmaState.progress.map(item => (
-                      <div key={item.file}>
-                        <div className="flex justify-between items-center text-[11px] mb-1">
-                          <span className="text-gray-600 flex items-center gap-1.5 truncate max-w-[55%]">
-                            {item.status === 'done'
-                              ? <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
-                              : <FileDown className="h-3 w-3 text-purple-400 flex-shrink-0" />
-                            }
-                            {item.file}
-                          </span>
-                          <span className="font-medium text-gray-500 flex-shrink-0">
-                            {item.status === 'done' ? 'Done'
-                              : item.total > 0 ? `${formatBytes(item.loaded)} / ${formatBytes(item.total)}`
-                              : `${Math.round(item.progress)}%`}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div
-                            className={`h-1.5 rounded-full transition-all duration-300 ${item.status === 'done' ? 'bg-green-500' : 'bg-purple-600'}`}
-                            style={{ width: `${item.progress}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {isThisModel && isError && (
-                  <p className="mt-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{gemmaState.error}</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Remote (custom/local-network) model cards */}
-      {models.filter(m => m.server !== LLAMA_CPP_LOCAL_SENTINEL && m.server !== BROWSER_LOCAL_SENTINEL && m.server !== SKIP_MODEL_SENTINEL && !m.server.includes('api.observer-ai.com')).length > 0 && (
-        <div className="space-y-2 mb-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Remote</p>
-          {models
-            .filter(m => m.server !== LLAMA_CPP_LOCAL_SENTINEL && m.server !== BROWSER_LOCAL_SENTINEL && m.server !== SKIP_MODEL_SENTINEL && !m.server.includes('api.observer-ai.com'))
-            .map(model => {
-              const settingsOpen = expandedSettings === model.name;
-              const canConfigure = hasSettings(model);
-              return (
-                <div key={model.name} className={`border rounded-xl transition-all ${settingsOpen ? 'border-blue-200' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
-                  <div className="flex items-center gap-3 p-3">
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-gray-100">
-                      <CpuIcon size={18} className="text-gray-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-medium text-gray-900 truncate">{model.name}</span>
-                        {model.multimodal && (
-                          <span className="text-[10px] font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                            <Eye size={9} />
-                          </span>
-                        )}
-                        <span className="text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">Server</span>
-                      </div>
-                      {model.parameterSize && model.parameterSize !== 'N/A' && (
-                        <p className="text-xs text-gray-500 mt-0.5">{model.parameterSize}</p>
-                      )}
-                    </div>
-                    {canConfigure && (
-                      <button
-                        onClick={() => toggleSettings(model.name)}
-                        className={`p-1.5 rounded transition-colors flex-shrink-0 ${settingsOpen ? 'text-blue-700 bg-blue-100' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                        title="Inference settings"
-                      >
-                        <Settings2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                  {settingsOpen && canConfigure && (
-                    <RemoteInferenceParamsPanel modelName={model.name} />
-                  )}
-                </div>
-              );
-            })}
-        </div>
-      )}
-
-      {/* Cloud (Observer API) model cards */}
-      {models.filter(m => m.server.includes('api.observer-ai.com')).length > 0 && (
-        <div className="space-y-2 mb-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cloud</p>
-          {models
-            .filter(m => m.server.includes('api.observer-ai.com'))
-            .map(model => {
-              const settingsOpen = expandedSettings === model.name;
-              const canConfigure = hasSettings(model);
-              return (
-                <div key={model.name} className={`border rounded-xl transition-all ${
-                  model.pro && !isProUser ? 'opacity-60' : ''
-                } ${settingsOpen ? 'border-blue-200' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
-                  <div className="flex items-center gap-3 p-3">
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-gray-100">
-                      <CpuIcon size={18} className="text-gray-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-medium text-gray-900 truncate">{model.name}</span>
-                        {model.pro && !isProUser && (
-                          <span className="text-[10px] font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">PRO</span>
-                        )}
-                        {model.multimodal && (
-                          <span className="text-[10px] font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                            <Eye size={9} />
-                          </span>
-                        )}
-                        <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                          <Cloud size={9} />
-                        </span>
-                      </div>
-                      {model.parameterSize && model.parameterSize !== 'N/A' && (
-                        <p className="text-xs text-gray-500 mt-0.5">{model.parameterSize}</p>
-                      )}
-                    </div>
-                    {canConfigure && (
-                      <button
-                        onClick={() => toggleSettings(model.name)}
-                        className={`p-1.5 rounded transition-colors flex-shrink-0 ${settingsOpen ? 'text-blue-700 bg-blue-100' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                        title="Inference settings"
-                      >
-                        <Settings2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                  {settingsOpen && canConfigure && (
-                    <RemoteInferenceParamsPanel modelName={model.name} />
-                  )}
-                </div>
-              );
-            })}
-        </div>
-      )}
-
-      {/* Skip Model Call card */}
-      <div className="space-y-2 mb-4">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Special</p>
-        <div className="border border-gray-200 bg-white rounded-xl p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-gray-100">
-            <MinusCircle size={18} className="text-gray-400" />
+      {/* Cloud credits — small pill, not a card */}
+      <div className="px-3.5 py-2.5 mb-5 rounded-xl border border-gray-200 bg-gray-50/60 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Cloud size={15} className={isUsingObServer ? 'text-indigo-500' : 'text-gray-400'} />
+            <span className="text-sm text-gray-700">Cloud inference</span>
+            {isUsingObServer && !isAuthenticated && (
+              <span className="text-xs text-gray-400">Sign in to use</span>
+            )}
+            {isUsingObServer && isAuthenticated && (!quotaInfo || quotaInfo.tier === 'max' || !quotaInfo.daily || !quotaInfo.monthly) && renderQuotaStatus && (
+              <span className="text-xs">{renderQuotaStatus()}</span>
+            )}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-medium text-gray-900">Skip Model Call</span>
-              <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Always ready</span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {showLoginMessage && <span className="text-xs text-red-500">Login required</span>}
+            <button
+              onClick={handleToggleObServer}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isUsingObServer ? 'bg-indigo-600' : 'bg-gray-300'}`}
+              aria-label={isUsingObServer ? 'Disable cloud inference' : 'Enable cloud inference'}
+            >
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${isUsingObServer ? 'translate-x-5' : 'translate-x-1'}`} />
+            </button>
+          </div>
+        </div>
+
+        {isUsingObServer && isAuthenticated && quotaInfo && quotaInfo.tier !== 'max' && quotaInfo.daily && quotaInfo.monthly && (
+          <div className="flex items-center gap-4">
+            <QuotaBar label="Today" block={quotaInfo.daily} />
+            <QuotaBar label="This month" block={quotaInfo.monthly} />
+          </div>
+        )}
+      </div>
+
+      {/* Unified model list */}
+      <div className="divide-y divide-gray-100">
+        {nativeRows.map(({ preset, installed }) => installed
+          ? renderNativeInstalledRow(installed, true, preset.name === TUTORIAL_GEMMA_NATIVE_NAME)
+          : renderNativePresetRow(preset))}
+        {nativeExtraModels.map(m => renderNativeInstalledRow(m))}
+        {transformersRows.map(({ preset, installed }) => installed
+          ? renderTransformersInstalledRow(installed, preset.hfModelId === TUTORIAL_GEMMA_ONNX_ID)
+          : renderTransformersPresetRow(preset))}
+        {transformersExtraModels.map(m => renderTransformersInstalledRow(m))}
+
+        {remoteModels.map(model => {
+          const settingsOpen = expandedSettings === model.name;
+          const canConfigure = hasRemoteSettings(model);
+          return (
+            <ModelRow
+              key={model.name}
+              icon={<Server size={16} />}
+              name={model.name}
+              tag="Remote"
+              meta={[model.parameterSize && model.parameterSize !== 'N/A' ? model.parameterSize : null, model.multimodal ? 'Vision' : null].filter(Boolean).join(' · ') || undefined}
+              action={canConfigure && (
+                <RowIconButton onClick={() => toggleSettings(model.name)} title="Inference settings" className={settingsOpen ? 'text-gray-700 bg-gray-100' : ''}>
+                  <Settings2 size={14} />
+                </RowIconButton>
+              )}
+              settingsSlot={settingsOpen && canConfigure && <RemoteInferenceParamsPanel modelName={model.name} />}
+            />
+          );
+        })}
+
+        {cloudModels.map(model => {
+          const settingsOpen = expandedSettings === model.name;
+          const canConfigure = hasRemoteSettings(model);
+          const locked = model.pro && !isProUser;
+          return (
+            <ModelRow
+              key={model.name}
+              icon={<Cloud size={16} />}
+              name={model.name}
+              tag={model.pro ? 'Cloud · PRO' : 'Cloud'}
+              dimmed={locked}
+              meta={[model.parameterSize && model.parameterSize !== 'N/A' ? model.parameterSize : null, model.multimodal ? 'Vision' : null].filter(Boolean).join(' · ') || undefined}
+              action={canConfigure && (
+                <RowIconButton onClick={() => toggleSettings(model.name)} title="Inference settings" className={settingsOpen ? 'text-gray-700 bg-gray-100' : ''}>
+                  <Settings2 size={14} />
+                </RowIconButton>
+              )}
+              settingsSlot={settingsOpen && canConfigure && <RemoteInferenceParamsPanel modelName={model.name} />}
+            />
+          );
+        })}
+
+        <ModelRow
+          icon={<MinusCircle size={16} />}
+          name="Skip Model Call"
+          meta="Runs the agent loop with no AI model — response is always empty"
+          action={<span className="text-xs text-gray-400">Always ready</span>}
+        />
+      </div>
+
+      {/* Advanced */}
+      <div className="mt-6 border-t border-gray-100 pt-4">
+        <button onClick={() => setShowAdvanced(v => !v)} className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700">
+          <ChevronDown size={14} className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+          Advanced
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-3">
+            <div className="flex gap-4 border-b border-gray-100 mb-4 text-sm">
+              {(['hardware', 'download', 'servers'] as AdvancedTab[]).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setAdvancedTab(tab)}
+                  className={`pb-2 -mb-px border-b-2 transition-colors ${
+                    advancedTab === tab ? 'border-gray-800 text-gray-900 font-medium' : 'border-transparent text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  {tab === 'hardware' ? 'Hardware' : tab === 'download' ? 'Download' : 'Servers'}
+                </button>
+              ))}
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Runs the agent loop without calling an AI model — response is always an empty string.
-            </p>
-          </div>
-        </div>
-      </div>
 
-      {models.length === 0 && ggufModels.length === 0 && !gemmaState.modelId && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-6">
-          <p className="text-yellow-700">No models found.</p>
-          <p className="text-sm text-yellow-600 mt-1">
-            Use "Add Model" to download a local model or connect to a server.
-          </p>
-        </div>
-      )}
+            {advancedTab === 'hardware' && (
+              <div className="space-y-5 text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-800">GPU</p>
+                    <p className="text-xs text-gray-400">{useGpu ? 'WebGPU / Metal' : 'CPU only'}</p>
+                  </div>
+                  <button
+                    onClick={() => handleToggleUnifiedGpu(!useGpu)}
+                    disabled={nativeState.status === 'loading' || nativeState.status === 'loaded'}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${useGpu ? 'bg-gray-800' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${useGpu ? 'translate-x-5' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                {isTauriApp && memInfo && (
+                  <div>
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                      <span className="font-medium text-gray-800 text-sm">RAM</span>
+                      <span className="font-mono">{formatBytes(memInfo.usedBytes)} / {formatBytes(memInfo.totalBytes)}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5">
+                      <div
+                        className={`h-1.5 rounded-full transition-all ${memInfo.usedBytes / memInfo.totalBytes > 0.9 ? 'bg-red-500' : 'bg-gray-800'}`}
+                        style={{ width: `${Math.min(100, (memInfo.usedBytes / memInfo.totalBytes) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {isTauriApp && (
+                  <div className="pt-1 border-t border-gray-100 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-gray-700">Thinking mode (llama.cpp)</p>
+                      <button
+                        onClick={() => NativeLlmManager.getInstance().setEnableThinking(!nativeState.enableThinking)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${nativeState.enableThinking ? 'bg-gray-800' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${nativeState.enableThinking ? 'translate-x-5' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500">Context (text)</label>
+                        <input type="number" value={contextParams.nCtx} min={512} max={32768} step={512}
+                          onChange={(e) => handleContextParamChange('nCtx', parseInt(e.target.value) || DEFAULT_CONTEXT_PARAMS.nCtx)}
+                          className="w-full mt-0.5 p-1.5 text-sm border border-gray-200 rounded-md font-mono" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Context (multimodal)</label>
+                        <input type="number" value={contextParams.nCtxMultimodal} min={512} max={32768} step={512}
+                          onChange={(e) => handleContextParamChange('nCtxMultimodal', parseInt(e.target.value) || DEFAULT_CONTEXT_PARAMS.nCtxMultimodal)}
+                          className="w-full mt-0.5 p-1.5 text-sm border border-gray-200 rounded-md font-mono" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">CPU threads (0 = auto)</label>
+                        <input type="number" value={contextParams.nThreads} min={0} max={32}
+                          onChange={(e) => handleContextParamChange('nThreads', parseInt(e.target.value) || 0)}
+                          className="w-full mt-0.5 p-1.5 text-sm border border-gray-200 rounded-md font-mono" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-amber-700">GPU layers (-1 auto, 0 CPU, 99 all)</label>
+                        <input type="number" value={contextParams.nGpuLayers} min={-1} max={999}
+                          onChange={(e) => handleContextParamChange('nGpuLayers', parseInt(e.target.value) ?? -1)}
+                          className="w-full mt-0.5 p-1.5 text-sm border border-amber-200 bg-amber-50 rounded-md font-mono" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Image token budget</label>
+                      <select
+                        value={contextParams.imageMaxTokens}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          setContextParams(prev => ({ ...prev, imageMinTokens: v, imageMaxTokens: v }));
+                          NativeLlmManager.getInstance().setContextParams({ imageMinTokens: v, imageMaxTokens: v }).catch(() => {});
+                        }}
+                        className="w-full mt-0.5 p-1.5 text-sm border border-gray-200 rounded-md font-mono"
+                      >
+                        <option value={-1}>Default (model decides)</option>
+                        <option value={70}>70 — fastest, low detail</option>
+                        <option value={140}>140 — fast</option>
+                        <option value={280}>280 — balanced</option>
+                        <option value={560}>560 — detailed</option>
+                        <option value={1120}>1120 — max detail (OCR/documents)</option>
+                      </select>
+                    </div>
+                    <button onClick={handleResetContextParams} className="text-xs text-gray-400 hover:text-gray-600 underline">Reset to defaults</button>
+                  </div>
+                )}
+
+                <div className="pt-1 border-t border-gray-100 space-y-3">
+                  <p className="text-gray-700">Transformers.js runtime</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500">Device</label>
+                      <select value={gemmaDevice} onChange={e => setGemmaDevice(e.target.value as GemmaDevice)} disabled={gemmaState.status === 'loading'}
+                        className="w-full mt-0.5 p-1.5 text-sm border border-gray-200 rounded-md disabled:opacity-50">
+                        <option value="webgpu">WebGPU</option>
+                        <option value="wasm">WASM</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Precision</label>
+                      <select value={gemmaDtype} onChange={e => setGemmaDtype(e.target.value as GemmaDtype)} disabled={gemmaState.status === 'loading'}
+                        className="w-full mt-0.5 p-1.5 text-sm border border-gray-200 rounded-md disabled:opacity-50">
+                        <option value="q4f16">q4f16</option>
+                        <option value="q4">q4</option>
+                        <option value="q8">q8</option>
+                        <option value="fp16">fp16</option>
+                        <option value="fp32">fp32</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Image tokens</label>
+                      <select value={gemmaTokenBudget} onChange={e => setGemmaTokenBudget(Number(e.target.value) as GemmaImageTokenBudget)} disabled={gemmaState.status === 'loading'}
+                        className="w-full mt-0.5 p-1.5 text-sm border border-gray-200 rounded-md disabled:opacity-50">
+                        <option value={70}>70</option>
+                        <option value={140}>140</option>
+                        <option value={280}>280</option>
+                        <option value={560}>560</option>
+                        <option value={1120}>1120</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-gray-700">Thinking mode</p>
+                    <button
+                      onClick={() => setGemmaEnableThinking(v => !v)}
+                      disabled={gemmaState.status === 'loading'}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${gemmaEnableThinking ? 'bg-gray-800' : 'bg-gray-300'}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${gemmaEnableThinking ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {isTauriApp && (
+                  <div className="pt-1 border-t border-gray-100">
+                    <button onClick={() => setShowEngineLogs(v => !v)} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600">
+                      <ChevronDown size={12} className={`transition-transform ${showEngineLogs ? 'rotate-180' : ''}`} /> Engine logs
+                    </button>
+                    {showEngineLogs && (
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 text-xs text-gray-500"><Play size={12} /> Engine {engineInitStatus === 'ok' ? '· initialized' : engineInitStatus === 'error' ? '· error' : ''}</span>
+                          <button
+                            onClick={async () => {
+                              setEngineInitStatus('loading'); setEngineInitError(null);
+                              try { await NativeLlmManager.getInstance().initEngine(); setEngineInitStatus('ok'); }
+                              catch (e) { setEngineInitStatus('error'); setEngineInitError(e instanceof Error ? e.message : String(e)); }
+                            }}
+                            disabled={engineInitStatus === 'loading'}
+                            className="text-xs text-gray-600 hover:text-gray-900 underline disabled:opacity-50"
+                          >
+                            {engineInitStatus === 'loading' ? 'Initializing…' : 'Init engine'}
+                          </button>
+                        </div>
+                        {engineInitError && <p className="text-xs text-red-600">{engineInitError}</p>}
+                        <div className="h-40 overflow-y-auto bg-gray-900 rounded p-2 font-mono text-[10px] leading-tight">
+                          {engineLogs.length === 0 ? (
+                            <span className="text-gray-500">No logs yet</span>
+                          ) : engineLogs.map(log => (
+                            <div key={log.id} className={log.level === LogLevel.ERROR ? 'text-red-400' : log.level === LogLevel.WARNING ? 'text-yellow-400' : 'text-gray-300'}>
+                              <span className="text-gray-500">{log.timestamp.toLocaleTimeString()} </span>{log.message}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {advancedTab === 'download' && (
+              <div className="space-y-4 text-sm">
+                {isTauriApp && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">GGUF from URL</label>
+                    <div className="flex gap-2">
+                      <input type="text" value={ggufUrl} onChange={(e) => setGgufUrl(e.target.value)}
+                        placeholder="https://huggingface.co/.../model.gguf" disabled={isAnyNativeBusy}
+                        className="flex-1 min-w-0 p-2 text-sm border border-gray-200 rounded-md disabled:opacity-50" />
+                      <RowButtonPrimary onClick={handleDownloadGguf} disabled={!ggufUrl.trim() || isAnyNativeBusy} className="px-3 py-2">Download</RowButtonPrimary>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Hugging Face ONNX model ID</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={customOnnxModelId} onChange={(e) => setCustomOnnxModelId(e.target.value)}
+                      placeholder="onnx-community/model-name" disabled={gemmaState.status === 'loading'}
+                      className="flex-1 min-w-0 p-2 text-sm border border-gray-200 rounded-md disabled:opacity-50" />
+                    <RowButtonPrimary onClick={handleLoadCustomOnnx} disabled={!customOnnxModelId.trim() || gemmaState.status === 'loading'} className="px-3 py-2">Load</RowButtonPrimary>
+                  </div>
+                </div>
+
+                {isTauriApp && (
+                  <div className="pt-2 border-t border-gray-100">
+                    <button onClick={() => setShowMoreQuants(v => !v)} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600">
+                      <ChevronDown size={12} className={`transition-transform ${showMoreQuants ? 'rotate-180' : ''}`} /> More quantizations (Gemma 4 E2B)
+                    </button>
+                    {showMoreQuants && (
+                      <div className="divide-y divide-gray-100 mt-2">
+                        {EXTENDED_PRESETS.map(preset => {
+                          const filename = preset.ggufUrl?.split('/').pop();
+                          const installed = filename ? nativeModels.find(m => m.id === filename && m.modelFile.kind === 'complete') : undefined;
+                          const isThisDownloading = downloadingPreset?.name === preset.name;
+                          return (
+                            <ModelRow
+                              key={preset.name}
+                              icon={<Cpu size={16} />}
+                              name={preset.name}
+                              meta={preset.sizeLabel}
+                              action={installed ? (
+                                <span className="text-xs text-gray-400">Installed</span>
+                              ) : isThisDownloading ? (
+                                <RowIconButton onClick={handleCancelNativeDownload} title="Cancel"><StopCircle size={14} /></RowIconButton>
+                              ) : (
+                                <RowButtonPrimary disabled={isAnyNativeBusy && !isThisDownloading} onClick={() => handleDownloadPreset(preset)}>Download</RowButtonPrimary>
+                              )}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {advancedTab === 'servers' && (
+              <div className="space-y-5 text-sm">
+                {isTauriApp && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-medium text-gray-800">Local server</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className={`text-xs ${localServerOnline ? 'text-green-600' : 'text-gray-400'}`}>{localServerOnline ? 'Online' : 'Offline'}</span>
+                        <RowIconButton onClick={checkLocalServer} title="Re-check"><RefreshCw size={13} /></RowIconButton>
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="text" value={inferenceUrlInput} onChange={(e) => setInferenceUrlInput(e.target.value)}
+                        placeholder="http://localhost:11434" className="flex-1 min-w-0 p-2 text-sm border border-gray-200 rounded-md" />
+                      <RowButtonPrimary onClick={() => onSetAppInferenceUrl?.(inferenceUrlInput)} className="px-3 py-2">Save</RowButtonPrimary>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <p className="font-medium text-gray-800 mb-1">Custom servers</p>
+                  <p className="text-xs text-gray-400 mb-2">Direct connection — may fail if the server blocks cross-origin requests</p>
+                  {!isAddingServer ? (
+                    <button onClick={() => setIsAddingServer(true)} className="w-full py-2 border border-dashed border-gray-200 rounded-md text-xs text-gray-500 hover:border-gray-300 hover:text-gray-700 flex items-center justify-center gap-1.5">
+                      <Plus size={13} /> Add server
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <input type="text" value={newServerAddress} onChange={(e) => { setNewServerAddress(e.target.value); setAddError(''); }}
+                        placeholder="http://192.168.1.100:8080" autoFocus className="w-full p-2 text-sm border border-gray-200 rounded-md" />
+                      {addError && <p className="text-xs text-red-500">{addError}</p>}
+                      <div className="flex gap-2">
+                        <RowButtonPrimary onClick={handleAddServer} className="flex-1 py-1.5">Add</RowButtonPrimary>
+                        <RowButtonGhost onClick={() => { setIsAddingServer(false); setNewServerAddress(''); setAddError(''); }} className="flex-1 py-1.5">Cancel</RowButtonGhost>
+                      </div>
+                    </div>
+                  )}
+                  {customServers.length > 0 && (
+                    <div className="divide-y divide-gray-100 mt-2">
+                      {customServers.map(server => (
+                        <div key={server.address} className="flex items-center justify-between gap-2 py-2">
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-800 truncate">{server.address}</p>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-xs ${server.status === 'online' ? 'text-green-600' : server.status === 'offline' ? 'text-red-500' : 'text-gray-400'}`}>
+                                {server.status === 'online' ? 'Online' : server.status === 'offline' ? 'Offline' : 'Unchecked'}
+                              </span>
+                              <RowIconButton onClick={() => onCheckCustomServer?.(server.address)} title="Re-check"><RefreshCw size={12} /></RowIconButton>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              onClick={() => onToggleCustomServer?.(server.address)}
+                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${server.enabled ? 'bg-gray-800' : 'bg-gray-300'}`}
+                            >
+                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${server.enabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                            </button>
+                            <RowIconButton onClick={() => onRemoveCustomServer?.(server.address)} title="Remove"><Trash2 size={14} /></RowIconButton>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {availableServers.length > 0 && (
+                  <div>
+                    <p className="font-medium text-gray-800 mb-1 flex items-center gap-1.5"><Zap size={14} /> Pull Ollama model</p>
+                    {availableServers.length > 1 && (
+                      <select value={selectedServer} onChange={(e) => setSelectedServer(e.target.value)} className="w-full mb-2 p-2 text-sm border border-gray-200 rounded-md">
+                        {availableServers.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    )}
+                    {downloadState.status !== 'pulling' && downloadState.status !== 'success' && downloadState.status !== 'error' && (
+                      <div className="flex gap-2">
+                        <input type="text" list="ollama-model-suggestions" value={modelToPull} onChange={(e) => setModelToPull(e.target.value)}
+                          placeholder="Model name…" className="flex-1 min-w-0 p-2 text-sm border border-gray-200 rounded-md" />
+                        <datalist id="ollama-model-suggestions">
+                          {SUGGESTED_OLLAMA_MODELS.map(m => <option key={m} value={m} />)}
+                        </datalist>
+                        <RowButtonPrimary disabled={!selectedServer || !modelToPull.trim()} onClick={handleStartPull} className="px-3 py-2">Pull</RowButtonPrimary>
+                      </div>
+                    )}
+                    {downloadState.status === 'pulling' && (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs text-gray-600">
+                          <span className="truncate">{downloadState.statusText}</span>
+                          <span className="font-medium">{downloadState.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div className="h-1.5 rounded-full bg-gray-800 transition-all" style={{ width: `${downloadState.progress}%` }} />
+                        </div>
+                        <RowButtonGhost onClick={handleCancelPull}>Cancel</RowButtonGhost>
+                      </div>
+                    )}
+                    {downloadState.status === 'success' && <p className="text-xs text-green-600">{downloadState.statusText}</p>}
+                    {downloadState.status === 'error' && <p className="text-xs text-red-600">{downloadState.errorText}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Benchmark modal */}
       <Modal open={showBenchmark} onClose={() => setShowBenchmark(false)} className="w-full max-w-2xl">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-orange-200 bg-orange-50">
-          <span className="text-sm font-semibold text-orange-800 flex items-center gap-2">
-            <BarChart3 size={15} /> Performance Benchmark
-          </span>
-          <button
-            onClick={() => setShowBenchmark(false)}
-            className="p-1 text-orange-400 hover:text-orange-700 rounded transition-colors"
-          >
-            <X size={16} />
-          </button>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <span className="text-sm font-semibold text-gray-800 flex items-center gap-2"><BarChart3 size={15} /> Performance Benchmark</span>
+          <button onClick={() => setShowBenchmark(false)} className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"><X size={16} /></button>
         </div>
         <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(88vh - env(safe-area-inset-top) - env(safe-area-inset-bottom))' }}>
           <BenchmarkPanel isVisible={true} />
         </div>
       </Modal>
-
-      <ModelHub
-        isOpen={showModelHub}
-        onClose={() => setShowModelHub(false)}
-        onPullComplete={handleRefresh}
-        ollamaServers={ollamaServers}
-        isUsingObServer={isUsingObServer}
-        handleToggleObServer={handleToggleObServer}
-        showLoginMessage={showLoginMessage}
-        isAuthenticated={isAuthenticated}
-        quotaInfo={quotaInfo}
-        renderQuotaStatus={renderQuotaStatus}
-        localServerOnline={localServerOnline}
-        checkLocalServer={checkLocalServer}
-        customServers={customServers}
-        onAddCustomServer={onAddCustomServer}
-        onRemoveCustomServer={onRemoveCustomServer}
-        onToggleCustomServer={onToggleCustomServer}
-        onCheckCustomServer={onCheckCustomServer}
-        appInferenceUrl={appInferenceUrl}
-        onSetAppInferenceUrl={onSetAppInferenceUrl}
-      />
     </div>
   );
 };

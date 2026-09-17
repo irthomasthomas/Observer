@@ -5,7 +5,7 @@
 // OpenAI function calls (see src/mcp/). This component is pure UI over the useMCP hook.
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Download, Cpu, Sparkles, StopCircle, Mic } from 'lucide-react';
+import { Send, Loader2, Users, Plus, CheckCircle2, XCircle, Loader, Play, Square, Save, Download, Cpu, Sparkles, StopCircle, Mic, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
@@ -47,6 +47,10 @@ interface MCPProps {
   onOpenRecipe?: () => void;
   /** Tailwind height classes for the chat container. Defaults to the hero/sheet sizing. */
   heightClass?: string;
+  /** When false, renders unboxed/full-bleed (no bordered card, rounder pill input) for a
+   *  permanently docked surface like the Observer tab. Defaults to true so existing callers
+   *  (GetStarted, MCPPanel) are visually unaffected. */
+  boxed?: boolean;
 }
 
 // ===================================================================================
@@ -74,16 +78,18 @@ const Markdown: React.FC<{ text: string }> = ({ text }) => (
 // ===================================================================================
 const StatusIcon: React.FC<{ status?: string }> = ({ status }) => {
   switch (status) {
-    case 'done': return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+    case 'done': return <CheckCircle2 className="h-3 w-3 text-green-600" />;
     case 'error':
-    case 'denied': return <XCircle className="h-4 w-4 text-red-500" />;
-    case 'running': return <Loader className="h-4 w-4 text-purple-600 animate-spin" />;
-    default: return <Loader className="h-4 w-4 text-gray-400 animate-spin" />;
+    case 'denied': return <XCircle className="h-3 w-3 text-red-500" />;
+    case 'running': return <Loader className="h-3 w-3 text-gray-400 animate-spin" />;
+    default: return <Loader className="h-3 w-3 text-gray-400 animate-spin" />;
   }
 };
 
+// Deliberately small and muted — a status caption, not a message. Tool calls aren't
+// conversation content, so they shouldn't read like a chat bubble the user is meant to parse.
 const ToolChip: React.FC<{ call: ToolCall; status?: ToolStatusEntry }> = ({ call, status }) => (
-  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 mr-1.5 mt-1.5">
+  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/5 text-[10px] font-medium text-gray-500 mr-1 mt-1">
     <StatusIcon status={status?.status} />
     <span className="font-mono">{call.function.name}</span>
   </div>
@@ -145,7 +151,7 @@ const Bar: React.FC<{ pct: number; done?: boolean }> = ({ pct, done }) => (
 );
 
 /**
- * Subscribes directly to the local-model managers (the same state ModelHub renders) to show
+ * Subscribes directly to the local-model managers (the same state the Models tab renders) to show
  * live progress for the in-flight `download_model` tool call. Renders nothing when idle.
  */
 const DownloadShell: React.FC<{ icon: React.ReactNode; children: React.ReactNode; onCancel?: () => void }> = ({ icon, children, onCancel }) => (
@@ -431,6 +437,7 @@ const MCP: React.FC<MCPProps> = ({
   initialMessage,
   onOpenRecipe,
   heightClass = 'h-[350px] md:h-[450px]',
+  boxed = true,
 }) => {
   // Conversation state lives in the app-level MCPProvider, so it's shared across every
   // place the MCP UI is opened (GetStarted, the modal) and survives this component
@@ -445,6 +452,7 @@ const MCP: React.FC<MCPProps> = ({
     subscribeMutation,
     stop,
     send,
+    clear,
     modelName,
     setModelName,
   } = useMCPContext();
@@ -607,7 +615,7 @@ const MCP: React.FC<MCPProps> = ({
         : [];
       return (
         <div key={idx} className="flex justify-end">
-          <div className="max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-purple-600 text-white">
+          <div className={userBubbleClass}>
             {text && <p className="whitespace-pre-wrap">{text}</p>}
             {imageParts.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
@@ -626,23 +634,21 @@ const MCP: React.FC<MCPProps> = ({
     const toolCalls = msg.tool_calls || [];
     if (!content && toolCalls.length === 0) return null;
     return (
-      <div key={idx} className="flex justify-start">
-        <div className="max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm">
-          {content && <Markdown text={content} />}
-          {toolCalls.length > 0 && (
-            <div className="flex flex-wrap">
-              {toolCalls.map(tc => (
-                <ToolChip key={tc.id} call={tc} status={toolStatus.get(tc.id)} />
-              ))}
-            </div>
-          )}
-          {toolCalls.some(tc => tc.function.name === 'download_model') && <DownloadModelProgress />}
-          {toolCalls
-            .filter(tc => tc.function.name === 'check_whitelist')
-            .map(tc => (
-              <CheckWhitelistGate key={tc.id} toolCallId={tc.id} status={toolStatus.get(tc.id)} onCancel={stop} />
+      <div key={idx} className="flex flex-col items-start">
+        {content && <div className={assistantBubbleClass}><Markdown text={content} /></div>}
+        {toolCalls.length > 0 && (
+          <div className="flex flex-wrap mt-1">
+            {toolCalls.map(tc => (
+              <ToolChip key={tc.id} call={tc} status={toolStatus.get(tc.id)} />
             ))}
-        </div>
+          </div>
+        )}
+        {toolCalls.some(tc => tc.function.name === 'download_model') && <DownloadModelProgress />}
+        {toolCalls
+          .filter(tc => tc.function.name === 'check_whitelist')
+          .map(tc => (
+            <CheckWhitelistGate key={tc.id} toolCallId={tc.id} status={toolStatus.get(tc.id)} onCancel={stop} />
+          ))}
       </div>
     );
   };
@@ -664,13 +670,33 @@ const MCP: React.FC<MCPProps> = ({
     return 'Describe what you want monitored…';
   };
 
+  // "Girth" pass for the unboxed (boxed=false) surface: rounder, roomier bubbles and a plain
+  // background instead of the default boxed card's tighter, bordered look. Existing callers
+  // never pass boxed=false, so their rendering is untouched.
+  const assistantBubbleClass = boxed
+    ? 'max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm'
+    : 'max-w-md md:max-w-2xl p-3 md:p-4 rounded-2xl text-sm md:text-base bg-gray-100 text-gray-800';
+  const userBubbleClass = boxed
+    ? 'max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-purple-600 text-white'
+    : 'max-w-md md:max-w-2xl p-3 md:p-4 rounded-2xl text-sm md:text-base bg-purple-600 text-white';
+
   return (
-    <div className={`flex flex-col ${heightClass} bg-white rounded-lg border border-purple-200 relative`}>
+    <div className={`flex flex-col ${heightClass} relative ${boxed ? 'bg-white rounded-lg border border-purple-200' : 'bg-transparent'}`}>
+      {!boxed && messages.length > 0 && (
+        <button
+          onClick={clear}
+          disabled={isRunning}
+          title="Clear conversation"
+          className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 px-2 py-1.5 text-xs text-gray-400 rounded-full bg-white/80 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
       {/* Chat Messages */}
-      <div className="flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto">
+      <div className={boxed ? 'flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto' : 'flex-1 p-4 md:p-6 space-y-3 md:space-y-4 overflow-y-auto'}>
         {messages.length === 0 && (
           <div className="flex justify-start">
-            <div className="max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm">
+            <div className={assistantBubbleClass}>
               <Markdown text={`Hi! I'm **Observer**! I can create and run micro-agents. `} />
             </div>
           </div>
@@ -680,7 +706,7 @@ const MCP: React.FC<MCPProps> = ({
 
         {streamingText && (
           <div className="flex justify-start">
-            <div className="max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm animate-pulse">
+            <div className={`${assistantBubbleClass} animate-pulse`}>
               <Markdown text={streamingText} />
             </div>
           </div>
@@ -694,7 +720,7 @@ const MCP: React.FC<MCPProps> = ({
 
         {isRunning && !streamingText && !pendingApproval && (
           <div className="flex justify-start">
-            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 p-2 md:p-3 rounded-lg inline-flex items-center shadow-sm">
+            <div className={`text-gray-800 p-2 md:p-3 inline-flex items-center ${boxed ? 'bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg shadow-sm' : 'bg-gray-100 rounded-2xl'}`}>
               <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" />
             </div>
           </div>
@@ -738,7 +764,7 @@ const MCP: React.FC<MCPProps> = ({
       )}
 
       {/* Input Area */}
-      <div className="p-2 border-t border-purple-200 bg-white/80 backdrop-blur-sm rounded-b-lg">
+      <div className={boxed ? 'p-2 border-t border-purple-200 bg-white/80 backdrop-blur-sm rounded-b-lg' : 'p-3 md:p-4'}>
         {customModels.length > 0 && (
           <div className="flex items-center gap-1.5 px-1 pb-1.5">
             <Cpu className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
@@ -769,7 +795,11 @@ const MCP: React.FC<MCPProps> = ({
             onChange={(e) => setUserInput(e.target.value)}
             placeholder={getPlaceholder()}
             disabled={isInputDisabled}
-            className="flex-1 min-w-0 p-2 md:p-3 border border-purple-300 rounded-lg text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            className={`flex-1 min-w-0 text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+              boxed
+                ? 'p-2 md:p-3 border border-purple-300 rounded-lg'
+                : 'p-3 md:p-4 border border-gray-200 rounded-full bg-white shadow-sm'
+            }`}
           />
 
           <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
@@ -777,7 +807,7 @@ const MCP: React.FC<MCPProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isInputDisabled}
-            className="p-2 md:p-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
+            className={`bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0 ${boxed ? 'p-2 md:p-3 rounded-md' : 'p-3 md:p-4 rounded-full'}`}
             title="Upload Image"
           >
             <Plus className="h-5 w-5" />
@@ -787,7 +817,7 @@ const MCP: React.FC<MCPProps> = ({
             type="button"
             onClick={() => (isRecording ? stopMic() : startMic())}
             disabled={micStarting || (!isRecording && isInputDisabled)}
-            className={`p-2 md:p-3 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+            className={`flex items-center justify-center flex-shrink-0 transition-colors ${boxed ? 'p-2 md:p-3 rounded-lg' : 'p-3 md:p-4 rounded-full'} ${
               isRecording
                 ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
                 : 'bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed'
@@ -804,7 +834,7 @@ const MCP: React.FC<MCPProps> = ({
             <button
               type="button"
               onClick={stop}
-              className="p-2 md:p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center flex-shrink-0"
+              className={`bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center flex-shrink-0 ${boxed ? 'p-2 md:p-3 rounded-lg' : 'p-3 md:p-4 rounded-full'}`}
               title="Stop"
             >
               <Square className="h-4 w-4" fill="currentColor" />
@@ -813,7 +843,7 @@ const MCP: React.FC<MCPProps> = ({
             <button
               type="submit"
               disabled={isSendDisabled}
-              className="p-2 md:p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
+              className={`bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0 ${boxed ? 'p-2 md:p-3 rounded-lg' : 'p-3 md:p-4 rounded-full'}`}
               title="Send"
             >
               <Send className="h-4 w-4" />
