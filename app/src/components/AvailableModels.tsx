@@ -671,9 +671,6 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
           <RowIconButton onClick={handleRefresh} disabled={refreshing} title="Refresh">
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
           </RowIconButton>
-          <RowIconButton onClick={() => setShowAdvanced(v => !v)} title="Advanced" className={showAdvanced ? 'text-gray-900 bg-gray-100' : ''}>
-            <Settings2 size={16} />
-          </RowIconButton>
         </div>
       </div>
 
