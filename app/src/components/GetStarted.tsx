@@ -1,10 +1,7 @@
 // src/components/GetStarted.tsx
 import React from 'react';
-import { Users, Plus, Trash2, Sparkles } from 'lucide-react';
-import MCP from './AICreator/MCP';
+import { Users, Plus } from 'lucide-react';
 import type { TokenProvider } from '@utils/main_loop';
-import { useMCPContext } from '../mcp/MCPContext';
-
 
 interface GetStartedProps {
   onExploreCommunity: () => void;
@@ -23,103 +20,41 @@ interface GetStartedProps {
 const GetStarted: React.FC<GetStartedProps> = ({
   onExploreCommunity,
   onCreateNewAgent,
-  getToken,
-  isAuthenticated,
-  isUsingObServer,
-  onSignIn,
-  onSwitchToObServer,
-  onUpgrade,
-  onRefresh,
-  onUpgradeClick: _onUpgradeClick,
-  onOpenRecipe,
 }) => {
-  const { clear, isRunning } = useMCPContext();
-
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <div className="flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-4 lg:gap-6 h-full">
-        {/* Main Create Agent Card - Full width on mobile */}
-        <div className="flex flex-col md:col-span-2 order-1" data-tutorial-ai-creator>
-          <div className="h-full bg-white shadow-sm flex flex-col border-0 md:border border-gray-200 rounded-none md:rounded-xl">
-            <div className="border-b border-gray-200 shrink-0 p-4 md:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="bg-purple-50 flex justify-center items-center rounded-lg w-10 h-10 shrink-0">
-                    <Sparkles className="text-purple-600 w-5 h-5" strokeWidth={2} />
-                  </div>
-                  <div>
-                    <h2 className="text-gray-900 text-lg font-semibold">
-                      Observer
-                    </h2>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={clear}
-                    disabled={isRunning}
-                    title="Clear conversation"
-                    className="inline-flex items-center gap-1 px-2 py-1.5 text-xs text-gray-400 rounded-md hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="flex-1 p-0 md:p-6">
-              <MCP
-                onSaveComplete={() => {/* Agent saved, tutorial will start automatically */}}
-                getToken={getToken}
-                isAuthenticated={isAuthenticated}
-                isUsingObServer={isUsingObServer}
-                onSignIn={onSignIn}
-                onSwitchToObServer={onSwitchToObServer}
-                onUpgrade={onUpgrade}
-                onRefresh={onRefresh}
-                onOpenRecipe={onOpenRecipe}
-              />
-            </div>
+    <div className="w-full max-w-3xl mx-auto">
+      <div className="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6">
+        {/* Community Card */}
+        <div
+          onClick={onExploreCommunity}
+          className="bg-white shadow-sm cursor-pointer p-6 md:p-8 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors flex flex-col items-center text-center"
+        >
+          <div className="mb-4 bg-blue-50 flex justify-center items-center rounded-lg w-12 h-12 shrink-0">
+            <Users className="text-blue-600 w-6 h-6" strokeWidth={2} />
           </div>
+          <h3 className="text-gray-900 font-semibold text-lg mb-1">
+            Browse Community
+          </h3>
+          <p className="text-gray-600 text-sm">
+            Browse and use pre-built agents from the community
+          </p>
         </div>
 
-        {/* Side Cards - Stack below on mobile */}
-        <div className="flex flex-row md:flex-col gap-2 md:gap-4 order-2 px-4 md:px-0">
-          {/* Community Card */}
-          <div
-            onClick={onExploreCommunity}
-            className="flex-1 md:flex-initial bg-white shadow-sm cursor-pointer p-3 md:p-6 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex flex-col justify-center"
-          >
-            <div className="md:mb-4 flex items-center justify-center md:justify-start">
-              <div className="mr-3 bg-blue-50 flex justify-center items-center rounded-lg w-10 h-10 shrink-0">
-                <Users className="text-blue-600 w-5 h-5" strokeWidth={2} />
-              </div>
-              <h3 className="text-gray-900 font-semibold">
-                Community
-              </h3>
-            </div>
-            <p className="hidden md:block text-gray-600 text-sm">
-              Browse and use pre-built agents from the community
-            </p>
+        {/* Build Custom Card */}
+        <div
+          onClick={onCreateNewAgent}
+          data-tutorial-build-custom
+          className="bg-white shadow-sm cursor-pointer p-6 md:p-8 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors flex flex-col items-center text-center"
+        >
+          <div className="mb-4 bg-purple-50 flex justify-center items-center rounded-lg w-12 h-12 shrink-0">
+            <Plus className="text-purple-600 w-6 h-6" strokeWidth={2} />
           </div>
-
-          {/* Build Custom Card */}
-          <div
-            onClick={onCreateNewAgent}
-            data-tutorial-build-custom
-            className="flex-1 md:flex-initial bg-white shadow-sm cursor-pointer p-3 md:p-6 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex flex-col justify-center"
-          >
-            <div className="md:mb-4 flex items-center justify-center md:justify-start -translate-x-[10px] md:translate-x-0">
-              <div className="mr-3 bg-purple-50 flex justify-center items-center rounded-lg w-10 h-10 shrink-0">
-                <Plus className="text-purple-600 w-5 h-5" strokeWidth={2} />
-              </div>
-              <h3 className="text-gray-900 font-semibold">
-                <span className="md:hidden">Create</span>
-                <span className="hidden md:inline">Create Micro-Agent</span>
-              </h3>
-            </div>
-            <p className="hidden md:block text-gray-600 text-sm">
-              Create a micro-agent manually
-            </p>
-          </div>
+          <h3 className="text-gray-900 font-semibold text-lg mb-1">
+            Create Micro-Agent
+          </h3>
+          <p className="text-gray-600 text-sm">
+            Create a micro-agent manually
+          </p>
         </div>
       </div>
     </div>

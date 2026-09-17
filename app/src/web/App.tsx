@@ -1186,17 +1186,20 @@ function AppContent() {
         {/* My Agents Tab */}
         <div className={activeTab !== 'myAgents' ? 'hidden' : ''}>
           {/* Agent grid — hidden (not unmounted) when showGetStarted so cards keep their state */}
-          <div className={showGetStarted ? 'hidden' : 'px-4'}>
-            <AgentImportHandler
-              onAddAgent={handleAddAgentClick}
-              agentCount={agents.length}
-              activeAgentCount={runningAgents.size}
-              isRefreshing={isRefreshing}
-              onRefresh={fetchAgents}
-            />
+          <div className="px-4">
+            <div className={showGetStarted ? 'hidden' : ''}>
+              <AgentImportHandler
+                onAddAgent={handleAddAgentClick}
+                agentCount={agents.length}
+                activeAgentCount={runningAgents.size}
+                isRefreshing={isRefreshing}
+                onRefresh={fetchAgents}
+              />
+            </div>
 
             {/* Minimized agent chips — tucked away from the grid, but still reachable
-                to restore, right here on the tab they were minimized from. */}
+                to restore. Rendered regardless of showGetStarted so minimizing every
+                agent doesn't strand them behind the GetStarted screen. */}
             {minimizedAgents.size > 0 && (
               <div className="flex items-center gap-2 overflow-x-auto pb-3" style={{ scrollbarWidth: 'none' }}>
                 {agents.map(a => minimizedAgents.has(a.id) ? (
@@ -1214,7 +1217,7 @@ function AppContent() {
 
             {/* Tiling grid — drag a card by its title to move it, drag the bottom-right
                 corner to resize. Position/size persist per agent (see useAgentGridLayout). */}
-            <div ref={gridContainerRef as React.Ref<HTMLDivElement>} className="overflow-x-hidden">
+            <div ref={gridContainerRef as React.Ref<HTMLDivElement>} className={showGetStarted ? 'hidden overflow-x-hidden' : 'overflow-x-hidden'}>
               {gridMounted && (
                 <GridLayout
                   layout={visibleGridLayout}
