@@ -53,6 +53,8 @@ interface OptionWheelProps {
    * "my download is finished" until the user opts out.
    */
   locked?: boolean;
+  /** When `value` changes from outside, glide there (shortest way round) instead of jumping. */
+  spinOnExternalChange?: boolean;
   /** Light-on-white palette for the inline (Cowork-hero) widget. Defaults to the original white-on-dark splash look. */
   dark?: boolean;
   /** Tailwind text-size classes for the row labels. Defaults to the original splash size. */
@@ -60,6 +62,7 @@ interface OptionWheelProps {
 }
 
 const CYCLE_MS = 2100;         // auto-cycle cadence
+const SPIN_MS = 800;           // programmatic spin-to-value glide
 const ANIM_MS = 480;           // auto-cycle glide duration (gentle)
 const ARROW_MS = 220;          // chevron/click glide + drag/wheel settle duration
 // Row/viewport geometry is smaller on mobile so the wheels don't dominate the stacked
@@ -97,6 +100,7 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   tooltip,
   onLabelClick,
   locked = false,
+  spinOnExternalChange = false,
   dark = true,
   textClass = 'text-lg md:text-xl',
 }) => {
@@ -167,7 +171,18 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   useEffect(() => {
     if (busyRef.current) return;
     const i = options.findIndex(o => o.id === value);
-    if (i >= 0 && i !== index) setIndex(i);
+    if (i < 0 || i === index) return;
+    if (spinOnExternalChange && !reduce) {
+      // Shortest way round the loop. Bypasses glide(): programmatic spins must work while
+      // `locked` and must not count as a user interaction.
+      let d = mod(i - index, len);
+      if (d > len / 2) d -= len;
+      setAnimMs(SPIN_MS);
+      glideRowPxRef.current = rowPx;
+      setMotion(-d * rowPx);
+      return;
+    }
+    setIndex(i);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, motion, dragging, instant, wheeling]);
 

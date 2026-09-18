@@ -55,6 +55,7 @@ import CommunityTab from '@components/CommunityTab';
 import GetStarted from '@components/GetStarted';
 import ObserverTab from '@components/Observer/ObserverTab';
 import RecipeSplash from '@components/AICreator/RecipeSplash';
+import { useTutorialFlow, tutorialFlow } from '@utils/tutorialFlow';
 import JupyterServerModal from '@components/JupyterServerModal';
 import { generateAgentFromSimpleConfig } from '@utils/agentTemplateManager';
 import SimpleCreatorModal from '@components/EditAgent/SimpleCreatorModal';
@@ -192,6 +193,7 @@ function AppContent() {
   });
 
   const isProUser = quotaInfo?.tier === 'pro' || quotaInfo?.tier === 'max';
+  const { phase: tutorialPhase } = useTutorialFlow();
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -986,14 +988,6 @@ function AppContent() {
         return;
       }
 
-      // Returning user who never actually saw the tutorial — e.g. they upgraded to
-      // Pro straight from the post-ToS modal, which redirects to Stripe before
-      // RecipeSplash gets a chance to open. Catch them here, once.
-      const tutorialSeen = localStorage.getItem(`observer_tutorial_seen_${sub}`);
-      if (!tutorialSeen) {
-        setIsRecipeSplashOpen(true);
-      }
-
       // Returning user: clear any leftover login intent
       sessionStorage.removeItem('observer_login_intent');
     }
@@ -1112,14 +1106,21 @@ function AppContent() {
         onClose={() => { setIsRecipeSplashOpen(false); markTutorialSeen(); }}
       />
 
+      {/* The first-run demo's notification landed: same free-trial pitch as post-ToS. */}
+      <WelcomeModal
+        isOpen={tutorialPhase === 'notified'}
+        onClose={tutorialFlow.reset}
+        onViewAllTiers={() => setActiveTab('obServer')}
+        mode="upsell"
+        variant="tutorial"
+        isProUser={isProUser}
+      />
+
       <WelcomeModal
         isOpen={isWelcomeUpsellOpen}
         onClose={() => {
           setIsWelcomeUpsellOpen(false);
           markOnboardingComplete();
-          if (welcomeUpsellVariant === 'onboarding') {
-            setIsRecipeSplashOpen(true);
-          }
         }}
         onViewAllTiers={() => setActiveTab('obServer')}
         mode="upsell"

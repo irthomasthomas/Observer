@@ -15,12 +15,20 @@
 
 const WIDTH = 960;
 const HEIGHT = 540;
-const FILL_MS = 60000; // 0% -> 100% once, then holds at 100% forever (no loop)
+const FILL_MS = 20000; // 0% -> 100% once, then holds at 100% forever (no loop)
 
 class TutorialStreamCapture {
   private rafId: number | null = null;
   private stream: MediaStream | null = null;
   private startedAt = 0;
+  private finishedEmitted = false;
+  private finishListeners = new Set<() => void>();
+
+  /** Fires once when the bar reaches 100% (from the live draw loop only, never a still frame). */
+  onFinished(cb: () => void): () => void {
+    this.finishListeners.add(cb);
+    return () => { this.finishListeners.delete(cb); };
+  }
 
   /** Idempotent — returns the existing stream if one is already running. */
   createStream(): MediaStream {
@@ -31,9 +39,14 @@ class TutorialStreamCapture {
     canvas.height = HEIGHT;
     const ctx = canvas.getContext('2d')!;
     this.startedAt = performance.now();
+    this.finishedEmitted = false;
 
     const draw = () => {
       this.render(ctx);
+      if (!this.finishedEmitted && performance.now() - this.startedAt >= FILL_MS) {
+        this.finishedEmitted = true;
+        this.finishListeners.forEach(cb => cb());
+      }
       this.rafId = requestAnimationFrame(draw);
     };
     draw();
@@ -47,7 +60,6 @@ class TutorialStreamCapture {
    * `see_screen_target`, which previews a target's thumbnail before any stream is live.
    */
   captureStillFrame(): string {
-    if (this.startedAt === 0) this.startedAt = performance.now();
     const canvas = document.createElement('canvas');
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
@@ -63,10 +75,12 @@ class TutorialStreamCapture {
     }
     this.stream?.getTracks().forEach(track => track.stop());
     this.stream = null;
+    this.startedAt = 0;
   }
 
   private render(ctx: CanvasRenderingContext2D): void {
-    const elapsed = performance.now() - this.startedAt;
+    // No live stream yet (e.g. a preview still) means the bar hasn't started: hold at 0%.
+    const elapsed = this.stream ? performance.now() - this.startedAt : 0;
     const finished = elapsed >= FILL_MS;
     const pct = finished ? 100 : Math.round((elapsed / FILL_MS) * 100);
 

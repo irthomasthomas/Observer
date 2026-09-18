@@ -15,11 +15,14 @@ interface WelcomeModalProps {
   onViewAllTiers: () => void;
   mode: 'local' | 'upsell';
   onContinueLocal?: () => void; // local mode only: called when user confirms they know what they're doing
-  /** Upsell framing: 'onboarding' (right after ToS) vs 'activation' (celebratory, after first agent starts). */
-  variant?: 'onboarding' | 'activation';
+  /** Upsell framing: 'onboarding' (right after ToS), 'activation' (celebratory, after first agent starts),
+   *  or 'tutorial' (the first-run demo's notification landed: same free-trial pitch as onboarding). */
+  variant?: 'onboarding' | 'activation' | 'tutorial';
+  /** Pro/Max users skip the free-trial table; the 'tutorial' variant shows a "continue exploring" pitch instead. */
+  isProUser?: boolean;
 }
 
-export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mode, variant = 'onboarding' }) => {
+export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mode, variant = 'onboarding', isProUser = false }) => {
   const upsellSource = variant === 'activation' ? 'activation' : 'welcome';
   const [error, setError] = useState<string | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
@@ -181,15 +184,17 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
               <div className="flex justify-center items-center mb-2 md:mb-3">
                 <img src="/eye-logo-black.svg" alt="Observer AI Logo" className="h-10 w-10 md:h-16 md:w-16 mr-2 md:mr-3" />
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">
-                  {variant === 'activation' ? 'You did it! 🎉' : 'Welcome to Observer!'}
+                  {variant === 'activation' ? 'You did it! 🎉' : variant === 'tutorial' ? 'Notification Sent!' : 'Welcome to Observer!'}
                 </h1>
               </div>
 
               {/* Hidden on mobile for compactness */}
-              <p className="hidden md:block text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
+              <p className={`${variant === 'tutorial' ? '' : 'hidden md:block '}text-sm md:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed`}>
                 {variant === 'activation'
                   ? 'You have a running agent. Help Observer grow — or continue free.'
-                  : 'Local micro-agents that watch, log, and react.'}
+                  : variant === 'tutorial'
+                    ? 'Now use a local model, try out Observer Pro and continue exploring!'
+                    : 'Local micro-agents that watch, log, and react.'}
               </p>
             </div>
 
@@ -220,6 +225,23 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                   className="text-xs md:text-sm text-gray-600 hover:text-gray-800 hover:underline transition-colors font-medium"
                 >
                   Continue with free tier →
+                </button>
+              </div>
+            ) : variant === 'tutorial' && isProUser ? (
+              /* ============ TUTORIAL, already Pro: no pitch, just send them exploring ============ */
+              <div className="text-center mb-2 md:mb-4">
+                <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-purple-600 mx-auto mb-3" />
+                <p className="text-base md:text-lg font-semibold text-gray-900 mb-1">
+                  You just taught an agent to watch for you.
+                </p>
+                <p className="text-sm md:text-base text-gray-600 max-w-md mx-auto mb-5 md:mb-6">
+                  As a Pro user everything is unlocked. Point it at anything on your screen or camera, and have it call, text or email you when it happens.
+                </p>
+                <button
+                  onClick={handleClose}
+                  className="px-8 py-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors font-medium"
+                >
+                  Continue exploring →
                 </button>
               </div>
             ) : (

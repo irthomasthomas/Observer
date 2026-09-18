@@ -24,6 +24,8 @@ interface EditableWheelProps<T extends WheelOption> {
   tooltip?: React.ReactNode;
   /** Freezes the wheel (no spin, no click-to-type) — see OptionWheel's `locked`. */
   locked?: boolean;
+  /** Glide (rather than jump) when `value` is changed from outside. */
+  spinOnExternalChange?: boolean;
   /** Light-on-white palette for the inline (Cowork-hero) widget. Defaults to the original white-on-dark splash look. */
   dark?: boolean;
   /** Tailwind text-size classes for the row labels. Defaults to the original splash size. */
@@ -31,7 +33,7 @@ interface EditableWheelProps<T extends WheelOption> {
 }
 
 function EditableWheel<T extends WheelOption>({
-  options, value, onChange, onCustom, onInteract, paused, ariaLabel, widthClass, tooltip, locked, dark = true, textClass = 'text-lg md:text-xl',
+  options, value, onChange, onCustom, onInteract, paused, ariaLabel, widthClass, tooltip, locked, spinOnExternalChange, dark = true, textClass = 'text-lg md:text-xl',
 }: EditableWheelProps<T>) {
   const displayText = options.find(o => o.id === value)?.label ?? '';
   const [editing, setEditing] = useState(false);
@@ -72,6 +74,7 @@ function EditableWheel<T extends WheelOption>({
         tooltip={tooltip}
         onLabelClick={locked ? undefined : startEdit}
         locked={locked}
+        spinOnExternalChange={spinOnExternalChange}
         dark={dark}
         textClass={textClass}
       />

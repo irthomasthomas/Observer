@@ -11,9 +11,13 @@
 // wheels are currently spelling out — spinning a wheel visibly grows/edits the input live.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Info } from 'lucide-react';
 import { useMCPContext } from '../../mcp/MCPContext';
-import RecipeInline from '../AICreator/RecipeInline';
+import { useAuth } from '@contexts/AuthContext';
+import { SensorSettings } from '@utils/settings';
+import { Analytics } from '@utils/analytics';
+import { tutorialFlow } from '@utils/tutorialFlow';
+import RecipeInline, { type TutorialStep } from '../AICreator/RecipeInline';
 
 const ObserverHero: React.FC = () => {
   const { send, isRunning } = useMCPContext();
@@ -23,10 +27,46 @@ const ObserverHero: React.FC = () => {
   // (back to empty) hands control back to the wheels.
   const [userEdited, setUserEdited] = useState(false);
 
+  // First-run guided demo, layered on the wheels: ends in building a REAL agent that watches
+  // a synthetic progress bar (SensorSettings.mcpTutorialMode / tutorialStreamCapture).
+  const { user } = useAuth();
+  const tutorialKey = user && 'sub' in user && user.sub ? `observer_tutorial_seen_${user.sub}` : null;
+  const [tutorialStep, setTutorialStep] = useState<TutorialStep | null>(null);
+
+  useEffect(() => {
+    if (tutorialKey && !localStorage.getItem(tutorialKey)) setTutorialStep('hello');
+  }, [tutorialKey]);
+
+  const endTutorial = () => {
+    setTutorialStep(null);
+    if (tutorialKey) localStorage.setItem(tutorialKey, 'true');
+  };
+
+  const skipTutorial = () => { Analytics.tutorialSkipped(); SensorSettings.setMcpTutorialMode(false); endTutorial(); };
+  const replayTutorial = () => {
+    Analytics.tutorialStarted();
+    setValue('');
+    setUserEdited(false);
+    setTutorialStep('hello');
+  };
+
+  const tutorial = {
+    step: tutorialStep,
+    onOkay: () => { Analytics.tutorialStarted(); SensorSettings.setMcpTutorialMode(true); setTutorialStep('notify'); },
+    onSkip: skipTutorial,
+    onActionPicked: () => setTutorialStep('ready'),
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const text = value.trim();
     if (!text || isRunning) return;
+    if (tutorialStep) {
+      // Only the 'ready' step should build the demo agent; anything earlier is a custom send.
+      if (tutorialStep === 'ready') tutorialFlow.start();
+      else SensorSettings.setMcpTutorialMode(false);
+      endTutorial();
+    }
     setValue('');
     setUserEdited(false);
     void send(text);
@@ -57,6 +97,16 @@ const ObserverHero: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 relative">
+      {!tutorialStep && (
+        <button
+          onClick={replayTutorial}
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors"
+          aria-label="Show tutorial"
+          title="Show tutorial"
+        >
+          <Info className="h-6 w-6" />
+        </button>
+      )}
       <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-6 text-center">
         What do you want Observer<br className="md:hidden" /> to watch for?
       </h1>
@@ -80,12 +130,20 @@ const ObserverHero: React.FC = () => {
         >
           {isRunning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
         </button>
+        {tutorialStep === 'ready' && (
+          <div className="absolute -top-20 right-0 w-64 select-none flex flex-col items-end">
+            <div className="bg-slate-900 text-white rounded-2xl px-4 py-3 shadow-lg text-sm font-medium text-center">
+              Perfect! I have everything I need.
+            </div>
+            <div className="w-3 h-3 bg-slate-900 rotate-45 -mt-1.5 mr-6" />
+          </div>
+        )}
       </form>
 
       {/* Pinned behind the form at a fixed spot — absolutely positioned so it never moves
           when the textarea above grows with wrapped text. */}
-      <div className="absolute left-1/2 -translate-x-1/2 top-[62%] md:top-[64%] z-0 pointer-events-auto">
-        <RecipeInline onPromptChange={prompt => { if (!userEdited) setValue(prompt); }} />
+      <div className={`absolute left-1/2 -translate-x-1/2 top-[62%] md:top-[64%] pointer-events-auto ${tutorialStep ? 'z-20' : 'z-0'}`}>
+        <RecipeInline tutorial={tutorial} onPromptChange={prompt => { if (!userEdited) setValue(prompt); }} />
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ import { StreamState } from '@utils/streamManager';
 import PieTimer from '@components/AgentCard/PieTimer';
 import SensorPreviewPanel from '@components/AgentCard/SensorPreviewPanel';
 import { useFloatingAgents } from './FloatingAgentsContext';
+import { useTutorialFlow, tutorialFlow } from '@utils/tutorialFlow';
 import { useAgentLiveStateFor, type AgentLiveStatus } from './AgentLiveStateContext';
 
 export const CARD_WIDTH = 350;
@@ -52,6 +53,20 @@ interface AgentLiveCardProps {
 
 const AgentLiveCard: React.FC<AgentLiveCardProps> = ({ agent, isRunning, isStarting, streams, onToggle, onSelectAgent, mode, floatingPos }) => {
   const { liveStatus, lastWord, progress, durationMs, isSleeping, sleepRemainingMs } = useAgentLiveStateFor(agent.id);
+  const tutorial = useTutorialFlow();
+  useEffect(() => {
+    if (tutorial.phase === 'building' && isRunning) tutorialFlow.attachAgent(agent.id);
+  }, [tutorial.phase, isRunning, agent.id]);
+  // The demo agent being stopped ends the demo (no bar left to wait on).
+  useEffect(() => {
+    if (tutorial.agentId === agent.id && !isRunning && (tutorial.phase === 'monitoring' || tutorial.phase === 'finished')) tutorialFlow.reset();
+  }, [tutorial.phase, tutorial.agentId, isRunning, agent.id]);
+  const isTutorialAgent = tutorial.agentId === agent.id;
+  const monitoringCopy = isTutorialAgent && tutorial.phase === 'monitoring'
+    ? "This is your micro agent! It's monitoring a download on a loop" : null;
+  // Points at the countdown in the status line, since that's what ticks over to the next loop.
+  const finishedCopy = isTutorialAgent && tutorial.phase === 'finished'
+    ? 'The download is finished! On the next loop the agent will notice' : null;
   const { popOut, dock, isOverDockTarget, dragSessionRef } = useFloatingAgents();
 
   const [pos, setPos] = useState(floatingPos || { x: 0, y: 0 });
@@ -158,9 +173,15 @@ const AgentLiveCard: React.FC<AgentLiveCardProps> = ({ agent, isRunning, isStart
 
   return (
     <div
-      className={`${mode === 'floating' ? 'pointer-events-auto' : 'w-full'} max-w-[350px] bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden ${playPopInAnimation ? 'animate-fade-in' : ''}`}
+      className={`relative ${mode === 'floating' ? 'pointer-events-auto' : 'w-full'} max-w-[350px] bg-white border border-gray-200 rounded-xl shadow-lg ${playPopInAnimation ? 'animate-fade-in' : ''}`}
       style={containerStyle}
     >
+      {monitoringCopy && (
+        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 max-w-full z-20 select-none pointer-events-none flex flex-col items-center">
+          <div className="bg-slate-900 text-white rounded-2xl px-4 py-3 shadow-lg text-sm font-medium text-center">{monitoringCopy}</div>
+          <div className="w-3 h-3 bg-slate-900 rotate-45 -mt-1.5" />
+        </div>
+      )}
       <div
         ref={headerRef}
         onPointerDown={handleHeaderPointerDown}
@@ -183,7 +204,16 @@ const AgentLiveCard: React.FC<AgentLiveCardProps> = ({ agent, isRunning, isStart
           {/* status | time | last word — one glance line, e.g. "Sleeping · 12s · PERSON_DETECTED" */}
           <div className="flex items-center gap-1.5 text-xs text-gray-400 min-w-0">
             <span className="flex-shrink-0">{isSleeping ? 'Sleeping' : STATUS_LABEL[liveStatus]}</span>
-            {timeLabel && <><span className="flex-shrink-0">·</span><span className="flex-shrink-0">{timeLabel}</span></>}
+            {timeLabel && <><span className="flex-shrink-0">·</span>
+              <span className="relative flex-shrink-0">
+                {timeLabel}
+                {finishedCopy && (
+                  <span className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 z-20 select-none pointer-events-none flex flex-col items-center whitespace-normal">
+                    <span className="block w-3 h-3 bg-slate-900 rotate-45 -mb-1.5" />
+                    <span className="block bg-slate-900 text-white rounded-2xl px-4 py-3 shadow-lg text-sm font-medium text-center normal-case">{finishedCopy}</span>
+                  </span>
+                )}
+              </span></>}
             <span className="flex-shrink-0">·</span>
             <span key={lastWord} className="font-mono font-semibold text-gray-600 truncate animate-fade-in">{lastWord || '—'}</span>
           </div>
