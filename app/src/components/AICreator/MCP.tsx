@@ -5,12 +5,12 @@
 // OpenAI function calls (see src/mcp/). This component is pure UI over the useMCP hook.
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Plus, CheckCircle2, XCircle, Loader, Square, Download, Cpu, Sparkles, StopCircle, Mic, Trash2 } from 'lucide-react';
+import { Send, Loader2, Plus, CheckCircle2, XCircle, Loader, Square, Download, Cpu, Sparkles, StopCircle, Mic, Trash2, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
 import { useMCPContext } from '../../mcp/MCPContext';
-import type { WireMessage, ToolCall } from '../../mcp/types';
+import type { ToolCall } from '../../mcp/types';
 import { Logger, type WhitelistChannel } from '@utils/logging';
 import { StreamManager } from '@utils/streamManager';
 import { useSubscriberText } from '@hooks/useTranscriptionState';
@@ -86,11 +86,72 @@ const StatusIcon: React.FC<{ status?: string }> = ({ status }) => {
 // Deliberately small and muted — a status caption, not a message. Tool calls aren't
 // conversation content, so they shouldn't read like a chat bubble the user is meant to parse.
 const ToolChip: React.FC<{ call: ToolCall; status?: ToolStatusEntry }> = ({ call, status }) => (
-  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/5 text-[10px] font-medium text-gray-500 mr-1 mt-1">
+  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-gray-200 text-[10px] font-medium text-gray-500">
     <StatusIcon status={status?.status} />
     <span className="font-mono">{call.function.name}</span>
   </div>
 );
+
+// ===================================================================================
+//  WORKING GROUP  (Cowork-style collapsed run of tool calls)
+// ===================================================================================
+// Consecutive tool-only assistant turns (no text) are visually one "the agent is working"
+// moment, not a stack of separate messages — so they're merged into a single compact,
+// auto-collapsing panel instead of one spaced-out chip row per turn (see grouping logic
+// in renderMessages below).
+const WorkingGroup: React.FC<{ batches: ToolCall[][]; toolStatus: Map<string, ToolStatusEntry> }> = ({ batches, toolStatus }) => {
+  const calls = batches.flat();
+  const isRunning = calls.some(tc => toolStatus.get(tc.id)?.status !== 'done' && toolStatus.get(tc.id)?.status !== 'error');
+  const hasError = calls.some(tc => toolStatus.get(tc.id)?.status === 'error');
+  // Auto-collapse shortly after the run finishes, mirroring Cowork's "done, tucked away" feel.
+  // Stays expanded while running or right after finishing so the last tool is still visible.
+  const [collapsed, setCollapsed] = useState(false);
+  const wasRunning = useRef(isRunning);
+  useEffect(() => {
+    if (wasRunning.current && !isRunning) {
+      const t = setTimeout(() => setCollapsed(true), 1200);
+      wasRunning.current = isRunning;
+      return () => clearTimeout(t);
+    }
+    wasRunning.current = isRunning;
+  }, [isRunning]);
+
+  return (
+    <div className="w-1/4 min-w-[220px] mt-1 rounded-lg border border-gray-200 bg-gray-50/80 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setCollapsed(c => !c)}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-gray-100 transition-colors"
+      >
+        <span className="flex-shrink-0 flex items-center justify-center h-4 w-4">
+          {isRunning ? (
+            <Loader2 className="h-3.5 w-3.5 text-purple-500 animate-spin" />
+          ) : hasError ? (
+            <XCircle className="h-3.5 w-3.5 text-red-500" />
+          ) : (
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+          )}
+        </span>
+        <span className={`text-xs font-medium ${isRunning ? 'text-gray-600 animate-pulse' : 'text-gray-500'}`}>
+          {isRunning ? 'Working…' : hasError ? 'Finished with errors' : `Used ${calls.length} tool${calls.length > 1 ? 's' : ''}`}
+        </span>
+        <ChevronDown className={`h-3 w-3 ml-auto text-gray-400 transition-transform flex-shrink-0 ${collapsed ? '-rotate-90' : ''}`} />
+      </button>
+      {!collapsed && (
+        <div className="px-2.5 pb-2 space-y-1">
+          {batches.map((batch, bi) => (
+            <div key={bi} className="flex flex-wrap items-center gap-1">
+              {batch.map(tc => (
+                <ToolChip key={tc.id} call={tc} status={toolStatus.get(tc.id)} />
+              ))}
+              {bi < batches.length - 1 && <span className="text-gray-300 text-[10px]">·</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // How long a `check_whitelist` call must stay 'running' before we show the QR pill. The
 // executor's very first poll is often already a hit (number was whitelisted earlier), which
@@ -406,59 +467,91 @@ const MCP: React.FC<MCPProps> = ({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const renderMessage = (msg: WireMessage, idx: number) => {
-    // Hide internal tool-result messages and the runner's image-injection user message.
-    if (msg.role === 'tool') return null;
-    if (msg.role === 'user' && Array.isArray(msg.content)
-      && msg.content[0]?.text?.startsWith('Images from the tool result')) {
-      return null;
+  // Simple two-pass render: turn every message into a small typed block (skipping the noise —
+  // tool-result messages, the image-injection user message, and empty no-op turns), then merge
+  // any run of consecutive 'tools' blocks into one before rendering. No message-stream state
+  // machine — grouping falls out of "these blocks are next to each other in the list."
+  type Block =
+    | { type: 'user'; text: string; images: any[] }
+    | { type: 'text'; content: string }
+    | { type: 'tools'; calls: ToolCall[] };
+
+  const renderMessages = () => {
+    const blocks: Block[] = [];
+
+    for (const msg of messages) {
+      if (msg.role === 'tool') continue;
+      if (msg.role === 'user' && Array.isArray(msg.content)
+        && msg.content[0]?.text?.startsWith('Images from the tool result')) continue;
+
+      if (msg.role === 'user') {
+        const text = typeof msg.content === 'string'
+          ? msg.content
+          : (msg.content.find((p: any) => p.type === 'text')?.text ?? '');
+        const images = Array.isArray(msg.content) ? msg.content.filter((p: any) => p.type === 'image_url') : [];
+        blocks.push({ type: 'user', text, images });
+        continue;
+      }
+
+      // assistant
+      const content = typeof msg.content === 'string' ? msg.content : '';
+      const toolCalls = msg.tool_calls || [];
+      if (content) blocks.push({ type: 'text', content });
+      if (toolCalls.length > 0) blocks.push({ type: 'tools', calls: toolCalls });
     }
 
-    if (msg.role === 'user') {
-      const text = typeof msg.content === 'string'
-        ? msg.content
-        : (msg.content.find((p: any) => p.type === 'text')?.text ?? '');
-      const imageParts = Array.isArray(msg.content)
-        ? msg.content.filter((p: any) => p.type === 'image_url')
-        : [];
-      return (
-        <div key={idx} className="flex justify-end">
-          <div className={userBubbleClass}>
-            {text && <p className="whitespace-pre-wrap">{text}</p>}
-            {imageParts.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {imageParts.map((p: any, i: number) => (
-                  <img key={i} src={p.image_url.url} alt="" className="max-w-[120px] h-auto rounded-lg" />
-                ))}
-              </div>
-            )}
+    // Merge consecutive 'tools' blocks.
+    const merged: (Block | { type: 'tools'; calls: ToolCall[]; batches: ToolCall[][] })[] = [];
+    for (const block of blocks) {
+      const prev = merged[merged.length - 1];
+      if (block.type === 'tools' && prev && prev.type === 'tools') {
+        (prev as any).calls.push(...block.calls);
+        (prev as any).batches.push(block.calls);
+      } else if (block.type === 'tools') {
+        merged.push({ type: 'tools', calls: [...block.calls], batches: [block.calls] });
+      } else {
+        merged.push(block);
+      }
+    }
+
+    return merged.map((block, idx) => {
+      if (block.type === 'user') {
+        return (
+          <div key={idx} className="flex justify-end">
+            <div className={userBubbleClass}>
+              {block.text && <p className="whitespace-pre-wrap">{block.text}</p>}
+              {block.images.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {block.images.map((p: any, j: number) => (
+                    <img key={j} src={p.image_url.url} alt="" className="max-w-[120px] h-auto rounded-lg" />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+        );
+      }
+      if (block.type === 'text') {
+        return (
+          <div key={idx} className="flex justify-start">
+            <div className={assistantBubbleClass}><Markdown text={block.content} /></div>
+          </div>
+        );
+      }
+      // tools
+      const { calls, batches } = block as { calls: ToolCall[]; batches: ToolCall[][] };
+      return (
+        <div key={idx} className="flex flex-col items-start w-full">
+          <WorkingGroup batches={batches} toolStatus={toolStatus} />
+          {calls.some(tc => tc.function.name === 'download_model') && <DownloadModelProgress />}
+          {calls
+            .filter(tc => tc.function.name === 'check_whitelist')
+            .map(tc => (
+              <CheckWhitelistGate key={tc.id} toolCallId={tc.id} status={toolStatus.get(tc.id)} onCancel={stop} />
+            ))}
         </div>
       );
-    }
-
-    // assistant
-    const content = typeof msg.content === 'string' ? msg.content : '';
-    const toolCalls = msg.tool_calls || [];
-    if (!content && toolCalls.length === 0) return null;
-    return (
-      <div key={idx} className="flex flex-col items-start">
-        {content && <div className={assistantBubbleClass}><Markdown text={content} /></div>}
-        {toolCalls.length > 0 && (
-          <div className="flex flex-wrap mt-1">
-            {toolCalls.map(tc => (
-              <ToolChip key={tc.id} call={tc} status={toolStatus.get(tc.id)} />
-            ))}
-          </div>
-        )}
-        {toolCalls.some(tc => tc.function.name === 'download_model') && <DownloadModelProgress />}
-        {toolCalls
-          .filter(tc => tc.function.name === 'check_whitelist')
-          .map(tc => (
-            <CheckWhitelistGate key={tc.id} toolCallId={tc.id} status={toolStatus.get(tc.id)} onCancel={stop} />
-          ))}
-      </div>
-    );
+    });
   };
 
   const SUGGESTIONS = [
@@ -509,7 +602,7 @@ const MCP: React.FC<MCPProps> = ({
           </div>
         )}
 
-        {messages.map(renderMessage)}
+        {renderMessages()}
 
         {streamingText && (
           <div className="flex justify-start">
