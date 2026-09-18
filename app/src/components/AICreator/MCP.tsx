@@ -12,7 +12,8 @@ import { type ToolStatusEntry } from '../../mcp/useMCP';
 import { useMCPContext } from '../../mcp/MCPContext';
 import type { ToolCall } from '../../mcp/types';
 import { Logger, type WhitelistChannel } from '@utils/logging';
-import { StreamManager } from '@utils/streamManager';
+import { StreamManager, StreamState } from '@utils/streamManager';
+import type { CompleteAgent } from '@utils/agent_database';
 import { useSubscriberText } from '@hooks/useTranscriptionState';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
 import { SensorSettings } from '@utils/settings';
@@ -22,6 +23,8 @@ import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 import type { GemmaModelState, NativeModelState } from '@utils/localLlm/types';
 import { ModelManager, type Model } from '@utils/ModelManager';
 import RecipeMini from './RecipeMini';
+import AgentLiveCard from '@components/Observer/AgentLiveCard';
+import { useFloatingAgents } from '@components/Observer/FloatingAgentsContext';
 
 // Synthetic owner id for voice dictation. Mirrors SettingsTab's TEST_AGENT_ID pattern:
 // StreamManager treats it like any agent, so transcription routes through the same
@@ -49,6 +52,14 @@ interface MCPProps {
    *  permanently docked surface like the Observer tab. Defaults to true so existing callers
    *  (GetStarted, MCPPanel) are visually unaffected. */
   boxed?: boolean;
+  /** Docked-surface extras (Observer tab only) — when provided, a `create_agent` tool call
+   *  renders a live AgentLiveCard inline in the transcript instead of just a status chip,
+   *  which the user can drag out into the floating overlay (see FloatingAgentsContext). */
+  agents?: CompleteAgent[];
+  runningAgents?: Set<string>;
+  startingAgents?: Set<string>;
+  onToggleAgent?: (agentId: string, isCurrentlyRunning: boolean) => void;
+  onSelectAgent?: (agentId: string) => void;
 }
 
 // ===================================================================================
@@ -315,6 +326,11 @@ const MCP: React.FC<MCPProps> = ({
   onOpenRecipe,
   heightClass = 'h-[350px] md:h-[450px]',
   boxed = true,
+  agents,
+  runningAgents,
+  startingAgents,
+  onToggleAgent,
+  onSelectAgent,
 }) => {
   // Conversation state lives in the app-level MCPProvider, so it's shared across every
   // place the MCP UI is opened (GetStarted, the modal) and survives this component
@@ -331,6 +347,13 @@ const MCP: React.FC<MCPProps> = ({
     modelName,
     setModelName,
   } = useMCPContext();
+
+  const { isFloating, dock, setDockTarget } = useFloatingAgents();
+  const [liveStreams, setLiveStreams] = useState<StreamState>(StreamManager.getCurrentState());
+  useEffect(() => {
+    StreamManager.addListener(setLiveStreams);
+    return () => StreamManager.removeListener(setLiveStreams);
+  }, []);
 
   // Each screen reacts to agent mutations in its own way; register this screen's reaction.
   useEffect(() => subscribeMutation((toolName) => {
@@ -549,6 +572,48 @@ const MCP: React.FC<MCPProps> = ({
             .map(tc => (
               <CheckWhitelistGate key={tc.id} toolCallId={tc.id} status={toolStatus.get(tc.id)} onCancel={stop} />
             ))}
+          {agents && calls
+            .filter(tc => tc.function.name === 'create_agent')
+            .map(tc => {
+              const resultMsg = messages.find(m => m.role === 'tool' && m.tool_call_id === tc.id);
+              if (!resultMsg) return null; // still running
+              let createdId: string | undefined;
+              try { createdId = JSON.parse(resultMsg.content as string)?.id; } catch { /* malformed/error result — nothing to show */ }
+              if (!createdId) return null;
+              const agentObj = agents.find(a => a.id === createdId);
+              if (!agentObj) return null; // agents list hasn't refreshed yet
+
+              if (isFloating(createdId)) {
+                // Registered as this agent's dock target — dragging the floating card back
+                // onto this specific pill (not just "anywhere in the chat") is what re-docks
+                // it; see FloatingAgentsContext.tsx for why the hit zone has to be this small.
+                return (
+                  <button
+                    key={tc.id}
+                    ref={(el) => setDockTarget(createdId!, el)}
+                    onClick={() => dock(createdId!)}
+                    className="mt-2 flex items-center gap-2 px-3 py-2 rounded-full bg-gray-50 border border-gray-200 text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
+                    <span className="font-medium text-gray-700">{agentObj.name}</span> is floating — drop it here (or tap) to bring back
+                  </button>
+                );
+              }
+
+              return (
+                <div key={tc.id} className="mt-2 w-full">
+                  <AgentLiveCard
+                    agent={agentObj}
+                    isRunning={runningAgents?.has(createdId) ?? false}
+                    isStarting={startingAgents?.has(createdId) ?? false}
+                    streams={liveStreams}
+                    mode="inline"
+                    onToggle={onToggleAgent ?? (() => {})}
+                    onSelectAgent={onSelectAgent}
+                  />
+                </div>
+              );
+            })}
         </div>
       );
     });
