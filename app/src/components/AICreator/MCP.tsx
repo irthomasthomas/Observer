@@ -596,9 +596,9 @@ const MCP: React.FC<MCPProps> = ({
             onChange={(e) => setUserInput(e.target.value)}
             placeholder={getPlaceholder()}
             disabled={isInputDisabled}
-            className={`flex-1 min-w-0 text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+            className={`flex-1 min-w-0 text-sm md:text-base text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               boxed
-                ? 'p-2 md:p-3 border border-purple-300 rounded-lg'
+                ? 'p-2 md:p-3 border border-gray-200 rounded-lg'
                 : 'p-3 md:p-4 border border-gray-200 rounded-full bg-white shadow-sm'
             }`}
           />

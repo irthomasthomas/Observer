@@ -50,6 +50,8 @@ const ObserverTab: React.FC<ObserverTabProps> = ({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Portaled to document.body and viewport-fixed — floats over the whole app
+          (including the ProgressBar) without participating in this flex layout. */}
       <RunningAgentsStrip
         agents={agents}
         runningAgents={runningAgents}

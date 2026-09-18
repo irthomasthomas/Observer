@@ -37,7 +37,14 @@ const PieTimer: React.FC<PieTimerProps> = ({ progress, color, totalDurationMs, i
         cx={size / 2} cy={size / 2} r={radius} fill="none"
         strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset}
         strokeLinecap="round" className={strokeColor}
-        style={{ transition: 'stroke-dashoffset 0.1s linear' }}
+        style={{
+          transition: 'stroke-dashoffset 0.1s linear',
+          // Filling (WAITING) sweeps clockwise; draining (SLEEPING) mirrors that
+          // same sweep horizontally so it visibly unwinds anti-clockwise instead
+          // of just looking like a loading ring playing in reverse.
+          transform: isFilling ? undefined : 'scaleX(-1)',
+          transformOrigin: isFilling ? undefined : 'center',
+        }}
       />
       {totalDurationMs && timeDisplay && (
         <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central"

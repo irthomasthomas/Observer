@@ -23,6 +23,15 @@
   animation: chip-pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+/* Word-ticker: each incoming word pops in briefly, used by RunningAgentsStrip's last-word display */
+@keyframes fade-in {
+  0%   { opacity: 0; transform: translateY(2px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
 /* One-shot "selected" confirmation flash — soft blue ring expands and fades */
 @keyframes tutorial-select-flash {
   0%   { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05), 0 0 0 0   rgba(59,130,246,0.55); }
@@ -710,6 +719,15 @@ main {
 
 .dark .to-blue-100 {
   --tw-gradient-to: #334155 !important;
+}
+
+/* Kill react-grid-layout's default 200ms left/top/width/height/transform transition
+   on grid items — without this, switching away from the myAgents tab (which stays
+   mounted-but-invisible rather than unmounted, so its ResizeObserver keeps measuring
+   in the background) visibly animates cards sliding/resizing for ~200ms instead of
+   vanishing instantly. */
+.react-grid-item {
+  transition: none !important;
 }
 
 /* Agent grid resize handle — bigger and more visible than react-grid-layout's

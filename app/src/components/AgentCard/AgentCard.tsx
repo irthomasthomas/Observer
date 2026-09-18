@@ -80,6 +80,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const initialModelRef = useRef(agent.model_name);
   const loopStartTimeRef = useRef(0);
   const loopDurationRef = useRef(0);
+  const loopProgressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isOverrun, setIsOverrun] = useState(false);
 
   const [isMinimizing, setIsMinimizing] = useState(false);
@@ -154,7 +155,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
       return;
     }
     if (isSleeping) {
-      setLiveStatus('SLEEPING');
+      // liveStatus is set to 'SLEEPING' synchronously in handleSleepStart below,
+      // not here - going through this effect adds a render where isSleeping is
+      // true but liveStatus hasn't caught up yet, which showed up as the pie
+      // flickering between the loop timer and the sleep timer on every cycle.
       return;
     }
     if (showStartingState && !isRunning) {
@@ -198,13 +202,11 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
   // Set up event listener immediately on mount - separate from state changes
   useEffect(() => {
-    let progressTimer: NodeJS.Timeout | null = null;
-
     const handleIterationStart = (event: CustomEvent) => {
       if (event.detail.agentId !== agent.id) return;
 
       // Clear any existing timer
-      if (progressTimer) clearInterval(progressTimer);
+      if (loopProgressTimerRef.current) clearInterval(loopProgressTimerRef.current);
 
       console.log('Event fired!! for agent: ', agent.id);
 
@@ -216,7 +218,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       setIsOverrun(false); // Reset overrun flag when new iteration starts
 
       // Simple progress timer using refs (can be reset by updating refs)
-      progressTimer = setInterval(() => {
+      loopProgressTimerRef.current = setInterval(() => {
         const elapsed = Date.now() - loopStartTimeRef.current;
         const progress = Math.min(100, (elapsed / loopDurationRef.current) * 100);
         setLoopProgress(progress);
@@ -227,7 +229,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
     // Event dispatched by Logger based on logType 'iteration-start'
     window.addEventListener('agentIterationStart' as any, handleIterationStart);
     return () => {
-      if (progressTimer) clearInterval(progressTimer);
+      if (loopProgressTimerRef.current) clearInterval(loopProgressTimerRef.current);
       window.removeEventListener('agentIterationStart' as any, handleIterationStart);
     };
   }, []); // Empty deps - runs once on mount
@@ -235,7 +237,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   // Detect when timer expires while model is still working -> set overrun flag
   // This happens when isExecuting=true in main_loop (CAPTURING/THINKING/RESPONDING states)
   useEffect(() => {
-    if (loopProgress >= 100 && loopDurationRef.current > 0) {
+    if (loopProgress >= 100 && loopDurationRef.current > 0 && liveStatus !== 'SLEEPING') {
       const modelStillWorking = liveStatus === 'CAPTURING' || liveStatus === 'THINKING' || liveStatus === 'RESPONDING';
 
       if (modelStillWorking || isOverrun) {
@@ -283,10 +285,22 @@ const AgentCard: React.FC<AgentCardProps> = ({
       // This matches backend behavior where pauseAgentLoop() overwrites sleepUntil
       clearSleepState();
 
+      // The loop-progress timer keeps ticking otherwise (using now-stale refs) and
+      // pins loopProgress at 100 for the whole sleep, which then flashes as a
+      // full/orange WAITING pie the instant the agent wakes, before the next real
+      // agentIterationStart event corrects it. Stop it while asleep.
+      if (loopProgressTimerRef.current) {
+        clearInterval(loopProgressTimerRef.current);
+        loopProgressTimerRef.current = null;
+      }
+      setLoopProgress(0);
+      setIsOverrun(false);
+
       const durationMs = event.detail.durationMs;
       const sleepEnd = Date.now() + durationMs;
 
       setIsSleeping(true);
+      setLiveStatus('SLEEPING');
       setSleepProgress(100); // Start at 100%
       setSleepDurationMs(durationMs);
 

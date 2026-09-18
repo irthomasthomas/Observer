@@ -1180,11 +1180,18 @@ function AppContent() {
           localServerOnline={localServerOnline}
         />
 
-        <main className="w-full min-w-0 pt-4 px-2 md:px-4 wide:px-4 max-w-7xl mx-auto pb-20 md:pb-4">
+        <main className="relative w-full min-w-0 pt-4 px-2 md:px-4 wide:px-4 max-w-7xl mx-auto pb-20 md:pb-4">
         {error && <ErrorDisplay message={error} />}
 
-        {/* My Agents Tab */}
-        <div className={activeTab !== 'myAgents' ? 'hidden' : ''}>
+        {/* My Agents Tab — kept mounted (not `hidden`/display:none) when inactive, so it still
+            has real layout dimensions: GridLayout's ResizeObserver (see useAgentGridLayout.ts)
+            reads 0 width under display:none and never mounts the grid, so cards would only
+            render once the user actually visited this tab. Positioned off-screen (not just
+            `invisible inset-0`) rather than stacked exactly on top of the other tab's content —
+            `inset-0` put it in the same box as whatever tab IS visible, so a compositor glitch
+            during the visibility toggle would briefly paint the grid ghosted on top of it. `w-full`
+            still gives it main's real content width for the ResizeObserver. */}
+        <div className={activeTab !== 'myAgents' ? 'absolute top-0 -left-[9999px] w-full overflow-hidden pointer-events-none' : ''}>
           {/* Agent grid — hidden (not unmounted) when showGetStarted so cards keep their state */}
           <div className="px-4">
             <div className={showGetStarted ? 'hidden' : ''}>
@@ -1327,28 +1334,29 @@ function AppContent() {
           )}
         </div>
 
-        {/* Observer Tab — default landing view, chat-first */}
-        {activeTab === 'observerChat' && (
-          <div className="px-0 md:px-4 h-full">
-            <ObserverTab
-              getToken={getToken}
-              isAuthenticated={isAuthenticated}
-              isUsingObServer={isUsingObServer}
-              onSignIn={login}
-              onSwitchToObServer={() => setIsUsingObServer(true)}
-              onUpgrade={() => {
-                setActiveTab('obServer');
-                setIsUsingObServer(true);
-              }}
-              onRefresh={fetchAgents}
-              agents={agents}
-              runningAgents={runningAgents}
-              startingAgents={startingAgents}
-              onToggleAgent={toggleAgent}
-              onOpenMicroAgents={() => setActiveTab('myAgents')}
-            />
-          </div>
-        )}
+        {/* Observer Tab — default landing view, chat-first. Stays mounted (hidden, not
+            unmounted) like myAgents above, so RunningAgentsStrip's agentIterationStart/
+            agentSleepStart/agentSleepEnd listeners and liveStatus don't reset on tab
+            switch — that reset was what made status look stale until the next event fired. */}
+        <div className={activeTab !== 'observerChat' ? 'hidden' : 'px-0 md:px-4 h-full'}>
+          <ObserverTab
+            getToken={getToken}
+            isAuthenticated={isAuthenticated}
+            isUsingObServer={isUsingObServer}
+            onSignIn={login}
+            onSwitchToObServer={() => setIsUsingObServer(true)}
+            onUpgrade={() => {
+              setActiveTab('obServer');
+              setIsUsingObServer(true);
+            }}
+            onRefresh={fetchAgents}
+            agents={agents}
+            runningAgents={runningAgents}
+            startingAgents={startingAgents}
+            onToggleAgent={toggleAgent}
+            onOpenMicroAgents={() => setActiveTab('myAgents')}
+          />
+        </div>
 
         {/* Community Tab */}
         {activeTab === 'community' && (

@@ -130,7 +130,8 @@ const ModelStatePanel: React.FC<{
           </div>
           <span className="font-medium text-sm">{statusInfo.text}</span>
           {/* Pie timer for WAITING, SLEEPING, or overrun states */}
-          {(status === 'WAITING' || status === 'SLEEPING' || isOverrun) && (loopProgress || sleepProgress) && (
+          {((status === 'SLEEPING' && !!sleepProgress) ||
+            ((status === 'WAITING' || isOverrun) && !!loopProgress)) && (
             <PieTimer
               progress={status === 'SLEEPING' ? (sleepProgress || 0) : (loopProgress || 0)}
               color={status === 'SLEEPING' ? 'blue' : isOverrun ? 'orange' : 'green'}
