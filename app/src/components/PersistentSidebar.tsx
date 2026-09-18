@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Home, Users, Database, Settings, Cpu, Video, MessageCircle,
-  PanelLeft, User as UserIcon, MessageSquare, Terminal, ChevronRight,
+  PanelLeft, User as UserIcon, ChevronRight,
   FileText, Image as ImageIcon,
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
@@ -51,8 +51,6 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   quotaInfo,
   onOpenAccount,
   onOpenPermissions,
-  onFeedbackClick,
-  onToggleLogs,
   isExpanded,
   onToggleExpanded,
   isUsingObServer,
