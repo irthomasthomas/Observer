@@ -8,6 +8,9 @@ import {
   OrgRecord, ProvisionOrgResponse, USAGE_LABELS, USAGE_SERVICES,
 } from './types';
 
+// Monthly monitor credits are metered 1 credit = 1 minute of monitoring.
+const UNCAPPED = -1;
+
 type Mode = 'provision' | 'manage';
 
 export function EnterprisePanel() {
@@ -21,6 +24,8 @@ export function EnterprisePanel() {
   const [seats, setSeats] = useState(5);
   const [priceId, setPriceId] = useState('');
   const [daysUntilDue, setDaysUntilDue] = useState(30);
+  const [trialDays, setTrialDays] = useState<string>('');
+  const [monthlyMinutes, setMonthlyMinutes] = useState<number>(UNCAPPED);
   const [dryRun, setDryRun] = useState(true);
   const [provisioned, setProvisioned] = useState<ProvisionOrgResponse | null>(null);
 
@@ -28,6 +33,7 @@ export function EnterprisePanel() {
   const [lookupId, setLookupId] = useState('');
   const [org, setOrg] = useState<OrgRecord | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [creditsInput, setCreditsInput] = useState<number>(UNCAPPED);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,9 +62,11 @@ export function EnterprisePanel() {
         tier,
         seats,
         days_until_due: daysUntilDue,
+        monthly_credits: monthlyMinutes,
         dry_run: dryRun,
       };
       if (priceId.trim()) body.price_id = priceId.trim();
+      if (trialDays.trim()) body.trial_period_days = Number(trialDays);
 
       const res = await adminFetch<ProvisionOrgResponse>(adminKey, '/admin/orgs', {
         method: 'POST',
@@ -75,7 +83,9 @@ export function EnterprisePanel() {
     run('lookup', async () => {
       const target = (id ?? lookupId).trim();
       if (!target) return;
-      setOrg(await adminFetch<OrgRecord>(adminKey, `/admin/orgs/${encodeURIComponent(target)}`));
+      const res = await adminFetch<OrgRecord>(adminKey, `/admin/orgs/${encodeURIComponent(target)}`);
+      setOrg(res);
+      setCreditsInput(res.monthly_credits);
       setMode('manage');
     });
 
@@ -99,6 +109,19 @@ export function EnterprisePanel() {
       });
       setNotice('Resynced from Stripe.');
       setOrg(await adminFetch<OrgRecord>(adminKey, `/admin/orgs/${encodeURIComponent(org.org_id)}`));
+    });
+
+  const updateCredits = () =>
+    run('credits', async () => {
+      if (!org) return;
+      await adminFetch(adminKey, `/admin/orgs/${encodeURIComponent(org.org_id)}/credits`, {
+        method: 'POST',
+        body: JSON.stringify({ monthly_credits: creditsInput }),
+      });
+      setNotice('Updated the monthly credit pool.');
+      const res = await adminFetch<OrgRecord>(adminKey, `/admin/orgs/${encodeURIComponent(org.org_id)}`);
+      setOrg(res);
+      setCreditsInput(res.monthly_credits);
     });
 
   const copyOrgId = async () => {
@@ -195,11 +218,35 @@ export function EnterprisePanel() {
             </Field>
           </div>
 
+          <Field label="Trial days" hint="Leave blank for no trial. During the trial no invoice is sent; the subscription reads 'trialing' and seats already work. The first real invoice goes out when it ends.">
+            <input
+              type="number"
+              min={1}
+              value={trialDays}
+              onChange={(e) => setTrialDays(e.target.value)}
+              placeholder="e.g. 30"
+              className={inputCls}
+            />
+          </Field>
+
           <Field label="Price ID" hint="Leave blank to use STRIPE_ENTERPRISE_SEAT_PRICE_ID. Set it for negotiated pricing.">
             <input
               value={priceId}
               onChange={(e) => setPriceId(e.target.value)}
               placeholder="price_..."
+              className={inputCls}
+            />
+          </Field>
+
+          <Field
+            label="Monthly monitoring pool (minutes)"
+            hint="Shared monitoring budget for the whole org, in minutes. -1 = uncapped. Every seat still keeps its own daily limit underneath."
+          >
+            <input
+              type="number"
+              min={-1}
+              value={monthlyMinutes}
+              onChange={(e) => setMonthlyMinutes(Number(e.target.value))}
               className={inputCls}
             />
           </Field>
@@ -338,6 +385,35 @@ export function EnterprisePanel() {
                     <RefreshCw className={`w-4 h-4 ${busy === 'resync' ? 'animate-spin' : ''}`} />
                   </button>
                 </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-2">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 font-medium">
+                  Monthly monitoring pool
+                </p>
+                <p className="text-sm text-gray-700">
+                  {org.monthly_pool.unlimited
+                    ? 'Uncapped'
+                    : `${org.monthly_pool.used} / ${org.monthly_pool.limit} min used`}
+                  <span className="text-gray-400"> · resets {new Date(org.monthly_pool.resets_at).toLocaleDateString()}</span>
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={-1}
+                    value={creditsInput}
+                    onChange={(e) => setCreditsInput(Number(e.target.value))}
+                    className={inputCls}
+                  />
+                  <button
+                    onClick={updateCredits}
+                    disabled={busy !== null || creditsInput === org.monthly_credits}
+                    className="shrink-0 px-4 bg-gray-700 hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl flex items-center gap-2 text-sm font-medium"
+                  >
+                    {busy === 'credits' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Set'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400">Minutes. -1 = uncapped.</p>
               </div>
 
               <div className="flex gap-2">

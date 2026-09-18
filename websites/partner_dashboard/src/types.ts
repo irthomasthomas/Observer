@@ -30,6 +30,14 @@ export interface OrgMember {
   usage?: Record<string, number>;
 }
 
+export interface MonthlyPool {
+  used: number;
+  limit: number;
+  remaining: number | null;
+  unlimited: boolean;
+  resets_at: string;
+}
+
 export interface OrgRecord {
   org_id: string;
   name: string;
@@ -40,6 +48,8 @@ export interface OrgRecord {
   seats_used: number;
   stripe_customer_id: string;
   stripe_subscription_id: string;
+  monthly_credits: number;
+  monthly_pool: MonthlyPool;
   features: Record<string, unknown>;
   members: OrgMember[];
   created_at: string;
