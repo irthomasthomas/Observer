@@ -16,6 +16,7 @@ import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
 // Change Detection component
 import ChangeDetectionSettings from './ChangeDetectionSettings';
 import { ObServerTab } from './ObServerTab';
+import UserInfoCard from './settings/UserInfoCard';
 
 interface SettingsTabProps {
   isDarkMode?: boolean;
@@ -673,6 +674,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ isDarkMode = false, onToggleD
     return (
       <div className="max-w-2xl mx-auto space-y-6 pb-16">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+
+        <UserInfoCard />
 
         <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
           <div className="flex items-center gap-4 px-5 py-4">
