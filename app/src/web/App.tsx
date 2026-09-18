@@ -526,19 +526,6 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fired when the user's first agent run finishes (agent stops, whether from the UI toggle,
-  // an MCP tool call, or an error). Shows the celebratory "You did it!" upsell after they've
-  // seen the result — once ever, and never to paying users.
-  const handleAgentActivated = useCallback(() => {
-    if (isProUser) return;
-    const sub = user && 'sub' in user ? user.sub : undefined;
-    const key = `observer_activation_upsell_shown_${sub ?? 'anon'}`;
-    if (localStorage.getItem(key)) return;
-    localStorage.setItem(key, 'true');
-    setWelcomeUpsellVariant('activation');
-    setIsWelcomeUpsellOpen(true);
-  }, [isProUser, user]);
-
   useEffect(() => {
     const handleAgentStatusChange = (event: CustomEvent) => {
       const { agentId, status } = event.detail || {};
@@ -553,18 +540,13 @@ function AppContent() {
         return updated;
       });
 
-      // Show the "You did it!" upsell once the user's first agent run finishes,
-      // so they see the result before getting upsold (rather than at start).
-      if (status === 'stopped') {
-        handleAgentActivated();
-      }
     };
 
     window.addEventListener('agentStatusChanged', handleAgentStatusChange as EventListener);
     return () => {
       window.removeEventListener('agentStatusChanged', handleAgentStatusChange as EventListener);
     };
-  }, [handleAgentActivated]);
+  }, []);
 
   useEffect(() => {
     const handleQuotaExceeded = (event: CustomEvent<{ agentId: string; quotaType: string }>) => {
