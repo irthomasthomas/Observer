@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fetchModels as fetchAllModels, Model } from '@utils/inferenceServer';
 import {
-  Cpu, RefreshCw, X, Sparkles, Trash2, Settings2, BarChart3,
-  Cloud, MinusCircle, Server, ChevronDown, StopCircle, Plus, Zap, Play,
+  Cpu, RefreshCw, X, Trash2, Settings2, BarChart3,
+  Cloud, MinusCircle, Server, Check, FileDown, ChevronDown, StopCircle, Plus, Zap, Play,
 } from 'lucide-react';
 import { BROWSER_LOCAL_SENTINEL, LLAMA_CPP_LOCAL_SENTINEL, SKIP_MODEL_SENTINEL } from '@utils/inferenceServer';
 import { Logger, LogEntry, LogLevel } from '@utils/logging';
@@ -75,6 +75,44 @@ const formatBytes = (bytes: number, decimals = 2) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 };
+
+interface FileProgress { file: string; loaded: number; total: number; progress: number; done: boolean }
+
+// Per-file download breakdown (name, bytes loaded / total, thin bar) so it's clear
+// exactly what is being fetched — used for both Transformers.js and llama.cpp.
+const FileProgressList: React.FC<{ items: FileProgress[] }> = ({ items }) => {
+  if (items.length === 0) return null;
+  return (
+    <div className="pb-2.5 space-y-1.5">
+      {items.map(item => (
+        <div key={item.file}>
+          <div className="flex justify-between items-center gap-2 text-[11px] text-gray-500 mb-0.5">
+            <span className="flex items-center gap-1 min-w-0">
+              {item.done
+                ? <Check size={11} className="text-gray-800 flex-shrink-0" />
+                : <FileDown size={11} className="text-gray-400 flex-shrink-0" />}
+              <span className="truncate" title={item.file}>{item.file}</span>
+            </span>
+            <span className="tabular-nums flex-shrink-0">
+              {item.done ? 'Done'
+                : item.total > 0 ? `${formatBytes(item.loaded, 1)} / ${formatBytes(item.total, 1)}`
+                : `${Math.round(item.progress)}%`}
+            </span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-1">
+            <div
+              className={`h-1 rounded-full transition-all duration-300 bg-gray-800`}
+              style={{ width: `${Math.max(0, Math.min(100, item.progress))}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const gemmaFileProgress = (state: GemmaModelState): FileProgress[] =>
+  state.progress.map(p => ({ file: p.file, loaded: p.loaded, total: p.total, progress: p.progress, done: p.status === 'done' }));
 
 const QuotaBar: React.FC<{ label: string; block: QuotaBlock }> = ({ label, block }) => {
   const rem = remainingOf(block);
@@ -480,10 +518,15 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
       (projectorFile.kind === 'complete' || projectorFile.kind === 'absent');
     const settingsOpen = expandedSettings === model.id;
 
-    const progressPct =
-      modelFile.kind === 'partial' && modelFile.downloading ? modelFile.progress ?? 0
-      : projectorFile.kind === 'partial' && projectorFile.downloading ? projectorFile.progress ?? 0
-      : null;
+    const fileProgress: FileProgress[] = [];
+    if (modelFile.kind === 'partial' && modelFile.downloading) {
+      fileProgress.push({ file: model.id, loaded: modelFile.downloadedBytes ?? modelFile.bytes, total: modelFile.totalBytes ?? 0, progress: modelFile.progress ?? 0, done: false });
+    }
+    if (projectorFile.kind === 'partial' && projectorFile.downloading) {
+      fileProgress.push({ file: model.projectorFilename ?? 'vision projector', loaded: projectorFile.downloadedBytes ?? projectorFile.bytes, total: projectorFile.totalBytes ?? 0, progress: projectorFile.progress ?? 0, done: false });
+    } else if (isModelDownloading && projectorFile.kind === 'complete') {
+      fileProgress.push({ file: model.projectorFilename ?? 'vision projector', loaded: projectorFile.bytes, total: projectorFile.bytes, progress: 100, done: true });
+    }
 
     const sizeText = modelFile.kind === 'complete' ? formatBytes(modelFile.bytes)
       : isModelDownloading ? 'Downloading model…'
@@ -558,7 +601,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
         name={model.name}
         tag={showTag ? 'llama.cpp' : undefined}
         meta={meta}
-        progressPct={progressPct}
+        detailSlot={<FileProgressList items={fileProgress} />}
         action={action}
         settingsSlot={isLoaded && settingsOpen && (
           <LlamaCppSamplerPanel
@@ -583,7 +626,14 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
         name={preset.name}
         tag="llama.cpp"
         dimmed={!isTauriApp}
-        meta={preset.sizeLabel}
+        meta={isThisDownloading ? 'Downloading…' : preset.sizeLabel}
+        detailSlot={isThisDownloading && (
+          <FileProgressList items={[{
+            file: (nativeState.modelId ?? preset.ggufUrl!.split('/').pop()!),
+            loaded: nativeState.downloadedBytes, total: nativeState.totalBytes,
+            progress: nativeState.downloadProgress, done: false,
+          }]} />
+        )}
         action={!isTauriApp ? (
           <span className="text-xs text-gray-400">App only</span>
         ) : isThisDownloading ? (
@@ -602,9 +652,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
     const isLoading = status === 'loading';
     const isError = status === 'error';
     const loadSettings = isThisModel ? gemmaState.loadSettings : null;
-    const progress = isThisModel && isLoading && gemmaState.progress.length > 0
-      ? gemmaState.progress.reduce((sum, p) => sum + p.progress, 0) / gemmaState.progress.length
-      : null;
+    const fileProgress = isThisModel && isLoading ? gemmaFileProgress(gemmaState) : [];
     const tutorialAttrs = (state: string) => (isTutorialTarget ? { 'data-tutorial-gemma-state': state } : {});
 
     const meta = isError ? (isThisModel ? gemmaState.error ?? 'Error' : 'Error')
@@ -632,7 +680,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
     );
 
     return (
-      <ModelRow key={model.id} icon={<Sparkles size={16} />} name={model.name} tag="Transformers.js" meta={meta} progressPct={progress} action={action} />
+      <ModelRow key={model.id} icon={<Cpu size={16} />} name={model.name} tag="Transformers.js" meta={meta} detailSlot={<FileProgressList items={fileProgress} />} action={action} />
     );
   };
 
@@ -640,17 +688,15 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
     const isThisDownloading = gemmaState.modelId === preset.hfModelId && gemmaState.status === 'loading';
     const blocked = gemmaState.status === 'loading' && gemmaState.modelId !== preset.hfModelId;
     const isTutorialTarget = preset.hfModelId === TUTORIAL_GEMMA_ONNX_ID;
-    const progress = isThisDownloading && gemmaState.progress.length > 0
-      ? gemmaState.progress.reduce((sum, p) => sum + p.progress, 0) / gemmaState.progress.length
-      : null;
+    const fileProgress = isThisDownloading ? gemmaFileProgress(gemmaState) : [];
     return (
       <ModelRow
         key={preset.name}
-        icon={<Sparkles size={16} />}
+        icon={<Cpu size={16} />}
         name={preset.name}
         tag="Transformers.js"
         meta={isThisDownloading ? 'Downloading…' : preset.sizeLabel}
-        progressPct={progress}
+        detailSlot={<FileProgressList items={fileProgress} />}
         action={isThisDownloading ? (
           <RowButtonGhost onClick={() => GemmaModelManager.getInstance().unloadModel()} {...(isTutorialTarget ? { 'data-tutorial-gemma-state': 'downloading' } : {})}>Cancel</RowButtonGhost>
         ) : (

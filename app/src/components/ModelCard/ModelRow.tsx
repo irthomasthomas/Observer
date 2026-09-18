@@ -17,10 +17,11 @@ interface ModelRowProps {
   progressPct?: number | null;
   dimmed?: boolean;
   settingsSlot?: React.ReactNode;
+  detailSlot?: React.ReactNode;
 }
 
 export const ModelRow: React.FC<ModelRowProps> = ({
-  icon, name, tag, meta, action, progressPct, dimmed, settingsSlot,
+  icon, name, tag, meta, action, progressPct, dimmed, settingsSlot, detailSlot,
 }) => (
   <div className={dimmed ? 'opacity-50' : undefined}>
     <div className="flex items-center gap-3 py-2.5">
@@ -44,6 +45,7 @@ export const ModelRow: React.FC<ModelRowProps> = ({
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">{action}</div>
     </div>
+    {detailSlot}
     {settingsSlot}
   </div>
 );
