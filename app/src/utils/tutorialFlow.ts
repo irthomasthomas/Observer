@@ -38,9 +38,6 @@ let snapshot: TutorialSnapshot = { phase: 'idle', agentId: null };
 const listeners = new Set<() => void>();
 let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 let wired = false;
-// The bar can hit 100% before the agent's card mounts (a short bar vs. a slow agent start), so
-// remember it and apply it the moment the agent attaches.
-let barFinished = false;
 
 const set = (next: Partial<TutorialSnapshot>) => {
   snapshot = { ...snapshot, ...next };
@@ -75,22 +72,22 @@ const wire = () => {
   wired = true;
   Logger.addListener(onLog);
   tutorialStreamCapture.onFinished(() => {
-    if (snapshot.phase === 'building') { barFinished = true; return; }
     if (snapshot.phase === 'monitoring') enterFinished();
   });
 };
 
 export const tutorialFlow = {
   /** The user sent the demo prompt. */
-  start() { wire(); clearFallback(); barFinished = false; set({ phase: 'building', agentId: null }); },
+  start() { wire(); clearFallback(); tutorialStreamCapture.resetClock(); set({ phase: 'building', agentId: null }); },
   /** The demo agent is running. */
   attachAgent(agentId: string) {
     if (snapshot.phase !== 'building') return;
     set({ phase: 'monitoring', agentId });
-    if (barFinished) enterFinished();
+    // The bar only starts filling now, so time spent in capture/whitelisting can't run it out.
+    tutorialStreamCapture.startClock();
   },
   /** Stopped/dismissed. */
-  reset() { clearFallback(); barFinished = false; set({ phase: 'idle', agentId: null }); },
+  reset() { clearFallback(); tutorialStreamCapture.resetClock(); set({ phase: 'idle', agentId: null }); },
   get: () => snapshot,
   subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
 };

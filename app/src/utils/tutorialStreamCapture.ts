@@ -21,6 +21,7 @@ class TutorialStreamCapture {
   private rafId: number | null = null;
   private stream: MediaStream | null = null;
   private startedAt = 0;
+  private clockStarted = false;
   private finishedEmitted = false;
   private finishListeners = new Set<() => void>();
 
@@ -38,12 +39,11 @@ class TutorialStreamCapture {
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
     const ctx = canvas.getContext('2d')!;
-    this.startedAt = performance.now();
     this.finishedEmitted = false;
 
     const draw = () => {
       this.render(ctx);
-      if (!this.finishedEmitted && performance.now() - this.startedAt >= FILL_MS) {
+      if (this.clockStarted && !this.finishedEmitted && performance.now() - this.startedAt >= FILL_MS) {
         this.finishedEmitted = true;
         this.finishListeners.forEach(cb => cb());
       }
@@ -53,6 +53,20 @@ class TutorialStreamCapture {
 
     this.stream = canvas.captureStream(10);
     return this.stream;
+  }
+
+  /** Starts the 0% -> 100% fill. Until called the bar holds at 0%. Idempotent. */
+  startClock(): void {
+    if (this.clockStarted) return;
+    this.clockStarted = true;
+    this.startedAt = performance.now();
+  }
+
+  /** Holds the bar at 0% again (e.g. the demo was dismissed while the stream is still alive). */
+  resetClock(): void {
+    this.clockStarted = false;
+    this.startedAt = 0;
+    this.finishedEmitted = false;
   }
 
   /**
@@ -75,12 +89,12 @@ class TutorialStreamCapture {
     }
     this.stream?.getTracks().forEach(track => track.stop());
     this.stream = null;
-    this.startedAt = 0;
+    this.resetClock();
   }
 
   private render(ctx: CanvasRenderingContext2D): void {
-    // No live stream yet (e.g. a preview still) means the bar hasn't started: hold at 0%.
-    const elapsed = this.stream ? performance.now() - this.startedAt : 0;
+    // No live stream or clock yet (e.g. a preview still) means the bar hasn't started: hold at 0%.
+    const elapsed = this.stream && this.clockStarted ? performance.now() - this.startedAt : 0;
     const finished = elapsed >= FILL_MS;
     const pct = finished ? 100 : Math.round((elapsed / FILL_MS) * 100);
 
