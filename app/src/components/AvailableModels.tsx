@@ -93,6 +93,16 @@ const QuotaBar: React.FC<{ label: string; block: QuotaBlock }> = ({ label, block
   );
 };
 
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
+  if (React.Children.toArray(children).every(c => !c)) return null;
+  return (
+    <section className="mb-6">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">{title}</h3>
+      <div className="divide-y divide-gray-100">{children}</div>
+    </section>
+  );
+};
+
 async function deleteNativeModelCascade(model: NativeLocalModel, allModels: NativeLocalModel[]) {
   const manager = NativeLlmManager.getInstance();
   await manager.deleteModel(model.id);
@@ -707,37 +717,24 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
         )}
       </div>
 
-      {/* Unified model list */}
-      <div className="divide-y divide-gray-100">
+      {/* App Models (native llama.cpp) */}
+      <Section title="App Models">
         {nativeRows.map(({ preset, installed }) => installed
-          ? renderNativeInstalledRow(installed, true, preset.name === TUTORIAL_GEMMA_NATIVE_NAME)
+          ? renderNativeInstalledRow(installed, false, preset.name === TUTORIAL_GEMMA_NATIVE_NAME)
           : renderNativePresetRow(preset))}
-        {nativeExtraModels.map(m => renderNativeInstalledRow(m))}
+        {nativeExtraModels.map(m => renderNativeInstalledRow(m, false))}
+      </Section>
+
+      {/* In-Browser Models (Transformers.js) */}
+      <Section title="In-Browser Models">
         {transformersRows.map(({ preset, installed }) => installed
           ? renderTransformersInstalledRow(installed, preset.hfModelId === TUTORIAL_GEMMA_ONNX_ID)
           : renderTransformersPresetRow(preset))}
         {transformersExtraModels.map(m => renderTransformersInstalledRow(m))}
+      </Section>
 
-        {remoteModels.map(model => {
-          const settingsOpen = expandedSettings === model.name;
-          const canConfigure = hasRemoteSettings(model);
-          return (
-            <ModelRow
-              key={model.name}
-              icon={<Server size={16} />}
-              name={model.name}
-              tag="Remote"
-              meta={[model.parameterSize && model.parameterSize !== 'N/A' ? model.parameterSize : null, model.multimodal ? 'Vision' : null].filter(Boolean).join(' · ') || undefined}
-              action={canConfigure && (
-                <RowIconButton onClick={() => toggleSettings(model.name)} title="Inference settings" className={settingsOpen ? 'text-gray-700 bg-gray-100' : ''}>
-                  <Settings2 size={14} />
-                </RowIconButton>
-              )}
-              settingsSlot={settingsOpen && canConfigure && <RemoteInferenceParamsPanel modelName={model.name} />}
-            />
-          );
-        })}
-
+      {/* Cloud Models */}
+      <Section title="Cloud Models">
         {cloudModels.map(model => {
           const settingsOpen = expandedSettings === model.name;
           const canConfigure = hasRemoteSettings(model);
@@ -747,7 +744,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
               key={model.name}
               icon={<Cloud size={16} />}
               name={model.name}
-              tag={model.pro ? 'Cloud · PRO' : 'Cloud'}
+              tag={model.pro ? 'PRO' : undefined}
               dimmed={locked}
               meta={[model.parameterSize && model.parameterSize !== 'N/A' ? model.parameterSize : null, model.multimodal ? 'Vision' : null].filter(Boolean).join(' · ') || undefined}
               action={canConfigure && (
@@ -759,14 +756,38 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
             />
           );
         })}
+      </Section>
 
+      {/* Custom Server Models */}
+      <Section title="Custom Server Models">
+        {remoteModels.map(model => {
+          const settingsOpen = expandedSettings === model.name;
+          const canConfigure = hasRemoteSettings(model);
+          return (
+            <ModelRow
+              key={model.name}
+              icon={<Server size={16} />}
+              name={model.name}
+              meta={[model.parameterSize && model.parameterSize !== 'N/A' ? model.parameterSize : null, model.multimodal ? 'Vision' : null].filter(Boolean).join(' · ') || undefined}
+              action={canConfigure && (
+                <RowIconButton onClick={() => toggleSettings(model.name)} title="Inference settings" className={settingsOpen ? 'text-gray-700 bg-gray-100' : ''}>
+                  <Settings2 size={14} />
+                </RowIconButton>
+              )}
+              settingsSlot={settingsOpen && canConfigure && <RemoteInferenceParamsPanel modelName={model.name} />}
+            />
+          );
+        })}
+      </Section>
+
+      <Section title="Other">
         <ModelRow
           icon={<MinusCircle size={16} />}
           name="Skip Model Call"
           meta="Runs the agent loop with no AI model — response is always empty"
           action={<span className="text-xs text-gray-400">Always ready</span>}
         />
-      </div>
+      </Section>
 
       {/* Advanced */}
       <div className="mt-6 border-t border-gray-100 pt-4">
