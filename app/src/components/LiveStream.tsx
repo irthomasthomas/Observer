@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { X, ChevronDown } from 'lucide-react';
 import { isTauri } from '../utils/platform';
 
-const POLL_INTERVAL = 2 * 60 * 1000;
+const POLL_INTERVAL = 5 * 60 * 1000;
 
 export default function LiveStream() {
   const [videoId, setVideoId] = useState<string | null>(null);
