@@ -62,12 +62,13 @@ const AgentLiveCard: React.FC<AgentLiveCardProps> = ({ agent, isRunning, isStart
   // which read as the card blinking/disappearing on every drop.
   const hasAnimatedIn = useRef(false);
 
-  // Claim the in-progress drag session the instant this instance mounts as the floating
-  // side of a pop-out — see FloatingAgentsContext.tsx's file header for why this hand-off
-  // is necessary (the gesture started on a different, now-unmounted, inline instance).
-  useEffect(() => {
-    if (mode !== 'floating') return;
-    setIsDragging(true);
+  // This card's own drag session — claims dragSessionRef (a single shared slot; see
+  // FloatingAgentsContext.tsx) so pointer input routes to *this* instance's position state.
+  // Reused in two places: the mount effect below (claims it once, immediately, so the
+  // gesture that just popped this card out has somewhere to hand off to) and every fresh
+  // drag start on an already-floating card (re-claims it, since with more than one floating
+  // card the ref may currently belong to whichever one was claimed most recently).
+  const claimDragSession = () => {
     dragSessionRef.current = {
       onMove: (x, y) => setPos({ x, y }),
       onEnd: (x, y, clientX, clientY) => {
@@ -76,6 +77,12 @@ const AgentLiveCard: React.FC<AgentLiveCardProps> = ({ agent, isRunning, isStart
         if (isOverDockTarget(agent.id, clientX, clientY)) dock(agent.id);
       },
     };
+  };
+
+  useEffect(() => {
+    if (mode !== 'floating') return;
+    setIsDragging(true);
+    claimDragSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
@@ -93,6 +100,11 @@ const AgentLiveCard: React.FC<AgentLiveCardProps> = ({ agent, isRunning, isStart
     const startX = e.clientX;
     const startY = e.clientY;
     let dragging = false;
+
+    // Re-claim the shared drag slot for THIS card the moment a new gesture starts on it —
+    // with more than one floating card, dragSessionRef could currently belong to whichever
+    // one was dragged (or popped out) most recently.
+    if (mode === 'floating') claimDragSession();
 
     const handleMove = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
