@@ -1390,9 +1390,9 @@ function AppContent() {
         )}
 
         {/* Memory Store Tab */}
-        {activeTab === 'memoryStore' && (
+        {(activeTab === 'memoryText' || activeTab === 'memoryImages') && (
           <div className="px-4">
-            <MemoryStoreTab />
+            <MemoryStoreTab kind={activeTab === 'memoryImages' ? 'image' : 'text'} />
           </div>
         )}
 
@@ -1418,7 +1418,7 @@ function AppContent() {
         )}
 
         {/* Fallback for unknown tabs */}
-        {!['myAgents', 'observerChat', 'community', 'models', 'recordings', 'memoryStore', 'settings', 'obServer'].includes(activeTab) && (
+        {!['myAgents', 'observerChat', 'community', 'models', 'recordings', 'memoryText', 'memoryImages', 'settings', 'obServer'].includes(activeTab) && (
           <div className="text-center p-8">
             <p className="text-gray-500">This feature is coming soon!</p>
           </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Home, Users, Database, Settings, Cpu, Video, Sparkles, MessageCircle,
-  PanelLeft, User as UserIcon, MessageSquare, Terminal,
+  PanelLeft, User as UserIcon, MessageSquare, Terminal, ChevronRight,
+  FileText, Image as ImageIcon,
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { isIOS, isTauri } from '../utils/platform';
@@ -63,6 +64,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   const [isNativeLoading, setIsNativeLoading] = useState(false);
   const [isNativeDownloading, setIsNativeDownloading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
+  const [memoriesOpen, setMemoriesOpen] = useState(false);
 
   // Track Transformers.js model loading state
   useEffect(() => {
@@ -127,12 +129,18 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
     { id: 'observerChat', icon: MessageCircle, label: 'Observer', color: 'purple' },
     { id: 'myAgents', icon: Home, label: 'Micro Agents', color: 'blue' },
     { id: 'models', icon: Cpu, label: 'Models', color: 'blue' },
-    { id: 'memoryStore', icon: Database, label: 'Memories', color: 'blue' },
-    { id: 'recordings', icon: Video, label: 'Recordings', color: 'blue' },
+    { id: 'memories', icon: Database, label: 'Memories', color: 'blue' },
     { id: 'community', icon: Users, label: 'Community', color: 'blue' },
     { id: 'obServer', icon: Sparkles, label: 'Subscription', color: 'purple' },
     { id: 'settings', icon: Settings, label: 'Settings', color: 'blue' },
   ];
+
+  const memorySubItems = [
+    { id: 'memoryText', icon: FileText, label: 'Text Memories' },
+    { id: 'memoryImages', icon: ImageIcon, label: 'Image Memories' },
+    { id: 'recordings', icon: Video, label: 'Video Memories' },
+  ];
+  const memoryTabActive = memorySubItems.some(i => i.id === activeTab);
 
   const tierBadge = quotaInfo?.tier === 'max' ? 'MAX' : quotaInfo?.tier === 'pro' ? 'pro' : quotaInfo?.tier === 'plus' ? 'plus' : null;
 
@@ -187,6 +195,46 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
                   const isActive = activeTab === item.id;
                   const isPurple = item.color === 'purple';
                   const isModels = item.id === 'models';
+
+                  if (item.id === 'memories') {
+                    const open = memoriesOpen || memoryTabActive;
+                    return (
+                      <li key={item.id}>
+                        <button
+                          onClick={() => setMemoriesOpen(!open)}
+                          aria-expanded={open}
+                          className="w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                        >
+                          <IconComponent className="w-5 h-5 flex-shrink-0" />
+                          <span className="ml-3 text-sm font-medium flex-1 text-left">{item.label}</span>
+                          <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
+                        </button>
+                        {open && (
+                          <ul className="mt-1 ml-5 pl-3 border-l border-gray-200 dark:border-gray-700 space-y-0.5">
+                            {memorySubItems.map((sub) => {
+                              const SubIcon = sub.icon;
+                              const subActive = activeTab === sub.id;
+                              return (
+                                <li key={sub.id}>
+                                  <button
+                                    onClick={() => handleTabClick(sub.id)}
+                                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                                      subActive
+                                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                    }`}
+                                  >
+                                    <SubIcon className="w-4 h-4 flex-shrink-0" />
+                                    <span className="whitespace-nowrap">{sub.label}</span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  }
 
                   return (
                     <li key={item.id}>

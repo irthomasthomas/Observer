@@ -12,13 +12,22 @@ interface MemoryEntry {
   images?: string[];
 }
 
-const MemoryStoreTab: React.FC = () => {
-  const [memories, setMemories] = useState<MemoryEntry[]>([]);
+interface MemoryStoreTabProps {
+  kind: 'text' | 'image';
+}
+
+const MemoryStoreTab: React.FC<MemoryStoreTabProps> = ({ kind }) => {
+  const [allEntries, setMemories] = useState<MemoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newMemoryId, setNewMemoryId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [selectedMemoryId, setSelectedMemoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const memories = allEntries.filter(m => {
+    const hasImages = (m.images?.length ?? 0) > 0;
+    return kind === 'image' ? hasImages : m.memory.length > 0 || !hasImages;
+  });
 
   useEffect(() => {
     loadMemories();
@@ -126,7 +135,7 @@ const MemoryStoreTab: React.FC = () => {
             <BookOpen className="w-7 h-7 text-blue-600 dark:text-blue-400" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                Agent Memory Store
+                {kind === 'image' ? 'Image Memories' : 'Text Memories'}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
@@ -135,7 +144,7 @@ const MemoryStoreTab: React.FC = () => {
           </div>
 
           {/* Create new memory - inline */}
-          <div className="flex gap-2">
+          {kind === 'text' && <div className="flex gap-2">
             <input
               type="text"
               value={newMemoryId}
@@ -159,7 +168,7 @@ const MemoryStoreTab: React.FC = () => {
               <Plus className="w-4 h-4" />
               {isCreating ? 'Creating...' : 'Create'}
             </button>
-          </div>
+          </div>}
         </div>
 
         {error && (
@@ -176,8 +185,8 @@ const MemoryStoreTab: React.FC = () => {
         ) : memories.length === 0 ? (
           <div className="p-12 text-center">
             <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-            <p className="text-gray-500 dark:text-gray-400 mb-2">No agent memories yet</p>
-            <p className="text-sm text-gray-400 dark:text-gray-500">Create one to get started</p>
+            <p className="text-gray-500 dark:text-gray-400 mb-2">{kind === 'image' ? 'No image memories yet' : 'No text memories yet'}</p>
+            {kind === 'text' && <p className="text-sm text-gray-400 dark:text-gray-500">Create one to get started</p>}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
