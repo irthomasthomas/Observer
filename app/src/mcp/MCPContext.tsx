@@ -42,7 +42,7 @@ export const MCPProvider: React.FC<MCPProviderProps> = ({ getToken, isUsingObSer
       {/* Hosted here, not in MCP.tsx: a run survives closing the chat panel, and RecipeSplash
           closes itself right after send() — so the modal must outlive both. */}
       {mcp.pendingUserInfo && (
-        <UserInfoModal req={mcp.pendingUserInfo} onResolve={mcp.resolveUserInfo} />
+        <UserInfoModal key={mcp.pendingUserInfo.requestId} req={mcp.pendingUserInfo} onResolve={mcp.resolveUserInfo} />
       )}
     </MCPContext.Provider>
   );

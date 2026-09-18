@@ -61,7 +61,10 @@ export function useMCP(options: UseMCPOptions) {
   const [streamingText, setStreamingText] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [toolStatus, setToolStatus] = useState<Map<string, ToolStatusEntry>>(new Map());
-  const [pendingUserInfo, setPendingUserInfo] = useState<UserInfoRequest | null>(null);
+  // Requests are queued: the runner executes a turn's tool calls in parallel, so two
+  // `ask_user_info` calls arrive together. The modal shows the head; the rest wait their turn.
+  const [userInfoQueue, setUserInfoQueue] = useState<UserInfoRequest[]>([]);
+  const pendingUserInfo = userInfoQueue[0] ?? null;
 
   // requestId → settlers for the deferred `ask_user_info` promise. We keep `reject` too so
   // a hard stop can unwind a run parked on the modal.
@@ -98,7 +101,7 @@ export function useMCP(options: UseMCPOptions) {
     });
     return new Promise<UserInfoResponse>((resolve, reject) => {
       userInfoResolvers.current.set(req.requestId, { resolve, reject });
-      setPendingUserInfo(req);
+      setUserInfoQueue(q => [...q, req]);
     });
   }, []);
 
@@ -110,7 +113,7 @@ export function useMCP(options: UseMCPOptions) {
       Logger.info(LOG_SOURCE, `User ${response.skipped ? 'skipped' : 'supplied'} requested info`, { requestId });
       settler.resolve(response);
     }
-    setPendingUserInfo(prev => (prev && prev.requestId === requestId ? null : prev));
+    setUserInfoQueue(q => q.filter(r => r.requestId !== requestId));
   }, []);
 
   const send = useCallback(async (userText: string, images?: string[]) => {
@@ -221,7 +224,7 @@ export function useMCP(options: UseMCPOptions) {
     // nothing listening for its answer.
     for (const [, settler] of userInfoResolvers.current) settler.reject(abortError());
     userInfoResolvers.current.clear();
-    setPendingUserInfo(null);
+    setUserInfoQueue([]);
   }, []);
 
   /** Reset the conversation back to a fresh system message. No-op while a run is in flight. */
@@ -232,7 +235,7 @@ export function useMCP(options: UseMCPOptions) {
     setMessages([]);
     setToolStatus(new Map());
     setStreamingText('');
-    setPendingUserInfo(null);
+    setUserInfoQueue([]);
   }, [isRunning]);
 
   return {
