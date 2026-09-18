@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Palette, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2, Cloud, Server, Cpu, Mic, Monitor, Play, Square, Volume2, Keyboard, Check, AlertTriangle, Eye, EyeOff, Layers, Move, Maximize2, Zap, ChevronDown, ChevronRight, ScanText, AudioLines, SlidersHorizontal } from 'lucide-react';
+import { Palette, TestTube2, Loader2, FileDown, CheckCircle2, Database, Trash2, Cloud, Server, Cpu, Mic, Monitor, Play, Square, Volume2, Keyboard, Check, AlertTriangle, Eye, EyeOff, Layers, Move, Maximize2, Zap, ChevronDown, ChevronRight, ScanText, AudioLines, SlidersHorizontal, Sparkles, User, Settings2, ArrowLeft } from 'lucide-react';
 import { SensorSettings } from '../utils/settings';
 import { StreamManager } from '../utils/streamManager';
 import { isDesktop } from '../utils/platform';
@@ -15,11 +15,51 @@ import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
 
 // Change Detection component
 import ChangeDetectionSettings from './ChangeDetectionSettings';
+import { ObServerTab } from './ObServerTab';
 
 interface SettingsTabProps {
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
+  onOpenAccount?: () => void;
+  initialView?: SettingsView;
 }
+
+export type SettingsView = 'main' | 'subscription' | 'appSettings';
+
+// Clickable row used on the settings home screen (ChatGPT / Claude style list).
+const NavRow: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+}> = ({ icon, title, description, onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
+  >
+    <span className="flex items-center justify-center h-9 w-9 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex-shrink-0">
+      {icon}
+    </span>
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{title}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
+    </div>
+    <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+  </button>
+);
+
+const BackHeader: React.FC<{ title: string; onBack: () => void }> = ({ title, onBack }) => (
+  <div className="flex items-center gap-3">
+    <button
+      onClick={onBack}
+      className="p-2 -ml-2 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      aria-label="Back to settings"
+    >
+      <ArrowLeft className="h-5 w-5" />
+    </button>
+    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{title}</h1>
+  </div>
+);
 
 // Helper function to format bytes
 const formatBytes = (bytes: number, decimals = 1) => {
@@ -99,7 +139,10 @@ const SegmentButton: React.FC<{
 const inputClass = "block w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-800/50 disabled:cursor-not-allowed";
 const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5";
 
-const SettingsTab: React.FC<SettingsTabProps> = ({ isDarkMode = false, onToggleDarkMode }) => {
+const SettingsTab: React.FC<SettingsTabProps> = ({ isDarkMode = false, onToggleDarkMode, onOpenAccount, initialView = 'main' }) => {
+
+  const [view, setView] = useState<SettingsView>(initialView);
+  useEffect(() => { setView(initialView); }, [initialView]);
 
   // --- OCR State Management ---
   const [ocrLang, setOcrLang] = useState(SensorSettings.getOcrLanguage());
@@ -617,25 +660,46 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ isDarkMode = false, onToggleD
     };
   }, []);
 
+  if (view === 'subscription') {
+    return (
+      <div className="w-full pb-16 space-y-2">
+        <div className="max-w-3xl mx-auto"><BackHeader title="Subscription" onBack={() => setView('main')} /></div>
+        <ObServerTab />
+      </div>
+    );
+  }
+
+  if (view === 'main') {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6 pb-16">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
+          <div className="flex items-center gap-4 px-5 py-4">
+            <span className="flex items-center justify-center h-9 w-9 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex-shrink-0">
+              <Palette className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Appearance</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Dark mode</p>
+            </div>
+            {onToggleDarkMode && (
+              <Switch checked={isDarkMode} onChange={onToggleDarkMode} label="Toggle dark mode" />
+            )}
+          </div>
+          <NavRow icon={<Sparkles className="h-4 w-4" />} title="Subscription" description="Plans, billing, and usage" onClick={() => setView('subscription')} />
+          {onOpenAccount && (
+            <NavRow icon={<User className="h-4 w-4" />} title="Account" description="Profile and sign-in" onClick={onOpenAccount} />
+          )}
+          <NavRow icon={<Settings2 className="h-4 w-4" />} title="App Settings" description="Change detection, OCR, speech, shortcuts" onClick={() => setView('appSettings')} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-16">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Appearance, sensors, and behavior for this device.</p>
-      </div>
-
-      {/* --- Appearance --- */}
-      <Section title="Appearance" icon={<Palette className="h-4 w-4" />}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Dark mode</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Switch the interface between light and dark themes.</p>
-          </div>
-          {onToggleDarkMode && (
-            <Switch checked={isDarkMode} onChange={onToggleDarkMode} label="Toggle dark mode" />
-          )}
-        </div>
-      </Section>
+      <BackHeader title="App Settings" onBack={() => setView('main')} />
 
       {/* --- Desktop Only Settings --- */}
       {isDesktop() && (

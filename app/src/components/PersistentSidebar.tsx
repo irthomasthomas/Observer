@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Home, Users, Database, Settings, Cpu, Video, Sparkles, MessageCircle,
+  Home, Users, Database, Settings, Cpu, Video, MessageCircle,
   PanelLeft, User as UserIcon, MessageSquare, Terminal, ChevronRight,
   FileText, Image as ImageIcon,
 } from 'lucide-react';
@@ -131,7 +131,6 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
     { id: 'models', icon: Cpu, label: 'Models', color: 'blue' },
     { id: 'memories', icon: Database, label: 'Memories', color: 'blue' },
     { id: 'community', icon: Users, label: 'Community', color: 'blue' },
-    { id: 'obServer', icon: Sparkles, label: 'Subscription', color: 'purple' },
     { id: 'settings', icon: Settings, label: 'Settings', color: 'blue' },
   ];
 

@@ -65,7 +65,6 @@ import { UpgradeSuccessPage } from '../pages/UpgradeSuccessPage';
 import { JoinOrgPage } from '../pages/JoinOrgPage';
 import { TeamPage } from '../pages/TeamPage';
 import AgentShareLandingPage from '@components/AgentShareLandingPage';
-import { ObServerTab } from '@components/ObServerTab';
 import { UpgradeModal } from '@components/UpgradeModal';
 import { AcceptToS } from '@components/AcceptToS';
 import { AttributionSplash } from '@components/AttributionSplash';
@@ -1406,14 +1405,19 @@ function AppContent() {
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="px-4">
-            <SettingsTab isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} />
+            <SettingsTab isDarkMode={isDarkMode} onToggleDarkMode={toggleDarkMode} onOpenAccount={() => setIsAccountModalOpen(true)} />
           </div>
         )}
 
-        {/* ObServer Tab */}
+        {/* Subscription (opened from upgrade prompts) lives inside Settings */}
         {activeTab === 'obServer' && (
-          <div className="-mx-2 md:mx-0 md:px-4">
-            <ObServerTab />
+          <div className="px-4">
+            <SettingsTab
+              initialView="subscription"
+              isDarkMode={isDarkMode}
+              onToggleDarkMode={toggleDarkMode}
+              onOpenAccount={() => setIsAccountModalOpen(true)}
+            />
           </div>
         )}
 
