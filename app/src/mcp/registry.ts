@@ -202,6 +202,18 @@ async function captureScreenTauri(): Promise<ToolResult> {
     return { error: msg };
   }
 
+  // Onboarding tutorial: the stream is a synthetic canvas, not the native plugin, so no raw
+  // frames ever arrive for getLatestBase64Frame() — serve a still of the fake screen instead.
+  if (tauriStreamCapture.isTutorialDisplayActive()) {
+    return {
+      data: {
+        captured: true,
+        note: 'Stream is live and will be reused by start_agent — no second prompt.',
+      },
+      images: [`data:image/jpeg;base64,${tutorialStreamCapture.captureStillFrame()}`],
+    };
+  }
+
   const FRAME_TIMEOUT_MS = 15000;
   const POLL_MS = 200;
   const deadline = Date.now() + FRAME_TIMEOUT_MS;
