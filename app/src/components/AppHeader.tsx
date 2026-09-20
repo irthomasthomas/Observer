@@ -60,7 +60,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           carries the logo/auth (desktop) and stays hidden until opened (mobile). */}
       <button
         onClick={onToggleMobileMenu}
-        className="md:hidden fixed top-4 left-4 z-40 p-2.5 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-gray-200 hover:bg-gray-50"
+        className="md:hidden fixed left-4 z-40 p-2.5 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-gray-200 hover:bg-gray-50"
+        style={{ top: 'calc(env(safe-area-inset-top) + 1rem)' }}
         aria-label="Toggle navigation menu"
       >
         <Menu className="h-5 w-5 text-gray-600" />

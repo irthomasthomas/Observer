@@ -92,7 +92,8 @@ const ObserverHero: React.FC = () => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    // Empty: leave at rows=1 so the placeholder isn't padded into a taller, top-aligned box.
+    if (value) el.style.height = `${el.scrollHeight}px`;
   }, [value]);
 
   return (
@@ -110,7 +111,7 @@ const ObserverHero: React.FC = () => {
       <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-6 text-center">
         What do you want Observer<br className="md:hidden" /> to watch for?
       </h1>
-      <form onSubmit={handleSubmit} className="w-full max-w-2xl flex items-end gap-2 relative z-10">
+      <form onSubmit={handleSubmit} className="w-full max-w-2xl flex items-center gap-2 relative z-10">
         <textarea
           ref={textareaRef}
           rows={1}
@@ -118,9 +119,9 @@ const ObserverHero: React.FC = () => {
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Describe what you want monitored…"
+          placeholder="Describe what to monitor…"
           disabled={isRunning}
-          className="flex-1 min-w-0 p-4 md:p-5 text-base md:text-lg text-gray-700 bg-white border border-gray-200 rounded-3xl shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none leading-snug max-h-56 overflow-y-auto"
+          className="flex-1 min-w-0 p-4 md:p-5 text-left text-base md:text-lg text-gray-700 bg-white border border-gray-200 rounded-3xl shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none leading-snug max-h-56 overflow-y-auto"
         />
         <button
           type="submit"
@@ -142,7 +143,7 @@ const ObserverHero: React.FC = () => {
 
       {/* Pinned behind the form at a fixed spot — absolutely positioned so it never moves
           when the textarea above grows with wrapped text. */}
-      <div className={`absolute left-1/2 -translate-x-1/2 top-[62%] md:top-[64%] pointer-events-auto ${tutorialStep ? 'z-20' : 'z-0'}`}>
+      <div className={`absolute left-1/2 -translate-x-1/2 top-[72%] md:top-[64%] scale-90 md:scale-100 origin-top pointer-events-auto ${tutorialStep ? 'z-20' : 'z-0'}`}>
         <RecipeInline tutorial={tutorial} onPromptChange={prompt => { if (!userEdited) setValue(prompt); }} />
       </div>
     </div>
