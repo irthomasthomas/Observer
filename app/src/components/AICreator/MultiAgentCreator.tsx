@@ -49,7 +49,7 @@ const MultiAgentPreview: React.FC<MultiAgentPreviewProps> = ({ configsJson, onSa
     }
 
     return (
-      <div className="w-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 md:p-6">
+      <div className="w-full bg-gradient-to-r from-purple-50 to-purple-50 border border-purple-200 rounded-lg p-4 md:p-6">
         <div className="text-center mb-4">
           <div className="flex items-center justify-center mb-2">
             <Users className="h-6 w-6 text-purple-600 mr-2" />
@@ -102,7 +102,7 @@ const MultiAgentPreview: React.FC<MultiAgentPreviewProps> = ({ configsJson, onSa
         <div className="text-center">
           <button
             onClick={() => onSaveAll(configsJson)}
-            className="px-6 py-3 text-base bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-medium transition-colors flex items-center mx-auto shadow-lg"
+            className="px-6 py-3 text-base bg-gradient-to-r from-purple-600 to-purple-600 text-white rounded-lg hover:from-purple-700 hover:to-purple-700 font-medium transition-colors flex items-center mx-auto shadow-lg"
           >
             <Save className="h-5 w-5 mr-2" />
             {previews.length === 1 ? 'Save Agent' : `Save All ${previews.length} Agents`}
@@ -805,7 +805,7 @@ What kind of agent team would you like me to create today?`
                 </p>
                 <button
                   onClick={onUpgrade}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-medium transition-colors shadow-lg"
+                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-600 text-white rounded-lg hover:from-purple-700 hover:to-purple-700 font-medium transition-colors shadow-lg"
                 >
                   Upgrade to Pro
                 </button>
@@ -841,8 +841,8 @@ What kind of agent team would you like me to create today?`
               ) : (
                 <div className={`max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base ${
                   msg.sender === 'user'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm'
+                    ? 'bg-gray-700 text-white'
+                    : 'bg-gray-100 text-gray-800 shadow-sm'
                 } ${msg.isStreaming ? 'animate-pulse' : ''}`}>
                   {msg.imageDatas && msg.imageDatas.length > 0 ? (
                     <div className="space-y-2">
@@ -867,7 +867,7 @@ What kind of agent team would you like me to create today?`
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 p-2 md:p-3 rounded-lg text-sm md:text-base inline-flex items-center shadow-sm">
+              <div className="bg-gray-100 text-gray-800 p-2 md:p-3 rounded-lg text-sm md:text-base inline-flex items-center shadow-sm">
                 <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin"/>
               </div>
             </div>

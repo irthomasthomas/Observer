@@ -97,7 +97,7 @@ const StatusIcon: React.FC<{ status?: string }> = ({ status }) => {
 // Deliberately small and muted — a status caption, not a message. Tool calls aren't
 // conversation content, so they shouldn't read like a chat bubble the user is meant to parse.
 const ToolChip: React.FC<{ call: ToolCall; status?: ToolStatusEntry }> = ({ call, status }) => (
-  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-gray-200 text-[10px] font-medium text-gray-500">
+  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-[10px] font-medium text-gray-500 dark:text-gray-300">
     <StatusIcon status={status?.status} />
     <span className="font-mono">{call.function.name}</span>
   </div>
@@ -128,11 +128,11 @@ const WorkingGroup: React.FC<{ batches: ToolCall[][]; toolStatus: Map<string, To
   }, [isRunning]);
 
   return (
-    <div className="w-1/4 min-w-[220px] mt-1 rounded-lg border border-gray-200 bg-gray-50/80 overflow-hidden">
+    <div className="w-1/4 min-w-[220px] mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/60 overflow-hidden">
       <button
         type="button"
         onClick={() => setCollapsed(c => !c)}
-        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-gray-100 transition-colors"
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
       >
         <span className="flex-shrink-0 flex items-center justify-center h-4 w-4">
           {isRunning ? (
@@ -143,7 +143,7 @@ const WorkingGroup: React.FC<{ batches: ToolCall[][]; toolStatus: Map<string, To
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
           )}
         </span>
-        <span className={`text-xs font-medium ${isRunning ? 'text-gray-600 animate-pulse' : 'text-gray-500'}`}>
+        <span className={`text-xs font-medium ${isRunning ? 'text-gray-600 dark:text-gray-300 animate-pulse' : 'text-gray-500 dark:text-gray-400'}`}>
           {isRunning ? 'Working…' : hasError ? 'Finished with errors' : `Used ${calls.length} tool${calls.length > 1 ? 's' : ''}`}
         </span>
         <ChevronDown className={`h-3 w-3 ml-auto text-gray-400 transition-transform flex-shrink-0 ${collapsed ? '-rotate-90' : ''}`} />
@@ -155,7 +155,7 @@ const WorkingGroup: React.FC<{ batches: ToolCall[][]; toolStatus: Map<string, To
               {batch.map(tc => (
                 <ToolChip key={tc.id} call={tc} status={toolStatus.get(tc.id)} />
               ))}
-              {bi < batches.length - 1 && <span className="text-gray-300 text-[10px]">·</span>}
+              {bi < batches.length - 1 && <span className="text-gray-300 dark:text-gray-600 text-[10px]">·</span>}
             </div>
           ))}
         </div>
@@ -639,11 +639,11 @@ const MCP: React.FC<MCPProps> = ({
   // background instead of the default boxed card's tighter, bordered look. Existing callers
   // never pass boxed=false, so their rendering is untouched.
   const assistantBubbleClass = boxed
-    ? 'max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gradient-to-br from-purple-50 to-indigo-50 text-gray-800 shadow-sm'
+    ? 'max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gray-100 text-gray-800 shadow-sm'
     : 'max-w-md md:max-w-2xl p-3 md:p-4 rounded-2xl text-sm md:text-base bg-gray-100 text-gray-800';
   const userBubbleClass = boxed
-    ? 'max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-purple-600 text-white'
-    : 'max-w-md md:max-w-2xl p-3 md:p-4 rounded-2xl text-sm md:text-base bg-purple-600 text-white';
+    ? 'max-w-xs md:max-w-md p-2 md:p-3 rounded-lg text-sm md:text-base bg-gray-700 text-white'
+    : 'max-w-md md:max-w-2xl p-3 md:p-4 rounded-2xl text-sm md:text-base bg-gray-700 text-white';
 
   return (
     <div className={`flex flex-col ${heightClass} relative ${boxed ? 'bg-white rounded-lg border border-purple-200' : 'bg-transparent'}`}>
@@ -679,7 +679,7 @@ const MCP: React.FC<MCPProps> = ({
 
         {isRunning && !streamingText && (
           <div className="flex justify-start">
-            <div className={`text-gray-800 p-2 md:p-3 inline-flex items-center ${boxed ? 'bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg shadow-sm' : 'bg-gray-100 rounded-2xl'}`}>
+            <div className={`text-gray-800 p-2 md:p-3 inline-flex items-center ${boxed ? 'bg-gray-100 rounded-lg shadow-sm' : 'bg-gray-100 rounded-2xl'}`}>
               <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" />
             </div>
           </div>

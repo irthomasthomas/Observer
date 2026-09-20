@@ -338,10 +338,10 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
   return (
     <div className="flex items-center gap-1.5 md:gap-2" aria-label={ariaLabel} role="listbox">
       <div className="flex flex-col">
-        <button type="button" disabled={locked} onClick={() => glide(-1)} className={`p-0.5 transition-colors disabled:opacity-20 ${dark ? 'text-white/40 hover:text-white disabled:hover:text-white/40' : 'text-slate-400 hover:text-slate-800 disabled:hover:text-slate-400'}`} aria-label="Previous">
+        <button type="button" disabled={locked} onClick={() => glide(-1)} className={`p-0.5 transition-colors disabled:opacity-20 ${dark ? 'text-white/40 hover:text-white disabled:hover:text-white/40' : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 disabled:hover:text-slate-400'}`} aria-label="Previous">
           <ChevronUp className="h-5 w-5" />
         </button>
-        <button type="button" disabled={locked} onClick={() => glide(1)} className={`p-0.5 transition-colors disabled:opacity-20 ${dark ? 'text-white/40 hover:text-white disabled:hover:text-white/40' : 'text-slate-400 hover:text-slate-800 disabled:hover:text-slate-400'}`} aria-label="Next">
+        <button type="button" disabled={locked} onClick={() => glide(1)} className={`p-0.5 transition-colors disabled:opacity-20 ${dark ? 'text-white/40 hover:text-white disabled:hover:text-white/40' : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 disabled:hover:text-slate-400'}`} aria-label="Next">
           <ChevronDown className="h-5 w-5" />
         </button>
       </div>
@@ -371,8 +371,8 @@ const OptionWheel: React.FC<OptionWheelProps> = ({
                   else if (offset === 0 && onLabelClick) onLabelClick();
                 }}
                 title={offset === 0 && onLabelClick && !locked ? 'Click to type' : undefined}
-                className={`flex items-center justify-center text-center px-2 ${textClass} font-medium truncate ${dark ? 'text-white' : 'text-slate-800'} ${
-                  locked ? '' : offset !== 0 ? 'cursor-pointer' : onLabelClick ? `cursor-text transition-colors ${dark ? 'hover:text-cyan-200' : 'hover:text-purple-600'}` : ''
+                className={`flex items-center justify-center text-center px-2 ${textClass} font-medium truncate ${dark ? 'text-white' : 'text-slate-800 dark:text-slate-100'} ${
+                  locked ? '' : offset !== 0 ? 'cursor-pointer' : onLabelClick ? `cursor-text transition-colors ${dark ? 'hover:text-cyan-200' : 'hover:text-purple-600 dark:hover:text-purple-300'}` : ''
                 }`}
                 style={{ height: `${rowRem}rem` }}
               >

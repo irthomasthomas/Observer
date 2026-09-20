@@ -16,6 +16,11 @@ export default {
         golos: ['"Golos Text"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
+        // Observer teal-blue (#327e9c @ 500) replaces Tailwind's purple app-wide
+        purple: {
+          50: '#eef7fa', 100: '#d5eaf1', 200: '#aad4e3', 300: '#78b8cf', 400: '#4c99b6',
+          500: '#327e9c', 600: '#286782', 700: '#22536a', 800: '#1f4557', 900: '#1c3a49', 950: '#0f2530',
+        },
         // Custom dark mode colors
         dark: {
           bg: '#0f172a',

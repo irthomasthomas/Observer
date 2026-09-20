@@ -822,7 +822,7 @@ class Manager {
       switch (state) {
         case 'STARTING': return '#facc15'; // yellow-400
         case 'CAPTURING': return '#22d3ee'; // cyan-400
-        case 'THINKING': return '#a855f7'; // purple-500
+        case 'THINKING': return '#327e9c'; // teal blue
         case 'RESPONDING': return '#3b82f6'; // blue-500
         case 'WAITING': return '#6b7280'; // gray-500
         case 'SLEEPING': return '#3b82f6'; // blue-500

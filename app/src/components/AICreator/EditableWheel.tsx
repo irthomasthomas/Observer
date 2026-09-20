@@ -92,7 +92,7 @@ function EditableWheel<T extends WheelOption>({
         onBlur={commit}
         aria-label={ariaLabel}
         className={`w-full bg-transparent border-0 border-b-2 text-center ${textClass} font-medium outline-none pb-0.5 transition-colors ${
-          dark ? 'border-white/40 focus:border-white/80 text-white' : 'border-slate-300 focus:border-purple-500 text-slate-800'
+          dark ? 'border-white/40 focus:border-white/80 text-white' : 'border-slate-300 dark:border-slate-600 focus:border-purple-500 text-slate-800 dark:text-slate-100'
         }`}
       />
     </div>

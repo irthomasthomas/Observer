@@ -731,11 +731,11 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
       </div>
 
       {/* Cloud credits — small pill, not a card */}
-      <div className="px-3.5 py-2.5 mb-5 rounded-xl border border-gray-200 bg-gray-50/60 space-y-2">
+      <div className="px-3.5 py-2.5 mb-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/60 space-y-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <Cloud size={15} className={isUsingObServer ? 'text-indigo-500' : 'text-gray-400'} />
-            <span className="text-sm text-gray-700">Cloud inference</span>
+            <Cloud size={15} className={isUsingObServer ? 'text-purple-500' : 'text-gray-400'} />
+            <span className="text-sm text-gray-700 dark:text-gray-200">Cloud inference</span>
             {isUsingObServer && !isAuthenticated && (
               <span className="text-xs text-gray-400">Sign in to use</span>
             )}
@@ -747,7 +747,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
             {showLoginMessage && <span className="text-xs text-red-500">Login required</span>}
             <button
               onClick={handleToggleObServer}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isUsingObServer ? 'bg-indigo-600' : 'bg-gray-300'}`}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isUsingObServer ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'}`}
               aria-label={isUsingObServer ? 'Disable cloud inference' : 'Enable cloud inference'}
             >
               <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${isUsingObServer ? 'translate-x-5' : 'translate-x-1'}`} />

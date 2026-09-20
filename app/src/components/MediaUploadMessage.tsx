@@ -210,7 +210,7 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
   };
 
   return (
-    <div className="w-full bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6 relative shadow-sm">
+    <div className="w-full bg-gradient-to-br from-purple-50 to-purple-50 border border-purple-200 rounded-xl p-6 relative shadow-sm">
       {/* Close button in top right */}
       <button 
         onClick={handleDecline}
@@ -227,7 +227,7 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
             <div className="flex gap-3">
               <button
                 onClick={handleUploadImage}
-                className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-600 rounded-lg hover:from-purple-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
               >
                 <Upload className="h-5 w-5 mr-2" />
                 Upload Image
@@ -235,7 +235,7 @@ const MediaUploadMessage: React.FC<MediaUploadMessageProps> = ({ requestText, on
 
               <button
                 onClick={handleStartCamera}
-                className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-600 rounded-lg hover:from-purple-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
               >
                 <Camera className="h-5 w-5 mr-2" />
                 Open Camera

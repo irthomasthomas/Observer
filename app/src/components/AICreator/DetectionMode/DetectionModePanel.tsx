@@ -439,7 +439,7 @@ $$$`;
   // Render finetuning UI
   if (finetuneState && finetuneState.phase !== 'idle') {
     return (
-      <div className="w-full bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6 relative shadow-sm">
+      <div className="w-full bg-gradient-to-br from-purple-50 to-purple-50 border border-purple-200 rounded-xl p-6 relative shadow-sm">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -718,7 +718,7 @@ $$$`;
 
   // Normal classification UI
   return (
-    <div className="w-full bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6 relative shadow-sm">
+    <div className="w-full bg-gradient-to-br from-purple-50 to-purple-50 border border-purple-200 rounded-xl p-6 relative shadow-sm">
       {/* Close button */}
       <button
         onClick={onClose}
@@ -819,7 +819,7 @@ $$$`;
           {/* Upload Button */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md"
+            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-purple-600 rounded-lg hover:from-purple-700 hover:to-purple-700 transition-all shadow-md"
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload Images
