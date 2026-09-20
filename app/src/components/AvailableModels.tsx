@@ -196,6 +196,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
 
   // ── Preset download chaining (gguf → mmproj) ──
   const [downloadingPreset, setDownloadingPreset] = useState<ModelPreset | null>(null);
+  const [presetDownloadStep, setPresetDownloadStep] = useState<'gguf' | 'mmproj' | null>(null);
   const [ggufUrl, setGgufUrl] = useState('');
 
   // ── UI state ──
@@ -309,22 +310,25 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
     if (appInferenceUrl) setInferenceUrlInput(appInferenceUrl);
   }, [appInferenceUrl]);
 
-  // Clear preset download state once the native download finishes, chaining into the
-  // matching mmproj download when the preset has one.
+  // Clear preset download state once the native download finishes
   useEffect(() => {
-    if (nativeState.status === 'downloading' || !downloadingPreset || downloadingPreset.engine !== 'llamacpp') return;
-    if (!downloadingPreset.mmprojUrl) {
-      setDownloadingPreset(null);
-      return;
+    if (nativeState.status !== 'downloading' && downloadingPreset?.engine === 'llamacpp') {
+      if (presetDownloadStep === 'gguf' && downloadingPreset.mmprojUrl) {
+        // gguf done, kick off mmproj. Pre-assign before downloading so the
+        // projector renders inside the model's card during download (orphans
+        // are otherwise hidden until assigned).
+        setPresetDownloadStep('mmproj');
+        const ggufFilename = downloadingPreset.ggufUrl!.split('/').pop()!;
+        const mmprojFilename = downloadingPreset.mmprojUrl!.split('/').pop()!;
+        NativeLlmManager.getInstance().setMmprojAssignment(ggufFilename, mmprojFilename);
+        NativeLlmManager.getInstance().downloadModel(downloadingPreset.mmprojUrl)
+          .catch(() => {})
+          .finally(() => {
+            setDownloadingPreset(null);
+            setPresetDownloadStep(null);
+          });
+      }
     }
-    const ggufFilename = downloadingPreset.ggufUrl!.split('/').pop()!;
-    const mmprojFilename = downloadingPreset.mmprojUrl.split('/').pop()!;
-    const alreadyAssigned = NativeLlmManager.getInstance().getMmprojAssignment(ggufFilename) === mmprojFilename;
-    if (alreadyAssigned) { setDownloadingPreset(null); return; }
-    NativeLlmManager.getInstance().setMmprojAssignment(ggufFilename, mmprojFilename);
-    NativeLlmManager.getInstance().downloadModel(downloadingPreset.mmprojUrl)
-      .catch(() => {})
-      .finally(() => setDownloadingPreset(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nativeState.status]);
 
@@ -409,18 +413,26 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
       );
       return;
     }
+    // llamacpp — fire gguf download; mmproj is chained in the effect above
     setDownloadingPreset(preset);
+    setPresetDownloadStep('gguf');
     try {
       await NativeLlmManager.getInstance().downloadModel(preset.ggufUrl!);
-      if (!preset.mmprojUrl) setDownloadingPreset(null);
+      if (!preset.mmprojUrl) {
+        setDownloadingPreset(null);
+        setPresetDownloadStep(null);
+      }
+      // if mmprojUrl exists, the effect handles chaining
     } catch {
       setDownloadingPreset(null);
+      setPresetDownloadStep(null);
     }
   };
 
   const handleCancelNativeDownload = () => {
     NativeLlmManager.getInstance().cancelDownload();
     setDownloadingPreset(null);
+    setPresetDownloadStep(null);
   };
 
   const handleDownloadGguf = async () => {
@@ -615,6 +627,22 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
     );
   };
 
+  // Both files (gguf + mmproj) are listed from the first click so the user sees the
+  // full download up front; the inactive one waits at 0% / shows Done.
+  const presetFileProgress = (preset: ModelPreset): FileProgress[] => {
+    const ggufName = preset.ggufUrl!.split('/').pop()!;
+    const live = { loaded: nativeState.downloadedBytes, total: nativeState.totalBytes, progress: nativeState.downloadProgress };
+    const idle = { loaded: 0, total: 0, progress: 0 };
+    const inMmproj = presetDownloadStep === 'mmproj';
+    const items: FileProgress[] = [inMmproj
+      ? { file: ggufName, loaded: 1, total: 1, progress: 100, done: true }
+      : { file: ggufName, ...live, done: false }];
+    if (preset.mmprojUrl) {
+      items.push({ file: preset.mmprojUrl.split('/').pop()!, ...(inMmproj ? live : idle), done: false });
+    }
+    return items;
+  };
+
   const renderNativePresetRow = (preset: ModelPreset) => {
     const isThisDownloading = downloadingPreset?.name === preset.name && isAnyNativeBusy;
     const blocked = isAnyNativeBusy && !isThisDownloading;
@@ -628,11 +656,7 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
         dimmed={!isTauriApp}
         meta={isThisDownloading ? 'Downloading…' : preset.sizeLabel}
         detailSlot={isThisDownloading && (
-          <FileProgressList items={[{
-            file: (nativeState.modelId ?? preset.ggufUrl!.split('/').pop()!),
-            loaded: nativeState.downloadedBytes, total: nativeState.totalBytes,
-            progress: nativeState.downloadProgress, done: false,
-          }]} />
+          <FileProgressList items={presetFileProgress(preset)} />
         )}
         action={!isTauriApp ? (
           <span className="text-xs text-gray-400">App only</span>
