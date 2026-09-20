@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { WhitelistChannel } from '@utils/logging';
+import { openExternal } from '@utils/platform';
 
 export const OBSERVER_SMS_CALL = '+1 (863) 208-5341';
 export const OBSERVER_WHATSAPP = '+1 (555) 783-4727';
@@ -27,8 +28,8 @@ export const whatsappCodeQRValue = (code: string) =>
 export const smsCodeQRValue = (code: string) =>
   `sms:+${OBSERVER_SMS_PLAIN}?&body=${encodeURIComponent(code)}`;
 
-export const openWhatsApp = () => window.open(`https://wa.me/${OBSERVER_WHATSAPP_PLAIN}`, '_blank');
-export const openSMS = () => window.open(`sms:${OBSERVER_SMS_CALL}`, '_blank');
+export const openWhatsApp = () => openExternal(`https://wa.me/${OBSERVER_WHATSAPP_PLAIN}`);
+export const openSMS = () => openExternal(`sms:${OBSERVER_SMS_CALL}`);
 
 export interface PhoneEntry {
   number: string;

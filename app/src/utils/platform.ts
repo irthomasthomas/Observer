@@ -256,3 +256,40 @@ export const platformFetch = async (
   // Use regular fetch for HTTPS and non-desktop platforms
   return fetch(input, init);
 };
+
+/**
+ * Open a URL outside the app. Tauri webviews (especially mobile) ignore
+ * target="_blank" and window.open, so route through the opener plugin there.
+ */
+export const openExternal = async (url: string): Promise<void> => {
+  if (isTauri()) {
+    try {
+      const { openUrl } = await import('@tauri-apps/plugin-opener');
+      await openUrl(url);
+      return;
+    } catch (err) {
+      Logger.error('PLATFORM', `openUrl failed for ${url}:`, err);
+      return;
+    }
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+/**
+ * On Tauri, intercept clicks on external links (http/https/mailto/tel/sms)
+ * and open them via the opener plugin instead of the webview.
+ */
+export const initExternalLinkHandler = (): void => {
+  if (!isTauri()) return;
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented) return;
+    const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+    if (!a) return;
+    const href = a.getAttribute('href') || '';
+    if (!/^(https?:|mailto:|tel:|sms:)/i.test(href)) return;
+    // Same-origin http(s) links are in-app navigation
+    if (/^https?:/i.test(href) && new URL(href).origin === window.location.origin) return;
+    e.preventDefault();
+    void openExternal(href);
+  });
+};

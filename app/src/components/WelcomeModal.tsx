@@ -6,7 +6,7 @@ import { useApplePayments } from '@hooks/useApplePayments';
 import { X as CloseIcon, Loader2, Sparkles, Zap, Heart, Star } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { Analytics } from '@utils/analytics';
-import { isIOS, isWeb } from '../utils/platform';
+import { isIOS, isWeb, openExternal } from '../utils/platform';
 import { CreditInfoButton } from './CreditVisualization';
 
 interface WelcomeModalProps {
@@ -91,7 +91,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
   }, [purchaseProduct]);
 
   const handleStarGithub = () => {
-    window.open('https://github.com/Roy3838/Observer', '_blank');
+    openExternal('https://github.com/Roy3838/Observer');
   };
 
   const handleClose = () => {
