@@ -61,24 +61,18 @@ const featureGroups: FeatureGroup[] = [
   {
     group: 'It drives itself',
     rows: [
-      { label: 'Micro-Agent Builder', sparkle: true, notLoggedIn: false, free: '3 agents / day', pro: 'Unlimited', max: 'Unlimited',
+      { label: 'Micro-Agent Builder', sparkle: true, notLoggedIn: false, free: '3 agents / day', pro: true, max: true,
         info: {
           free: 'Building a micro-agent takes ~15 messages with Observer on average, and the free tier gives you 45/day, about 3 full builds. Plenty to design and iterate.',
-          pro: "1,000 messages/day with Observer, roughly 67 micro-agents in a single day. If you genuinely need to spin up more than 67 a day, one subscription was never going to cover that 😅. Reach out and we'll figure it out.",
-          max: "1,000 messages/day with Observer, roughly 67 micro-agents in a single day. If you genuinely need to spin up more than 67 a day, one subscription was never going to cover that 😅. Reach out and we'll figure it out.",
         } },
-      { label: 'Cloud Monitoring',         notLoggedIn: false, free: '30 min / day', pro: '8 hr/day · 100 hr/mo', max: '24 / 7', creditInfo: { free: 60, pro: 480, max: 2880 }, monthlyCreditInfo: { pro: 6000 } },
+      { label: 'Cloud Monitoring',         notLoggedIn: false, free: '30 min / day', pro: '12 hr/day · 100 hr/mo', max: '24 / 7', creditInfo: { free: 60, pro: 1440, max: 2880 }, monthlyCreditInfo: { free: 1200, pro: 12000 } },
     ],
   },
   {
     group: 'Notifications',
     rows: [
       { label: 'Telegram, Email & Pushover', notLoggedIn: false, free: true,      pro: true,        max: true },
-      { label: 'SMS, Phone & WhatsApp',      notLoggedIn: false, free: '5 / day', pro: 'Unlimited', max: 'Unlimited',
-        info: {
-          pro: "Practically unlimited 100/day as a guard against abuse. I use Observer every day and have never come close. Need more for a legit use case? Just email me, it's a solo project and I'm happy to help.",
-          max: "Practically unlimited 100/day as a guard against abuse. I use Observer every day and have never come close. Need more for a legit use case? Just email me, it's a solo project and I'm happy to help.",
-        } },
+      { label: 'SMS, Phone & WhatsApp',      notLoggedIn: false, free: '5 / day', pro: true, max: true },
     ],
   },
   {

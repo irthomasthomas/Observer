@@ -30,50 +30,50 @@ const QUOTA_MESSAGES: Record<string, {
   },
   agent_creator: {
     headline: "AI Agent Creator Limit Reached",
-    subheadline: "Unlock unlimited agent builds with Observer Pro!",
+    subheadline: "Unlock more agent builds with Observer Pro!",
     recommendedTier: 'pro',
     isUrgent: true
   },
   email: {
     headline: "Email Notification Quota Reached",
-    subheadline: "Get unlimited email alerts with Observer Plus for just $5/month!",
-    recommendedTier: 'plus',
+    subheadline: "Get more email alerts with Observer Pro!",
+    recommendedTier: 'pro',
     isUrgent: false
   },
   sms: {
     headline: "SMS Notification Quota Reached",
-    subheadline: "Upgrade to Plus for unlimited SMS alerts - just 1¢ per hour of monitoring!",
-    recommendedTier: 'plus',
+    subheadline: "Upgrade to Observer Pro for more SMS alerts!",
+    recommendedTier: 'pro',
     isUrgent: false
   },
   whatsapp: {
     headline: "WhatsApp Notification Quota Reached",
-    subheadline: "Never miss an alert! Get unlimited WhatsApp notifications with Plus.",
-    recommendedTier: 'plus',
+    subheadline: "Never miss an alert! Get more WhatsApp notifications with Observer Pro.",
+    recommendedTier: 'pro',
     isUrgent: false
   },
   telegram: {
     headline: "Telegram Notification Quota Reached",
-    subheadline: "Unlock unlimited Telegram alerts with Observer Plus!",
-    recommendedTier: 'plus',
+    subheadline: "Unlock more Telegram alerts with Observer Pro!",
+    recommendedTier: 'pro',
     isUrgent: false
   },
   pushover: {
     headline: "Pushover Notification Quota Reached",
-    subheadline: "Get unlimited push notifications with Observer Plus!",
-    recommendedTier: 'plus',
+    subheadline: "Get more push notifications with Observer Pro!",
+    recommendedTier: 'pro',
     isUrgent: false
   },
   discord: {
     headline: "Discord Notification Quota Reached",
-    subheadline: "Upgrade to Plus for unlimited Discord webhooks!",
-    recommendedTier: 'plus',
+    subheadline: "Upgrade to Observer Pro for more Discord webhooks!",
+    recommendedTier: 'pro',
     isUrgent: false
   },
   voice_call: {
     headline: "Voice Call Quota Reached",
-    subheadline: "Get unlimited voice call alerts with Observer Plus!",
-    recommendedTier: 'plus',
+    subheadline: "Get more voice call alerts with Observer Pro!",
+    recommendedTier: 'pro',
     isUrgent: false
   }
 };

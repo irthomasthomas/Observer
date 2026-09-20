@@ -290,8 +290,8 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, mod
                     <div className="flex items-start">
                       <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-purple-600 mr-2 flex-shrink-0 mt-0.5" />
                       <span>
-                        <strong className="text-gray-900">8 hours/day, 100 hours/month</strong> cloud monitoring
-                        <CreditInfoButton dailyCredits={480} monthlyCredits={6000} tierName="Pro tier" className="ml-1 align-middle" />
+                        <strong className="text-gray-900">12 hours/day, 100 hours/month</strong> cloud monitoring
+                        <CreditInfoButton dailyCredits={1440} monthlyCredits={12000} tierName="Pro tier" className="ml-1 align-middle" />
                       </span>
                     </div>
                     <div className="flex items-start">
