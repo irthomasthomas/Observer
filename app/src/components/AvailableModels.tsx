@@ -530,11 +530,19 @@ const AvailableModels: React.FC<AvailableModelsProps> = ({
       (projectorFile.kind === 'complete' || projectorFile.kind === 'absent');
     const settingsOpen = expandedSettings === model.id;
 
+    // A preset download in flight owns this row: list gguf + mmproj up front, even
+    // though the .part file has already replaced the preset row with this one.
+    const activePreset = downloadingPreset?.mmprojUrl && downloadingPreset.ggufUrl!.split('/').pop() === model.id
+      ? downloadingPreset : null;
     const fileProgress: FileProgress[] = [];
-    if (modelFile.kind === 'partial' && modelFile.downloading) {
+    if (activePreset) {
+      fileProgress.push(...presetFileProgress(activePreset));
+    } else if (modelFile.kind === 'partial' && modelFile.downloading) {
       fileProgress.push({ file: model.id, loaded: modelFile.downloadedBytes ?? modelFile.bytes, total: modelFile.totalBytes ?? 0, progress: modelFile.progress ?? 0, done: false });
     }
-    if (projectorFile.kind === 'partial' && projectorFile.downloading) {
+    if (activePreset) {
+      // already covered by presetFileProgress
+    } else if (projectorFile.kind === 'partial' && projectorFile.downloading) {
       fileProgress.push({ file: model.projectorFilename ?? 'vision projector', loaded: projectorFile.downloadedBytes ?? projectorFile.bytes, total: projectorFile.totalBytes ?? 0, progress: projectorFile.progress ?? 0, done: false });
     } else if (isModelDownloading && projectorFile.kind === 'complete') {
       fileProgress.push({ file: model.projectorFilename ?? 'vision projector', loaded: projectorFile.bytes, total: projectorFile.bytes, progress: 100, done: true });

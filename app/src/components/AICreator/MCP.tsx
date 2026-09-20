@@ -19,6 +19,7 @@ import WhitelistInline from '@components/whitelist/WhitelistInline';
 import { SensorSettings } from '@utils/settings';
 import { isTauri } from '@utils/platform';
 import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
+import { DEFAULT_LLAMACPP_FILES } from '@/mcp/localModel';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
 import type { GemmaModelState, NativeModelState } from '@utils/localLlm/types';
 import { ModelManager, type Model } from '@utils/ModelManager';
@@ -254,13 +255,25 @@ const DownloadModelProgress: React.FC = () => {
     if (status === 'downloading') {
       return (
         <DownloadShell icon={<Download className="h-4 w-4 text-purple-600 animate-bounce" />} onCancel={() => NativeLlmManager.getInstance().cancelDownload()}>
-          <div className="flex justify-between text-[11px] text-gray-600 mb-1">
-            <span className="truncate max-w-[60%]">{modelId ?? 'model'}.gguf</span>
-            <span className="font-medium">
-              {totalBytes > 0 ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}` : `${Math.round(downloadProgress)}%`}
-            </span>
+          <div className="space-y-1.5">
+            {(DEFAULT_LLAMACPP_FILES.length ? DEFAULT_LLAMACPP_FILES : [modelId ?? 'model']).map((name, i, all) => {
+              const current = Math.max(0, all.indexOf(modelId ?? ''));
+              const done = i < current;
+              const live = i === current;
+              const pct = done ? 100 : live ? downloadProgress : 0;
+              return (
+                <div key={name}>
+                  <div className="flex justify-between text-[11px] text-gray-600 mb-1">
+                    <span className="truncate max-w-[60%]">{name}.gguf</span>
+                    <span className="font-medium">
+                      {done ? 'Done' : live && totalBytes > 0 ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}` : `${Math.round(pct)}%`}
+                    </span>
+                  </div>
+                  <Bar pct={pct} done={done} />
+                </div>
+              );
+            })}
           </div>
-          <Bar pct={downloadProgress} />
         </DownloadShell>
       );
     }

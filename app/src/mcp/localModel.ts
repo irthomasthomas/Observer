@@ -31,6 +31,14 @@ const LLAMACPP_PRESET = MODEL_PRESETS.find(
   p => p.engine === 'llamacpp' && p.ggufUrl?.includes('E2B'),
 );
 
+/** Files the desktop default model downloads, in order (gguf, then vision projector) — lets the
+ *  progress UI list both from the first byte. Names are extension-less, matching NativeModelState.modelId. */
+export const DEFAULT_LLAMACPP_FILES: string[] = LLAMACPP_PRESET
+  ? [LLAMACPP_PRESET.ggufUrl, LLAMACPP_PRESET.mmprojUrl]
+      .filter((u): u is string => !!u)
+      .map(u => u.split('/').pop()!.replace(/\.gguf$/i, ''))
+  : [];
+
 /** Resolve once the Gemma worker reaches `loaded` for `modelId` (or reject on `error`). */
 function awaitGemmaLoaded(modelId: GemmaModelId): Promise<void> {
   const mgr = GemmaModelManager.getInstance();
@@ -89,6 +97,10 @@ async function downloadLlamaCpp(): Promise<DownloadedLocalModel> {
       await mgr.downloadModel(mmprojUrl);
     }
   }
+
+  // downloadModel refreshes the gguf cache fire-and-forget; loadModel checks that cache to see
+  // whether the projector is complete, so without a fresh listing it would load text-only.
+  await mgr.listGgufFiles();
 
   // loadModel awaits the native llm_load_model call, so this resolves only when loaded.
   await mgr.loadModel(ggufFilename);
