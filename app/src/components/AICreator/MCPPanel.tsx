@@ -10,10 +10,9 @@
 
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Sparkles, Trash2 } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 import MCP from './MCP';
 import type { TokenProvider } from '@utils/main_loop';
-import { useMCPContext } from '../../mcp/MCPContext';
 
 interface MCPPanelProps {
   isOpen: boolean;
@@ -40,7 +39,6 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
   onRefresh,
   initialMessage,
 }) => {
-  const { clear, isRunning } = useMCPContext();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,14 +70,6 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
             <h2 className="text-base font-semibold text-gray-900">Observer</h2>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={clear}
-              disabled={isRunning}
-              title="Clear conversation"
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-400 rounded-md hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
             <button
               onClick={onClose}
               className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"

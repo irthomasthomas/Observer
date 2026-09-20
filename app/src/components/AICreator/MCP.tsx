@@ -5,7 +5,7 @@
 // OpenAI function calls (see src/mcp/). This component is pure UI over the useMCP hook.
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Plus, CheckCircle2, XCircle, Loader, Square, Download, Cpu, Sparkles, StopCircle, Mic, Trash2, ChevronDown } from 'lucide-react';
+import { Send, Loader2, Plus, CheckCircle2, XCircle, Loader, Square, Download, Cpu, Sparkles, StopCircle, Mic, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
@@ -343,7 +343,6 @@ const MCP: React.FC<MCPProps> = ({
     subscribeMutation,
     stop,
     send,
-    clear,
     modelName,
     setModelName,
   } = useMCPContext();
@@ -647,16 +646,6 @@ const MCP: React.FC<MCPProps> = ({
 
   return (
     <div className={`flex flex-col ${heightClass} relative ${boxed ? 'bg-white rounded-lg border border-purple-200' : 'bg-transparent'}`}>
-      {!boxed && messages.length > 0 && (
-        <button
-          onClick={clear}
-          disabled={isRunning}
-          title="Clear conversation"
-          className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 px-2 py-1.5 text-xs text-gray-400 rounded-full bg-white/80 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      )}
       {/* Chat Messages */}
       <div className={boxed ? 'flex-1 p-3 md:p-4 space-y-3 md:space-y-4 overflow-y-auto' : 'flex-1 p-4 md:p-6 space-y-3 md:space-y-4 overflow-y-auto'}>
         {messages.length === 0 && (

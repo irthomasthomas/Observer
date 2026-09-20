@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Home, Users, Database, Settings, Cpu, Video, MessageCircle,
   PanelLeft, User as UserIcon, ChevronRight,
-  FileText, Image as ImageIcon,
+  FileText, Image as ImageIcon, Plus, Trash2,
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { isIOS, isTauri } from '../utils/platform';
@@ -12,6 +12,8 @@ import type { QuotaInfo } from '@/types/quota';
 import type { CustomServer } from '@utils/inferenceServer';
 import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import { NativeLlmManager } from '@utils/localLlm/NativeLlmManager';
+import { useMCPContext } from '../mcp/MCPContext';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 interface SidebarAuthState {
   isLoading: boolean;
@@ -63,6 +65,12 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   const [isNativeDownloading, setIsNativeDownloading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [memoriesOpen, setMemoriesOpen] = useState(false);
+  const [chatsOpen, setChatsOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const {
+    conversations, activeConversationId, isRunning,
+    newConversation, loadConversation, deleteConversation,
+  } = useMCPContext();
 
   // Track Transformers.js model loading state
   useEffect(() => {
@@ -191,6 +199,74 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
                   const IconComponent = item.icon;
                   const isActive = activeTab === item.id;
                   const isModels = item.id === 'models';
+
+                  if (item.id === 'observerChat') {
+                    const open = chatsOpen || isActive;
+                    return (
+                      <li key={item.id}>
+                        <div
+                          className={`w-full flex items-center rounded-lg transition-all duration-200 ${
+                            isActive ? 'bg-blue-900/50 text-blue-300' : 'hover:bg-gray-800 text-gray-300'
+                          }`}
+                        >
+                          <button
+                            onClick={() => handleTabClick(item.id)}
+                            className="flex-1 min-w-0 flex items-center pl-3 py-2.5"
+                          >
+                            <IconComponent className="w-5 h-5 flex-shrink-0" />
+                            <span className="ml-3 text-sm font-medium flex-1 text-left">{item.label}</span>
+                          </button>
+                          <button
+                            onClick={() => setChatsOpen(!open)}
+                            aria-expanded={open}
+                            title="Past conversations"
+                            className="px-3 py-2.5"
+                          >
+                            <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
+                          </button>
+                        </div>
+                        {open && (
+                          <ul className="mt-1 ml-5 pl-3 border-l border-gray-700 space-y-0.5">
+                            <li>
+                              <button
+                                onClick={() => { newConversation(); handleTabClick('observerChat'); }}
+                                disabled={isRunning}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <Plus className="w-4 h-4 flex-shrink-0" />
+                                <span className="whitespace-nowrap">New chat</span>
+                              </button>
+                            </li>
+                            {conversations.map((c) => {
+                              const convActive = isActive && c.id === activeConversationId;
+                              return (
+                                <li key={c.id} className="group relative">
+                                  <button
+                                    onClick={() => { loadConversation(c.id); handleTabClick('observerChat'); }}
+                                    disabled={isRunning && !convActive}
+                                    title={c.title}
+                                    className={`w-full flex items-center px-3 py-2 pr-9 rounded-lg text-sm text-left transition-colors disabled:opacity-40 ${
+                                      convActive ? 'bg-gray-800 text-white font-medium' : 'text-gray-400 hover:bg-gray-800'
+                                    }`}
+                                  >
+                                    <span className="truncate">{c.title}</span>
+                                  </button>
+                                  <button
+                                    onClick={() => setPendingDelete({ id: c.id, title: c.title })}
+                                    disabled={isRunning && convActive}
+                                    title="Delete conversation"
+                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-gray-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 hover:text-red-400 hover:bg-gray-700 disabled:cursor-not-allowed transition-opacity"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  }
 
                   if (item.id === 'memories') {
                     const open = memoriesOpen || memoryTabActive;
@@ -342,6 +418,19 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
           </div>
         )}
       </div>
+
+      {pendingDelete && (
+        <ConfirmDeleteModal
+          open
+          title="Delete conversation?"
+          description={`"${pendingDelete.title}" will be permanently deleted.`}
+          onClose={() => setPendingDelete(null)}
+          onConfirm={() => {
+            deleteConversation(pendingDelete.id);
+            setPendingDelete(null);
+          }}
+        />
+      )}
     </>
   );
 };

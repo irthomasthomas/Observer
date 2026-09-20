@@ -3,7 +3,7 @@
 // React glue between the pure runner and the MCP UI. Holds the wire, the per-tool-call
 // status map, and the deferred-promise registry for the `ask_user_info` modal.
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TokenProvider } from '@utils/main_loop';
 import { ModelManager } from '@utils/ModelManager';
 import { Logger } from '@utils/logging';
@@ -11,6 +11,14 @@ import type { WireMessage, ToolCallStatus, UserInfoRequest, UserInfoResponse } f
 import { getTool, getToolSpecs } from './registry';
 import getMcpSystemPrompt from './systemPrompt';
 import { runConversation, sealDanglingToolCalls } from './runner';
+import {
+  type ConversationSummary,
+  deleteStoredConversation,
+  listConversations,
+  loadConversation as loadStoredConversation,
+  newConversationId,
+  saveConversation,
+} from './conversationStore';
 
 export interface ToolStatusEntry {
   status: ToolCallStatus;
@@ -58,6 +66,10 @@ export function useMCP(options: UseMCPOptions) {
   }, []);
 
   const [messages, setMessages] = useState<WireMessage[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>(newConversationId);
+  const [conversations, setConversations] = useState<ConversationSummary[]>(() => listConversations());
+  // Set when messages were replaced by a load, so the persist effect doesn't bump its recency.
+  const skipSaveRef = useRef(false);
   const [streamingText, setStreamingText] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [toolStatus, setToolStatus] = useState<Map<string, ToolStatusEntry>>(new Map());
@@ -227,16 +239,44 @@ export function useMCP(options: UseMCPOptions) {
     setUserInfoQueue([]);
   }, []);
 
-  /** Reset the conversation back to a fresh system message. No-op while a run is in flight. */
-  const clear = useCallback(() => {
-    if (isRunning) return;
+  // Persist once a run settles (not on every streamed wire update).
+  useEffect(() => {
+    if (isRunning || messages.length === 0) return;
+    if (skipSaveRef.current) { skipSaveRef.current = false; return; }
+    saveConversation(activeConversationId, messages);
+    setConversations(listConversations());
+  }, [messages, isRunning, activeConversationId]);
+
+  /** Swap in a wire (fresh, or a stored conversation's messages). No-op while a run is in flight. */
+  const resetWire = useCallback((id: string, stored: WireMessage[] = []) => {
     userInfoResolvers.current.clear();
-    wireRef.current = [{ role: 'system', content: getMcpSystemPrompt() }];
-    setMessages([]);
+    wireRef.current = [{ role: 'system', content: getMcpSystemPrompt() }, ...stored];
+    skipSaveRef.current = stored.length > 0;
+    setActiveConversationId(id);
+    setMessages(stored);
     setToolStatus(new Map());
     setStreamingText('');
     setUserInfoQueue([]);
-  }, [isRunning]);
+  }, []);
+
+  /** Start a fresh conversation (the previous one stays saved). */
+  const newConversation = useCallback(() => {
+    if (isRunning) return;
+    resetWire(newConversationId());
+  }, [isRunning, resetWire]);
+
+  const loadConversation = useCallback((id: string) => {
+    if (isRunning || id === activeConversationId) return;
+    const conv = loadStoredConversation(id);
+    if (conv) resetWire(conv.id, conv.messages);
+  }, [isRunning, activeConversationId, resetWire]);
+
+  const deleteConversation = useCallback((id: string) => {
+    if (isRunning && id === activeConversationId) return;
+    deleteStoredConversation(id);
+    setConversations(listConversations());
+    if (id === activeConversationId) resetWire(newConversationId());
+  }, [isRunning, activeConversationId, resetWire]);
 
   return {
     messages,
@@ -246,7 +286,12 @@ export function useMCP(options: UseMCPOptions) {
     pendingUserInfo,
     resolveUserInfo,
     subscribeMutation,
-    clear,
+    conversations,
+    activeConversationId,
+    newConversation,
+    loadConversation,
+    deleteConversation,
+    clear: newConversation,
     stop,
     send,
   };
