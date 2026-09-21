@@ -76,6 +76,7 @@ class OrgCreateRequest(BaseModel):
     monthly_credits: int = NO_MONTHLY_LIMIT
     price_id: Optional[str] = None
     days_until_due: int = 30
+    trial_period_days: Optional[int] = None
     dry_run: bool = False
 
 
@@ -299,6 +300,8 @@ async def create_org(body: OrgCreateRequest):
         raise HTTPException(status_code=400, detail="tier must be 'pro' or 'max'")
     if body.seats < 1:
         raise HTTPException(status_code=400, detail="seats must be at least 1")
+    if body.trial_period_days is not None and body.trial_period_days < 1:
+        raise HTTPException(status_code=400, detail="trial_period_days must be at least 1")
 
     price_id = body.price_id or os.environ.get("STRIPE_ENTERPRISE_SEAT_PRICE_ID")
     if not price_id:
@@ -312,6 +315,7 @@ async def create_org(body: OrgCreateRequest):
             "dry_run": True, "org_id": org_id, "price_id": price_id,
             "seats": body.seats, "tier": body.tier, "owner_email": admin_email,
             "monthly_credits": body.monthly_credits,
+            "trial_period_days": body.trial_period_days,
         }
 
     await _assert_no_personal_subscription(admin_email)
@@ -324,15 +328,18 @@ async def create_org(body: OrgCreateRequest):
                 metadata={"org_id": org_id},
             )
         )
+        subscription_params = {
+            "customer": customer.id,
+            "items": [{"price": price_id, "quantity": body.seats}],
+            "collection_method": "send_invoice",
+            "days_until_due": body.days_until_due,
+            "metadata": {"org_id": org_id},
+            "expand": ["latest_invoice"],
+        }
+        if body.trial_period_days is not None:
+            subscription_params["trial_period_days"] = body.trial_period_days
         subscription = await asyncio.to_thread(
-            lambda: stripe.Subscription.create(
-                customer=customer.id,
-                items=[{"price": price_id, "quantity": body.seats}],
-                collection_method="send_invoice",
-                days_until_due=body.days_until_due,
-                metadata={"org_id": org_id},
-                expand=["latest_invoice"],
-            )
+            lambda: stripe.Subscription.create(**subscription_params)
         )
     except Exception as e:
         logger.exception(f"Stripe provisioning failed for org {org_id}")

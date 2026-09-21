@@ -24,18 +24,18 @@ class FireworksAPIHandler(BaseAPIHandler):
         # Dictionary mapping display names to actual model IDs and parameters
         self.model_map = {
             # Simple mapping with just two models
-            "Kimi K2.5": {
-                "model_id": "accounts/fireworks/models/kimi-k2p5",
-                "parameters": "1.02T",
-                "multimodal": True,
-                "pro": True
-            },
-            "Qwen3.6 Plus": {
-                "model_id": "accounts/fireworks/models/qwen3p6-plus",
-                "parameters": "36B",
-                "multimodal": True,
-                "pro": True
-            },
+            # "Kimi K2.5": {
+            # "model_id": "accounts/fireworks/models/kimi-k2p5",
+            # "parameters": "1.02T",
+            # "multimodal": True,
+            # "pro": True
+            # },
+            # "Qwen3.6 Plus": {
+            # "model_id": "accounts/fireworks/models/qwen3p6-plus",
+            # "parameters": "36B",
+            # "multimodal": True,
+            # "pro": True
+            # },
             # "llama4-maverick": {
             #     "model_id": "accounts/fireworks/models/llama4-maverick-instruct-basic",
             #     "parameters": "400B",

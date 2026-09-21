@@ -28,9 +28,17 @@ services:
     image: redis:7-alpine
     container_name: observer-redis
     restart: unless-stopped
+    # appendonly, not --save "": quota counters are now monthly, so a restart
+    # without persistence hands every user and every org a fresh month's credits
+    # mid-month. appendfsync defaults to everysec, which on a loopback socket
+    # costs nothing and bounds the loss to one second of counters.
     command: >
-      redis-server --save "" --appendonly no
+      redis-server --save "" --appendonly yes
       --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      # Without a named volume the AOF lives in the container's writable layer
+      # and is lost on `up --force-recreate`, i.e. on every deploy that rebuilds.
+      - redis-data:/data
     networks:
       - observer-network
     healthcheck:
@@ -81,3 +89,6 @@ services:
 networks:
   observer-network:
     driver: bridge
+
+volumes:
+  redis-data:

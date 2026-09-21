@@ -35,59 +35,44 @@ class OpenRouterAPIHandler(BaseAPIHandler):
             #     "parameters": "27B",
             #     "multimodal": True
             # },
-            "Qwen3-VL-8B": {
-                "model_id": "qwen/qwen3-vl-8b-instruct", 
-                "parameters": "8B",
-                "multimodal": True,
-                "pro": False,
-            },
-
-            "OpenAI GPT-5": {
-                "model_id": "openai/gpt-5-mini", 
-                "parameters": "N/A",
-                "multimodal": True,
-                "pro": True,
-            },
-
-            "OpenAI GPT-4o-mini": {
-                "model_id": "openai/gpt-4o-mini", 
-                "parameters": "N/A",
-                "multimodal": True,
-                "pro": True,
-            },
-            "xAI Grok 4 Fast": {
-                "model_id": "x-ai/grok-4-fast", 
-                "parameters": "N/A",
-                "multimodal": True,
-                "pro": True,
-            },
-            "Nemotron Nano V2": {
-                "model_id": "nvidia/nemotron-nano-9b-v2:free",
-                "parameters": "9B",
-                "multimodal": False 
-            },
-            "Nemotron Nano V2 VL": {
-                "model_id": "nvidia/nemotron-nano-12b-v2-vl:free",
-                "parameters": "12B",
-                "multimodal": True
-            },
-            # Paid-only fast lane for Gemma 4 26B A4B. Same weights as the free
-            # gemma-4-26b-a4b-it on Gemini's direct AI Studio proxy, but routed
-            # through OpenRouter pinned to DeepInfra's dedicated paid capacity —
-            # sub-second latency instead of Google's free-tier serving lane,
-            # which queues badly under load (see gemini_handler.py).
-            "gemma-4-26b-a4b-fast": {
+            # Default model for everyone (free + pro). Paid OpenRouter route (no
+            # ":free" suffix), so it is not rate-limited like the free variant.
+            # Prefer cheap+fast providers in order, but DON'T hard-pin: OpenRouter's
+            # DeepInfra pool is shared across all their customers and gets rate-limited
+            # on its own under load (confirmed live: 429 "engine_overloaded" 3/3 tries
+            # while Cloudflare/Novita served fine). allow_fallbacks left True so a bad
+            # provider degrades to the next one instead of hard-failing the request.
+            "gemma-4-26b-a4b-it": {
                 "model_id": "google/gemma-4-26b-a4b-it",
                 "parameters": "26BA4",
                 "multimodal": True,
-                "pro": True,
-                # Prefer cheap+fast providers in order, but DON'T hard-pin: OpenRouter's
-                # DeepInfra pool is shared across all their customers and gets rate-limited
-                # on its own under load (confirmed live: 429 "engine_overloaded" 3/3 tries
-                # while Cloudflare/Novita served fine). allow_fallbacks left True so a bad
-                # provider degrades to the next one instead of hard-failing the request.
+                "pro": False,
                 "provider_routing": {"order": ["deepinfra", "cloudflare", "novita"], "allow_fallbacks": True},
-            }
+            },
+            "gemma-3-4b-it": {
+                "model_id": "google/gemma-3-4b-it",
+                "parameters": "4B",
+                "multimodal": True,
+                "pro": False,
+            },
+            "gemma-3-12b-it": {
+                "model_id": "google/gemma-3-12b-it",
+                "parameters": "12B",
+                "multimodal": True,
+                "pro": False,
+            },
+            "qwen3.7-flash": {
+                "model_id": "qwen/qwen3.7-flash",
+                "parameters": "N/A",
+                "multimodal": True,
+                "pro": True,
+            },
+            "qwen3-vl-8b": {
+                "model_id": "qwen/qwen3-vl-8b-instruct",
+                "parameters": "8B",
+                "multimodal": True,
+                "pro": True,
+            },
             # "Skip Model Call": {
             #     "model_id": "deepseek/deepseek-chat-v3.1:free", # Example
             #     "parameters": "0B",
@@ -194,6 +179,9 @@ class OpenRouterAPIHandler(BaseAPIHandler):
         # slower/pricier provider behind the scenes.
         if model_info.get("provider_routing"):
             payload["provider"] = model_info["provider_routing"]
+        # Thinking is always off: Observer's monitor loop wants a two-line
+        # answer fast, and hidden reasoning tokens cost latency and money.
+        payload["reasoning"] = {"enabled": False}
 
         # Update headers (in case API key was missing during init)
         headers = self.base_headers.copy()

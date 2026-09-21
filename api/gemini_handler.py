@@ -19,18 +19,6 @@ class GeminiAPIHandler(BaseAPIHandler):
         super().__init__("gemini")
 
         self.model_map = {
-            "gemma-4-26b-a4b-it": {
-                "model_id": "gemma-4-26b-a4b-it",
-                "parameters": "26BA4",
-                "multimodal": True,
-                "pro": False,
-            },
-            "gemma-4-31b-it": {
-                "model_id": "gemma-4-31b-it",
-                "parameters": "31B",
-                "multimodal": True,
-                "pro": False,
-            },
             # Hidden model for agent creator (free users)
             "gemini-2.0-flash-lite-free": {
                 "model_id": "gemini-flash-lite-latest",
@@ -73,8 +61,6 @@ class GeminiAPIHandler(BaseAPIHandler):
     def _build_payload(self, request_data: dict, target_model: str) -> dict:
         payload = dict(request_data)
         payload["model"] = target_model
-        if target_model in ("gemma-4-26b-a4b-it", "gemma-4-31b-it"):
-            payload.setdefault("extra_body", {}).setdefault("google", {})["thinking_config"] = {"thinking_level": "minimal"}
         return payload
 
     async def handle_request(self, request_data: dict):

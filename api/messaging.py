@@ -862,8 +862,12 @@ async def make_voice_call(
     # 1.5. Resolve key or phone number to normalized E.164 format
     resolved_phone = await resolve_to_phone(request_data.to_number)
 
-    # 2. Quota Check (separate voice_call quota)
-    allowed, _usage_count, _reason = await try_consume_for(current_user, "voice_call")
+    # 2. Quota Check (separate voice_call quota). Pass the message so unusually
+    # long TTS calls are weighted by estimated minutes against the shared
+    # notifications budget instead of the 1-minute floor.
+    allowed, _usage_count, _reason = await try_consume_for(
+        current_user, "voice_call", message=request_data.message
+    )
     if not allowed:
         raise HTTPException(
             status_code=429,
