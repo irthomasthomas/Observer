@@ -17,7 +17,7 @@ import base64
 from auth import AuthUser
 from admin_auth import get_admin_access
 # Import the new, unified quota manager functions and constants
-from quota_manager import try_consume_for, get_all_usage_data
+from quota_manager import try_consume_for, get_usage
 from messaging import save_temp_image
 
 # --- Setup (logging is configured once in api.py via logging_config.setup_logging()) ---
@@ -53,15 +53,19 @@ class TelegramRequest(BaseModel):
 
 # --- API Endpoints ---
 
-@tools_router.get("/tools/usage", tags=["Admin"], summary="Get all current usage data")
-async def get_all_usage(is_admin: bool = Depends(get_admin_access)):
+@tools_router.get("/admin/usage", tags=["Admin"], summary="Daily and monthly usage counters")
+async def admin_usage(
+    user_id: str | None = None,
+    emails: bool = False,
+    is_admin: bool = Depends(get_admin_access),
+):
     """
-    (Admin) Returns a snapshot of the current in-memory usage database.
-    Requires a valid X-Admin-Key header.
+    (Admin) Today's and this month's counters, straight from Redis. Pass
+    user_id for one user (direct reads, no scan); omit it for everyone active
+    today. emails=true labels users by email at the cost of one Auth0 lookup
+    each. Requires a valid X-Admin-Key header.
     """
-    # The dependency already handled the security check.
-    # If the code reaches here, 'is_admin' is True.
-    return await get_all_usage_data()
+    return await get_usage(user_id=user_id, emails=emails)
 
 
 @tools_router.post("/tools/send-email", tags=["Tools"])

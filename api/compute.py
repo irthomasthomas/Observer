@@ -15,7 +15,7 @@ from quota_manager import (
     daily_resets_at, monthly_resets_at, NO_MONTHLY_LIMIT,
     QUOTA_LIMITS, PRO_QUOTA_LIMITS, MAX_QUOTA_LIMITS, PLUS_QUOTA_LIMITS,
 )
-import observability
+import creator_log
 
 # Logging is configured once in api.py via logging_config.setup_logging()
 logger = logging.getLogger('compute_router')
@@ -33,89 +33,14 @@ except ImportError as e:
 
 compute_router = APIRouter()
 
-# --- Agent Creator Models Configuration ---
-AGENT_CREATOR_MODELS = {
-    "gemini-2.0-flash-lite-free",
-    "gemini-2.5-flash-lite-free"
-}
-
-async def _log_streaming_response(stream_iterator, ctx: dict):
-    """
-    Wrapper that records the complete streaming response with timing metrics.
-    Accumulates content from OpenAI SSE chunks and records when the stream ends.
-
-    `ctx` carries the static fields for the request (user, model, handler, tier,
-    service, prompt, ...) and is passed straight through to
-    observability.record_request. The recording happens after the final chunk
-    has been yielded, so it is off the user-visible latency path.
-    """
-    import time
-
-    response_parts = []
-    start_time = time.time()
-    first_token_time = None
-    total_chunks = 0
-
-    try:
-        async for chunk in stream_iterator:
-            # Yield chunk immediately for streaming
-            yield chunk
-
-            # Parse chunk to extract content for logging
-            if isinstance(chunk, (str, bytes)):
-                chunk_str = chunk.decode() if isinstance(chunk, bytes) else chunk
-                if chunk_str.startswith("data: ") and not chunk_str.startswith("data: [DONE]"):
-                    try:
-                        json_data = chunk_str[6:].strip()  # Remove "data: " prefix
-                        if json_data:
-                            chunk_json = json.loads(json_data)
-                            choices = chunk_json.get("choices", [])
-                            if choices and "delta" in choices[0]:
-                                content = choices[0]["delta"].get("content")
-                                if content:
-                                    # Mark time to first token
-                                    if first_token_time is None:
-                                        first_token_time = time.time()
-                                    response_parts.append(content)
-                                    total_chunks += 1
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        # Skip malformed chunks
-                        continue
-
-        # Calculate timing metrics
-        end_time = time.time()
-        total_duration = end_time - start_time
-
-        time_to_first_token_ms = None
-        if first_token_time is not None:
-            time_to_first_token_ms = round((first_token_time - start_time) * 1000, 2)
-
-        chunks_per_second = None
-        if total_chunks > 0 and total_duration > 0:
-            chunks_per_second = round(total_chunks / total_duration, 2)
-
-        # Record the complete response when the stream finishes
-        complete_response = ''.join(response_parts)
-        await observability.record_request(
-            **ctx,
-            response_text=complete_response,
-            status_code=200,
-            ttft_ms=time_to_first_token_ms,
-            chunks_per_second=chunks_per_second,
-        )
-
-    except Exception as e:
-        # Record the failure if the stream breaks partway through
-        await observability.record_request(
-            **ctx,
-            response_text=f"STREAM_ERROR: {str(e)}",
-            status_code=500,
-        )
+# The Gemini handler (AI Studio) serves only the hidden Agent Creator models;
+# every other handler is a monitoring backend. That is the whole routing rule.
+CREATOR_HANDLER = "gemini"
 
 # --- API Routes ---
 
-@compute_router.get("/admin/metrics", tags=["Admin"], summary="Get the anonymised request digest for a day")
-async def get_all_metrics(
+@compute_router.get("/admin/creator-log", tags=["Admin"], summary="Get Agent Creator conversations for a day")
+async def get_creator_log(
     date: str | None = Query(
         None,
         description="UTC day to read, YYYY-MM-DD. Defaults to today. The nightly "
@@ -126,26 +51,11 @@ async def get_all_metrics(
     is_admin: bool = Depends(get_admin_access),
 ):
     """
-    (Admin) Returns the anonymised request digest for one UTC day: prompts,
-    responses, models, timings and error status. User ids are hashed at write
-    time and never stored in the clear.
-
-    Entries expire from Redis after OBS_DIGEST_TTL_HOURS (32h by default), so
-    only today and yesterday are retrievable.
-
-    Requires a valid X-Admin-Key header.
+    (Admin) Agent Creator conversations for one UTC day. User ids are hashed at
+    write time. Entries expire after CREATOR_LOG_TTL_HOURS (32h by default), so
+    only today and yesterday are retrievable. Monitoring calls are never logged.
     """
-    return await observability.get_digest(day=date, limit=limit)
-
-@compute_router.get("/status", tags=["Status"], summary="Get model availability and uptime statistics")
-async def get_status():
-    """
-    Public endpoint showing model availability and hourly uptime statistics.
-    Returns success rates for each model over the last 24 hours.
-    No authentication required.
-    """
-    known_models = list(api_handlers.MODEL_TO_HANDLER.keys()) if HANDLERS_AVAILABLE else None
-    return await observability.get_hourly_status(known_models=known_models)
+    return await creator_log.get_log(day=date, limit=limit)
 
 @compute_router.get("/quota", summary="Check remaining API credits for the authenticated user")
 async def check_quota_endpoint(current_user: AuthUser):
@@ -227,7 +137,7 @@ async def check_quota_endpoint(current_user: AuthUser):
 async def handle_chat_completions_endpoint(request: Request, current_user: AuthUser):
     """
     Processes a chat completion request. Requires a valid JWT.
-    Each call will consume one daily MONITOR credit or AGENT_CREATOR credit depending on model.
+    Each call will consume one daily MONITOR credit or AGENT_CREATOR credit depending on which handler serves the model.
     """
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend LLM handlers are not available.")
@@ -241,9 +151,12 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON request body.")
 
-    # --- NEW: Model-based Quota Routing ---
-    # Determine which quota to use based on model type
-    service_type = "agent_creator" if model_name in AGENT_CREATOR_MODELS else "monitor"
+    selected_handler = api_handlers.MODEL_TO_HANDLER.get(model_name)
+    if not selected_handler:
+        logger.warning(f"Request for unsupported model: {model_name}")
+        raise HTTPException(status_code=404, detail=f"Model '{model_name}' is not found or supported.")
+
+    service_type = "agent_creator" if selected_handler.name == CREATOR_HANDLER else "monitor"
 
     # Check and consume quota for all users (each tier has limits as anti-abuse)
     allowed, usage_count, reason = await try_consume_for(current_user, service_type)
@@ -282,13 +195,6 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
     logger.info(f"Processing {service_type} request for {user_type.upper()} user: {current_user.id} (Daily {service_type} request #{usage_count})")
     # --- END of Quota Logic ---
 
-    # 5. Find the appropriate handler
-    selected_handler = api_handlers.MODEL_TO_HANDLER.get(model_name)
-
-    if not selected_handler:
-        logger.warning(f"Request for unsupported model: {model_name}")
-        raise HTTPException(status_code=404, detail=f"Model '{model_name}' is not found or supported.")
-
     # 6. Check tier-based access control
     model_info = next((m for m in selected_handler.get_models() if m["name"] == model_name), None)
     if model_info:
@@ -307,37 +213,23 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
                 detail=f"Model '{model_name}' requires a Pro subscription. Please upgrade to access premium models."
             )
 
-    # 7. Execute handler logic with centralized observability
-
-    # Static fields for this request, shared by the success and error paths.
-    # Agent Creator is conversational, so the digest wants the latest user turn
-    # and the untruncated exchange; monitoring agents send standalone prompts.
-    messages = request_data.get("messages", [])
-    prompt_text, image_count = observability.extract_prompt(messages)
-    is_agent_creator = model_name in AGENT_CREATOR_MODELS
-    if is_agent_creator:
-        prompt_text = observability.extract_latest_user_message(messages)
-
-    obs_ctx = {
-        "user_id": current_user.id,
-        "model": model_name,
-        "handler": selected_handler.name,
-        "prompt_text": prompt_text,
-        "image_count": image_count,
-        "tier": user_type,
-        "service": service_type,
-        "truncate": not is_agent_creator,
-    }
-
+    # 7. Execute. Monitoring streams pass straight through; only Agent Creator
+    # conversations are logged, for the digest.
     try:
         response_payload = await selected_handler.handle_request(request_data)
 
-        # Wrap StreamingResponse with logging (all requests are streaming)
-        if hasattr(response_payload, '__class__') and response_payload.__class__.__name__ == 'StreamingResponse':
+        if response_payload.__class__.__name__ == 'StreamingResponse':
+            stream = response_payload.body_iterator
+            if service_type == "agent_creator":
+                stream = creator_log.tee(
+                    stream,
+                    user_id=current_user.id, model=model_name, tier=user_type,
+                    messages=request_data.get("messages", []),
+                )
             return StreamingResponse(
-                _log_streaming_response(response_payload.body_iterator, obs_ctx),
+                stream,
                 media_type=response_payload.media_type,
-                headers=response_payload.headers
+                headers=response_payload.headers,
             )
 
         # Fallback for non-streaming responses (shouldn't happen but defensive)
@@ -345,23 +237,10 @@ async def handle_chat_completions_endpoint(request: Request, current_user: AuthU
 
     except (HandlerError, ConfigError, BackendAPIError) as e:
         status_code = getattr(e, 'status_code', 500)
-
-        await observability.record_request(
-            **obs_ctx,
-            response_text=f"ERROR: {str(e)}",
-            status_code=status_code,
-        )
-
         logger.error(f"Handler error for model '{model_name}': {e}", exc_info=True)
         raise HTTPException(status_code=status_code, detail=str(e))
 
-    except Exception as e:
-        await observability.record_request(
-            **obs_ctx,
-            response_text=f"INTERNAL_ERROR: {str(e)}",
-            status_code=500,
-        )
-
+    except Exception:
         logger.exception(f"Unexpected error processing request with handler {selected_handler.name}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
@@ -378,19 +257,18 @@ async def list_models_v1_endpoint():
     if not HANDLERS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Backend handlers are not available.")
 
-    # Exclude agent creator models and other hidden models from public listing
-    EXCLUDED = AGENT_CREATOR_MODELS | {"gemini-2.5-pro"}
+    # Agent creator models are hidden from the public listing
     
     # This list will hold the model data in the new format.
     model_data_list = []
 
     if api_handlers and api_handlers.API_HANDLERS:
         for handler in api_handlers.API_HANDLERS.values():
+            if handler.name == CREATOR_HANDLER:
+                continue
             try:
                 for model_info in handler.get_models():
                     name = model_info.get("name", "")
-                    if name in EXCLUDED:
-                        continue
                     
                     # Create the new model entry in the OpenAI-compatible format
                     new_model_entry = {

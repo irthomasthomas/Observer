@@ -2,10 +2,9 @@
 """
 Shared Redis connection pool.
 
-Both quota_manager and observability need Redis. Owning the client here keeps
-them from building a pool each, and keeps observability from having to import
-quota_manager just to get a handle (a strange dependency direction: analytics
-should not depend on billing limits).
+quota_manager and creator_log both need Redis. Owning the client here keeps
+them from building a pool each, and keeps creator_log from having to import
+quota_manager just to get a handle.
 
 --- History ------------------------------------------------------------------
 

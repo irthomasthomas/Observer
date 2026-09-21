@@ -98,12 +98,10 @@ class BaseAPIHandler:
 # Ensure these files contain the rewritten async versions below
 from gemini_handler import GeminiAPIHandler
 from openrouter_handler import OpenRouterAPIHandler
-from fireworks_handler import FireworksAPIHandler
 
 # Instantiate and register the handlers.
 # The __init__ method in BaseAPIHandler adds them to API_HANDLERS
 gemini_handler = GeminiAPIHandler()
-fireworks_handler = FireworksAPIHandler()
 openrouter_handler = OpenRouterAPIHandler()
 
 logger.info("Initialized API Handlers. Available: %s", list(API_HANDLERS.keys()))

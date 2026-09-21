@@ -8,7 +8,6 @@ from typing import Dict
 
 import r2_store
 from redis_client import get_redis
-from usage_log import log_usage
 
 logger = logging.getLogger('quota_manager')
 
@@ -185,12 +184,6 @@ CHIRP_MONTHLY_SECOND_LIMITS = {
     "pro":    18_000,   # 5 hours
     "max":   108_000,   # 30 hours
 }
-GEMINI_SECOND_LIMITS = {
-    "free":   2_700,   # 45 min
-    "plus":   2_700,   # 45 min
-    "pro":   54_000,   # 15 hours
-    "max":   54_000,   # 15 hours
-}
 
 def _seconds_until_midnight() -> int:
     """
@@ -198,7 +191,7 @@ def _seconds_until_midnight() -> int:
 
     Explicitly UTC so daily quota resets do not depend on the container's
     ambient timezone - they line up with the UTC day keys used by
-    observability, and setting TZ on the container cannot silently shift
+    creator-log days, and setting TZ on the container cannot silently shift
     every user's reset.
     """
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -243,7 +236,7 @@ def daily_key(user_id: str, service: str) -> str:
 def monthly_key(user_id: str | None, service: str, org_id: str | None = None) -> str:
     """
     Enterprise seats count against one shared org key; everyone else against
-    their own. Both prefixes deliberately sit outside "quota:" - get_all_usage_data()
+    their own. Both prefixes deliberately sit outside "quota:" - get_usage()
     scans quota:* and splits on ":" expecting exactly three parts.
     """
     if org_id:
@@ -479,10 +472,6 @@ async def try_consume(
     if code == -3:
         return False, count, "monthly_quota"
 
-    # Every service routes its consumption through here, so this one call
-    # covers monitor, agent_creator and all eight messaging channels. It is
-    # synchronous and non-blocking by design - see usage_log.
-    log_usage(user_id, service)
     return True, count, None
 
 
@@ -533,61 +522,78 @@ async def get_usage_for_service(user_id: str, service: str) -> int:
     val = await r.get(f"quota:{user_id}:{service}")
     return int(val) if val else 0
 
-async def get_all_usage_data() -> dict:
+async def get_usage(user_id: str | None = None, emails: bool = False) -> dict:
+    """
+    Admin snapshot of today's and this month's counters, straight from the
+    enforcement keys: {user: {"daily": {...}, "monthly": {...}}}.
+
+    One user is a handful of direct GETs. All users is a SCAN, but daily keys
+    expire at midnight, so its cost tracks daily active users, not signups.
+    Monthly counters are read for those same users only. Org pools are not
+    included (see /orgs/me). Audio is reported as "chirp_seconds".
+
+    emails=True swaps user ids for emails, one Auth0 lookup per user. It is
+    off by default because that lookup is the slow part.
+    """
     r = await get_redis()
-    usage_data: Dict[str, Dict[str, int]] = {}
-    chirp_data: Dict[str, float] = {}
-    gemini_data: Dict[str, float] = {}
+    month = current_month()
+    out: dict[str, dict] = {}
 
-    async for key in r.scan_iter("quota:*"):
-        parts = key.split(":", 2)
-        if len(parts) == 3:
-            _, user_id, service = parts
-            val = await r.get(key)
-            if val:
-                usage_data.setdefault(user_id, {})[service] = int(val)
+    def slot(uid: str) -> dict:
+        return out.setdefault(uid, {"daily": {}, "monthly": {}})
 
-    async for key in r.scan_iter("audio:*"):
-        parts = key.split(":", 2)
-        if len(parts) == 3:
-            _, user_id, provider = parts
-            val = await r.get(key)
-            if val:
-                if provider == "chirp3":
-                    chirp_data[user_id] = float(val)
-                else:
-                    gemini_data[user_id] = float(val)
+    if user_id:
+        keys = [daily_key(user_id, s) for s in QUOTA_LIMITS] + [f"audio:{user_id}:chirp3"]
+        keys += [monthly_key(user_id, m) for m in set(MONTHLY_METER_GROUP.values())]
+        keys += [monthly_key(user_id, "audio:chirp3")]
+        slot(user_id)
+    else:
+        keys = []
+        for pattern in ("quota:*", "audio:*", f"mquota:*:{month}"):
+            keys += [k async for k in r.scan_iter(pattern, count=1000)]
 
-    from auth0_manager import get_email_by_id
+    for i in range(0, len(keys), 500):
+        batch = keys[i:i + 500]
+        for key, val in zip(batch, await r.mget(batch)):
+            if not val:
+                continue
+            prefix, _, rest = key.partition(":")
+            if prefix == "quota":
+                uid, _, service = rest.partition(":")
+                slot(uid)["daily"][service] = int(val)
+            elif prefix == "audio":
+                uid, _, _provider = rest.partition(":")
+                slot(uid)["daily"]["chirp_seconds"] = round(float(val))
+            elif prefix == "mquota":
+                uid, _, meter = rest.rpartition(":")[0].partition(":")
+                # Monthly audio meters are seconds; everything else is a count
+                # (notifications are weighted credits, see NOTIFICATION_CREDIT_VALUE).
+                slot(uid)["monthly"][meter.replace("audio:chirp3", "chirp_seconds")] = (
+                    round(float(val)) if meter.startswith("audio:") else int(val)
+                )
 
-    all_user_ids = set(usage_data) | set(chirp_data) | set(gemini_data)
-    enriched_data = {}
-    for user_id in all_user_ids:
-        try:
-            email = get_email_by_id(user_id)
-            key = email if email else user_id
-        except Exception as e:
-            logger.error(f"Error fetching email for {user_id}: {e}")
-            key = user_id
+    if emails:
+        from auth0_manager import get_email_by_id
 
-        entry = dict(usage_data.get(user_id, {}))
-        chirp_secs = chirp_data.get(user_id, 0.0)
-        gemini_secs = gemini_data.get(user_id, 0.0)
-        if chirp_secs:
-            entry["chirp_seconds"] = round(chirp_secs)
-        if gemini_secs:
-            entry["gemini_seconds"] = round(gemini_secs)
-        enriched_data[key] = entry
+        async def to_email(uid: str) -> str:
+            try:
+                return await asyncio.to_thread(get_email_by_id, uid) or uid
+            except Exception as e:
+                logger.error(f"Error fetching email for {uid}: {e}")
+                return uid
 
-    return enriched_data
+        keys_ = list(out)
+        names = await asyncio.gather(*(to_email(u) for u in keys_))
+        out = {name: out[u] for name, u in zip(names, keys_)}
+
+    return out
 
 async def check_provider_seconds_quota(
     user_id: str, audio_seconds: float, provider: str,
     is_pro: bool = False, is_max: bool = False, is_plus: bool = False,
 ) -> bool:
     tier = "max" if is_max else "pro" if is_pro else "plus" if is_plus else "free"
-    limits = CHIRP_SECOND_LIMITS if provider == "chirp3" else GEMINI_SECOND_LIMITS
-    limit = limits[tier]
+    limit = CHIRP_SECOND_LIMITS[tier]
 
     r = await get_redis()
     val = await r.get(f"audio:{user_id}:{provider}")

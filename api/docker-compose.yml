@@ -13,7 +13,7 @@ services:
         condition: service_healthy
     network_mode: "service:observer-api"
 
-  # Local Redis for quota / rate-limit / observability state. Replaces the
+  # Local Redis for quota / rate-limit state and the agent-creator log. Replaces the
   # managed Upstash instance: at current scale a box-local Redis is simpler,
   # ~100x faster per op, and has no per-command bill. No persistence on purpose
   # - quota keys expire at the next UTC midnight and rate-limit keys within
@@ -64,8 +64,8 @@ services:
       # (redis://redis:6379/0). The old Upstash rediss://... URL is kept
       # commented in .env for the day this needs a shared Redis again.
       #
-      # Every time key in the API is UTC: quota resets, observability hour
-      # buckets and digest days. Pinned so nothing depends on ambient host tz.
+      # Every time key in the API is UTC: quota resets and creator-log days.
+      # Pinned so nothing depends on ambient host tz.
       - TZ=UTC
     volumes:
       # Persist logs
