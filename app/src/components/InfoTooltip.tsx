@@ -11,6 +11,8 @@ interface InfoTooltipProps {
   size?: 'sm' | 'md';
   /** Additional class for positioning */
   className?: string;
+  /** When given, the children become the hover/tap trigger instead of the info icon. */
+  children?: React.ReactNode;
 }
 
 const BUBBLE_WIDTH = 256; // px
@@ -24,6 +26,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
   body,
   size = 'sm',
   className = '',
+  children,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; placeAbove: boolean } | null>(null);
@@ -86,10 +89,12 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
         onClick={(e) => { e.stopPropagation(); open(); }}
         onMouseEnter={open}
         onMouseLeave={scheduleClose}
-        className={`inline-flex items-center justify-center text-gray-400 hover:text-purple-600 transition-colors ${className}`}
-        aria-label="More information"
+        className={children
+          ? `inline-flex items-center justify-center cursor-help ${className}`
+          : `inline-flex items-center justify-center text-gray-400 hover:text-purple-600 transition-colors ${className}`}
+        aria-label={children ? undefined : 'More information'}
       >
-        <Info className={iconSize} />
+        {children ?? <Info className={iconSize} />}
       </button>
 
       {isOpen && coords && createPortal(

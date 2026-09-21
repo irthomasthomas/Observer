@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   Loader2, Zap, ExternalLink,
-  Check, X, Sparkles, RotateCcw, Building2, Users
+  Check, X, Sparkles, User, RotateCcw, Building2, Users
 } from 'lucide-react';
 import { CreditInfoButton } from './CreditVisualization';
 import { InfoTooltip } from './InfoTooltip';
@@ -19,7 +19,7 @@ interface PricingTableProps {
   /** Tier the org seat grants ('pro' | 'max'), only meaningful when status is 'enterprise'. */
   orgTier?: string | null;
   isButtonLoading: boolean;
-  isAuthenticated: boolean;
+  isAuthenticated?: boolean;
   error: string | null;
   onCheckout: () => void;
   onCheckoutPlus: () => void;
@@ -35,13 +35,13 @@ interface PricingTableProps {
 interface FeatureRow {
   label: string;
   sparkle?: boolean;
-  notLoggedIn: boolean | string;
   free: boolean | string;
+  plus: boolean | string;
   pro: boolean | string;
   max: boolean | string;
-  creditInfo?: { free?: number; pro?: number; max?: number };
-  monthlyCreditInfo?: { free?: number; pro?: number; max?: number };
-  info?: { notLoggedIn?: string; free?: string; pro?: string; max?: string };
+  creditInfo?: { free?: number; plus?: number; pro?: number; max?: number };
+  monthlyCreditInfo?: { free?: number; plus?: number; pro?: number; max?: number };
+  info?: { free?: string; plus?: string; pro?: string; max?: string };
 }
 
 interface FeatureGroup {
@@ -53,41 +53,41 @@ const featureGroups: FeatureGroup[] = [
   {
     group: 'Core — Free Forever',
     rows: [
-      { label: 'Local Models',             notLoggedIn: true,  free: true,       pro: true,        max: true },
-      { label: 'Logging & Recording',      notLoggedIn: true,  free: true,       pro: true,        max: true },
-      { label: 'Discord Notifications',    notLoggedIn: true,  free: true,       pro: true,        max: true },
+      { label: 'Local Models',             free: true,       plus: true,       pro: true,        max: true },
+      { label: 'Logging & Recording',      free: true,       plus: true,       pro: true,        max: true },
+      { label: 'Discord, Telegram, Email & Pushover', free: true, plus: true, pro: true, max: true },
     ],
   },
   {
-    group: 'It drives itself',
+    group: 'Cloud inference',
     rows: [
-      { label: 'Micro-Agent Builder', sparkle: true, notLoggedIn: false, free: '3 agents / day', pro: true, max: true,
+      { label: 'Micro-Agent Builder', sparkle: true, free: '3 agents/day', plus: '3 agents/day', pro: true, max: true,
         info: {
           free: 'Building a micro-agent takes ~15 messages with Observer on average, and the free tier gives you 45/day, about 3 full builds. Plenty to design and iterate.',
+          plus: 'Building a micro-agent takes ~15 messages with Observer on average, and the Plus tier gives you 45/day, about 3 full builds. Plenty to design and iterate.',
         } },
-      { label: 'Cloud Monitoring',         notLoggedIn: false, free: '30 min / day', pro: '12 hr/day · 100 hr/mo', max: '24 / 7', creditInfo: { free: 60, pro: 1440, max: 2880 }, monthlyCreditInfo: { free: 1200, pro: 12000 } },
+      { label: 'Cloud Monitoring',         free: '30 min/day · 10 hr/mo', plus: '4 hr/day · 40 hr/mo', pro: '12 hr/day · 100 hr/mo', max: '24 hr/day · 270 hr/mo', creditInfo: { free: 60, plus: 480, pro: 1440, max: 2880 }, monthlyCreditInfo: { free: 1200, plus: 4800, pro: 12000, max: 32400 } },
     ],
   },
   {
     group: 'Notifications',
     rows: [
-      { label: 'Telegram, Email & Pushover', notLoggedIn: false, free: true,      pro: true,        max: true },
-      { label: 'SMS, Phone & WhatsApp',      notLoggedIn: false, free: '5 / day', pro: true, max: true },
+      { label: 'SMS, Phone & WhatsApp',      free: false, plus: false, pro: true, max: true },
     ],
   },
   {
     group: 'Support',
     rows: [
-      { label: 'Support', notLoggedIn: "We don't know you!", free: 'Limited', pro: 'Better', max: 'Priority' },
+      { label: 'Support', free: 'Limited', plus: 'Limited', pro: 'Better', max: 'Priority' },
     ],
   },
 ];
 
-const CheckMark = () => <Check className="h-5 w-5 text-green-500 mx-auto" />;
-const CrossMark = () => <X className="h-5 w-5 text-gray-300 dark:text-gray-600 mx-auto" />;
+const CheckMark = () => <Check className="h-4 w-4 md:h-5 md:w-5 text-green-500 mx-auto" />;
+const CrossMark = () => <X className="h-4 w-4 md:h-5 md:w-5 text-gray-300 dark:text-gray-600 mx-auto" />;
 
 const renderCell = (value: boolean | string, dailyCredits?: number, tierName?: string, info?: string, monthlyCredits?: number) => {
-  const infoBtn = info ? <InfoTooltip body={info} className="align-middle" /> : null;
+  const infoBtn = info && typeof value !== 'string' ? <InfoTooltip body={info} className="align-middle" /> : null;
   if (value === true) {
     return (
       <span className="inline-flex items-center justify-center gap-1">
@@ -97,9 +97,20 @@ const renderCell = (value: boolean | string, dailyCredits?: number, tierName?: s
     );
   }
   if (value === false) return <CrossMark />;
+  const text = (
+    <span className="flex flex-col items-center leading-tight">
+      {value.split(' · ').map((line, i) => (
+        <span key={i}>
+          {line.includes('agents')
+            ? <>{line.split('agents')[0]}<User className="inline h-4 w-4 align-text-bottom" aria-label="agents" />{line.split('agents')[1]}</>
+            : line}
+        </span>
+      ))}
+    </span>
+  );
   return (
-    <span className="inline-flex items-center justify-center gap-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
-      {value}
+    <span className="inline-flex flex-wrap items-center justify-center gap-x-1 text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">
+      {info ? <InfoTooltip body={info}>{text}</InfoTooltip> : text}
       {dailyCredits !== undefined && tierName && (
         <CreditInfoButton dailyCredits={dailyCredits} monthlyCredits={monthlyCredits} tierName={tierName} className="align-middle" />
       )}
@@ -114,21 +125,21 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   status,
   orgTier,
   isButtonLoading,
-  isAuthenticated,
   error,
   onCheckout,
+  onCheckoutPlus,
   onCheckoutMax,
   onManageSubscription,
-  onLogin,
   isTriggeredByQuotaError = false,
   applePayments,
   onModalClose,
 }) => {
   const isAppleDevice = isIOS();
   const [internalLoading, setInternalLoading] = useState(false);
+  // No Apple IAP product exists for Plus, so it is only offered outside iOS.
+  const showPlus = !isAppleDevice;
 
-  // plus is a legacy tier — treat it as pro
-  const effectiveStatus = status === 'plus' ? 'pro' : status;
+  const effectiveStatus = status;
 
   const handleApplePurchase = useCallback(async (tier: 'pro' | 'max') => {
     if (!applePayments) return;
@@ -178,24 +189,25 @@ export const PricingTable: React.FC<PricingTableProps> = ({
   const combinedError   = error || (applePayments?.error ?? null);
 
   // ── table column helpers ──────────────────────────────────────────────────
-  const headerBase = "text-center align-bottom px-3 pt-2 pb-3 md:pt-3 md:pb-4 text-sm font-bold";
-  const cellBase   = "text-center px-3 py-2 md:py-3";
+  const headerBase = "text-center align-top px-1 md:px-3 pt-2 pb-3 md:pt-3 md:pb-4 text-xs md:text-sm font-bold";
+  const cellBase   = "text-center px-1 md:px-3 py-2 md:py-3";
 
-  const getHeaderClass = (tier: 'free' | 'pro' | 'max') => {
+  const getHeaderClass = (tier: 'free' | 'plus' | 'pro' | 'max') => {
     const current = effectiveStatus === tier;
-    if (tier === 'pro') return `${headerBase} rounded-t-lg ${current ? 'bg-purple-600 text-white dark:bg-purple-700' : 'bg-purple-50 text-purple-900 dark:bg-purple-900/30 dark:text-purple-200'}`;
-    if (tier === 'max') return `${headerBase} rounded-t-lg ${current ? 'bg-amber-500  text-white dark:bg-amber-600' : 'bg-amber-50  text-amber-900 dark:bg-amber-900/30 dark:text-amber-200'}`;
+    if (tier === 'plus') return `${headerBase} ${current ? 'bg-[#A8631F] text-white dark:bg-[#8A5220]' : 'bg-[#A8631F]/10 text-[#7A4A1C] dark:bg-[#A8631F]/20 dark:text-[#E3B07A]'}`;
+    if (tier === 'pro') return `${headerBase} border-x-2 border-t-2 border-slate-400 dark:border-slate-400/70 ${current ? 'bg-slate-500 text-white dark:bg-slate-600' : 'bg-slate-100 text-slate-800 dark:bg-slate-700/40 dark:text-slate-200'}`;
+    if (tier === 'max') return `${headerBase} ${current ? 'bg-amber-500  text-white dark:bg-amber-600' : 'bg-amber-50  text-amber-900 dark:bg-amber-900/30 dark:text-amber-200'}`;
     return `${headerBase} bg-gray-50 text-gray-600 dark:bg-gray-900 dark:text-gray-400`;
   };
 
-  const getCellClass = (tier: 'notLoggedIn' | 'free' | 'pro' | 'max') => {
-    const current = tier !== 'notLoggedIn' && effectiveStatus === tier;
-    if (tier === 'pro') return `${cellBase} ${current ? 'bg-purple-50/60 dark:bg-purple-900/20' : ''}`;
+  const getCellClass = (tier: 'free' | 'plus' | 'pro' | 'max', isLastRow = false) => {
+    const current = effectiveStatus === tier;
+    if (tier === 'plus') return `${cellBase} ${current ? 'bg-[#A8631F]/10 dark:bg-[#A8631F]/15' : ''}`;
+    if (tier === 'pro') return `${cellBase} ${isLastRow ? 'border-b-2' : ''} border-x-2 border-slate-400 dark:border-slate-400/70 ${current ? 'bg-slate-200/70 dark:bg-slate-700/40' : 'bg-slate-100/70 dark:bg-slate-700/20'}`;
     if (tier === 'max') return `${cellBase} ${current ? 'bg-amber-50/60 dark:bg-amber-900/20'  : ''}`;
     return cellBase;
   };
 
-  const dataColCount = isAuthenticated ? 4 : 3; // label + data columns
 
   // Enterprise seats are billed to the org, not the user — there is no personal
   // subscription to show or manage, so point them at their team page instead.
@@ -254,46 +266,76 @@ export const PricingTable: React.FC<PricingTableProps> = ({
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900 w-2/5">
+              <th className="text-left px-2 md:px-4 py-3 text-[10px] md:text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900 w-[26%] md:w-2/5">
                 Features
               </th>
-              {isAuthenticated ? (
-                <>
                   {/* Free column */}
                   <th className={getHeaderClass('free')}>
-                    <div aria-hidden className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide invisible">Most Popular</div>
+                    <div aria-hidden className="mb-1 inline-block rounded-full px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-wide invisible">Most Popular</div>
                     <div>Quick Start</div>
                     <div className="text-xs font-normal text-gray-400 dark:text-gray-500 mt-0.5">$0 / mo</div>
-                    <div className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 mt-1">You drive</div>
                     {effectiveStatus === 'free' ? (
                       <span className="mt-2 block text-xs bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-medium">
                         Current
                       </span>
                     ) : (
-                      <button disabled className="mt-2 w-full py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700/50 cursor-not-allowed">
+                      <button disabled className="mt-2 w-full py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-xs md:text-sm font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700/50 cursor-not-allowed">
                         Free Forever
                       </button>
                     )}
                   </th>
-                  {/* Pro column */}
+                  {/* Plus column (bronze) */}
+                  {showPlus && (
+                    <th className={getHeaderClass('plus')}>
+                      <div aria-hidden className="mb-1 inline-block rounded-full px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-wide invisible">Most Popular</div>
+                      <div>Plus</div>
+                      <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'plus' ? 'text-orange-100' : 'text-[#8A5220] dark:text-[#E3B07A]'}`}>
+                        $8 / mo
+                      </div>
+                      {effectiveStatus === 'plus' ? (
+                        <>
+                          <span className="mt-2 block text-xs bg-[#A8631F]/30 text-[#7A4A1C] dark:bg-[#A8631F]/40 dark:text-[#F0CFA5] px-2 py-0.5 rounded-full font-medium">
+                            Current
+                          </span>
+                          <button
+                            onClick={handleManageSubscription}
+                            disabled={combinedLoading}
+                            className="mt-1.5 w-full py-1.5 rounded-lg border border-[#A8631F]/50 text-xs md:text-sm font-medium text-[#7A4A1C] dark:text-[#F0CFA5] bg-[#A8631F]/15 hover:bg-[#A8631F]/25 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                          >
+                            {combinedLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                            Manage
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={onCheckoutPlus}
+                          disabled={combinedLoading}
+                          className="mt-2 w-full py-2 rounded-lg text-xs md:text-sm font-bold text-white bg-[#A8631F] hover:bg-[#8F5218] hover:scale-105 disabled:opacity-50 transition-all flex items-center justify-center gap-1 shadow-md ring-2 ring-[#A8631F]/40"
+                        >
+                          {combinedLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                          Upgrade
+                        </button>
+                      )}
+                    </th>
+                  )}
+                  {/* Pro column (silver) */}
                   <th className={getHeaderClass('pro')}>
-                    <div className={`mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${effectiveStatus === 'pro' ? 'invisible' : 'bg-purple-600 text-white dark:bg-purple-500'}`}>
+                    <div className={`mb-1 inline-block rounded-full px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-wide ${effectiveStatus === 'pro' ? 'invisible' : 'bg-slate-500 text-white dark:bg-slate-400 dark:text-slate-900'}`}>
                       Most Popular
                     </div>
                     <div>Pro</div>
-                    <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'pro' ? 'text-purple-200' : 'text-purple-500'}`}>
+                    <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'pro' ? 'text-slate-200' : 'text-slate-500 dark:text-slate-400'}`}>
                       ${isAppleDevice ? '22.99' : '20'} / mo
                     </div>
-                    <div className={`text-[11px] font-semibold mt-1 ${effectiveStatus === 'pro' ? 'text-purple-100' : 'text-purple-600 dark:text-purple-300'}`}>It drives itself</div>
                     {effectiveStatus === 'pro' ? (
                       <>
-                        <span className="mt-2 block text-xs bg-purple-200 text-purple-700 dark:bg-purple-800 dark:text-purple-200 px-2 py-0.5 rounded-full font-medium">
+                        <span className="mt-2 block text-xs bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-full font-medium">
                           Current
                         </span>
                         <button
                           onClick={handleManageSubscription}
                           disabled={combinedLoading}
-                          className="mt-1.5 w-full py-1.5 rounded-lg border border-purple-300 dark:border-purple-700 text-sm font-medium text-purple-700 dark:text-purple-200 bg-purple-100 dark:bg-purple-900/40 hover:bg-purple-200 dark:hover:bg-purple-900/60 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                          className="mt-1.5 w-full py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-xs md:text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
                         >
                           {combinedLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
                           Manage
@@ -303,7 +345,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                       <button
                         onClick={handleProCheckout}
                         disabled={combinedLoading}
-                        className="mt-2 w-full py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 hover:scale-105 disabled:opacity-50 transition-all flex items-center justify-center gap-1 shadow-md ring-2 ring-purple-300"
+                        className="mt-2 w-full py-2 rounded-lg text-xs md:text-sm font-bold text-white bg-slate-500 hover:bg-slate-600 hover:scale-105 disabled:opacity-50 transition-all flex items-center justify-center gap-1 shadow-md ring-2 ring-slate-300"
                       >
                         {combinedLoading && <Loader2 className="h-3 w-3 animate-spin" />}
                         Free Trial
@@ -312,12 +354,11 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                   </th>
                   {/* Max column */}
                   <th className={getHeaderClass('max')}>
-                    <div aria-hidden className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide invisible">Most Popular</div>
-                    <div>Max</div>
+                    <div aria-hidden className="mb-1 inline-block rounded-full px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-wide invisible">Most Popular</div>
+                    <div>MAX</div>
                     <div className={`text-xs font-normal mt-0.5 ${effectiveStatus === 'max' ? 'text-amber-100' : 'text-amber-500'}`}>
                       ${isAppleDevice ? '99.99' : '80'} / mo
                     </div>
-                    <div className={`text-[11px] font-semibold mt-1 ${effectiveStatus === 'max' ? 'text-amber-100' : 'text-amber-600 dark:text-amber-300'}`}>Always on</div>
                     {effectiveStatus === 'max' ? (
                       <>
                         <span className="mt-2 block text-xs bg-amber-200 text-amber-700 dark:bg-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-full font-medium">
@@ -326,7 +367,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                         <button
                           onClick={handleManageSubscription}
                           disabled={combinedLoading}
-                          className="mt-1.5 w-full py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-sm font-medium text-amber-700 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                          className="mt-1.5 w-full py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-xs md:text-sm font-medium text-amber-700 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
                         >
                           {combinedLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
                           Manage
@@ -336,68 +377,59 @@ export const PricingTable: React.FC<PricingTableProps> = ({
                       <button
                         onClick={handleMaxCheckout}
                         disabled={combinedLoading}
-                        className="mt-2 w-full py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 hover:scale-105 disabled:opacity-50 transition-all flex items-center justify-center gap-1 shadow-md ring-2 ring-amber-300"
+                        className="mt-2 w-full py-2 rounded-lg text-xs md:text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 hover:scale-105 disabled:opacity-50 transition-all flex items-center justify-center gap-1 shadow-md ring-2 ring-amber-300"
                       >
                         {combinedLoading && <Loader2 className="h-3 w-3 animate-spin" />}
                         Upgrade
                       </button>
                     )}
                   </th>
-                </>
-              ) : (
-                <>
-                  <th className={`${headerBase} bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400`}>Not Logged In</th>
-                  <th className={`${headerBase} bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 rounded-t-lg`}>
-                    <div>Quick Start</div>
-                    <div className="text-xs font-normal text-purple-500 dark:text-purple-300 mt-0.5">Free</div>
-                    <div className="text-[11px] font-semibold text-purple-400 dark:text-purple-300 mt-1">You drive</div>
-                    <button
-                      onClick={onLogin}
-                      className="mt-2 w-full py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 hover:scale-105 transition-all shadow-md ring-2 ring-purple-300"
-                    >
-                      Get Started
-                    </button>
-                  </th>
-                </>
-              )}
             </tr>
           </thead>
           <tbody>
-            {featureGroups.map((group) => (
+            {featureGroups.map((group, gi) => (
               <React.Fragment key={group.group}>
-                <tr className="bg-gray-50/80 dark:bg-gray-900/50">
-                  <td colSpan={dataColCount} className="px-4 py-1 md:py-2">
+                <tr>
+                  <td className="px-2 md:px-4 py-1 md:py-2 bg-gray-50/80 dark:bg-gray-900/50">
                     <span className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                       {group.group}
                     </span>
                   </td>
+                  <td className="bg-gray-50/80 dark:bg-gray-900/50" />
+                  {showPlus && <td className="bg-gray-50/80 dark:bg-gray-900/50" />}
+                  {/* Pro column highlight runs over the group band */}
+                  <td className="border-x-2 border-slate-400 dark:border-slate-400/70 bg-slate-100/70 dark:bg-slate-700/20" />
+                  <td className="bg-gray-50/80 dark:bg-gray-900/50" />
                 </tr>
-                {group.rows.filter(row => isAuthenticated || !row.sparkle).map((row, i) => (
-                  <tr key={row.label} className={`border-t border-gray-100 dark:border-gray-700 ${row.sparkle ? 'bg-purple-200/60 dark:bg-purple-900/30' : i % 2 === 1 ? 'bg-gray-50/30 dark:bg-gray-900/30' : ''}`}>
-                    <td className="px-4 py-3 text-sm font-medium">
+                {group.rows.map((row, i) => {
+                  const isLastRow = gi === featureGroups.length - 1 && i === group.rows.length - 1;
+                  return (
+                  <tr key={row.label} className={`border-t border-gray-100 dark:border-gray-700 ${row.sparkle ? '[&_svg.lucide-check]:text-blue-500 dark:[&_svg.lucide-check]:text-blue-400' : i % 2 === 1 ? 'bg-gray-50/30 dark:bg-gray-900/30' : ''}`}>
+                    <td className={`px-2 md:px-4 py-3 text-xs md:text-sm font-medium ${row.sparkle ? 'border-l-2 border-l-[#2546BE]/60' : ''}`}>
                       {row.sparkle ? (
-                        <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-300 font-medium">
+                        <span className="inline-flex items-center gap-1.5 md:gap-2.5 text-[#182960] dark:text-blue-200 font-medium">
+                          <span className="relative flex-shrink-0">
+                            <span className="flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full bg-[#182960]">
+                              <img src="/eye-logo-black.svg" alt="" className="h-3 w-3 md:h-3.5 md:w-3.5 invert" />
+                            </span>
+                            <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-50" />
+                              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-white dark:ring-gray-800" />
+                            </span>
+                          </span>
                           {row.label}
-                          <Sparkles className="h-4 w-4 text-purple-500 flex-shrink-0" />
                         </span>
                       ) : (
                         <span className="text-gray-700 dark:text-gray-300">{row.label}</span>
                       )}
                     </td>
-                    {isAuthenticated ? (
-                      <>
                         <td className={getCellClass('free')}>{renderCell(row.free, row.creditInfo?.free, 'Free tier', row.info?.free, row.monthlyCreditInfo?.free)}</td>
-                        <td className={getCellClass('pro')}>{renderCell(row.pro, row.creditInfo?.pro, 'Pro tier', row.info?.pro, row.monthlyCreditInfo?.pro)}</td>
+                        {showPlus && <td className={getCellClass('plus')}>{renderCell(row.plus, row.creditInfo?.plus, 'Plus tier', row.info?.plus, row.monthlyCreditInfo?.plus)}</td>}
+                        <td className={getCellClass('pro', isLastRow)}>{renderCell(row.pro, row.creditInfo?.pro, 'Pro tier', row.info?.pro, row.monthlyCreditInfo?.pro)}</td>
                         <td className={getCellClass('max')}>{renderCell(row.max, row.creditInfo?.max, 'Max tier', row.info?.max, row.monthlyCreditInfo?.max)}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td className={getCellClass('notLoggedIn')}>{renderCell(row.notLoggedIn)}</td>
-                        <td className={getCellClass('free')}>{renderCell(row.free, row.creditInfo?.free, 'Free tier', row.info?.free, row.monthlyCreditInfo?.free)}</td>
-                      </>
-                    )}
                   </tr>
-                ))}
+                  );
+                })}
               </React.Fragment>
             ))}
           </tbody>
@@ -412,7 +444,7 @@ export const PricingTable: React.FC<PricingTableProps> = ({
       )}
 
       {/* ── iOS: Restore & Load Products ── */}
-      {isAppleDevice && applePayments && isAuthenticated && (
+      {isAppleDevice && applePayments && (
         <div className="text-center mt-3 flex justify-center gap-4">
           {applePayments.loadProducts && (
             <button
