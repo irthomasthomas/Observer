@@ -117,6 +117,9 @@ export function useMCP(options: UseMCPOptions) {
 
   // Aborts the in-flight run. One controller per send(); stop() fires it.
   const abortRef = useRef<AbortController | null>(null);
+  // The currently in-flight run's body, so a new send() can wait for it to actually unwind
+  // (not just for isRunning to flip, which lags a tick behind React state) before starting.
+  const inFlightRef = useRef<Promise<void> | null>(null);
 
   const syncMessages = useCallback(() => {
     // Expose everything except the system message; the component decides what to render.
@@ -158,11 +161,29 @@ export function useMCP(options: UseMCPOptions) {
     setUserInfoQueue(q => q.filter(r => r.requestId !== requestId));
   }, []);
 
+  /** Abort whatever's in flight (a model call or a tool call) and reject any pending
+   *  ask_user_info modal, so it isn't left on screen with nothing listening. Doesn't wait for
+   *  the run to actually unwind — callers that need that await `inFlightRef.current`. */
+  const interrupt = useCallback(() => {
+    abortRef.current?.abort();
+    for (const [, settler] of userInfoResolvers.current) settler.reject(abortError());
+    userInfoResolvers.current.clear();
+    setUserInfoQueue([]);
+  }, []);
+
   /** Runs one user turn. Resolves, once the run settles, with the run's final assistant text
    *  and any images the model captured along the way (what remote control sends back to the
-   *  phone), or undefined if there was no final text. */
+   *  phone), or undefined if there was no final text.
+   *
+   *  A new message always wins over whatever's currently running: rather than queuing behind
+   *  a slow or hung tool call (e.g. capture_screen's picker with nobody there to click it),
+   *  it interrupts that run — via the same abort path `stop()` uses — and waits for it to
+   *  actually unwind before starting. */
   const send = useCallback(async (userText: string, images?: string[]): Promise<{ text: string; images: string[] } | undefined> => {
-    if (isRunning) return undefined;
+    if (inFlightRef.current) {
+      interrupt();
+      await inFlightRef.current.catch(() => {});
+    }
 
     Logger.info(LOG_SOURCE, `User message sent (model: ${modelName})`, {
       imageCount: images?.length ?? 0,
@@ -217,64 +238,66 @@ export function useMCP(options: UseMCPOptions) {
       }
     };
 
-    try {
-      await runConversation(wireRef.current, {
-        send: sendToModel,
-        getTool,
-        context: { getToken, signal, requestUserInfo },
-        signal,
-        onWireUpdate: syncMessages,
-        // Drop stream chunks from an orphaned (aborted) model call so a killed run can't
-        // keep repopulating the live bubble.
-        onAssistantDelta: chunk => { if (!signal.aborted) setStreamingText(prev => prev + chunk); },
-        onStatus: (id, status, meta) => {
-          setStatus(id, status, meta);
-          const toolName = meta?.name ?? 'unknown';
-          if (status === 'running') {
-            Logger.info(LOG_SOURCE, `Running tool: ${toolName}`, { toolCallId: id, args: meta?.args });
-          } else if (status === 'done') {
-            Logger.info(LOG_SOURCE, `Tool completed: ${toolName}`, { toolCallId: id });
-          } else if (status === 'error') {
-            Logger.error(LOG_SOURCE, `Tool failed: ${toolName}`, { toolCallId: id });
-          }
-          if (status === 'done' && meta && MUTATING_TOOLS.has(meta.name)) {
-            mutationListeners.current.forEach(l => l(meta.name));
-          }
-        },
-      });
-    } catch (err) {
-      if (isAbortError(err)) {
-        // Hard stop: leave the conversation valid (no dangling tool_calls) and silent —
-        // the user asked to stop, so no error bubble.
-        Logger.info(LOG_SOURCE, 'Run stopped by user');
-        sealDanglingToolCalls(wireRef.current);
-        syncMessages();
-      } else {
-        const text = err instanceof Error ? err.message : 'An unknown error occurred.';
-        Logger.error(LOG_SOURCE, `Run failed: ${text}`, { error: err });
-        wireRef.current.push({ role: 'assistant', content: `Sorry, I ran into an error: ${text}` });
-        syncMessages();
+    const runPromise = (async () => {
+      try {
+        await runConversation(wireRef.current, {
+          send: sendToModel,
+          getTool,
+          context: { getToken, signal, requestUserInfo },
+          signal,
+          onWireUpdate: syncMessages,
+          // Drop stream chunks from an orphaned (aborted) model call so a killed run can't
+          // keep repopulating the live bubble.
+          onAssistantDelta: chunk => { if (!signal.aborted) setStreamingText(prev => prev + chunk); },
+          onStatus: (id, status, meta) => {
+            setStatus(id, status, meta);
+            const toolName = meta?.name ?? 'unknown';
+            if (status === 'running') {
+              Logger.info(LOG_SOURCE, `Running tool: ${toolName}`, { toolCallId: id, args: meta?.args });
+            } else if (status === 'done') {
+              Logger.info(LOG_SOURCE, `Tool completed: ${toolName}`, { toolCallId: id });
+            } else if (status === 'error') {
+              Logger.error(LOG_SOURCE, `Tool failed: ${toolName}`, { toolCallId: id });
+            }
+            if (status === 'done' && meta && MUTATING_TOOLS.has(meta.name)) {
+              mutationListeners.current.forEach(l => l(meta.name));
+            }
+          },
+        });
+      } catch (err) {
+        if (isAbortError(err)) {
+          // Interrupted — either a hard stop or a new message taking over. Leave the
+          // conversation valid (no dangling tool_calls) and silent; either way there's no
+          // error bubble to show.
+          Logger.info(LOG_SOURCE, 'Run interrupted');
+          sealDanglingToolCalls(wireRef.current);
+          syncMessages();
+        } else {
+          const text = err instanceof Error ? err.message : 'An unknown error occurred.';
+          Logger.error(LOG_SOURCE, `Run failed: ${text}`, { error: err });
+          wireRef.current.push({ role: 'assistant', content: `Sorry, I ran into an error: ${text}` });
+          syncMessages();
+        }
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+        setIsRunning(false);
+        setStreamingText('');
       }
-    } finally {
-      if (abortRef.current === controller) abortRef.current = null;
-      setIsRunning(false);
-      setStreamingText('');
-    }
+    })();
+    inFlightRef.current = runPromise;
+    await runPromise;
+    if (inFlightRef.current === runPromise) inFlightRef.current = null;
+
     const turnSlice = wireRef.current.slice(turnStart);
     const text = finalAssistantText(turnSlice);
     return text ? { text, images: turnImages(turnSlice) } : undefined;
-  }, [isRunning, isUsingObServer, getToken, modelName, syncMessages, setStatus, requestUserInfo]);
+  }, [isUsingObServer, getToken, modelName, syncMessages, setStatus, requestUserInfo, interrupt]);
 
   /** Hard-stop the in-flight run: kill the loop and abandon any model call. Leaves the
    *  (sealed) conversation intact. */
   const stop = useCallback(() => {
-    abortRef.current?.abort();
-    // Reject any run parked on the ask_user_info modal, or it would be left on screen with
-    // nothing listening for its answer.
-    for (const [, settler] of userInfoResolvers.current) settler.reject(abortError());
-    userInfoResolvers.current.clear();
-    setUserInfoQueue([]);
-  }, []);
+    interrupt();
+  }, [interrupt]);
 
   // Persist once a run settles (not on every streamed wire update).
   useEffect(() => {

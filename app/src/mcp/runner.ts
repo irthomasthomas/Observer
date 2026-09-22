@@ -55,6 +55,31 @@ function toolResultContent(result: ToolResult): string {
   return JSON.stringify(result.data ?? {});
 }
 
+const CANCELLED: ToolResult = { error: 'Cancelled by user.' };
+
+/**
+ * Race a tool's `execute()` against the abort signal, so the loop unblocks the instant a new
+ * message interrupts it — even for a tool that never looks at `ctx.signal` itself (e.g.
+ * capture_screen's browser picker with nobody there to click it). The underlying call is left
+ * to settle in the background; its result is simply discarded, same as the model-call race in
+ * useMCP's sendToModel.
+ */
+function executeOrAbort(call: PreparedCall, context: RunnerDeps['context'], signal?: AbortSignal): Promise<ToolResult> {
+  const executePromise = call.tool.execute(call.args, context).catch((e): ToolResult => ({
+    error: e instanceof Error ? e.message : String(e),
+  }));
+  if (!signal) return executePromise;
+  if (signal.aborted) return Promise.resolve(CANCELLED);
+  return new Promise<ToolResult>(resolve => {
+    const onAbort = () => resolve(CANCELLED);
+    signal.addEventListener('abort', onAbort, { once: true });
+    executePromise.then(result => {
+      signal.removeEventListener('abort', onAbort);
+      resolve(result);
+    });
+  });
+}
+
 /**
  * Guarantee wire validity after an abort: the OpenAI API rejects a request where an
  * assistant `tool_calls` message isn't immediately followed by a `role: 'tool'` result
@@ -152,12 +177,7 @@ export async function runConversation(wire: WireMessage[], deps: RunnerDeps): Pr
 
     const runOne = async (call: PreparedCall) => {
       deps.onStatus?.(call.id, 'running', { name: call.name, args: call.args });
-      let result: ToolResult;
-      try {
-        result = await call.tool.execute(call.args, deps.context);
-      } catch (e) {
-        result = { error: e instanceof Error ? e.message : String(e) };
-      }
+      const result = await executeOrAbort(call, deps.context, deps.signal);
       deps.onStatus?.(call.id, result.error ? 'error' : 'done', { name: call.name, args: call.args });
       pushTool(call.id, result, call.name);
       if (result.images && result.images.length > 0) pendingImages.push(...result.images);

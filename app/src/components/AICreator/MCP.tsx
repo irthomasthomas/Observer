@@ -478,7 +478,9 @@ const MCP: React.FC<MCPProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!userInput.trim() && previewImages.length === 0) || isRunning) return;
+    // No isRunning gate: send() interrupts whatever's in flight (a slow model call or a hung
+    // tool call) and takes over immediately, rather than queuing behind it.
+    if (!userInput.trim() && previewImages.length === 0) return;
     const text = userInput.trim() || `[${previewImages.length} image${previewImages.length > 1 ? 's' : ''}]`;
     const images = previewImages;
     // Stop dictation so the reflect effect can't re-populate the box we're about to clear.
@@ -646,8 +648,11 @@ const MCP: React.FC<MCPProps> = ({
     'Notify me when my battery is low',
   ];
 
-  const isInputDisabled = isRunning || (isUsingObServer && !isAuthenticated);
-  const isSendDisabled = isInputDisabled || (!userInput.trim() && previewImages.length === 0);
+  // Not gated on isRunning: typing/sending is always available — a send interrupts whatever
+  // tool/model call is in flight instead of waiting for it.
+  const isInputDisabled = isUsingObServer && !isAuthenticated;
+  const isTextEmpty = !userInput.trim() && previewImages.length === 0;
+  const isSendDisabled = isInputDisabled || isTextEmpty;
   const showSuggestions = !hideSuggestions && messages.length === 0 && !isRunning;
 
   const getPlaceholder = () => {
@@ -799,7 +804,9 @@ const MCP: React.FC<MCPProps> = ({
               : <Mic className="h-5 w-5" />}
           </button>
 
-          {isRunning ? (
+          {isRunning && isTextEmpty ? (
+            // Nothing typed yet: offer a plain stop. As soon as they type, this swaps to Send,
+            // which interrupts the run and takes over instead of stopping it outright.
             <button
               type="button"
               onClick={stop}

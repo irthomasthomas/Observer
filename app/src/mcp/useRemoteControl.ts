@@ -98,7 +98,10 @@ export function useRemoteControl(
   }, [enabled, lastMessageAt]);
 
   useEffect(() => {
-    if (mcp.isRunning || draining.current || queue.current.length === 0) return;
+    // No mcp.isRunning gate: mcp.send() now interrupts whatever's in flight (a hung tool call
+    // like capture_screen's picker with nobody there to click it) rather than queuing behind
+    // it, so a fresh remote message should take over immediately too.
+    if (draining.current || queue.current.length === 0) return;
     const message = queue.current.shift()!;
     draining.current = true;
 
