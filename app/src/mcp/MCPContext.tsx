@@ -12,6 +12,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { TokenProvider } from '@utils/main_loop';
 import { useMCP, type UseMCPReturn } from './useMCP';
+import { useRemoteControl } from './useRemoteControl';
 import UserInfoModal from '@components/AICreator/UserInfoModal';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
@@ -36,6 +37,8 @@ export const MCPProvider: React.FC<MCPProviderProps> = ({ getToken, isUsingObSer
     isUsingObServer,
     modelName,
   });
+  // Messages from the user's linked WhatsApp/Telegram land in this same conversation.
+  useRemoteControl(mcp, getToken);
   return (
     <MCPContext.Provider value={{ ...mcp, modelName, setModelName }}>
       {children}

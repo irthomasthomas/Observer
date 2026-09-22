@@ -12,6 +12,8 @@ import type { UserInfoKind } from '../mcp/types';
 /** The Telegram bot users message to obtain their chat_id. */
 export const TELEGRAM_BOT = 'observer_notification_bot';
 export const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT}`;
+/** Bot deep link that sends `/start <code>`, linking the chat to the user's whitelist code. */
+export const telegramCodeLink = (code: string) => `${TELEGRAM_BOT_URL}?start=${encodeURIComponent(code)}`;
 
 export const CONTACT_PLACEHOLDER: Record<UserInfoKind, string> = {
   phone: '+1 555 123 4567',

@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import type { TokenProvider } from '@utils/main_loop';
 import { type ToolStatusEntry } from '../../mcp/useMCP';
 import { useMCPContext } from '../../mcp/MCPContext';
+import { parseRemotePrompt, type RemoteChannel } from '../../mcp/remote';
 import type { ToolCall } from '../../mcp/types';
 import { Logger, type WhitelistChannel } from '@utils/logging';
 import { StreamManager, StreamState } from '@utils/streamManager';
@@ -507,7 +508,7 @@ const MCP: React.FC<MCPProps> = ({
   // any run of consecutive 'tools' blocks into one before rendering. No message-stream state
   // machine — grouping falls out of "these blocks are next to each other in the list."
   type Block =
-    | { type: 'user'; text: string; images: any[] }
+    | { type: 'user'; text: string; images: any[]; remote?: RemoteChannel }
     | { type: 'text'; content: string }
     | { type: 'tools'; calls: ToolCall[] };
 
@@ -524,7 +525,9 @@ const MCP: React.FC<MCPProps> = ({
           ? msg.content
           : (msg.content.find((p: any) => p.type === 'text')?.text ?? '');
         const images = Array.isArray(msg.content) ? msg.content.filter((p: any) => p.type === 'image_url') : [];
-        blocks.push({ type: 'user', text, images });
+        // Messages sent from the phone carry a model-facing prefix; show an icon instead.
+        const remote = parseRemotePrompt(text);
+        blocks.push({ type: 'user', text: remote?.text ?? text, images, remote: remote?.channel });
         continue;
       }
 
@@ -552,7 +555,12 @@ const MCP: React.FC<MCPProps> = ({
     return merged.map((block, idx) => {
       if (block.type === 'user') {
         return (
-          <div key={idx} className="flex justify-end">
+          <div key={idx} className="flex flex-col items-end">
+            {block.remote && (
+              <span className="text-xs text-gray-400 mb-1 mr-1">
+                {block.remote === 'whatsapp' ? 'WhatsApp' : 'Telegram'}
+              </span>
+            )}
             <div className={userBubbleClass}>
               {block.text && <p className="whitespace-pre-wrap">{block.text}</p>}
               {block.images.length > 0 && (

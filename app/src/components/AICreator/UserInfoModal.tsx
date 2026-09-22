@@ -32,6 +32,7 @@ import {
   CONTACT_PLACEHOLDER,
   TELEGRAM_BOT,
   TELEGRAM_BOT_URL,
+  telegramCodeLink,
   contactError,
   contactValid,
   normalizeContact,
@@ -119,6 +120,54 @@ const GoldenPathPanel: React.FC<{
     <div className="flex flex-col items-center gap-4 py-2">
       <WhitelistQR code={code} channel={channel} />
 
+      <div className="flex items-center gap-1.5 text-[11px] text-purple-600">
+        <Loader className="h-3 w-3 animate-spin" />
+        <span>Waiting — this continues automatically.</span>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Golden path for Telegram, mirroring the phone one: the bot deep link carries the persisted
+ * whitelist code (`/start <code>`), which links the chat to that code server-side. The code is
+ * then what agent code passes as sendTelegram's chat_id, and the chat can also talk to the MCP.
+ */
+const TelegramCodePanel: React.FC<{
+  code: string;
+  getToken: () => Promise<string | undefined>;
+  onLinked: () => void;
+}> = ({ code, getToken, onLinked }) => {
+  const { allWhitelisted } = useWhitelistPolling([{ number: code, isWhitelisted: false }], getToken, 'telegram', true);
+  const link = telegramCodeLink(code);
+
+  useEffect(() => { if (allWhitelisted) onLinked(); }, [allWhitelisted, onLinked]);
+
+  if (allWhitelisted) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-6 text-green-700">
+        <CheckCircle2 className="h-8 w-8" />
+        <p className="text-sm font-medium">You're all set — Telegram connected.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-2">
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+        <QRCodeSVG value={link} size={168} level="H" includeMargin={false} fgColor="#111827" />
+      </div>
+      <a
+        href={link}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded text-xs font-medium hover:bg-black transition-colors"
+      >
+        Open in Telegram <ExternalLink className="h-3 w-3" />
+      </a>
+      <p className="text-xs text-gray-500 text-center">
+        Scan or open, then tap <span className="font-medium">Start</span> in the chat with @{TELEGRAM_BOT}.
+      </p>
       <div className="flex items-center gap-1.5 text-[11px] text-purple-600">
         <Loader className="h-3 w-3 animate-spin" />
         <span>Waiting — this continues automatically.</span>
@@ -271,6 +320,12 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
   );
   const [codeVerified, setCodeVerified] = useState(false);
   const showFallback = phoneStep === 'fallback';
+
+  // Telegram: the same persisted code via the bot's /start deep link, unless the user already
+  // has a remembered chat ID (then the one-click confirm below) or picks "paste a chat ID".
+  const [telegramStep, setTelegramStep] = useState<'code' | 'paste'>(kind === 'telegram' && !initial ? 'code' : 'paste');
+  const telegramCode = useMemo(() => (kind === 'telegram' ? SensorSettings.ensureWhitelistCode() : ''), [kind]);
+  const useTelegramCode = kind === 'telegram' && telegramStep === 'code';
   const useCodePath = needsWhitelist && phoneStep === 'qr';
 
   const rotateCode = () => {
@@ -366,6 +421,24 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
           />
         )}
 
+        {useTelegramCode && (
+          <>
+            <TelegramCodePanel
+              code={telegramCode}
+              getToken={getAccessToken}
+              onLinked={() => onResolve(requestId, { value: telegramCode })}
+            />
+            <div className="text-center">
+              <button
+                onClick={() => { setTelegramStep('paste'); setEditing(true); }}
+                className="text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Or paste a chat ID instead
+              </button>
+            </div>
+          </>
+        )}
+
         {/* Golden path for phone: one big QR + code, no typing required. */}
         {useCodePath && (
           <>
@@ -395,7 +468,7 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
           </button>
         )}
 
-        {(!needsWhitelist || showFallback) && (
+        {(!needsWhitelist || showFallback) && !useTelegramCode && (
         <>
         {/* Remembered value — one-click confirm instead of retyping. */}
         {!editing && (
@@ -438,6 +511,14 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
                 </Step>
                 <Step n={2}>Send it <span className="font-mono text-gray-900">/start</span></Step>
                 <Step n={3}>Paste the chat ID it replies with below.</Step>
+                <li>
+                  <button
+                    onClick={() => setTelegramStep('code')}
+                    className="text-xs font-medium text-purple-700 hover:text-purple-900 transition-colors"
+                  >
+                    Connect with a QR code instead
+                  </button>
+                </li>
               </ol>
             )}
 
@@ -509,7 +590,7 @@ const UserInfoModal: React.FC<UserInfoModalProps> = ({ req, onResolve }) => {
         <button onClick={skip} className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
           Skip for now
         </button>
-        {phoneStep !== 'confirm' && (
+        {phoneStep !== 'confirm' && !useTelegramCode && (
           <button
             onClick={confirm}
             disabled={!canConfirm}

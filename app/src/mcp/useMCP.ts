@@ -44,6 +44,17 @@ const LOG_SOURCE = 'MCP';
 /** Tools that change the dashboard's agent list / running state. */
 const MUTATING_TOOLS = new Set(['create_agent', 'edit_agent', 'start_agent', 'stop_agent']);
 
+/** The last non-empty assistant prose in `messages` (the runner pads empty turns with U+200B). */
+function finalAssistantText(messages: WireMessage[]): string | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== 'assistant' || typeof m.content !== 'string') continue;
+    const text = m.content.replace(/\u200B/g, '').trim();
+    if (text) return text;
+  }
+  return undefined;
+}
+
 const abortError = () => new DOMException('Stopped by user.', 'AbortError');
 const isAbortError = (e: unknown): boolean =>
   e instanceof DOMException ? e.name === 'AbortError' : (e as any)?.name === 'AbortError';
@@ -128,8 +139,10 @@ export function useMCP(options: UseMCPOptions) {
     setUserInfoQueue(q => q.filter(r => r.requestId !== requestId));
   }, []);
 
-  const send = useCallback(async (userText: string, images?: string[]) => {
-    if (isRunning) return;
+  /** Runs one user turn. Resolves, once the run settles, with the run's final assistant text
+   *  (what remote control sends back to the phone), or undefined if there was none. */
+  const send = useCallback(async (userText: string, images?: string[]): Promise<string | undefined> => {
+    if (isRunning) return undefined;
 
     Logger.info(LOG_SOURCE, `User message sent (model: ${modelName})`, {
       imageCount: images?.length ?? 0,
@@ -148,6 +161,7 @@ export function useMCP(options: UseMCPOptions) {
     }
     wireRef.current.push({ role: 'user', content: userContent });
     syncMessages();
+    const turnStart = wireRef.current.length;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -226,6 +240,7 @@ export function useMCP(options: UseMCPOptions) {
       setIsRunning(false);
       setStreamingText('');
     }
+    return finalAssistantText(wireRef.current.slice(turnStart));
   }, [isRunning, isUsingObServer, getToken, modelName, syncMessages, setStatus, requestUserInfo]);
 
   /** Hard-stop the in-flight run: kill the loop and abandon any model call. Leaves the

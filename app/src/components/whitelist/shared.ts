@@ -39,10 +39,13 @@ export interface PhoneEntry {
 export type WhitelistPollStatus = 'idle' | 'checking' | 'success';
 
 /** Check a single number against the whitelist API; resolves false on any failure. */
+/** Whitelist channels, plus 'telegram': whether a code is linked to a Telegram chat. */
+export type CheckChannel = WhitelistChannel | 'telegram';
+
 export async function checkNumber(
   number: string,
   token: string,
-  channel?: WhitelistChannel,
+  channel?: CheckChannel,
 ): Promise<PhoneEntry> {
   try {
     const response = await fetch('https://api.observer-ai.com/tools/is-whitelisted', {
@@ -53,7 +56,7 @@ export async function checkNumber(
       },
       body: JSON.stringify({
         phone_number: number,
-        ...(channel === 'whatsapp' ? { channel: 'whatsapp' } : {}),
+        ...(channel === 'whatsapp' || channel === 'telegram' ? { channel } : {}),
       }),
     });
     if (!response.ok) return { number, isWhitelisted: false };
@@ -72,7 +75,7 @@ export async function checkNumber(
 export function useWhitelistPolling(
   initial: PhoneEntry[],
   getToken: () => Promise<string | undefined>,
-  channel?: WhitelistChannel,
+  channel?: CheckChannel,
   enabled = true,
 ) {
   // Keep the latest getToken without making it an effect dependency (callers often pass a
