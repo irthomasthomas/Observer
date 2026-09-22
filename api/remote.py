@@ -44,6 +44,7 @@ ALIVE_TTL = 45       # a tab re-polls the inbox every ~25s, so this lapses ~20s 
 INBOX_TTL = 600      # an unread inbox evaporates on its own
 INBOX_MAX_AGE = 120  # older messages are dropped rather than run: stale commands are worse than lost ones
 INBOX_WAIT = 25      # long-poll hold, comfortably under proxy idle timeouts
+BLPOP_SLICE = 2      # each blocking read stays well under any client socket timeout
 SEEN_TTL = 3600      # provider retry dedupe
 MAX_TEXT = 4000
 
@@ -196,7 +197,12 @@ async def remote_inbox(code: str, current_user: AuthUser):
     await r.setex(_alive_key(code), ALIVE_TTL, "1")
 
     # RPUSH + BLPOP = FIFO, and each message goes to exactly one polling tab.
-    popped = await r.blpop([_inbox_key(code)], timeout=INBOX_WAIT)
+    # Blocks in short slices rather than one long BLPOP: the shared client may carry a
+    # socket read timeout (5s in prod), and a blocking call longer than it fails.
+    deadline = time.monotonic() + INBOX_WAIT
+    popped = None
+    while popped is None and time.monotonic() < deadline:
+        popped = await r.blpop([_inbox_key(code)], timeout=BLPOP_SLICE)
     if not popped:
         return {"messages": []}
     raw = [popped[1]] + (await r.lpop(_inbox_key(code), 20) or [])
