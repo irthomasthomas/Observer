@@ -513,16 +513,29 @@ export const TOOLS: ToolDefinition[] = [
             return { data: { phoneNumber: args.phone_number, channel, whitelisted: true } };
           }
         } catch (e) {
-          return { error: e instanceof Error ? e.message : String(e) };
+          const savedCode = SensorSettings.getWhitelistCode();
+          const message = e instanceof Error ? e.message : String(e);
+          return {
+            error: savedCode && savedCode !== args.phone_number
+              ? `${message} The user has a saved contact code ('${savedCode}'); ask whether to notify that instead, then check it.`
+              : message,
+          };
         }
         if (Date.now() >= deadline) {
+          // The user may simply have a working code already; point at it rather than
+          // leaving the model with a dead end.
+          const savedCode = SensorSettings.getWhitelistCode();
+          const codeHint = savedCode && savedCode !== args.phone_number
+            ? ` The user has a saved contact code ('${savedCode}') — offer to notify that instead of this number, then re-check it.`
+            : '';
           return {
             data: {
               phoneNumber: args.phone_number,
               channel,
               whitelisted: false,
               timedOut: true,
-              note: 'Still not whitelisted after a long wait. Ask the user whether to keep waiting or skip starting the agent.',
+              savedCode: savedCode ?? undefined,
+              note: `Still not whitelisted after a long wait. Ask the user whether to keep waiting or skip starting the agent.${codeHint}`,
             },
           };
         }

@@ -11,9 +11,25 @@
 //      function tools and must never be "called" here.
 
 import { isDesktop } from '@utils/platform';
+import { SensorSettings } from '@utils/settings';
 
 export default function getMcpSystemPrompt(): string {
   const desktop = isDesktop();
+
+  // The saved contact code, when the user already has one. Surfaced so the model can reuse it
+  // (e.g. re-editing an agent whose code went stale) instead of only learning it through the
+  // ask_user_info modal. It is only a pointer: whether it is currently whitelisted is a
+  // separate question, which check_whitelist / start_agent answer.
+  const savedCode = SensorSettings.getWhitelistCode();
+  const savedCodeSection = savedCode
+    ? `
+
+# The user's saved contact code
+
+This user already has an Observer contact code: \`${savedCode}\`. It is an opaque identifier that stands in for whatever phone number or Telegram chat they linked, and it goes verbatim where a \`phone_number\`/\`number\`/\`chat_id\` argument would (\`sendSms\`/\`sendWhatsapp\`/\`call\`/\`sendTelegram\`).
+
+Knowing it does NOT replace \`ask_user_info\` — still call that whenever you need contact info for a new agent, because the code's whitelist consent expires every 24h and the modal is what re-verifies it. Reach for the code directly only when the user has already verified it earlier in THIS conversation, or when you're editing an agent that should notify the same place as before.`
+    : '';
 
   // ---- Platform-specific sections ----------------------------------------
 
@@ -192,5 +208,5 @@ Always put the image sensor placeholder (\`$SCREEN\`/\`$CAMERA\`) in the system_
 
 If the user's message is vague, a single word, or shows no clear goal (e.g. "hi", "test", "what is this"), do NOT attempt to build anything. Warmly offer 2–3 concrete agent ideas grounded in common use cases — e.g. "text me when my download finishes", "alert me when someone's at my desk", "log what's on my screen every hour" — and ask which one to build (or what else they'd like to watch).
 
-Be concise. Briefly explain your plan, gather any specifics you need (email address, phone number, what exactly to watch for), and confirm before building — these tools run immediately with no separate approval step, so design the agent fully before calling \`create_agent\`/\`edit_agent\`/\`start_agent\`. To build a coordinated team, emit multiple \`create_agent\` calls in one turn.`;
+Be concise. Briefly explain your plan, gather any specifics you need (email address, phone number, what exactly to watch for), and confirm before building — these tools run immediately with no separate approval step, so design the agent fully before calling \`create_agent\`/\`edit_agent\`/\`start_agent\`. To build a coordinated team, emit multiple \`create_agent\` calls in one turn.${savedCodeSection}`;
 }
