@@ -235,20 +235,36 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
                               >
                                 <Plus className="w-4 h-4 flex-shrink-0" />
                                 <span className="whitespace-nowrap">New chat</span>
+                                {!!activeConversationId && !conversations.some(c => c.id === activeConversationId) && (
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"
+                                    title="Live — receives remote messages"
+                                  />
+                                )}
                               </button>
                             </li>
                             {conversations.map((c) => {
                               const convActive = isActive && c.id === activeConversationId;
+                              // Live = this conversation is the one loaded into the app-wide
+                              // MCPContext singleton right now, so remote (WhatsApp/Telegram)
+                              // messages land here — independent of which sidebar tab is open.
+                              const isLive = c.id === activeConversationId;
                               return (
                                 <li key={c.id} className="group relative">
                                   <button
                                     onClick={() => { loadConversation(c.id); handleTabClick('observerChat'); }}
                                     disabled={isRunning && !convActive}
                                     title={c.title}
-                                    className={`w-full flex items-center px-3 py-2 pr-9 rounded-lg text-sm text-left transition-colors disabled:opacity-40 ${
+                                    className={`w-full flex items-center gap-2 px-3 py-2 pr-9 rounded-lg text-sm text-left transition-colors disabled:opacity-40 ${
                                       convActive ? 'bg-gray-800 text-white font-medium' : 'text-gray-400 hover:bg-gray-800'
                                     }`}
                                   >
+                                    {isLive && (
+                                      <span
+                                        className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"
+                                        title="Live — receives remote messages"
+                                      />
+                                    )}
                                     <span className="truncate">{c.title}</span>
                                   </button>
                                   <button
