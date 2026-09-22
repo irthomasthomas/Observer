@@ -5,7 +5,7 @@
 // bound phone number — so words are picked for low ambiguity (no homophones,
 // no near-duplicates) rather than for memorability tricks that risk collisions.
 
-const WORDLIST = [
+export const WORDLIST = [
   'anchor', 'apple', 'arrow', 'autumn', 'badge', 'banjo', 'basil', 'beacon',
   'bicycle', 'binder', 'birch', 'bishop', 'blanket', 'blossom', 'bramble', 'brass',
   'breeze', 'bridge', 'bronze', 'bucket', 'bulb', 'cabin', 'candle', 'canvas',
