@@ -105,7 +105,7 @@ export function useRemoteControl(
     (async () => {
       const answer = await mcp.send(remotePrompt(message));
       const token = await getTokenRef.current();
-      if (answer && token) await postReply(message, answer, token);
+      if (answer && token) await postReply(message, answer.text, token, answer.images);
     })()
       .catch(error => Logger.error('MCP', `Remote reply failed: ${error instanceof Error ? error.message : String(error)}`))
       .finally(() => {

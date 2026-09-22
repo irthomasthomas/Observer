@@ -55,6 +55,25 @@ function finalAssistantText(messages: WireMessage[]): string | undefined {
   return undefined;
 }
 
+/** Max images to carry back to a remote reply \u2014 keeps MMS/Telegram sends bounded. */
+const MAX_REMOTE_IMAGES = 3;
+
+/**
+ * Images the runner collected from this turn's tool results (see runner.ts's
+ * "Images from the tool result(s) above:" follow-up user message), most recent last.
+ * Lets a remote reply (e.g. capture_screen) carry back what the agent actually saw.
+ */
+function turnImages(messages: WireMessage[]): string[] {
+  const images: string[] = [];
+  for (const m of messages) {
+    if (m.role !== 'user' || !Array.isArray(m.content)) continue;
+    for (const part of m.content) {
+      if (part?.type === 'image_url' && part.image_url?.url) images.push(part.image_url.url);
+    }
+  }
+  return images.slice(-MAX_REMOTE_IMAGES);
+}
+
 const abortError = () => new DOMException('Stopped by user.', 'AbortError');
 const isAbortError = (e: unknown): boolean =>
   e instanceof DOMException ? e.name === 'AbortError' : (e as any)?.name === 'AbortError';
@@ -140,8 +159,9 @@ export function useMCP(options: UseMCPOptions) {
   }, []);
 
   /** Runs one user turn. Resolves, once the run settles, with the run's final assistant text
-   *  (what remote control sends back to the phone), or undefined if there was none. */
-  const send = useCallback(async (userText: string, images?: string[]): Promise<string | undefined> => {
+   *  and any images the model captured along the way (what remote control sends back to the
+   *  phone), or undefined if there was no final text. */
+  const send = useCallback(async (userText: string, images?: string[]): Promise<{ text: string; images: string[] } | undefined> => {
     if (isRunning) return undefined;
 
     Logger.info(LOG_SOURCE, `User message sent (model: ${modelName})`, {
@@ -240,7 +260,9 @@ export function useMCP(options: UseMCPOptions) {
       setIsRunning(false);
       setStreamingText('');
     }
-    return finalAssistantText(wireRef.current.slice(turnStart));
+    const turnSlice = wireRef.current.slice(turnStart);
+    const text = finalAssistantText(turnSlice);
+    return text ? { text, images: turnImages(turnSlice) } : undefined;
   }, [isRunning, isUsingObServer, getToken, modelName, syncMessages, setStatus, requestUserInfo]);
 
   /** Hard-stop the in-flight run: kill the loop and abandon any model call. Leaves the

@@ -115,12 +115,25 @@ export async function fetchStatus(code: string, token: string): Promise<RemoteSt
   return await response.json();
 }
 
-/** Send the MCP's answer back to the phone/chat the message came from. */
-export async function postReply(message: RemoteMessage, text: string, token: string): Promise<void> {
+/** Strip a data-URL's `data:image/...;base64,` prefix — the API wants raw base64, like every
+ *  other notification tool (sendSms/sendEmail/sendTelegram/...). */
+function toRawBase64(dataUrl: string): string {
+  const comma = dataUrl.indexOf(',');
+  return comma === -1 ? dataUrl : dataUrl.slice(comma + 1);
+}
+
+/** Send the MCP's answer back to the phone/chat the message came from. `images` are data-URLs
+ *  the model captured this turn (e.g. via capture_screen) — optional, best-effort on the server. */
+export async function postReply(message: RemoteMessage, text: string, token: string, images?: string[]): Promise<void> {
   const response = await fetch(`${API_HOST}/remote/reply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ code: message.code, channel: message.channel, text: text.slice(0, 4000) }),
+    body: JSON.stringify({
+      code: message.code,
+      channel: message.channel,
+      text: text.slice(0, 4000),
+      images: images && images.length > 0 ? images.map(toRawBase64) : undefined,
+    }),
   });
   if (!response.ok) throw new Error(`Remote reply failed: ${response.status}`);
 }
