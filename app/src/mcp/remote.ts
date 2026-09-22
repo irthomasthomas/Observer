@@ -102,6 +102,19 @@ export function parseRemotePrompt(text: string): { channel: RemoteChannel; text:
   return { channel: match[1] === 'WhatsApp' ? 'whatsapp' : 'telegram', text: text.slice(match[0].length) };
 }
 
+export interface RemoteStatus {
+  linked: Record<RemoteChannel, boolean>;
+}
+
+/** Which channels the code is linked to. 403 (not this account's code) reads as "nothing linked". */
+export async function fetchStatus(code: string, token: string): Promise<RemoteStatus> {
+  const response = await fetch(`${API_HOST}/remote/status?code=${encodeURIComponent(code)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) return { linked: { whatsapp: false, telegram: false } };
+  return await response.json();
+}
+
 /** Send the MCP's answer back to the phone/chat the message came from. */
 export async function postReply(message: RemoteMessage, text: string, token: string): Promise<void> {
   const response = await fetch(`${API_HOST}/remote/reply`, {

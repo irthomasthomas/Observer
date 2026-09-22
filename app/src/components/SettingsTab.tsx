@@ -17,6 +17,7 @@ import { AVAILABLE_OCR_LANGUAGES } from '../config/ocr-languages';
 import ChangeDetectionSettings from './ChangeDetectionSettings';
 import { ObServerTab } from './ObServerTab';
 import UserInfoCard from './settings/UserInfoCard';
+import Switch from './settings/Switch';
 
 interface SettingsTabProps {
   isDarkMode?: boolean;
@@ -96,20 +97,6 @@ const Section: React.FC<{
     </div>
     <div className="px-5 py-5">{children}</div>
   </section>
-);
-
-// Simple on/off switch, purple accent to match the rest of the app's brand color.
-const Switch: React.FC<{ checked: boolean; onChange: () => void; label?: string }> = ({ checked, onChange, label }) => (
-  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      className="sr-only peer"
-      aria-label={label}
-    />
-    <div className="w-10 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-900 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-checked:border-purple-600" />
-  </label>
 );
 
 // Neutral segmented-control button — replaces the old bright-bordered/gradient

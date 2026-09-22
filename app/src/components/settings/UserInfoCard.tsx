@@ -6,6 +6,8 @@ import { useAuth } from '@contexts/AuthContext';
 import { SensorSettings } from '@utils/settings';
 import { useWhitelistPolling } from '@components/whitelist/shared';
 import WhitelistQR from '@components/whitelist/WhitelistQR';
+import Switch from './Switch';
+import { useMCPContext } from '../../mcp/MCPContext';
 import type { UserInfoKind } from '../../mcp/types';
 import { CONTACT_LABEL, CONTACT_PLACEHOLDER, contactError, contactValid, normalizeContact } from '@utils/contactInfo';
 
@@ -65,6 +67,42 @@ const ContactRow: React.FC<{ kind: UserInfoKind }> = ({ kind }) => {
           <Pencil className="h-4 w-4" />
         </button>
       )}
+    </div>
+  );
+};
+
+/**
+ * Chatting with Observer from the phone that's linked to the phrase. `linked` comes from the
+ * API (only the server knows which phone bound the code); `listening` is this tab holding the
+ * session open — with it off, the bot tells the phone no session is active.
+ */
+const RemoteControlRow: React.FC<{ hasCode: boolean }> = ({ hasCode }) => {
+  const { remote } = useMCPContext();
+  const linkedChannels = remote.linked
+    ? (['whatsapp', 'telegram'] as const).filter(c => remote.linked![c])
+    : [];
+
+  const status = !hasCode || linkedChannels.length === 0
+    ? 'No phone linked yet'
+    : `${linkedChannels.map(c => (c === 'whatsapp' ? 'WhatsApp' : 'Telegram')).join(' · ')} linked${
+        remote.enabled ? (remote.listening ? ' · listening' : ' · connecting…') : ''
+      }`;
+
+  return (
+    <div className="px-5 py-4 flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Remote control</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          Message Observer from WhatsApp or Telegram
+          <br />
+          {status}
+        </p>
+      </div>
+      <Switch
+        checked={remote.enabled}
+        onChange={() => remote.setEnabled(!remote.enabled)}
+        label="Toggle remote control"
+      />
     </div>
   );
 };
@@ -145,6 +183,8 @@ const UserInfoCard: React.FC = () => {
           </div>
         )}
       </div>
+
+      <RemoteControlRow hasCode={!!code} />
 
       {KINDS.map(kind => <ContactRow key={kind} kind={kind} />)}
     </section>

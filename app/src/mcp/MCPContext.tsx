@@ -12,7 +12,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { TokenProvider } from '@utils/main_loop';
 import { useMCP, type UseMCPReturn } from './useMCP';
-import { useRemoteControl } from './useRemoteControl';
+import { useRemoteControl, type RemoteControlState } from './useRemoteControl';
 import UserInfoModal from '@components/AICreator/UserInfoModal';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
@@ -20,6 +20,8 @@ const DEFAULT_MODEL = 'gemini-2.5-flash-lite-free';
 interface MCPContextValue extends UseMCPReturn {
   modelName: string;
   setModelName: (name: string) => void;
+  /** Remote control (WhatsApp/Telegram) status + on/off, rendered by the settings card. */
+  remote: RemoteControlState;
 }
 
 const MCPContext = createContext<MCPContextValue | null>(null);
@@ -38,9 +40,9 @@ export const MCPProvider: React.FC<MCPProviderProps> = ({ getToken, isUsingObSer
     modelName,
   });
   // Messages from the user's linked WhatsApp/Telegram land in this same conversation.
-  useRemoteControl(mcp, getToken);
+  const remote = useRemoteControl(mcp, getToken);
   return (
-    <MCPContext.Provider value={{ ...mcp, modelName, setModelName }}>
+    <MCPContext.Provider value={{ ...mcp, modelName, setModelName, remote }}>
       {children}
       {/* Hosted here, not in MCP.tsx: a run survives closing the chat panel, and RecipeSplash
           closes itself right after send() — so the modal must outlive both. */}

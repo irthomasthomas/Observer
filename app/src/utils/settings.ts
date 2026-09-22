@@ -289,6 +289,19 @@ class SettingsManager {
         localStorage.setItem(this.WHITELIST_CODE_KEY, code);
         return code;
     }
+
+    // --- REMOTE CONTROL ---
+    // Whether this browser listens for messages the user sends from their linked
+    // WhatsApp/Telegram. On by default: linking a phone is already an explicit action.
+    private readonly REMOTE_CONTROL_KEY = 'observer-ai:settings:remoteControl';
+
+    public isRemoteControlEnabled(): boolean {
+        return localStorage.getItem(this.REMOTE_CONTROL_KEY) !== 'off';
+    }
+
+    public setRemoteControlEnabled(enabled: boolean): void {
+        localStorage.setItem(this.REMOTE_CONTROL_KEY, enabled ? 'on' : 'off');
+    }
 }
 
 // Export a single instance
