@@ -1,5 +1,51 @@
 // Utility to detect sensitive personal information in agent code
 
+import { WORDLIST } from './whitelistCode';
+
+const WORDLIST_SET = new Set(WORDLIST.map(w => w.toLowerCase()));
+
+// Matches the shape of a golden-path whitelist code, e.g. "tree-book-shower-golden"
+const PASSPHRASE_PATTERN = /\b[a-zA-Z]+(?:-[a-zA-Z]+){3}\b/g;
+
+export interface PassphraseRedactionResult {
+  redactedCode: string;
+  removedCount: number;
+  lineNumbers: number[];
+}
+
+/**
+ * Finds and strips any whitelist passphrase (4 hyphen-joined words drawn from
+ * the golden-path wordlist) from code. These are bearer codes — anyone who has
+ * one can bind their phone to the account — so they're removed automatically
+ * rather than just flagged.
+ */
+export function redactPassphrases(code: string): PassphraseRedactionResult {
+  if (!code || typeof code !== 'string') {
+    return { redactedCode: code, removedCount: 0, lineNumbers: [] };
+  }
+
+  let removedCount = 0;
+  const lineNumbers: number[] = [];
+
+  const redactedLines = code.split('\n').map((line, index) => {
+    return line.replace(PASSPHRASE_PATTERN, (match) => {
+      const words = match.split('-');
+      if (words.length === 4 && words.every(w => WORDLIST_SET.has(w.toLowerCase()))) {
+        removedCount++;
+        lineNumbers.push(index + 1);
+        return '[PASSPHRASE-REMOVED]';
+      }
+      return match;
+    });
+  });
+
+  return {
+    redactedCode: redactedLines.join('\n'),
+    removedCount,
+    lineNumbers
+  };
+}
+
 export interface SensitiveDataDetection {
   hasSensitiveData: boolean;
   detectedFunctions: string[];
