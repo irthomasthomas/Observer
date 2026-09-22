@@ -365,6 +365,26 @@ async def send_telegram(
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
+async def send_telegram_photo(chat_id: str, image_b64: str, caption: str | None = None) -> None:
+    """Plain photo (base64, no data: prefix) send, for bot replies. No quota checks: callers own those."""
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not telegram_bot_token:
+        raise HTTPException(status_code=500, detail="Telegram service is not configured on the server.")
+    image_data = base64.b64decode(image_b64)
+    files = {"photo": ("image.png", image_data, "image/png")}
+    data = {"chat_id": chat_id}
+    if caption:
+        data["caption"] = caption[:1024]  # Telegram's caption limit
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(f"https://api.telegram.org/bot{telegram_bot_token}/sendPhoto", files=files, data=data)
+    response.raise_for_status()
+    payload = response.json()
+    if not payload.get("ok"):
+        description = payload.get("description", "Unknown error")
+        logger.error(f"Telegram photo to {chat_id} failed: {description}")
+        raise HTTPException(status_code=400, detail=f"Telegram photo API error: {description}")
+
+
 async def send_telegram_text(chat_id: str, text: str, parse_mode: str | None = None) -> None:
     """Plain-text Telegram send, for bot replies. No quota checks: callers own those."""
     telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")

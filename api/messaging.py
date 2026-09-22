@@ -510,17 +510,21 @@ def get_twilio_config():
         whatsapp_from_number=whatsapp_from_number
     )
 
-def send_whatsapp_text(to_phone: str, body: str) -> None:
-    """Plain-text WhatsApp send, for bot replies. No whitelist or quota checks: callers own those."""
+def send_whatsapp_text(to_phone: str, body: str, media_urls: list[str] | None = None) -> None:
+    """Plain-text (optionally + media) WhatsApp send, for bot replies. No whitelist or quota
+    checks: callers own those. `media_urls` are already-hosted URLs (see save_temp_image)."""
     config = get_twilio_config()
     client = Client(config.account_sid, config.auth_token)
     try:
-        client.messages.create(
-            to=f"whatsapp:{to_phone}",
-            from_=f"whatsapp:{config.whatsapp_from_number}",
-            body=body,
-            status_callback="https://api.observer-ai.com/webhooks/whatsapp-status",
-        )
+        message_params = {
+            "to": f"whatsapp:{to_phone}",
+            "from_": f"whatsapp:{config.whatsapp_from_number}",
+            "body": body,
+            "status_callback": "https://api.observer-ai.com/webhooks/whatsapp-status",
+        }
+        if media_urls:
+            message_params["media_url"] = media_urls
+        client.messages.create(**message_params)
     except TwilioRestException as e:
         logger.error(f"WhatsApp text to {to_phone} failed: {e.msg}")
         raise HTTPException(status_code=400, detail=f"Failed to send WhatsApp message: {e.msg}")

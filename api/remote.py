@@ -233,14 +233,20 @@ class RemoteReplyRequest(BaseModel):
     code: str = Field(..., description="The whitelist code the message arrived on.")
     channel: Channel
     text: str = Field(..., min_length=1, max_length=MAX_TEXT)
+    images: list[str] | None = Field(None, description="Optional base64-encoded images (no data: prefix), e.g. from capture_screen.")
+
+
+MAX_REPLY_IMAGES = 3  # keep MMS/Telegram sends bounded; mirrors useMCP's MAX_REMOTE_IMAGES
 
 
 @remote_router.post("/remote/reply", tags=["Remote"])
 async def remote_reply(request_data: RemoteReplyRequest, current_user: AuthUser):
-    """Send the MCP's answer back to the bound phone/chat. Charges that channel's quota."""
+    """Send the MCP's answer back to the bound phone/chat, with any images the model captured
+    along the way (e.g. capture_screen). Charges that channel's quota once, regardless of
+    image count. Image delivery is best-effort — a failed upload/send is logged, not fatal."""
     # Imported here: both modules import this one for their webhooks.
-    from messaging import assert_content_allowed, send_whatsapp_text
-    from tools_router import send_telegram_text
+    from messaging import assert_content_allowed, save_temp_image, send_whatsapp_text
+    from tools_router import send_telegram_photo, send_telegram_text
     from quota_manager import try_consume_for
 
     code = await _require_owner(request_data.code, current_user.id)
@@ -261,8 +267,21 @@ async def remote_reply(request_data: RemoteReplyRequest, current_user: AuthUser)
             },
         )
 
+    images = (request_data.images or [])[:MAX_REPLY_IMAGES]
+
     if request_data.channel == "whatsapp":
-        send_whatsapp_text(address, request_data.text[:1600])
+        media_urls = []
+        for i, image_b64 in enumerate(images):
+            try:
+                media_urls.append(await save_temp_image(image_b64))
+            except Exception as e:
+                logger.warning(f"Remote reply: failed to host image {i+1} for WhatsApp: {e}")
+        send_whatsapp_text(address, request_data.text[:1600], media_urls or None)
     else:
+        for i, image_b64 in enumerate(images):
+            try:
+                await send_telegram_photo(address, image_b64)
+            except Exception as e:
+                logger.warning(f"Remote reply: failed to send image {i+1} to Telegram: {e}")
         await send_telegram_text(address, request_data.text[:4096])
     return {"success": True}
