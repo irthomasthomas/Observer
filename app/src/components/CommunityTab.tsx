@@ -7,7 +7,7 @@ import { Logger } from '@utils/logging';
 import { useAuth } from '@contexts/AuthContext';
 import EditAgentModal from '@components/EditAgent/EditAgentModal';
 import PersonalInfoWarningModal from '@components/PersonalInfoWarningModal';
-import { detectSensitiveFunctions } from '@utils/code_sanitizer';
+import { detectSensitiveFunctions, redactPassphrases } from '@utils/code_sanitizer';
 import { isIOS, confirm } from '@utils/platform';
 import { sendEmail } from '@utils/handlers/utils';
 
@@ -122,6 +122,8 @@ const CommunityTab: React.FC = () => {
   const [detectedFunctions, setDetectedFunctions] = useState<string[]>([]);
   const [warningLineNumbers, setWarningLineNumbers] = useState<Record<string, number[]>>({});
   const [warningCodePreview, setWarningCodePreview] = useState('');
+  const [removedPassphraseCount, setRemovedPassphraseCount] = useState(0);
+  const [removedPassphraseLines, setRemovedPassphraseLines] = useState<number[]>([]);
   const [pendingUpload, setPendingUpload] = useState<{
     type: 'existing' | 'file' | 'edit';
     agent: CompleteAgent;
@@ -264,34 +266,42 @@ const CommunityTab: React.FC = () => {
     });
   }, [agents, isAuthenticated, user]);
 
-  // Check for sensitive functions in code and show warning if found
+  // Check for sensitive functions and passphrases in code; auto-strip passphrases
+  // and show a warning/notice if anything was found or needs review
   const checkForSensitiveData = (
     code: string,
     agent: CompleteAgent,
     memory: string,
     uploadType: 'existing' | 'file' | 'edit'
   ): boolean => {
-    const detection = detectSensitiveFunctions(code);
+    // Whitelist passphrases are bearer codes — strip them automatically, no opt-out
+    const passphraseResult = redactPassphrases(code);
+    const sanitizedCode = passphraseResult.redactedCode;
 
-    if (detection.hasSensitiveData) {
-      // Store upload data for later
+    const detection = detectSensitiveFunctions(sanitizedCode);
+    const hasPassphrases = passphraseResult.removedCount > 0;
+
+    if (detection.hasSensitiveData || hasPassphrases) {
+      // Store upload data for later (already sanitized of passphrases)
       setPendingUpload({
         type: uploadType,
         agent,
-        code,
+        code: sanitizedCode,
         memory
       });
 
       // Set warning modal data
       setDetectedFunctions(detection.detectedFunctions);
       setWarningLineNumbers(detection.lineNumbers);
-      setWarningCodePreview(code);
+      setWarningCodePreview(sanitizedCode);
+      setRemovedPassphraseCount(passphraseResult.removedCount);
+      setRemovedPassphraseLines(passphraseResult.lineNumbers);
       setShowPersonalInfoWarning(true);
 
-      return true; // Sensitive data found
+      return true; // Sensitive data found or removed
     }
 
-    return false; // No sensitive data
+    return false; // Nothing found
   };
 
   // Handle warning modal cancel
@@ -301,6 +311,8 @@ const CommunityTab: React.FC = () => {
     setDetectedFunctions([]);
     setWarningLineNumbers({});
     setWarningCodePreview('');
+    setRemovedPassphraseCount(0);
+    setRemovedPassphraseLines([]);
   };
 
   // Handle warning modal "Edit Agent" button
@@ -346,6 +358,8 @@ const CommunityTab: React.FC = () => {
       setDetectedFunctions([]);
       setWarningLineNumbers({});
       setWarningCodePreview('');
+      setRemovedPassphraseCount(0);
+      setRemovedPassphraseLines([]);
       setIsUploading(false);
     }
   };
@@ -1244,6 +1258,8 @@ ${reportComment}
         detectedFunctions={detectedFunctions}
         codePreview={warningCodePreview}
         lineNumbers={warningLineNumbers}
+        removedPassphraseCount={removedPassphraseCount}
+        removedPassphraseLines={removedPassphraseLines}
         onCancel={handleWarningCancel}
         onEditAgent={handleWarningEditAgent}
         onUploadAnyway={handleWarningUploadAnyway}
