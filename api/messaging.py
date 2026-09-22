@@ -25,6 +25,7 @@ from twilio.request_validator import RequestValidator
 # Local imports
 from auth import AuthUser
 import r2_store
+import remote
 from quota_manager import try_consume_for
 from redis_client import get_redis
 
@@ -38,6 +39,9 @@ WHITELIST_TTL = 86400  # 24 hours in seconds
 VOICE_CALL_TTL = 3600  # 1 hour — how long a pending call message stays retrievable
 
 DEFAULT_VOICE_MESSAGE = "Alert from Observer A I"
+
+# The canned text in the no-code whitelist QR (app/src/components/whitelist/shared.ts).
+WHITELIST_GREETING = "Hi! I'd like to whitelist my phone number for Observer"
 
 # Load better-profanity's bundled wordlist once at import. It is a maintained
 # list of slurs/profanity and it normalises common character substitution
@@ -480,7 +484,7 @@ class VoiceCallRequest(BaseModel):
 
 class IsWhitelistedRequest(BaseModel):
     phone_number: str = Field(..., description="The phone number to check in E.164 format.", examples=["+15551234567"])
-    channel: str | None = Field(None, description="Optional channel to check ('whatsapp', 'sms', 'voice'). If 'whatsapp', checks only WhatsApp whitelist. Otherwise checks both.")
+    channel: str | None = Field(None, description="Optional channel to check ('whatsapp', 'sms', 'voice', 'telegram'). If 'whatsapp', checks only WhatsApp whitelist. If 'telegram', checks whether the code is linked to a Telegram chat. Otherwise checks both.")
 
 class TwilioConfig(BaseModel):
     account_sid: str
@@ -505,6 +509,21 @@ def get_twilio_config():
         from_number=from_number,
         whatsapp_from_number=whatsapp_from_number
     )
+
+def send_whatsapp_text(to_phone: str, body: str) -> None:
+    """Plain-text WhatsApp send, for bot replies. No whitelist or quota checks: callers own those."""
+    config = get_twilio_config()
+    client = Client(config.account_sid, config.auth_token)
+    try:
+        client.messages.create(
+            to=f"whatsapp:{to_phone}",
+            from_=f"whatsapp:{config.whatsapp_from_number}",
+            body=body,
+            status_callback="https://api.observer-ai.com/webhooks/whatsapp-status",
+        )
+    except TwilioRestException as e:
+        logger.error(f"WhatsApp text to {to_phone} failed: {e.msg}")
+        raise HTTPException(status_code=400, detail=f"Failed to send WhatsApp message: {e.msg}")
 
 # API Endpoints
 
@@ -739,7 +758,16 @@ async def check_is_whitelisted(
     current_user: AuthUser
 ):
     """Checks if a phone number is currently whitelisted for messaging."""
-    whitelisted = await is_whitelisted(request_data.phone_number, channel=request_data.channel)
+    # A code polled here is its owner's, and polling it opens the window in which
+    # a phone/chat can link to it for remote control (see remote.py).
+    code = remote.normalize_code(request_data.phone_number)
+    if code:
+        await remote.claim(code, current_user.id)
+
+    if request_data.channel == "telegram":
+        whitelisted = bool(code) and bool(await remote.owned_address(code, "telegram", current_user.id))
+    else:
+        whitelisted = await is_whitelisted(request_data.phone_number, channel=request_data.channel)
     logger.info(f"Whitelist check for user_id: {current_user.id}, number: {request_data.phone_number}, channel: {request_data.channel}, result: {whitelisted}")
     return {
         "phone_number": request_data.phone_number,
@@ -754,12 +782,17 @@ async def whatsapp_incoming_webhook(
 ):
     """
     Webhook endpoint for incoming WhatsApp messages.
-    Automatically whitelists the sender's number for 24 hours.
+
+    Every inbound message whitelists the sender for 24 hours (it is their consent).
+    Beyond that it is either a whitelist code, which pairs the phone for remote
+    control, or a message for the Observer session that phone is paired with
+    (see remote.route_inbound). Arbitrary text no longer becomes a lookup key.
     Validates Twilio signature to prevent spoofing attacks.
     """
     try:
         # Extract sender's phone number (form_data already validated and parsed)
-        # Remove whatsapp: prefix
+        # Remove whatsapp: prefix. Kept exactly as Twilio sent it: it is both the reply
+        # address and the remote-control binding (normalizing can rewrite e.g. Mexico's +521).
         from_number = form_data.get("From", "").replace("whatsapp:", "")
         message_body = form_data.get("Body", "")
 
@@ -767,34 +800,34 @@ async def whatsapp_incoming_webhook(
             logger.warning("Received WhatsApp webhook without From number")
             return FastAPIResponse(status_code=204)
 
-        # Add to WhatsApp whitelist - blazing fast in-memory operation
-        # Store message body as key for friendly lookup if it's greater than 7 chars
-        if (len(message_body)>7 and message_body!="Hi! I'd like to whitelist my phone number for Observer"):
-            await add_to_whitelist(from_number, key=message_body, channel="whatsapp")
-        else:
-            await add_to_whitelist(from_number, channel="whatsapp")
-            message_body = None
+        if not await remote.first_delivery(form_data.get("MessageSid")):
+            return FastAPIResponse(status_code=204)
 
-        # Get Twilio config to respond
-        try:
-            config = get_twilio_config()
-            client = Client(config.account_sid, config.auth_token)
+        async def reply(text: str) -> None:
+            try:
+                send_whatsapp_text(from_number, text)
+            except Exception as e:
+                # The whitelist/routing already happened; a failed reply shouldn't undo it.
+                logger.error(f"Failed to reply to {from_number}: {str(e)}")
 
-            # Send confirmation response - unified across all phone channels
-            key_info = f" or use the key *'{message_body}'*" if message_body else ""
-            response_message = f"🤖 This is the Observer Bot!\n\nYour number *{from_number}* is now whitelisted for 24 hours across SMS, WhatsApp, and voice calls!\n\nUse this number{key_info} in your Observer AI agents."
+        async def consent(key: str | None) -> None:
+            await add_to_whitelist(from_number, key=key, channel="whatsapp")
 
-            client.messages.create(
-                to=f"whatsapp:{from_number}",
-                from_=f"whatsapp:{config.whatsapp_from_number}",
-                body=response_message
-            )
+        if message_body.strip() != WHITELIST_GREETING and await remote.route_inbound(
+            "whatsapp", from_number, message_body, reply, consent
+        ):
+            return FastAPIResponse(status_code=204)
 
-            logger.info(f"Auto-whitelisted and responded to {from_number}")
-
-        except Exception as e:
-            logger.error(f"Failed to send confirmation to {from_number}: {str(e)}")
-            # Still return success since whitelist was added
+        # Not remote-control business: plain whitelist, as before.
+        await consent(None)
+        code_hint = "" if message_body.strip() == WHITELIST_GREETING else (
+            "\n\nTo chat with Observer from here, send the 4-word code shown in the app."
+        )
+        await reply(
+            f"🤖 This is the Observer Bot!\n\nYour number *{from_number}* is now whitelisted for 24 hours "
+            f"across SMS, WhatsApp, and voice calls!\n\nUse this number in your Observer AI agents.{code_hint}"
+        )
+        logger.info(f"Auto-whitelisted and responded to {from_number}")
 
         return FastAPIResponse(status_code=204)
 

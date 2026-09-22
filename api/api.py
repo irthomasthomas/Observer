@@ -28,6 +28,7 @@ from marketplace import marketplace_router
 from compute import compute_router
 from tools_router import tools_router
 from messaging import messaging_router
+from remote import remote_router
 from payments import payments_router
 from apple_payments import apple_payments_router
 from transcriptions import transcriptions_router
@@ -130,6 +131,8 @@ app.include_router(compute_router)
 app.include_router(tools_router)
 # Mount twilio router
 app.include_router(messaging_router)
+# Remote control mailbox (WhatsApp/Telegram <-> browser MCP)
+app.include_router(remote_router)
 # Payments router (Stripe)
 app.include_router(
     payments_router,

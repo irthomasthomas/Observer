@@ -19,6 +19,7 @@ from admin_auth import get_admin_access
 # Import the new, unified quota manager functions and constants
 from quota_manager import try_consume_for, get_usage
 from messaging import save_temp_image
+import remote
 
 # --- Setup (logging is configured once in api.py via logging_config.setup_logging()) ---
 logger = logging.getLogger('tools_router')
@@ -45,7 +46,7 @@ class PushoverRequest(BaseModel):
     images: list[str] | None = Field(None, description="Optional base64-encoded images (without data:image prefix)")
 
 class TelegramRequest(BaseModel):
-    chat_id: str = Field(..., description="The Telegram chat ID (can be user ID or group ID starting with -).")
+    chat_id: str = Field(..., description="The Telegram chat ID (can be user ID or group ID starting with -), or a whitelist code linked to one.")
     message: str | None = Field(None, max_length=4096, description="The message content (optional if images provided).")
     images: list[str] | None = Field(None, description="Optional base64-encoded images (without data:image prefix)")
     videos: list[str] | None = Field(None, description="Optional base64-encoded videos (without data:video prefix)")
@@ -248,6 +249,17 @@ async def send_telegram(
         logger.error("Server is missing TELEGRAM_BOT_TOKEN environment variable.")
         raise HTTPException(status_code=500, detail="Telegram service is not configured on the server.")
 
+    # 1.5. A whitelist code stands in for the chat it was linked to, for its owner only.
+    chat_id = request_data.chat_id
+    code = remote.normalize_code(chat_id)
+    if code:
+        chat_id = await remote.owned_address(code, "telegram", current_user.id)
+        if not chat_id:
+            raise HTTPException(
+                status_code=403,
+                detail="This code isn't linked to a Telegram chat on your account. Connect Telegram in Observer first.",
+            )
+
     # 2. Quota Check
     allowed, _usage_count, _reason = await try_consume_for(current_user, "telegram")
     if not allowed:
@@ -258,7 +270,7 @@ async def send_telegram(
                 "quota_type": "telegram"
             }
         )
-    logger.info(f"Processing Telegram for user_id: {current_user.id} to chat_id: {request_data.chat_id}")
+    logger.info(f"Processing Telegram for user_id: {current_user.id} to chat_id: {chat_id}")
 
     # 4. Action: Send images first, then videos, then the message
     message_ids = []
@@ -275,7 +287,7 @@ async def send_telegram(
                         # Send photo via Telegram API
                         photo_url = f"https://api.telegram.org/bot{telegram_bot_token}/sendPhoto"
                         files = {"photo": ("image.png", image_data, "image/png")}
-                        data = {"chat_id": request_data.chat_id}
+                        data = {"chat_id": chat_id}
 
                         photo_response = await client.post(photo_url, files=files, data=data)
                         photo_response.raise_for_status()
@@ -302,7 +314,7 @@ async def send_telegram(
                         # Send video via Telegram API
                         video_url = f"https://api.telegram.org/bot{telegram_bot_token}/sendVideo"
                         files = {"video": ("video.mp4", video_data, "video/mp4")}
-                        data = {"chat_id": request_data.chat_id}
+                        data = {"chat_id": chat_id}
 
                         video_response = await client.post(video_url, files=files, data=data)
                         video_response.raise_for_status()
@@ -326,7 +338,7 @@ async def send_telegram(
             # Always send text message with default logic
             message_url = f"https://api.telegram.org/bot{telegram_bot_token}/sendMessage"
             payload = {
-                "chat_id": request_data.chat_id,
+                "chat_id": chat_id,
                 "text": message_text,
                 "parse_mode": "HTML"  # Allows basic HTML formatting
             }
@@ -353,40 +365,73 @@ async def send_telegram(
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
+async def send_telegram_text(chat_id: str, text: str, parse_mode: str | None = None) -> None:
+    """Plain-text Telegram send, for bot replies. No quota checks: callers own those."""
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not telegram_bot_token:
+        raise HTTPException(status_code=500, detail="Telegram service is not configured on the server.")
+    payload = {"chat_id": chat_id, "text": text}
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(f"https://api.telegram.org/bot{telegram_bot_token}/sendMessage", json=payload)
+    if not response.json().get("ok"):
+        description = response.json().get("description", "Unknown error")
+        logger.error(f"Telegram text to {chat_id} failed: {description}")
+        raise HTTPException(status_code=400, detail=f"Telegram API error: {description}")
+
+
 @tools_router.post("/tools/telegram-webhook", tags=["Tools"])
 async def telegram_webhook(request: Request, update: dict):
     """
-    Webhook endpoint for Telegram bot to automatically respond with chat IDs.
-    This endpoint should be registered with Telegram via setWebhook with a secret_token.
+    Webhook endpoint for the Telegram bot. `/start <code>` (the deep link in the
+    app's QR) links a private chat to a whitelist code for remote control; after
+    that, the chat's messages go to the user's Observer session (remote.route_inbound).
+    Anything else gets the chat ID reply, for the paste-a-chat-ID flow.
+
+    Must be registered via setWebhook with a secret_token. The secret is required:
+    this bot can drive a user's desktop session, so an unauthenticated webhook
+    would let anyone inject messages as any chat.
     """
     webhook_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
-    if webhook_secret:
-        incoming = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-        if not hmac.compare_digest(incoming, webhook_secret):
-            raise HTTPException(status_code=403, detail="Forbidden")
+    if not webhook_secret:
+        logger.error("TELEGRAM_WEBHOOK_SECRET not configured - rejecting Telegram webhook")
+        raise HTTPException(status_code=403, detail="Forbidden")
+    incoming = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if not hmac.compare_digest(incoming, webhook_secret):
+        raise HTTPException(status_code=403, detail="Forbidden")
 
     try:
-        # Extract message info
-        if "message" in update:
-            message = update["message"]
-            chat_id = message["chat"]["id"]
-            chat_type = message["chat"]["type"]
-            # Get bot token
-            telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-            if not telegram_bot_token:
-                logger.error("TELEGRAM_BOT_TOKEN not configured")
-                return {"ok": True}  # Return OK to Telegram anyway
-            # Respond with the chat ID
-            response_text = f"Your chat ID is: <code>{chat_id}</code>\n\nChat type: {chat_type}\n\nUse this ID in your Observer AI agents!"
-            telegram_api_url = f"https://api.telegram.org/bot{telegram_bot_token}/sendMessage"
-            payload = {
-                "chat_id": chat_id,
-                "text": response_text,
-                "parse_mode": "HTML"
-            }
-            async with httpx.AsyncClient() as client:
-                await client.post(telegram_api_url, json=payload)
-            logger.info(f"Auto-responded to chat_id {chat_id} with their chat ID")
+        message = update.get("message")
+        if not message:
+            return {"ok": True}
+        chat_id = str(message["chat"]["id"])
+        chat_type = message["chat"]["type"]
+        text = message.get("text") or ""
+
+        update_id = update.get("update_id")
+        if not await remote.first_delivery(f"tg:{update_id}" if update_id is not None else None):
+            return {"ok": True}
+
+        async def reply(body: str) -> None:
+            try:
+                await send_telegram_text(chat_id, body)
+            except Exception as e:
+                logger.error(f"Failed to reply to chat_id {chat_id}: {str(e)}")
+
+        # Remote control is for private chats only; a bare /start is a chat ID request.
+        if chat_type == "private" and text.strip() != "/start":
+            body = text[len("/start"):].strip() if text.startswith("/start") else text
+            if await remote.route_inbound("telegram", chat_id, body, reply):
+                return {"ok": True}
+
+        response_text = (
+            f"Your chat ID is: <code>{chat_id}</code>\n\nChat type: {chat_type}\n\n"
+            "Use this ID in your Observer AI agents, or connect with the QR code in Observer "
+            "to chat with it from here!"
+        )
+        await send_telegram_text(chat_id, response_text, parse_mode="HTML")
+        logger.info(f"Auto-responded to chat_id {chat_id} with their chat ID")
         return {"ok": True}
     except Exception as e:
         logger.exception("Error processing Telegram webhook")
