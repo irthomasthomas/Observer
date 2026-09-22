@@ -216,6 +216,19 @@ async def remote_inbox(code: str, current_user: AuthUser):
     return {"messages": messages}
 
 
+@remote_router.get("/remote/status", tags=["Remote"])
+async def remote_status(code: str, current_user: AuthUser):
+    """
+    Which channels this code is linked to, for the settings card. Answers the question the
+    whitelist check can't: whitelisted means "we may message this number", linked means
+    "this phone can talk to my Observer session".
+    """
+    code = await _require_owner(code, current_user.id)
+    r = await get_redis()
+    linked = {channel: bool(await r.get(_bind_key(code, channel))) for channel in ("whatsapp", "telegram")}
+    return {"code": code, "linked": linked}
+
+
 class RemoteReplyRequest(BaseModel):
     code: str = Field(..., description="The whitelist code the message arrived on.")
     channel: Channel
