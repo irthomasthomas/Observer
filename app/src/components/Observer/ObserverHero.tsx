@@ -11,18 +11,72 @@
 // wheels are currently spelling out — spinning a wheel visibly grows/edits the input live.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Loader2, Info } from 'lucide-react';
+import { Send, Loader2, Info, Mic } from 'lucide-react';
 import { useMCPContext } from '../../mcp/MCPContext';
 import { useAuth } from '@contexts/AuthContext';
 import { SensorSettings } from '@utils/settings';
 import { Analytics } from '@utils/analytics';
 import { tutorialFlow } from '@utils/tutorialFlow';
+import { StreamManager } from '@utils/streamManager';
+import { useSubscriberText } from '@hooks/useTranscriptionState';
+import { Logger } from '@utils/logging';
 import RecipeInline, { type TutorialStep } from '../AICreator/RecipeInline';
+
+// Synthetic owner id for voice dictation on the hero splash screen — mirrors MCP.tsx's
+// MCP_MIC_ID so it routes through the same StreamManager / TranscriptionRouter path.
+const HERO_MIC_ID = 'observer-hero-mic';
 
 const ObserverHero: React.FC = () => {
   const { send, isRunning } = useMCPContext();
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // --- Voice dictation --------------------------------------------------------
+  const { fullText: micTranscript } = useSubscriberText(HERO_MIC_ID, 'microphone');
+  const [isRecording, setIsRecording] = useState(false);
+  const [micStarting, setMicStarting] = useState(false);
+  const micBaseRef = useRef('');
+  const micGenRef = useRef(0);
+
+  useEffect(() => {
+    if (!isRecording) return;
+    const base = micBaseRef.current;
+    setValue(base && micTranscript ? `${base} ${micTranscript}` : base + micTranscript);
+    setUserEdited(true);
+  }, [micTranscript, isRecording]);
+
+  useEffect(() => () => {
+    StreamManager.releaseStreamsForAgent(HERO_MIC_ID);
+    StreamManager.destroySubscribersForAgent(HERO_MIC_ID);
+  }, []);
+
+  const stopMic = () => {
+    micGenRef.current++;
+    setIsRecording(false);
+    setMicStarting(false);
+    StreamManager.releaseStreamsForAgent(HERO_MIC_ID);
+    StreamManager.destroySubscribersForAgent(HERO_MIC_ID);
+  };
+
+  const startMic = async () => {
+    micBaseRef.current = value.trim();
+    setMicStarting(true);
+    const gen = ++micGenRef.current;
+    try {
+      await StreamManager.requestStreamsForAgent(HERO_MIC_ID, ['microphone']);
+      if (micGenRef.current !== gen) {
+        StreamManager.releaseStreamsForAgent(HERO_MIC_ID);
+        StreamManager.destroySubscribersForAgent(HERO_MIC_ID);
+        return;
+      }
+      setIsRecording(true);
+    } catch (e) {
+      Logger.error('ObserverHero', `Voice dictation failed to start: ${e}`);
+      stopMic();
+    } finally {
+      if (micGenRef.current === gen) setMicStarting(false);
+    }
+  };
   // Once the user types their own text, wheel spins stop overwriting it. Clearing the box
   // (back to empty) hands control back to the wheels.
   const [userEdited, setUserEdited] = useState(false);
@@ -61,6 +115,7 @@ const ObserverHero: React.FC = () => {
     e.preventDefault();
     const text = value.trim();
     if (!text || isRunning) return;
+    if (isRecording) stopMic();
     if (tutorialStep) {
       // Only the 'ready' step should build the demo agent; anything earlier is a custom send.
       if (tutorialStep === 'ready') tutorialFlow.start();
@@ -111,6 +166,15 @@ const ObserverHero: React.FC = () => {
       <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-6 text-center">
         What do you want Observer<br className="md:hidden" /> to watch for?
       </h1>
+      {(isRecording || micStarting) && (
+        <div className="w-full max-w-2xl flex items-center gap-2 px-1 pb-1.5 text-xs font-medium text-red-600 relative z-10">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+          </span>
+          <span>{micStarting ? 'Starting microphone…' : 'Listening… tap the mic to stop'}</span>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="w-full max-w-2xl flex items-center gap-2 relative z-10">
         <textarea
           ref={textareaRef}
@@ -124,9 +188,23 @@ const ObserverHero: React.FC = () => {
           className="flex-1 min-w-0 p-4 md:p-5 text-left text-base md:text-lg text-gray-700 bg-white border border-gray-200 rounded-3xl shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none leading-snug max-h-56 overflow-y-auto"
         />
         <button
+          type="button"
+          onClick={() => (isRecording ? stopMic() : startMic())}
+          disabled={micStarting || (!isRecording && isRunning)}
+          className={`p-4 md:p-5 rounded-full transition-colors flex items-center flex-shrink-0 ${
+            isRecording
+              ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
+              : 'bg-gray-700 text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed'
+          }`}
+          title={isRecording ? 'Stop voice input' : 'Speak to fill the message'}
+          aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
+        >
+          {micStarting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mic className="h-5 w-5" />}
+        </button>
+        <button
           type="submit"
           disabled={isRunning || !value.trim()}
-          className="p-4 md:p-5 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
+          className="p-4 md:p-5 bg-gray-700 text-white rounded-full hover:bg-gray-800 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0"
           title="Send"
         >
           {isRunning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}

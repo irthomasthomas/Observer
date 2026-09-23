@@ -781,7 +781,7 @@ const MCP: React.FC<MCPProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isInputDisabled}
-            className={`bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0 ${boxed ? 'p-2 md:p-3 rounded-md' : 'p-3 md:p-4 rounded-full'}`}
+            className={`bg-gray-700 text-white hover:bg-gray-800 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0 ${boxed ? 'p-2 md:p-3 rounded-md' : 'p-3 md:p-4 rounded-full'}`}
             title="Upload Image"
           >
             <Plus className="h-5 w-5" />
@@ -794,7 +794,7 @@ const MCP: React.FC<MCPProps> = ({
             className={`flex items-center justify-center flex-shrink-0 transition-colors ${boxed ? 'p-2 md:p-3 rounded-lg' : 'p-3 md:p-4 rounded-full'} ${
               isRecording
                 ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse'
-                : 'bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed'
+                : 'bg-gray-700 text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed'
             }`}
             title={isRecording ? 'Stop voice input' : 'Speak to fill the message'}
             aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
@@ -819,7 +819,7 @@ const MCP: React.FC<MCPProps> = ({
             <button
               type="submit"
               disabled={isSendDisabled}
-              className={`bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0 ${boxed ? 'p-2 md:p-3 rounded-lg' : 'p-3 md:p-4 rounded-full'}`}
+              className={`bg-gray-700 text-white hover:bg-gray-800 disabled:bg-gray-300 transition-colors flex items-center flex-shrink-0 ${boxed ? 'p-2 md:p-3 rounded-lg' : 'p-3 md:p-4 rounded-full'}`}
               title="Send"
             >
               <Send className="h-4 w-4" />
