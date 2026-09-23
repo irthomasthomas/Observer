@@ -405,17 +405,22 @@ export async function executeAgentIteration(agentId: string): Promise<void> {
 
   } catch (error) {
     // Check for transient network errors - skip iteration but don't stop agent
-    const isNetworkError = error instanceof TypeError &&
-      (error.message.toLowerCase().includes('failed to fetch') ||
-       error.message.toLowerCase().includes('networkerror') ||
-       error.message.toLowerCase().includes('network request failed') ||
-       error.message.toLowerCase().includes('load failed'));
+    const rawMsg = error instanceof Error ? error.message : '';
+    const errMsg = rawMsg.toLowerCase();
+    const isNetworkError =
+      (error instanceof TypeError &&
+        (errMsg.includes('failed to fetch') ||
+         errMsg.includes('networkerror') ||
+         errMsg.includes('network request failed') ||
+         errMsg.includes('load failed'))) ||
+      errMsg.includes('streaming api request failed') ||
+      errMsg.includes('connection error');
 
     if (isNetworkError) {
-      Logger.warn(agentId, `Network error - skipping iteration: ${error.message}`, {
+      Logger.warn(agentId, `Network error - skipping iteration: ${rawMsg}`, {
         logType: 'iteration-skipped',
         iterationId,
-        content: { reason: 'network_error', error: error.message }
+        content: { reason: 'network_error', error: rawMsg }
       });
       return; // Skip iteration, don't stop agent
     }
