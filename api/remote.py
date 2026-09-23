@@ -276,7 +276,7 @@ async def remote_reply(request_data: RemoteReplyRequest, current_user: AuthUser)
                 media_urls.append(await save_temp_image(image_b64))
             except Exception as e:
                 logger.warning(f"Remote reply: failed to host image {i+1} for WhatsApp: {e}")
-        send_whatsapp_text(address, request_data.text[:1600], media_urls or None)
+        await send_whatsapp_text(address, request_data.text[:1600], media_urls or None)
     else:
         for i, image_b64 in enumerate(images):
             try:

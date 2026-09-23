@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 import uvicorn
 import argparse
@@ -47,8 +48,19 @@ logger = logging.getLogger('api-server')
 
 MAX_BODY_SIZE = 20 * 1024 * 1024  # 20 MB
 
+# Threads behind asyncio.to_thread, per worker process. Every synchronous SDK
+# call runs there (R2/boto3, Stripe, Twilio, SendGrid, Pillow), and a thread
+# waiting on the network holds its slot without using CPU, so the pool has to
+# cover slow calls in flight, not cores. Python's default is min(32, CPUs + 4),
+# 12 on an 8-core box, which one slow provider minute can fill.
+IO_THREADS = 32
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Runs once in each uvicorn worker, so each gets its own pool.
+    asyncio.get_running_loop().set_default_executor(
+        ThreadPoolExecutor(max_workers=IO_THREADS, thread_name_prefix="io")
+    )
     await api_handlers.startup_handlers()
     yield
     await api_handlers.shutdown_handlers()

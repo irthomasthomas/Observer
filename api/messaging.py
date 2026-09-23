@@ -19,6 +19,7 @@ import phonenumbers
 # Third-party imports
 from better_profanity import profanity
 from twilio.rest import Client
+from twilio.http.http_client import TwilioHttpClient
 from twilio.base.exceptions import TwilioRestException
 from twilio.twiml.voice_response import VoiceResponse
 from twilio.request_validator import RequestValidator
@@ -554,11 +555,25 @@ def get_twilio_config():
         whatsapp_from_number=whatsapp_from_number
     )
 
-def send_whatsapp_text(to_phone: str, body: str, media_urls: list[str] | None = None) -> None:
+# The Twilio SDK is synchronous, so every create() below runs in a worker thread
+# (asyncio.to_thread) rather than on the event loop. Its HTTP client has no
+# timeout by default: in a thread, a hung call would hold a pool thread forever
+# and starve everything else that shares the pool (R2, Stripe, Pillow).
+TWILIO_TIMEOUT = 15.0
+
+
+def _twilio_client(config: TwilioConfig) -> Client:
+    return Client(
+        config.account_sid, config.auth_token,
+        http_client=TwilioHttpClient(timeout=TWILIO_TIMEOUT),
+    )
+
+
+async def send_whatsapp_text(to_phone: str, body: str, media_urls: list[str] | None = None) -> None:
     """Plain-text (optionally + media) WhatsApp send, for bot replies. No whitelist or quota
     checks: callers own those. `media_urls` are already-hosted URLs (see save_temp_image)."""
     config = get_twilio_config()
-    client = Client(config.account_sid, config.auth_token)
+    client = _twilio_client(config)
     try:
         message_params = {
             "to": f"whatsapp:{to_phone}",
@@ -568,7 +583,7 @@ def send_whatsapp_text(to_phone: str, body: str, media_urls: list[str] | None = 
         }
         if media_urls:
             message_params["media_url"] = media_urls
-        client.messages.create(**message_params)
+        await asyncio.to_thread(client.messages.create, **message_params)
     except TwilioRestException as e:
         logger.error(f"WhatsApp text to {to_phone} failed: {e.msg}")
         raise HTTPException(status_code=400, detail=f"Failed to send WhatsApp message: {e.msg}")
@@ -610,7 +625,7 @@ async def send_sms(
 
     # 4. Action: Send the SMS/MMS
     try:
-        client = Client(config.account_sid, config.auth_token)
+        client = _twilio_client(config)
 
         # Prepare message parameters
         message_params = {
@@ -655,12 +670,18 @@ async def send_sms(
         if media_urls:
             message_params["media_url"] = media_urls
 
-        message = client.messages.create(**message_params)
+        message = await asyncio.to_thread(client.messages.create, **message_params)
         logger.info(f"SMS/MMS sent successfully. SID: {message.sid}")
         return {"success": True, "message_sid": message.sid}
     except TwilioRestException as e:
         logger.error(f"Twilio API error: {e.msg}")
         raise HTTPException(status_code=400, detail=f"Failed to send SMS/MMS: {e.msg}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        # e.g. the Twilio timeout. Matches send_whatsapp / make_voice_call.
+        logger.error(f"Error sending SMS/MMS: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to send SMS/MMS")
 
 @messaging_router.post("/webhooks/sms-incoming", tags=["Webhooks"], status_code=204)
 async def sms_incoming_webhook(
@@ -692,13 +713,14 @@ async def sms_incoming_webhook(
         # Get Twilio config to respond
         try:
             config = get_twilio_config()
-            client = Client(config.account_sid, config.auth_token)
+            client = _twilio_client(config)
 
             # Send unified confirmation response via SMS
             key_info = f" or use the key '{message_body}'" if message_body else ""
             response_message = f"🤖 This is the Observer Bot!\n\nYour number {from_number} is now whitelisted for 24 hours across SMS, WhatsApp, and voice calls!\n\nUse this number{key_info} in your Observer AI agents."
 
-            client.messages.create(
+            await asyncio.to_thread(
+                client.messages.create,
                 to=from_number,
                 from_=config.from_number,
                 body=response_message
@@ -750,7 +772,7 @@ async def send_whatsapp(
     logger.info(f"Processing WhatsApp for user_id: {current_user.id} to {resolved_phone} (original input: {request_data.to_number})")
 
     # 4. Action: Send the WhatsApp message
-    client = Client(config.account_sid, config.auth_token)
+    client = _twilio_client(config)
 
     try:
         # Prepare media URLs if images provided
@@ -789,7 +811,7 @@ async def send_whatsapp(
         else:
             logger.info(f"Sending WhatsApp text message for user {current_user.id}")
 
-        message = client.messages.create(**message_params)
+        message = await asyncio.to_thread(client.messages.create, **message_params)
         logger.info(f"WhatsApp message sent successfully to whitelisted number. SID: {message.sid}")
         return {"success": True, "message_sid": message.sid}
 
@@ -853,7 +875,7 @@ async def whatsapp_incoming_webhook(
 
         async def reply(text: str) -> None:
             try:
-                send_whatsapp_text(from_number, text)
+                await send_whatsapp_text(from_number, text)
             except Exception as e:
                 # The whitelist/routing already happened; a failed reply shouldn't undo it.
                 logger.error(f"Failed to reply to {from_number}: {str(e)}")
@@ -961,7 +983,7 @@ async def make_voice_call(
 
     # 4. Action: Initiate the call
     try:
-        client = Client(config.account_sid, config.auth_token)
+        client = _twilio_client(config)
 
         # Stash the message first, so it is retrievable no matter how fast
         # Twilio comes back for the TwiML.
@@ -973,7 +995,8 @@ async def make_voice_call(
         )
 
         # Create the call
-        call = client.calls.create(
+        call = await asyncio.to_thread(
+            client.calls.create,
             to=resolved_phone,  # Use resolved phone number (handles keys and normalization)
             from_=config.from_number,
             url=callback_url,

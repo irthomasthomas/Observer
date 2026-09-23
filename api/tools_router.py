@@ -1,6 +1,7 @@
 # tools_router.py
 
 import os
+import asyncio
 import hmac
 import logging
 from pathlib import Path
@@ -24,6 +25,8 @@ import remote
 # --- Setup (logging is configured once in api.py via logging_config.setup_logging()) ---
 logger = logging.getLogger('tools_router')
 tools_router = APIRouter()
+
+SENDGRID_TIMEOUT = 15.0
 
 
 # --- Pydantic Models ---
@@ -150,7 +153,10 @@ async def send_email(
 
     try:
         sendgrid_client = SendGridAPIClient(sendgrid_api_key)
-        response = sendgrid_client.send(message)
+        # The SDK is synchronous and has no timeout by default; in a worker
+        # thread a hung send would hold that thread forever.
+        sendgrid_client.client.timeout = SENDGRID_TIMEOUT
+        response = await asyncio.to_thread(sendgrid_client.send, message)
         logger.info(f"Email successfully sent to SendGrid for user {current_user.id}. Status: {response.status_code}")
         return {"success": True, "detail": "Email sent successfully."}
     except Exception as e:

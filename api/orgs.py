@@ -176,7 +176,11 @@ def _send_invite_email(email: str, org_name: str, token: str) -> None:
         click_tracking=ClickTracking(enable=False, enable_text=False)
     )
     try:
-        SendGridAPIClient(api_key).send(message)
+        sendgrid_client = SendGridAPIClient(api_key)
+        # Runs in a worker thread (see grant_seat); without a timeout a hung
+        # send would hold that thread forever.
+        sendgrid_client.client.timeout = 15.0
+        sendgrid_client.send(message)
         logger.info(f"Sent org invite to {email}")
     except Exception:
         logger.exception(f"Failed to send org invite email to {email}")
