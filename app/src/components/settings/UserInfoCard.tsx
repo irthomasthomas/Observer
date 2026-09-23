@@ -1,7 +1,8 @@
 // Front-and-center card on the Settings home: the whitelist phrase + saved notification contacts
 // collected by the `ask_user_info` MCP tool.
 import React, { useState } from 'react';
-import { Eye, EyeOff, Copy, Check, QrCode, RefreshCw, Pencil, CheckCircle2, XCircle } from 'lucide-react';
+import { Eye, EyeOff, Copy, Check, QrCode, RefreshCw, Pencil, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '@contexts/AuthContext';
 import { SensorSettings } from '@utils/settings';
 import { useWhitelistPolling } from '@components/whitelist/shared';
@@ -9,9 +10,12 @@ import WhitelistQR from '@components/whitelist/WhitelistQR';
 import Switch from './Switch';
 import { useMCPContext } from '../../mcp/MCPContext';
 import type { UserInfoKind } from '../../mcp/types';
-import { CONTACT_LABEL, CONTACT_PLACEHOLDER, contactError, contactValid, normalizeContact } from '@utils/contactInfo';
+import {
+  CONTACT_LABEL, CONTACT_PLACEHOLDER, contactError, contactValid, normalizeContact,
+  TELEGRAM_BOT, telegramCodeLink,
+} from '@utils/contactInfo';
 
-const KINDS: UserInfoKind[] = ['telegram', 'discord', 'pushover'];
+const KINDS: UserInfoKind[] = ['discord', 'pushover'];
 const SECRET_KINDS: UserInfoKind[] = ['discord', 'pushover'];
 
 const ContactRow: React.FC<{ kind: UserInfoKind }> = ({ kind }) => {
@@ -72,32 +76,26 @@ const ContactRow: React.FC<{ kind: UserInfoKind }> = ({ kind }) => {
 };
 
 /**
- * Chatting with Observer from the phone that's linked to the phrase. `linked` comes from the
- * API (only the server knows which phone bound the code); `listening` is this tab holding the
- * session open — with it off, the bot tells the phone no session is active.
+ * Chatting with Observer from the phone that's linked to the phrase — same phrase, same card,
+ * just a different channel capability. `linked` comes from the API (only the server knows which
+ * phone bound the code); `listening` is this tab holding the session open — with it off, the bot
+ * tells the phone no session is active.
  */
-const RemoteControlRow: React.FC<{ hasCode: boolean }> = ({ hasCode }) => {
+const RemoteControlStatus: React.FC<{ hasCode: boolean }> = ({ hasCode }) => {
   const { remote } = useMCPContext();
   const linkedChannels = remote.linked
     ? (['whatsapp', 'telegram'] as const).filter(c => remote.linked![c])
     : [];
 
   const status = !hasCode || linkedChannels.length === 0
-    ? 'No phone linked yet'
-    : `${linkedChannels.map(c => (c === 'whatsapp' ? 'WhatsApp' : 'Telegram')).join(' · ')} linked${
+    ? 'Not chatting yet — link WhatsApp or Telegram above'
+    : `Chat linked via ${linkedChannels.map(c => (c === 'whatsapp' ? 'WhatsApp' : 'Telegram')).join(' · ')}${
         remote.enabled ? (remote.listening ? ' · listening' : ' · connecting…') : ''
       }`;
 
   return (
-    <div className="px-5 py-4 flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Remote control</h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          Message Observer from WhatsApp or Telegram
-          <br />
-          {status}
-        </p>
-      </div>
+    <div className="mt-3 flex items-center justify-between gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+      <p className="text-xs text-gray-500 dark:text-gray-400 min-w-0">{status}</p>
       <Switch
         checked={remote.enabled}
         onChange={() => remote.setEnabled(!remote.enabled)}
@@ -113,6 +111,7 @@ const UserInfoCard: React.FC = () => {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [qrTab, setQrTab] = useState<'whatsapp' | 'sms' | 'telegram'>('whatsapp');
   const { allWhitelisted: verified } = useWhitelistPolling(
     code ? [{ number: code, isWhitelisted: false }] : [],
     getAccessToken,
@@ -138,7 +137,7 @@ const UserInfoCard: React.FC = () => {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Your phrase</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Text it to Observer to link your phone. Keep it private.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Link it via WhatsApp, SMS or Telegram to get notifications and chat with Observer. Keep it private.</p>
           </div>
           {code && (
             <span className={`inline-flex items-center gap-1 text-xs font-medium flex-shrink-0 ${verified ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
@@ -178,13 +177,46 @@ const UserInfoCard: React.FC = () => {
         )}
 
         {code && showQR && (
-          <div className="mt-4 flex justify-center rounded-xl bg-white border border-gray-200 py-4">
-            <WhitelistQR code={code} />
+          <div className="mt-4 flex flex-col items-center gap-4 rounded-xl bg-white border border-gray-200 py-4">
+            <div className="inline-flex items-center gap-1 p-1 rounded-full bg-gray-100 border border-gray-200">
+              {(['whatsapp', 'sms', 'telegram'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setQrTab(t)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
+                    qrTab === t ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {t === 'sms' ? 'SMS' : t === 'whatsapp' ? 'WhatsApp' : 'Telegram'}
+                </button>
+              ))}
+            </div>
+
+            {qrTab === 'telegram' ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                  <QRCodeSVG value={telegramCodeLink(code)} size={168} level="H" includeMargin={false} fgColor="#111827" />
+                </div>
+                <a
+                  href={telegramCodeLink(code)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded text-xs font-medium hover:bg-black transition-colors"
+                >
+                  Open in Telegram <ExternalLink className="h-3 w-3" />
+                </a>
+                <p className="text-xs text-gray-500 text-center max-w-xs">
+                  Scan or open, then tap <span className="font-medium">Start</span> in the chat with @{TELEGRAM_BOT} — this lets you message Observer from Telegram.
+                </p>
+              </div>
+            ) : (
+              <WhitelistQR code={code} channel={qrTab} />
+            )}
           </div>
         )}
-      </div>
 
-      <RemoteControlRow hasCode={!!code} />
+        <RemoteControlStatus hasCode={!!code} />
+      </div>
 
       {KINDS.map(kind => <ContactRow key={kind} kind={kind} />)}
     </section>

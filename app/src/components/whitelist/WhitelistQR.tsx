@@ -1,5 +1,5 @@
 // Shared by the ask_user_info modal and Settings: channel toggle, QR, copyable code, open-app button.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Phone, Check, Copy } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -7,8 +7,11 @@ import { whatsappCodeQRValue, smsCodeQRValue, openWhatsApp, openSMS } from './sh
 
 const WhitelistQR: React.FC<{ code: string; channel?: 'sms' | 'voice' | 'whatsapp' }> = ({ code, channel }) => {
   const [copied, setCopied] = useState(false);
-  const showSms = channel !== 'whatsapp';
-  const [qrChannel, setQrChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const showSms = channel !== 'whatsapp' && channel !== 'sms';
+  const [qrChannel, setQrChannel] = useState<'whatsapp' | 'sms'>(channel === 'sms' ? 'sms' : 'whatsapp');
+  useEffect(() => {
+    if (channel === 'sms' || channel === 'whatsapp') setQrChannel(channel);
+  }, [channel]);
   const isWhatsApp = qrChannel === 'whatsapp';
 
   const copyCode = () => {
