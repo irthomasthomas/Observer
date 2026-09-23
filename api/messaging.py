@@ -1,6 +1,7 @@
 # messaging.py
 
 import os
+import asyncio
 import logging
 import uuid
 import secrets
@@ -269,6 +270,56 @@ async def validate_twilio_request(request: Request) -> dict:
     # Return FormData as a simple dict - much cleaner!
     return dict(form_data)
 
+def _compress_jpeg(image_b64: str) -> bytes:
+    """
+    Decode and re-encode an image as a JPEG under 4MB.
+
+    CPU-bound and synchronous: callers run it in a thread (asyncio.to_thread)
+    so a large screenshot, which can take several JPEG encodes at falling
+    quality, does not stall every other request on the worker's event loop.
+    """
+    # Decode base64 image
+    image_data = base64.b64decode(image_b64)
+    logger.info(f"Image input: base64 length={len(image_b64)}, decoded bytes={len(image_data)}")
+
+    # Open image with PIL for compression
+    with Image.open(io.BytesIO(image_data)) as img:
+        logger.info(f"Image opened: size={img.size}, mode={img.mode}")
+        # Convert to RGB if necessary (for JPG compatibility)
+        if img.mode in ('RGBA', 'LA', 'P'):
+            # Create white background for transparent images
+            rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            rgb_img.paste(img, mask=img.split()[-1] if 'A' in img.mode else None)
+            img = rgb_img
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        # Compress image to ensure it's under 4MB (leaving 1MB buffer)
+        quality = 95
+        max_size = 4 * 1024 * 1024  # 4MB
+
+        while quality > 10:
+            # Save to memory buffer to check size
+            buffer = io.BytesIO()
+            img.save(buffer, format='JPEG', quality=quality, optimize=True)
+
+            if buffer.tell() <= max_size:
+                # Size is acceptable
+                break
+
+            # Reduce quality and try again
+            quality -= 10
+        else:
+            # If still too large, resize the image
+            img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+            buffer = io.BytesIO()
+            img.save(buffer, format='JPEG', quality=80, optimize=True)
+
+    return buffer.getvalue()
+
+
 async def save_temp_image(image_b64: str) -> str:
     """Save base64 image to temp storage with compression and return public URL"""
     try:
@@ -276,46 +327,7 @@ async def save_temp_image(image_b64: str) -> str:
         image_id = str(uuid.uuid4())
         filename = f"{image_id}.jpg"  # Use JPG for better compression
 
-        # Decode base64 image
-        image_data = base64.b64decode(image_b64)
-        logger.info(f"Image input: base64 length={len(image_b64)}, decoded bytes={len(image_data)}")
-
-        # Open image with PIL for compression
-        with Image.open(io.BytesIO(image_data)) as img:
-            logger.info(f"Image opened: size={img.size}, mode={img.mode}")
-            # Convert to RGB if necessary (for JPG compatibility)
-            if img.mode in ('RGBA', 'LA', 'P'):
-                # Create white background for transparent images
-                rgb_img = Image.new('RGB', img.size, (255, 255, 255))
-                if img.mode == 'P':
-                    img = img.convert('RGBA')
-                rgb_img.paste(img, mask=img.split()[-1] if 'A' in img.mode else None)
-                img = rgb_img
-            elif img.mode != 'RGB':
-                img = img.convert('RGB')
-
-            # Compress image to ensure it's under 4MB (leaving 1MB buffer)
-            quality = 95
-            max_size = 4 * 1024 * 1024  # 4MB
-
-            while quality > 10:
-                # Save to memory buffer to check size
-                buffer = io.BytesIO()
-                img.save(buffer, format='JPEG', quality=quality, optimize=True)
-
-                if buffer.tell() <= max_size:
-                    # Size is acceptable
-                    break
-
-                # Reduce quality and try again
-                quality -= 10
-            else:
-                # If still too large, resize the image
-                img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
-                buffer = io.BytesIO()
-                img.save(buffer, format='JPEG', quality=80, optimize=True)
-
-        data = buffer.getvalue()
+        data = await asyncio.to_thread(_compress_jpeg, image_b64)
         if not data:
             raise Exception("Image was not encoded properly")
 
@@ -345,7 +357,6 @@ async def save_temp_video(video_b64: str, max_size_mb: float = 50.0, transcode: 
     Returns:
         Public URL to the saved video
     """
-    import subprocess
     import tempfile
 
     # ffmpeg works on real files, so transcoding needs a scratch directory.
@@ -355,11 +366,56 @@ async def save_temp_video(video_b64: str, max_size_mb: float = 50.0, transcode: 
         return await _save_temp_video(video_b64, max_size_mb, transcode, Path(scratch))
 
 
+# ffmpeg runs as a child process, so awaiting it leaves the event loop free.
+# That also removes the accidental limit the old blocking subprocess.run
+# imposed (one transcode per worker at a time), so the cap is now explicit:
+# 4 workers x 1 slot keeps the box at the same ceiling of concurrent x264 jobs.
+_TRANSCODE_SLOTS = asyncio.Semaphore(1)
+
+
+async def _run(cmd: list[str], timeout: float) -> tuple[int, str, str]:
+    """
+    Run a command without blocking the event loop. Returns (returncode,
+    stdout, stderr). Raises asyncio.TimeoutError after `timeout` seconds and
+    FileNotFoundError if the binary is missing, like subprocess.run did.
+
+    The child is killed on timeout or cancellation, so an abandoned request
+    never leaves an ffmpeg process running.
+    """
+    proc = await asyncio.create_subprocess_exec(
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout)
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        proc.kill()
+        await proc.wait()
+        raise
+    return (
+        proc.returncode,
+        stdout.decode(errors="replace"),
+        stderr.decode(errors="replace"),
+    )
+
+
+def _write_file(path: Path, video_b64: str, max_size_mb: float) -> None:
+    """Decode and write the input video. Runs in a thread: up to ~15MB of base64."""
+    video_data = base64.b64decode(video_b64)
+
+    # Check file size
+    file_size_mb = len(video_data) / (1024 * 1024)
+    if file_size_mb > max_size_mb:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Video too large ({file_size_mb:.1f}MB). Maximum allowed: {max_size_mb}MB"
+        )
+
+    path.write_bytes(video_data)
+
+
 async def _save_temp_video(
     video_b64: str, max_size_mb: float, transcode: bool, scratch: Path
 ) -> str:
-    import subprocess
-
     try:
         # Generate secure UUID filename
         video_id = str(uuid.uuid4())
@@ -368,22 +424,9 @@ async def _save_temp_video(
         input_filepath = scratch / input_filename
         output_filepath = scratch / output_filename
 
-        # Decode base64 video
-        video_data = base64.b64decode(video_b64)
-
-        # Check file size
-        file_size_mb = len(video_data) / (1024 * 1024)
-        if file_size_mb > max_size_mb:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Video too large ({file_size_mb:.1f}MB). Maximum allowed: {max_size_mb}MB"
-            )
-
-        # Save input video file
-        with open(input_filepath, "wb") as f:
-            f.write(video_data)
-            f.flush()
-            os.fsync(f.fileno())
+        # Decode and save the input video. No fsync: ffmpeg reads it back
+        # through the page cache and the directory is gone after this call.
+        await asyncio.to_thread(_write_file, input_filepath, video_b64, max_size_mb)
 
         if transcode:
             # Transcode to H.264/AAC for WhatsApp compatibility
@@ -399,8 +442,8 @@ async def _save_temp_video(
                     "-show_entries", "stream=codec_type", "-of", "csv=p=0",
                     str(input_filepath)
                 ]
-                probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=30)
-                has_audio = bool(probe_result.stdout.strip())
+                _, probe_stdout, _ = await _run(probe_cmd, timeout=30)
+                has_audio = bool(probe_stdout.strip())
 
                 if has_audio:
                     # Video has audio, just transcode
@@ -424,10 +467,11 @@ async def _save_temp_video(
                     ]
                     logger.info("Adding silent audio track for WhatsApp compatibility")
 
-                result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, timeout=120)
+                async with _TRANSCODE_SLOTS:
+                    returncode, _, ffmpeg_stderr = await _run(ffmpeg_cmd, timeout=120)
 
-                if result.returncode != 0:
-                    logger.error(f"FFmpeg error: {result.stderr}")
+                if returncode != 0:
+                    logger.error(f"FFmpeg error: {ffmpeg_stderr}")
                     # Fall back to original file if transcoding fails
                     os.rename(input_filepath, output_filepath)
                     logger.warning("FFmpeg transcoding failed, using original video")
@@ -436,7 +480,7 @@ async def _save_temp_video(
                     input_filepath.unlink(missing_ok=True)
                     logger.info("Video transcoded to H.264/AAC for WhatsApp")
 
-            except subprocess.TimeoutExpired:
+            except asyncio.TimeoutError:
                 logger.warning("FFmpeg timeout, using original video")
                 os.rename(input_filepath, output_filepath)
             except FileNotFoundError:
@@ -450,7 +494,7 @@ async def _save_temp_video(
         if not output_filepath.exists() or output_filepath.stat().st_size == 0:
             raise Exception("Video file was not saved properly")
 
-        data = output_filepath.read_bytes()
+        data = await asyncio.to_thread(output_filepath.read_bytes)
         await r2_store.put_bytes(
             r2_store.temp_media_key(output_filename), data, content_type="video/mp4"
         )
