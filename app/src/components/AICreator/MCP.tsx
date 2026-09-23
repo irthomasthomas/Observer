@@ -92,7 +92,7 @@ const StatusIcon: React.FC<{ status?: string }> = ({ status }) => {
     case 'done': return <CheckCircle2 className="h-3 w-3 text-green-600" />;
     case 'error': return <XCircle className="h-3 w-3 text-red-500" />;
     case 'running': return <Loader className="h-3 w-3 text-gray-400 animate-spin" />;
-    default: return <Loader className="h-3 w-3 text-gray-400 animate-spin" />;
+    default: return <CheckCircle2 className="h-3 w-3 text-green-600" />;
   }
 };
 
@@ -114,7 +114,7 @@ const ToolChip: React.FC<{ call: ToolCall; status?: ToolStatusEntry }> = ({ call
 // in renderMessages below).
 const WorkingGroup: React.FC<{ batches: ToolCall[][]; toolStatus: Map<string, ToolStatusEntry> }> = ({ batches, toolStatus }) => {
   const calls = batches.flat();
-  const isRunning = calls.some(tc => toolStatus.get(tc.id)?.status !== 'done' && toolStatus.get(tc.id)?.status !== 'error');
+  const isRunning = calls.some(tc => toolStatus.get(tc.id)?.status === 'running');
   const hasError = calls.some(tc => toolStatus.get(tc.id)?.status === 'error');
   // Auto-collapse shortly after the run finishes, mirroring Cowork's "done, tucked away" feel.
   // Stays expanded while running or right after finishing so the last tool is still visible.
