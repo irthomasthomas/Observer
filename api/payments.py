@@ -1,5 +1,6 @@
 # community/payments.py
 
+import asyncio
 import stripe
 import hashlib
 import hmac
@@ -32,6 +33,12 @@ from orgs import sync_org_from_stripe, sget
 # --- Standard Setup ---
 logger = logging.getLogger(__name__)
 payments_router = APIRouter()
+
+# The stripe SDK is synchronous. Every Stripe call in this module runs in a
+# worker thread (asyncio.to_thread), never directly in an async handler, where
+# each round trip would stall every other request on the worker's event loop.
+# Plain `def` helpers below are the thread-side code: they may call Stripe
+# directly, and async code calls them through asyncio.to_thread.
 
 # --- Configuration from Environment Variables ---
 # Make sure these are set in your environment or .env file
@@ -133,16 +140,25 @@ async def has_active_subscription(email: str) -> tuple[bool, str | None, str | N
         return True, apple_id, "apple", None
 
     # 2. Check Stripe directly (source of truth)
+    found = await asyncio.to_thread(_find_active_stripe_subscription, email)
+    if found:
+        sub_id, customer_id = found
+        return True, sub_id, "stripe", customer_id
+
+    return False, None, None, None
+
+
+def _find_active_stripe_subscription(email: str) -> tuple[str, str] | None:
+    """(subscription_id, customer_id) of the first active/trialing personal subscription. Thread-side."""
     try:
         for cust in _list_personal_customers(email):
             subscriptions = stripe.Subscription.list(customer=cust.id, status='all', limit=100)
             for sub in subscriptions.data:
                 if sub.status in ('active', 'trialing'):
-                    return True, sub.id, "stripe", cust.id
+                    return sub.id, cust.id
     except Exception as e:
         logger.error(f"Error checking Stripe subscription for {email}: {e}")
-
-    return False, None, None, None
+    return None
 
 
 # --- URLs for Redirection ---
@@ -244,7 +260,8 @@ async def create_trial_link(
         raise HTTPException(status_code=503, detail="Max tier is not currently available.")
 
     try:
-        checkout_session = stripe.checkout.Session.create(
+        checkout_session = await asyncio.to_thread(
+            stripe.checkout.Session.create,
             line_items=[{"price": MAX_PRICE_ID, "quantity": 1}],
             mode="subscription",
 
@@ -378,7 +395,8 @@ async def generate_partner_code(partner: dict = Depends(get_partner)):
     try:
         # Newer Stripe API versions nest the coupon under `promotion` instead of a
         # top-level `coupon` param (the latter now 400s as "unknown parameter").
-        promo = stripe.PromotionCode.create(
+        promo = await asyncio.to_thread(
+            stripe.PromotionCode.create,
             promotion={"type": "coupon", "coupon": coupon_id},
             max_redemptions=1,
             expires_at=int(time.time()) + PARTNER_CODE_TTL_DAYS * 24 * 60 * 60,
@@ -438,6 +456,8 @@ def get_or_create_stripe_customer(user: AuthUser) -> str | None:
     This ensures the Stripe customer always has the Auth0 email, preventing
     mismatches from Stripe Link or other payment autofill features that could
     create a customer with a different email.
+
+    Thread-side: call through asyncio.to_thread.
     """
     # Fast path: use cached customer ID from JWT metadata
     if isinstance(getattr(user, 'app_metadata', None), dict):
@@ -490,7 +510,8 @@ async def create_checkout_session(current_user: AuthUser, body: CheckoutRequest 
                 detail="You have an active Apple subscription. Please cancel it in iOS Settings before purchasing via Stripe."
             )
         elif provider == "stripe" and active_customer_id:
-            portal = stripe.billing_portal.Session.create(
+            portal = await asyncio.to_thread(
+                stripe.billing_portal.Session.create,
                 customer=active_customer_id,
                 return_url=f"{base_url}/refresh",
             )
@@ -498,29 +519,10 @@ async def create_checkout_session(current_user: AuthUser, body: CheckoutRequest 
 
     try:
         # Get or create Stripe customer with Auth0 email to prevent Link email mismatch
-        customer_id = get_or_create_stripe_customer(current_user)
+        customer_id = await asyncio.to_thread(get_or_create_stripe_customer, current_user)
 
         # Check if user has already used a free trial
-        had_trial = False
-        if customer_id:
-            try:
-                past_subs = stripe.Subscription.list(customer=customer_id, status='all', limit=100)
-                had_trial = any(sub.trial_end is not None for sub in past_subs.data)
-            except Exception as e:
-                logger.warning(f"Failed to check trial history for {current_user.id}: {e}")
-
-        # Check ghost customers — accounts that were deleted and re-registered with the same email
-        if not had_trial and hasattr(current_user, 'email') and current_user.email:
-            try:
-                email_hash = hashlib.sha256(current_user.email.lower().encode()).hexdigest()
-                ghost_customers = stripe.Customer.list(email=f"{email_hash}@deleted.invalid", limit=100)
-                for ghost in ghost_customers.data:
-                    past_subs = stripe.Subscription.list(customer=ghost.id, status='all', limit=100)
-                    if any(sub.trial_end is not None for sub in past_subs.data):
-                        had_trial = True
-                        break
-            except Exception as e:
-                logger.warning(f"Failed to check ghost trial history for {current_user.id}: {e}")
+        had_trial = await asyncio.to_thread(_had_trial, current_user, customer_id)
 
         checkout_params = {
             "line_items": [{"price": PRO_PRICE_ID, "quantity": 1}],
@@ -537,11 +539,41 @@ async def create_checkout_session(current_user: AuthUser, body: CheckoutRequest 
         if customer_id:
             checkout_params["customer"] = customer_id
 
-        checkout_session = stripe.checkout.Session.create(**checkout_params)
+        checkout_session = await asyncio.to_thread(stripe.checkout.Session.create, **checkout_params)
         return {"url": checkout_session.url}
     except Exception as e:
         logger.error(f"Stripe Checkout creation failed for user {current_user.id}: {e}")
         raise HTTPException(status_code=500, detail="Could not create payment session.")
+
+
+def _had_trial(user: AuthUser, customer_id: str | None) -> bool:
+    """
+    Whether this user has already used a free trial, on their current customer
+    or on a ghost customer left by a deleted account with the same email.
+    Thread-side: call through asyncio.to_thread.
+    """
+    had_trial = False
+    if customer_id:
+        try:
+            past_subs = stripe.Subscription.list(customer=customer_id, status='all', limit=100)
+            had_trial = any(sub.trial_end is not None for sub in past_subs.data)
+        except Exception as e:
+            logger.warning(f"Failed to check trial history for {user.id}: {e}")
+
+    # Check ghost customers — accounts that were deleted and re-registered with the same email
+    if not had_trial and hasattr(user, 'email') and user.email:
+        try:
+            email_hash = hashlib.sha256(user.email.lower().encode()).hexdigest()
+            ghost_customers = stripe.Customer.list(email=f"{email_hash}@deleted.invalid", limit=100)
+            for ghost in ghost_customers.data:
+                past_subs = stripe.Subscription.list(customer=ghost.id, status='all', limit=100)
+                if any(sub.trial_end is not None for sub in past_subs.data):
+                    had_trial = True
+                    break
+        except Exception as e:
+            logger.warning(f"Failed to check ghost trial history for {user.id}: {e}")
+
+    return had_trial
 
 
 @payments_router.post(
@@ -566,7 +598,8 @@ async def create_checkout_session_max(current_user: AuthUser, body: CheckoutRequ
                 detail="You have an active Apple subscription. Please cancel it in iOS Settings before purchasing via Stripe."
             )
         elif provider == "stripe" and active_customer_id:
-            portal = stripe.billing_portal.Session.create(
+            portal = await asyncio.to_thread(
+                stripe.billing_portal.Session.create,
                 customer=active_customer_id,
                 return_url=f"{base_url}/refresh",
             )
@@ -578,7 +611,7 @@ async def create_checkout_session_max(current_user: AuthUser, body: CheckoutRequ
 
     try:
         # Get or create Stripe customer with Auth0 email to prevent Link email mismatch
-        customer_id = get_or_create_stripe_customer(current_user)
+        customer_id = await asyncio.to_thread(get_or_create_stripe_customer, current_user)
 
         checkout_params = {
             "line_items": [{"price": MAX_PRICE_ID, "quantity": 1}],
@@ -592,7 +625,7 @@ async def create_checkout_session_max(current_user: AuthUser, body: CheckoutRequ
         if customer_id:
             checkout_params["customer"] = customer_id
 
-        checkout_session = stripe.checkout.Session.create(**checkout_params)
+        checkout_session = await asyncio.to_thread(stripe.checkout.Session.create, **checkout_params)
         return {"url": checkout_session.url}
     except Exception as e:
         logger.error(f"Stripe Checkout creation failed for Max tier for user {current_user.id}: {e}")
@@ -621,7 +654,8 @@ async def create_checkout_session_plus(current_user: AuthUser, body: CheckoutReq
                 detail="You have an active Apple subscription. Please cancel it in iOS Settings before purchasing via Stripe."
             )
         elif provider == "stripe" and active_customer_id:
-            portal = stripe.billing_portal.Session.create(
+            portal = await asyncio.to_thread(
+                stripe.billing_portal.Session.create,
                 customer=active_customer_id,
                 return_url=f"{base_url}/refresh",
             )
@@ -633,7 +667,7 @@ async def create_checkout_session_plus(current_user: AuthUser, body: CheckoutReq
 
     try:
         # Get or create Stripe customer with Auth0 email to prevent Link email mismatch
-        customer_id = get_or_create_stripe_customer(current_user)
+        customer_id = await asyncio.to_thread(get_or_create_stripe_customer, current_user)
 
         checkout_params = {
             "line_items": [{"price": PLUS_PRICE_ID, "quantity": 1}],
@@ -647,7 +681,7 @@ async def create_checkout_session_plus(current_user: AuthUser, body: CheckoutReq
         if customer_id:
             checkout_params["customer"] = customer_id
 
-        checkout_session = stripe.checkout.Session.create(**checkout_params)
+        checkout_session = await asyncio.to_thread(stripe.checkout.Session.create, **checkout_params)
         return {"url": checkout_session.url}
     except Exception as e:
         logger.error(f"Stripe Checkout creation failed for Plus tier for user {current_user.id}: {e}")
@@ -681,7 +715,7 @@ async def create_customer_portal_session(current_user: AuthUser, body: CheckoutR
         raise HTTPException(status_code=404, detail="No active subscription found to manage.")
 
     try:
-        portal_session = _create_billing_portal(customer_id, f"{base_url}/refresh")
+        portal_session = await asyncio.to_thread(_create_billing_portal, customer_id, f"{base_url}/refresh")
         return {"url": portal_session.url}
     except Exception as e:
         logger.error(f"Could not create customer portal for user {current_user.id}: {e}")
@@ -706,7 +740,7 @@ async def sync_user_from_stripe(stripe_customer_id: str) -> dict:
     """
     # 1. Get the email from the triggering Stripe customer (source of truth)
     try:
-        customer = stripe.Customer.retrieve(stripe_customer_id)
+        customer = await asyncio.to_thread(stripe.Customer.retrieve, stripe_customer_id)
         customer_email = customer.email
     except Exception as e:
         logger.error(f"Could not retrieve Stripe customer {stripe_customer_id}: {e}")
@@ -737,7 +771,7 @@ async def sync_user_from_stripe(stripe_customer_id: str) -> dict:
 
     # 3. Find ALL Stripe customers with this email
     try:
-        all_customers = stripe.Customer.list(email=customer_email, limit=100)
+        all_customers = await asyncio.to_thread(stripe.Customer.list, email=customer_email, limit=100)
     except Exception as e:
         logger.error(f"Failed to list Stripe customers for email {customer_email}: {e}")
         return {"status": "error", "detail": "Failed to query Stripe customers"}
@@ -762,7 +796,7 @@ async def sync_user_from_stripe(stripe_customer_id: str) -> dict:
             continue
 
         try:
-            subscriptions = stripe.Subscription.list(customer=cust.id, limit=100)
+            subscriptions = await asyncio.to_thread(stripe.Subscription.list, customer=cust.id, limit=100)
         except Exception as e:
             logger.error(f"Failed to list subscriptions for customer {cust.id}: {e}")
             continue
@@ -848,7 +882,7 @@ async def sync_subscription_endpoint(current_user: AuthUser):
 
     if not stripe_customer_id and hasattr(current_user, 'email') and current_user.email:
         try:
-            customers = _list_personal_customers(current_user.email)
+            customers = await asyncio.to_thread(_list_personal_customers, current_user.email)
             if customers:
                 stripe_customer_id = customers[0].id
         except Exception as e:
@@ -907,7 +941,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
     event_customer_id = getattr(event_data, 'customer', None)
     if event_customer_id:
         try:
-            org_customer = stripe.Customer.retrieve(event_customer_id)
+            org_customer = await asyncio.to_thread(stripe.Customer.retrieve, event_customer_id)
             org_id = sget(org_customer.metadata, "org_id")
         except Exception as e:
             logger.error(f"Could not retrieve customer {event_customer_id} for org routing: {e}")
@@ -926,7 +960,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         client_ref_id = getattr(event_data, 'client_reference_id', None)
         if stripe_customer_id and client_ref_id:
             try:
-                customer = stripe.Customer.retrieve(stripe_customer_id)
+                customer = await asyncio.to_thread(stripe.Customer.retrieve, stripe_customer_id)
                 # Look up the Auth0 user's email from client_reference_id
                 auth0_email = ((await get_email_by_id(client_ref_id)) or '').lower()
                 customer_email = (customer.email or '').lower()
@@ -937,7 +971,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
                         f"doesn't match Auth0 user {client_ref_id} email ({auth0_email}). "
                         f"Updating Stripe customer email."
                     )
-                    stripe.Customer.modify(stripe_customer_id, email=auth0_email)
+                    await asyncio.to_thread(stripe.Customer.modify, stripe_customer_id, email=auth0_email)
             except Exception as e:
                 logger.error(f"Failed to verify/fix customer email on checkout.session.completed: {e}")
 
@@ -959,7 +993,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
                         update_fields['address'] = address
 
                 if update_fields:
-                    stripe.Customer.modify(stripe_customer_id, **update_fields)
+                    await asyncio.to_thread(stripe.Customer.modify, stripe_customer_id, **update_fields)
                     logger.info(f"Backfilled customer {stripe_customer_id} with checkout details: {list(update_fields.keys())}")
             except Exception as e:
                 logger.error(f"Failed to backfill customer details for {stripe_customer_id}: {e}")

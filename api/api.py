@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse, Response
 from contextlib import asynccontextmanager
 import uvicorn
 import argparse
+import asyncio
 import logging
 import os
 import re
@@ -29,7 +30,7 @@ from compute import compute_router
 from tools_router import tools_router
 from messaging import messaging_router
 from remote import remote_router
-from payments import payments_router
+from payments import payments_router, _list_personal_customers
 from apple_payments import apple_payments_router
 from transcriptions import transcriptions_router
 from orgs import orgs_router
@@ -193,6 +194,50 @@ async def root():
     return {"status": "API server is running"}
 
 
+# Thread-side Stripe work for account deletion. The stripe SDK is synchronous,
+# so delete_account runs each of these through asyncio.to_thread.
+
+def _cancel_active_subscriptions(customer_id: str, user_id: str) -> None:
+    subscriptions = stripe.Subscription.list(customer=customer_id, status='all', limit=100)
+    for sub in subscriptions.data:
+        if sub.status in ('active', 'trialing'):
+            stripe.Subscription.cancel(sub.id)
+            logger.info(f"Cancelled Stripe subscription {sub.id} for user {user_id}")
+
+
+def _redact_stripe_customers(email: str, user_id: str) -> None:
+    """
+    Cancel, detach cards and redact every *personal* Stripe customer for `email`.
+
+    An enterprise org's Stripe customer carries its billing contact's email, so
+    a plain email lookup returns it too. It pays for every seat in the company:
+    cancelling it here would cut off the whole org because one person deleted
+    their own account. _list_personal_customers filters it out (and logs it).
+    """
+    email_hash = hashlib.sha256(email.encode()).hexdigest()
+    ghost_email = f"{email_hash}@deleted.invalid"
+
+    for cust in _list_personal_customers(email):
+        # Cancel active subscriptions
+        _cancel_active_subscriptions(cust.id, user_id)
+
+        # Detach all payment methods
+        payment_methods = stripe.PaymentMethod.list(customer=cust.id, type="card")
+        for pm in payment_methods.data:
+            stripe.PaymentMethod.detach(pm.id)
+
+        # Replace email with hash, wipe all other PII
+        stripe.Customer.modify(
+            cust.id,
+            email=ghost_email,
+            name="",
+            phone="",
+            address={},
+            metadata={"deleted": "true"}
+        )
+        logger.info(f"Redacted Stripe customer {cust.id} for user {user_id}")
+
+
 @app.delete("/delete-account", summary="Permanently delete user account")
 async def delete_account(current_user: AuthUser):
     """
@@ -207,6 +252,15 @@ async def delete_account(current_user: AuthUser):
     user_id = current_user.id
     logger.info(f"Account deletion requested for user: {user_id}")
 
+    if current_user.org_id:
+        # Their org's subscription is deliberately left alone (see
+        # _redact_stripe_customers), but the org record in R2 still lists them
+        # as an active member, and possibly as owner_email, the billing contact.
+        logger.warning(
+            f"Deleted user {user_id} held a seat on org {current_user.org_id}; "
+            f"their seat and, if they were the owner, the billing contact need updating by hand"
+        )
+
     # 1. Cancel Stripe subscription if exists
     stripe_customer_id = None
     if hasattr(current_user, 'app_metadata') and isinstance(current_user.app_metadata, dict):
@@ -214,44 +268,15 @@ async def delete_account(current_user: AuthUser):
 
     email = (getattr(current_user, 'email', None) or '').lower()
     if email:
-        email_hash = hashlib.sha256(email.encode()).hexdigest()
-        ghost_email = f"{email_hash}@deleted.invalid"
         try:
-            all_customers = stripe.Customer.list(email=email, limit=100)
-            for cust in all_customers.data:
-                # Cancel active subscriptions
-                subscriptions = stripe.Subscription.list(customer=cust.id, status='all', limit=100)
-                for sub in subscriptions.data:
-                    if sub.status in ('active', 'trialing'):
-                        stripe.Subscription.cancel(sub.id)
-                        logger.info(f"Cancelled Stripe subscription {sub.id} for user {user_id}")
-
-                # Detach all payment methods
-                payment_methods = stripe.PaymentMethod.list(customer=cust.id, type="card")
-                for pm in payment_methods.data:
-                    stripe.PaymentMethod.detach(pm.id)
-
-                # Replace email with hash, wipe all other PII
-                stripe.Customer.modify(
-                    cust.id,
-                    email=ghost_email,
-                    name="",
-                    phone="",
-                    address={},
-                    metadata={"deleted": "true"}
-                )
-                logger.info(f"Redacted Stripe customer {cust.id} for user {user_id}")
+            await asyncio.to_thread(_redact_stripe_customers, email, user_id)
         except Exception as e:
             logger.error(f"Failed to process Stripe data for user {user_id}: {e}")
             # Continue with deletion even if Stripe fails
     elif stripe_customer_id:
         # Fallback: no email available, cancel by customer ID only
         try:
-            subscriptions = stripe.Subscription.list(customer=stripe_customer_id, status='all', limit=100)
-            for sub in subscriptions.data:
-                if sub.status in ('active', 'trialing'):
-                    stripe.Subscription.cancel(sub.id)
-                    logger.info(f"Cancelled Stripe subscription {sub.id} for user {user_id}")
+            await asyncio.to_thread(_cancel_active_subscriptions, stripe_customer_id, user_id)
         except Exception as e:
             logger.error(f"Failed to cancel Stripe subscriptions for user {user_id}: {e}")
 
