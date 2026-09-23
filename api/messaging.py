@@ -14,7 +14,6 @@ from pydantic import BaseModel, Field
 from PIL import Image
 import io
 import base64
-import phonenumbers
 
 # Third-party imports
 from better_profanity import profanity
@@ -35,15 +34,32 @@ from redis_client import get_redis
 logger = logging.getLogger('twilio')
 messaging_router = APIRouter()
 
-# Temp images directory
-
-WHITELIST_TTL = 86400  # 24 hours in seconds
 VOICE_CALL_TTL = 3600  # 1 hour — how long a pending call message stays retrievable
+CONNECT_HINT_TTL = 86400  # answer an unconnected SMS sender at most once a day
 
 DEFAULT_VOICE_MESSAGE = "Alert from Observer A I"
 
-# The canned text in the no-code whitelist QR (app/src/components/whitelist/shared.ts).
-WHITELIST_GREETING = "Hi! I'd like to whitelist my phone number for Observer"
+OBSERVER_WHATSAPP = "+1 (555) 783-4727"
+
+# Why a send was refused. Each one tells the user the single thing that fixes it.
+NOT_A_CODE = (
+    "Observer no longer sends to phone numbers directly. Use your 4-word Observer code "
+    "instead, and connect it by sending it to the Observer bot on WhatsApp "
+    f"({OBSERVER_WHATSAPP})."
+)
+NOT_PAIRED = (
+    "This code isn't connected to a phone on your account yet. Send it to the Observer "
+    f"bot on WhatsApp ({OBSERVER_WHATSAPP}) to connect it."
+)
+WHATSAPP_WINDOW_CLOSED = (
+    "WhatsApp only lets Observer message you within 24 hours of your last message. "
+    f"Send any message to the Observer bot on WhatsApp ({OBSERVER_WHATSAPP}) to turn "
+    "WhatsApp alerts back on. SMS and calls keep working meanwhile."
+)
+CONNECT_ON_WHATSAPP = (
+    "🤖 This is the Observer Bot! To get alerts from your Observer agents, send your "
+    f"4-word code to the Observer bot on WhatsApp: {OBSERVER_WHATSAPP}"
+)
 
 # Load better-profanity's bundled wordlist once at import. It is a maintained
 # list of slurs/profanity and it normalises common character substitution
@@ -100,132 +116,29 @@ async def pop_voice_message(token: str) -> str | None:
         await r.delete(f"voicecall:{token}")
     return message
 
-def normalize_phone(phone: str) -> str:
+async def paired_phone(to: str, user_id: str) -> str:
     """
-    Normalize phone number to E.164 format using phonenumbers library.
-    Handles all country codes and formatting variations automatically.
+    The phone behind a whitelist code, for SMS, WhatsApp and voice sends.
 
-    Examples:
-    - "+52 811 500 0488" → "+528115000488"
-    - "+1 (555) 123-4567" → "+15551234567"
-    - Handles international formats properly
+    `to` must be one of the caller's own codes, paired on WhatsApp: that pairing
+    is what proves the phone opted in, and ownership is what stops anyone else
+    who has seen the code from messaging it. Raises 403 with the fix otherwise.
 
-    Falls back to simple cleaning if parsing fails.
+    The address is used exactly as WhatsApp reported it. Mexican mobiles arrive
+    as +521...; Twilio delivers SMS and calls to that form as well.
     """
-    try:
-        parsed = phonenumbers.parse(phone, None)
-        return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
-    except Exception as e:
-        logger.warning(f"Failed to parse phone number '{phone}': {e}. Using fallback cleaning.")
-        # Fallback: just remove non-digits except leading +
-        return ''.join(c for c in phone if c.isdigit() or c == '+')
-
-def is_subsequence(shorter: str, longer: str) -> bool:
-    """Check if shorter is a subsequence of longer (all chars appear in same order)."""
-    it = iter(longer)
-    return all(c in it for c in shorter)
-
-def phone_numbers_fuzzy_match(num1: str, num2: str) -> bool:
-    """
-    Fuzzy match two phone numbers using subsequence matching.
-
-    Rules:
-    1. Both must have at least 8 digits (prevents "911" matching long numbers)
-    2. Length difference must be <= 1 digit (handles Mexico +521 vs +52, rejects wildly different numbers)
-    3. Shorter number must be a subsequence of longer
-
-    Examples:
-    - "+5218115000488" vs "+528115000488" → Match! (13 vs 12 digits, diff=1, subsequence)
-    - "+52 811 500 0488" vs "+528115000488" → Match! (same number, formatting removed)
-    - "911" vs "+528115000488" → No match (911 has < 8 digits)
-    - "+528115000488" vs "+529999999999" → No match (different subsequences)
-    """
-    # Extract digits only
-    digits1 = ''.join(c for c in num1 if c.isdigit())
-    digits2 = ''.join(c for c in num2 if c.isdigit())
-
-    # Both must have at least 8 digits (security: prevents short number attacks)
-    if len(digits1) < 8 or len(digits2) < 8:
-        return False
-
-    # Length difference must be <= 1 (handles single-digit variations like Mexico's +521)
-    if abs(len(digits1) - len(digits2)) > 1:
-        return False
-
-    # Check if shorter is subsequence of longer
-    if len(digits1) <= len(digits2):
-        return is_subsequence(digits1, digits2)
-    else:
-        return is_subsequence(digits2, digits1)
-
-async def resolve_to_phone(key_or_phone: str) -> str:
-    """
-    Resolve a key or phone number to an actual whitelisted phone number.
-
-    First checks if the input is a key in the Redis key_to_phone mapping.
-    If not, fuzzy matches against all whitelisted numbers (both phone and WhatsApp).
-    If no match found, returns normalized E.164 format.
-    """
-    r = await get_redis()
-
-    # Check if it's a key first
-    mapped = await r.get(f"whitelist:key:{key_or_phone}")
-    if mapped:
-        return mapped
-
-    # Fuzzy match against all whitelisted numbers
-    phone_nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:phone:*")]
-    wa_nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:whatsapp:*")]
-    for whitelisted_num in phone_nums + wa_nums:
-        if phone_numbers_fuzzy_match(key_or_phone, whitelisted_num):
-            return whitelisted_num
-
-    return normalize_phone(key_or_phone)
-
-async def is_whitelisted(phone_number: str, channel: str = None) -> bool:
-    """
-    Check if phone number (or key) is whitelisted for messaging.
-    Uses Redis so all workers share the same state.
-    TTL-based expiry is handled by Redis automatically.
-    """
-    r = await get_redis()
-
-    # Check if it's a key first
-    mapped = await r.get(f"whitelist:key:{phone_number}")
-    actual_phone = mapped if mapped else phone_number
-
-    if channel == "whatsapp":
-        nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:whatsapp:*")]
-    else:
-        phone_nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:phone:*")]
-        wa_nums = [k.split(":", 2)[2] async for k in r.scan_iter("whitelist:whatsapp:*")]
-        nums = phone_nums + wa_nums
-
-    return any(phone_numbers_fuzzy_match(actual_phone, num) for num in nums)
-
-async def add_to_whitelist(phone_number: str, key: str = None, channel: str = "phone") -> None:
-    """
-    Add phone number to appropriate whitelist with 24h expiry in Redis.
-    Optionally map a user-chosen key (like "pizza" or "Hey, I'm Roy") to the phone number.
-    """
-    r = await get_redis()
-    normalized_phone = normalize_phone(phone_number)
-
-    if channel == "whatsapp":
-        await r.setex(f"whitelist:whatsapp:{normalized_phone}", WHITELIST_TTL, "1")
-        logger.info(f"Added {normalized_phone} (original: {phone_number}) to WhatsApp whitelist")
-    else:
-        await r.setex(f"whitelist:phone:{normalized_phone}", WHITELIST_TTL, "1")
-        logger.info(f"Added {normalized_phone} (original: {phone_number}) to phone whitelist (SMS/Voice)")
-
-    if key and key.strip():
-        await r.setex(f"whitelist:key:{key}", WHITELIST_TTL, normalized_phone)
-        logger.info(f"Mapped key '{key}' to phone number {normalized_phone}")
+    code = remote.normalize_code(to)
+    if not code:
+        raise HTTPException(status_code=403, detail=NOT_A_CODE)
+    phone = await remote.owned_address(code, "whatsapp", user_id)
+    if not phone:
+        raise HTTPException(status_code=403, detail=NOT_PAIRED)
+    return phone
 
 async def validate_twilio_request(request: Request) -> dict:
     """
     Validate that the webhook request actually came from Twilio and return form data.
-    Prevents attackers from spoofing webhooks to whitelist arbitrary numbers.
+    Prevents attackers from spoofing webhooks to pair or message arbitrary numbers.
     Returns the parsed form data as a dict.
     """
     # Get Twilio auth token
@@ -512,24 +425,25 @@ async def _save_temp_video(
 
 # Pydantic Models
 class SmsRequest(BaseModel):
-    to_number: str = Field(..., description="The destination phone number in E.164 format.", examples=["+15551234567"])
+    to_number: str = Field(..., description="Your 4-word Observer code, paired on WhatsApp. Phone numbers are rejected.", examples=["anchor-apple-arrow-autumn"])
     message: str | None = Field(None, max_length=1600, description="The text message content (optional if images provided).")
     images: list[str] | None = Field(None, description="Optional base64-encoded images (without data:image prefix)")
     videos: list[str] | None = Field(None, description="Optional base64-encoded videos (without data:video prefix).")
 
 class WhatsAppRequest(BaseModel):
-    to_number: str = Field(..., description="The destination phone number in E.164 format.", examples=["+15551234567"])
+    to_number: str = Field(..., description="Your 4-word Observer code, paired on WhatsApp. Phone numbers are rejected.", examples=["anchor-apple-arrow-autumn"])
     message: str | None = Field(None, description="The message content (optional if images provided).")
     images: list[str] | None = Field(None, description="Optional base64-encoded images (without data:image prefix)")
     videos: list[str] | None = Field(None, description="Optional base64-encoded videos (without data:video prefix).")
 
 class VoiceCallRequest(BaseModel):
-    to_number: str = Field(..., description="The destination phone number in E.164 format.", examples=["+15551234567"])
+    to_number: str = Field(..., description="Your 4-word Observer code, paired on WhatsApp. Phone numbers are rejected.", examples=["anchor-apple-arrow-autumn"])
     message: str | None = Field(None, description="The message to speak during the call (optional).", max_length=4096)
 
 class IsWhitelistedRequest(BaseModel):
-    phone_number: str = Field(..., description="The phone number to check in E.164 format.", examples=["+15551234567"])
-    channel: str | None = Field(None, description="Optional channel to check ('whatsapp', 'sms', 'voice', 'telegram'). If 'whatsapp', checks only WhatsApp whitelist. If 'telegram', checks whether the code is linked to a Telegram chat. Otherwise checks both.")
+    # Named phone_number for API compatibility; it carries a whitelist code.
+    phone_number: str = Field(..., description="The 4-word Observer code to check.", examples=["anchor-apple-arrow-autumn"])
+    channel: str | None = Field(None, description="Optional channel ('whatsapp', 'sms', 'voice', 'telegram'). 'telegram' checks the code's Telegram pairing. Everything else checks its WhatsApp pairing, and 'whatsapp' also requires WhatsApp's 24h window to be open.")
 
 class TwilioConfig(BaseModel):
     account_sid: str
@@ -596,20 +510,13 @@ async def send_sms(
     current_user: AuthUser,
     config: TwilioConfig = Depends(get_twilio_config)
 ):
-    """Sends an SMS to whitelisted numbers only."""
-    # 1. Whitelist Check - unified anti-spam protection
-    if not await is_whitelisted(request_data.to_number):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Number {request_data.to_number} not whitelisted! Send an SMS or WhatsApp message to whatsapp:+1 (555) 783-4727 or call us first to receive messages"
-        )
+    """Sends an SMS to the phone paired with one of the caller's codes."""
+    # 1. The caller's code, paired on WhatsApp -> the phone to send to
+    resolved_phone = await paired_phone(request_data.to_number, current_user.id)
 
     # 1.25. Acceptable-use content screen — reject slurs/hate terms before we
     # consume quota, upload media, or hand anything to Twilio.
     assert_content_allowed(request_data.message)
-
-    # 1.5. Resolve key or phone number to normalized E.164 format
-    resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (using the "sms" service)
     allowed, _usage_count, _reason = await try_consume_for(current_user, "sms")
@@ -690,47 +597,37 @@ async def sms_incoming_webhook(
 ):
     """
     Webhook endpoint for incoming SMS messages.
-    Automatically whitelists the sender's number for 24 hours across all phone channels.
+
+    SMS does not pair anything: codes are paired on WhatsApp or Telegram only
+    (see remote.py). The sender just gets pointed at WhatsApp, at most once a day,
+    so an auto-responder on the other end cannot loop us into paid replies.
+    Twilio handles STOP/START opt-outs itself.
     Validates Twilio signature to prevent spoofing attacks.
     """
     try:
         # Extract sender's phone number (form_data already validated and parsed)
         from_number = form_data.get("From", "")
-        message_body = form_data.get("Body", "")
 
         if not from_number:
             logger.warning("Received SMS webhook without From number")
             return FastAPIResponse(status_code=204)
 
-        # Add to phone whitelist (for SMS and voice)
-        # Store message body as key for friendly lookup (e.g., "pizza", "Roy", etc.)
-        if (len(message_body)>7 and message_body!="Hi! I'd like to whitelist my phone number for Observer"):
-            await add_to_whitelist(from_number, key=message_body, channel="phone")
-        else:
-            await add_to_whitelist(from_number, channel="phone")
-            message_body=None
+        r = await get_redis()
+        if not await r.set(f"sms:connecthint:{from_number}", "1", nx=True, ex=CONNECT_HINT_TTL):
+            return FastAPIResponse(status_code=204)
 
-        # Get Twilio config to respond
         try:
             config = get_twilio_config()
             client = _twilio_client(config)
-
-            # Send unified confirmation response via SMS
-            key_info = f" or use the key '{message_body}'" if message_body else ""
-            response_message = f"🤖 This is the Observer Bot!\n\nYour number {from_number} is now whitelisted for 24 hours across SMS, WhatsApp, and voice calls!\n\nUse this number{key_info} in your Observer AI agents."
-
             await asyncio.to_thread(
                 client.messages.create,
                 to=from_number,
                 from_=config.from_number,
-                body=response_message
+                body=CONNECT_ON_WHATSAPP,
             )
-
-            logger.info(f"Auto-whitelisted and responded to SMS from {from_number}")
-
+            logger.info(f"Pointed SMS sender {from_number} at WhatsApp pairing")
         except Exception as e:
-            logger.error(f"Failed to send SMS confirmation to {from_number}: {str(e)}")
-            # Still return success since whitelist was added
+            logger.error(f"Failed to reply to SMS from {from_number}: {str(e)}")
 
         return FastAPIResponse(status_code=204)
 
@@ -744,20 +641,19 @@ async def send_whatsapp(
     current_user: AuthUser,
     config: TwilioConfig = Depends(get_twilio_config)
 ):
-    """Sends a WhatsApp message to whitelisted numbers only."""
-    # 1. Whitelist Check - WhatsApp-specific (24h messaging window)
-    if not await is_whitelisted(request_data.to_number, channel="whatsapp"):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Number {request_data.to_number} not whitelisted for WhatsApp! Send a WhatsApp message to +1 (555) 783-4727 first to receive WhatsApp messages"
-        )
+    """Sends a WhatsApp message to the phone paired with one of the caller's codes."""
+    # 1. The caller's code, paired on WhatsApp -> the phone to send to
+    resolved_phone = await paired_phone(request_data.to_number, current_user.id)
+
+    # 1.1. Meta's 24h window. Checked here rather than left to Twilio: outside it
+    # Twilio still accepts the send and it fails later (63016), after we had
+    # already reported success and charged the quota.
+    if not await remote.whatsapp_window_open(resolved_phone):
+        raise HTTPException(status_code=403, detail=WHATSAPP_WINDOW_CLOSED)
 
     # 1.25. Acceptable-use content screen — reject slurs/hate terms before we
     # consume quota, upload media, or hand anything to Twilio.
     assert_content_allowed(request_data.message)
-
-    # 1.5. Resolve key or phone number to normalized E.164 format
-    resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (using the "whatsapp" service)
     allowed, _usage_count, _reason = await try_consume_for(current_user, "whatsapp")
@@ -798,7 +694,7 @@ async def send_whatsapp(
 
         # Send WhatsApp message
         message_params = {
-            "to": f'whatsapp:{resolved_phone}',  # Use resolved phone number (handles keys and normalization)
+            "to": f'whatsapp:{resolved_phone}',
             "from_": f'whatsapp:{config.whatsapp_from_number}',
             "body": request_data.message or ("Media from Observer AI" if media_urls else "Alert from Observer AI"),
             "status_callback": "https://api.observer-ai.com/webhooks/whatsapp-status"
@@ -812,7 +708,7 @@ async def send_whatsapp(
             logger.info(f"Sending WhatsApp text message for user {current_user.id}")
 
         message = await asyncio.to_thread(client.messages.create, **message_params)
-        logger.info(f"WhatsApp message sent successfully to whitelisted number. SID: {message.sid}")
+        logger.info(f"WhatsApp message sent successfully to paired number. SID: {message.sid}")
         return {"success": True, "message_sid": message.sid}
 
     except TwilioRestException as e:
@@ -827,17 +723,26 @@ async def check_is_whitelisted(
     request_data: IsWhitelistedRequest,
     current_user: AuthUser
 ):
-    """Checks if a phone number is currently whitelisted for messaging."""
-    # A code polled here is its owner's, and polling it opens the window in which
-    # a phone/chat can link to it for remote control (see remote.py).
-    code = remote.normalize_code(request_data.phone_number)
-    if code:
-        await remote.claim(code, current_user.id)
+    """
+    Whether one of the caller's codes is paired and ready for a channel. The app
+    polls this while showing the connect QR.
 
-    if request_data.channel == "telegram":
-        whitelisted = bool(code) and bool(await remote.owned_address(code, "telegram", current_user.id))
-    else:
-        whitelisted = await is_whitelisted(request_data.phone_number, channel=request_data.channel)
+    A code polled here becomes its owner's, and polling it opens the window in
+    which a phone/chat can pair with it (see remote.py). Anything that isn't a
+    code, such as a raw phone number, is never whitelisted.
+    """
+    code = remote.normalize_code(request_data.phone_number)
+    whitelisted = False
+    if code and await remote.claim(code, current_user.id):
+        if request_data.channel == "telegram":
+            whitelisted = bool(await remote.owned_address(code, "telegram", current_user.id))
+        else:
+            phone = await remote.owned_address(code, "whatsapp", current_user.id)
+            # For WhatsApp itself, "ready" also means Meta's 24h window is open. The fix
+            # is the same action as pairing (message the bot), so the QR flow covers both.
+            whitelisted = bool(phone) and (
+                request_data.channel != "whatsapp" or await remote.whatsapp_window_open(phone)
+            )
     logger.info(f"Whitelist check for user_id: {current_user.id}, number: {request_data.phone_number}, channel: {request_data.channel}, result: {whitelisted}")
     return {
         "phone_number": request_data.phone_number,
@@ -853,10 +758,10 @@ async def whatsapp_incoming_webhook(
     """
     Webhook endpoint for incoming WhatsApp messages.
 
-    Every inbound message whitelists the sender for 24 hours (it is their consent).
-    Beyond that it is either a whitelist code, which pairs the phone for remote
-    control, or a message for the Observer session that phone is paired with
-    (see remote.route_inbound). Arbitrary text no longer becomes a lookup key.
+    Every inbound message reopens Meta's 24h window for that phone. Beyond that it
+    is either a whitelist code, which pairs the phone, or a message for the
+    Observer session the phone is paired with (see remote.route_inbound). Anyone
+    else is told how to connect.
     Validates Twilio signature to prevent spoofing attacks.
     """
     try:
@@ -873,31 +778,25 @@ async def whatsapp_incoming_webhook(
         if not await remote.first_delivery(form_data.get("MessageSid")):
             return FastAPIResponse(status_code=204)
 
+        # Before anything can reply: the reply itself needs the window open.
+        await remote.open_whatsapp_window(from_number)
+
         async def reply(text: str) -> None:
             try:
                 await send_whatsapp_text(from_number, text)
             except Exception as e:
-                # The whitelist/routing already happened; a failed reply shouldn't undo it.
+                # The pairing/routing already happened; a failed reply shouldn't undo it.
                 logger.error(f"Failed to reply to {from_number}: {str(e)}")
 
-        async def consent(key: str | None) -> None:
-            await add_to_whitelist(from_number, key=key, channel="whatsapp")
-
-        if message_body.strip() != WHITELIST_GREETING and await remote.route_inbound(
-            "whatsapp", from_number, message_body, reply, consent
-        ):
+        if await remote.route_inbound("whatsapp", from_number, message_body, reply):
             return FastAPIResponse(status_code=204)
 
-        # Not remote-control business: plain whitelist, as before.
-        await consent(None)
-        code_hint = "" if message_body.strip() == WHITELIST_GREETING else (
-            "\n\nTo chat with Observer from here, send the 4-word code shown in the app."
-        )
+        # Not a code, and not a paired phone.
         await reply(
-            f"🤖 This is the Observer Bot!\n\nYour number *{from_number}* is now whitelisted for 24 hours "
-            f"across SMS, WhatsApp, and voice calls!\n\nUse this number in your Observer AI agents.{code_hint}"
+            "🤖 This is the Observer Bot! To get alerts here, send the 4-word code "
+            "shown in the Observer app."
         )
-        logger.info(f"Auto-whitelisted and responded to {from_number}")
+        logger.info(f"Told unpaired WhatsApp sender {from_number} how to connect")
 
         return FastAPIResponse(status_code=204)
 
@@ -950,20 +849,13 @@ async def make_voice_call(
     current_user: AuthUser,
     config: TwilioConfig = Depends(get_twilio_config)
 ):
-    """Initiates an outbound voice call to whitelisted numbers only."""
-    # 1. Whitelist Check - unified anti-spam protection
-    if not await is_whitelisted(request_data.to_number):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Number {request_data.to_number} not whitelisted! Send an SMS or WhatsApp message to whatsapp:+1 (555) 783-4727 or call us first to receive messages"
-        )
+    """Calls the phone paired with one of the caller's codes."""
+    # 1. The caller's code, paired on WhatsApp -> the phone to call
+    resolved_phone = await paired_phone(request_data.to_number, current_user.id)
 
     # 1.25. Acceptable-use content screen — reject slurs/hate terms before we
     # consume quota or hand anything to Twilio.
     assert_content_allowed(request_data.message)
-
-    # 1.5. Resolve key or phone number to normalized E.164 format
-    resolved_phone = await resolve_to_phone(request_data.to_number)
 
     # 2. Quota Check (separate voice_call quota). Pass the message so unusually
     # long TTS calls are weighted by estimated minutes against the shared
@@ -1043,12 +935,11 @@ async def voice_callback(
         response = VoiceResponse()
 
         if direction == "inbound":
-            # Someone called YOUR number - whitelist them for phone (SMS/Voice)
-            await add_to_whitelist(from_number, channel="phone")
-            logger.info(f"Auto-whitelisted caller {from_number} via incoming call")
-
+            # A call can't carry a code, so it pairs nothing: point the caller at WhatsApp.
+            logger.info(f"Inbound call from {from_number}; pointed at WhatsApp pairing")
             response.say(
-                "Your number is now whitelisted for 24 hours across SMS, WhatsApp, and voice calls. You can now receive messages from Observer AI.",
+                "This is the Observer bot. To get alerts from your Observer agents, "
+                "send your four word code to the Observer bot on WhatsApp.",
                 voice='alice',
                 language='en-US'
             )

@@ -23,7 +23,6 @@ stripe
 # Messaging
 twilio
 sendgrid
-phonenumbers
 # Pre-send acceptable-use content screen on outbound SMS/WhatsApp/voice text.
 better-profanity
 
