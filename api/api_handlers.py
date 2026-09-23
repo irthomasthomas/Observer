@@ -4,8 +4,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 import logging
-import httpx
-from typing import Optional
 
 logger = logging.getLogger("api_handlers")
 # Logging is configured once in api.py via logging_config.setup_logging()
@@ -13,31 +11,18 @@ logger = logging.getLogger("api_handlers")
 # Global registry for API handlers
 API_HANDLERS = {}
 
-# Shared HTTP client - one connection pool for the process lifetime
-_shared_http_client: Optional[httpx.AsyncClient] = None
-
-def get_http_client() -> httpx.AsyncClient:
-    """Return the shared HTTP client. Requires startup_handlers() to have run."""
-    if _shared_http_client is None:
-        raise RuntimeError("Shared HTTP client not initialized.")
-    return _shared_http_client
+# Shared HTTP client - one connection pool for the process lifetime. Owned by
+# http_client; re-exported here because the handlers import it from this module.
+import http_client
+from http_client import get_http_client
 
 async def startup_handlers():
     """Initialize shared resources. Called from FastAPI lifespan on startup."""
-    global _shared_http_client
-    _shared_http_client = httpx.AsyncClient(
-        timeout=120.0,
-        limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-    )
-    logger.info("Shared HTTP client initialized")
+    await http_client.startup()
 
 async def shutdown_handlers():
     """Close shared resources. Called from FastAPI lifespan on shutdown."""
-    global _shared_http_client
-    if _shared_http_client:
-        await _shared_http_client.aclose()
-        _shared_http_client = None
-        logger.info("Shared HTTP client closed")
+    await http_client.shutdown()
 
 class HandlerError(Exception):
     """Custom exception for handler-specific errors."""

@@ -1,9 +1,14 @@
 # auth0_manager.py
 
-import requests
+import asyncio
 import os
 import logging
 import time
+from urllib.parse import quote
+
+import httpx
+
+from http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -14,15 +19,29 @@ MGMT_API_CLIENT_SECRET = os.environ.get("AUTH0_MGMT_CLIENT_SECRET")
 # The audience for the Management API is always the API v2 endpoint
 MGMT_API_AUDIENCE = f"https://{AUTH0_DOMAIN}/api/v2/"
 
+# Every Management API call is async on the shared httpx pool. These used to be
+# synchronous `requests` calls inside async functions, which stalled the whole
+# worker's event loop for each Auth0 round trip, with no timeout at all.
+AUTH0_TIMEOUT = 10.0
+# Blocking calls also serialized Auth0 traffic per worker for free. Async ones
+# don't, and /admin/usage?emails=true gathers one lookup per active user, so cap
+# in-flight requests explicitly to stay clear of Auth0's Management API rate limit.
+_MGMT_SLOTS = asyncio.Semaphore(4)
+# Refresh the cached token this long before Auth0 says it expires.
+TOKEN_EXPIRY_MARGIN = 300
+
 # --- In-memory caches ---
 _email_cache = {}  # user_id -> email (unbounded, no expiration)
 _mgmt_token = None  # cached management API token
 _token_expires_at = 0  # epoch timestamp when token expires
+# One token fetch at a time: without it, every request that arrives while the
+# token is expired would fetch its own.
+_token_lock = asyncio.Lock()
 
-def _get_management_api_token() -> str:
+async def _get_management_api_token() -> str:
     """
     Fetches a fresh access token for the Auth0 Management API.
-    Uses in-memory cache with 4-hour expiration to reduce API calls.
+    Cached in memory until shortly before the expiry Auth0 reports.
     """
     global _mgmt_token, _token_expires_at
 
@@ -30,31 +49,64 @@ def _get_management_api_token() -> str:
     if _mgmt_token and time.time() < _token_expires_at:
         return _mgmt_token
 
-    if not all([AUTH0_DOMAIN, MGMT_API_CLIENT_ID, MGMT_API_CLIENT_SECRET]):
-        logger.error("Auth0 Management API credentials are not fully configured.")
-        raise ValueError("Auth0 Management API credentials are not set in environment.")
+    async with _token_lock:
+        # Another request may have refreshed it while we waited for the lock.
+        if _mgmt_token and time.time() < _token_expires_at:
+            return _mgmt_token
 
-    payload = {
-        "client_id": MGMT_API_CLIENT_ID,
-        "client_secret": MGMT_API_CLIENT_SECRET,
-        "audience": MGMT_API_AUDIENCE,
-        "grant_type": "client_credentials"
-    }
-    headers = {'content-type': "application/json"}
+        if not all([AUTH0_DOMAIN, MGMT_API_CLIENT_ID, MGMT_API_CLIENT_SECRET]):
+            logger.error("Auth0 Management API credentials are not fully configured.")
+            raise ValueError("Auth0 Management API credentials are not set in environment.")
 
-    try:
-        response = requests.post(f"https://{AUTH0_DOMAIN}/oauth/token", json=payload, headers=headers)
-        response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
+        payload = {
+            "client_id": MGMT_API_CLIENT_ID,
+            "client_secret": MGMT_API_CLIENT_SECRET,
+            "audience": MGMT_API_AUDIENCE,
+            "grant_type": "client_credentials"
+        }
 
-        # Cache the token for 4 hours
-        _mgmt_token = response.json()["access_token"]
-        _token_expires_at = time.time() + (4 * 60 * 60)  # 4 hours in seconds
+        try:
+            response = await get_http_client().post(
+                f"https://{AUTH0_DOMAIN}/oauth/token", json=payload, timeout=AUTH0_TIMEOUT
+            )
+            response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
 
-        logger.info("Successfully fetched Auth0 Management API token.")
-        return _mgmt_token
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to get Auth0 Management API token: {e}")
-        raise
+            body = response.json()
+            _mgmt_token = body["access_token"]
+            # Auth0 reports the lifetime (24h by default). Fall back to the old
+            # fixed 4 hours if it ever doesn't.
+            lifetime = body.get("expires_in", 4 * 60 * 60)
+            _token_expires_at = time.time() + max(lifetime - TOKEN_EXPIRY_MARGIN, 60)
+
+            logger.info("Successfully fetched Auth0 Management API token.")
+            return _mgmt_token
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get Auth0 Management API token: {e}")
+            raise
+
+
+async def _mgmt_request(method: str, path: str, **kwargs) -> httpx.Response:
+    """
+    One authenticated Management API call. `path` is relative to /api/v2/.
+    Raises httpx.HTTPStatusError on a 4xx/5xx, like raise_for_status() did.
+    """
+    token = await _get_management_api_token()
+    async with _MGMT_SLOTS:
+        response = await get_http_client().request(
+            method,
+            f"{MGMT_API_AUDIENCE}{path}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=AUTH0_TIMEOUT,
+            **kwargs,
+        )
+    response.raise_for_status()
+    return response
+
+
+def _user_path(user_id: str) -> str:
+    # Auth0 ids contain "|" (e.g. "google-oauth2|1184..."). requests percent-
+    # encoded it on its own; httpx leaves it raw, so quote explicitly.
+    return f"users/{quote(user_id, safe='')}"
 
 # Sentinel value to indicate a field should be cleared (deleted) from metadata
 CLEAR_FIELD = "__CLEAR__"
@@ -88,10 +140,6 @@ async def update_user_subscription_status(
         apple_original_transaction_id: Apple original transaction ID (optional, CLEAR_FIELD to remove)
     """
     try:
-        token = _get_management_api_token()
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        url = f"{MGMT_API_AUDIENCE}users/{user_id}"
-
         # Build the metadata payload dynamically
         app_metadata = {}
         if is_pro is not None:
@@ -132,8 +180,7 @@ async def update_user_subscription_status(
 
         payload = { "app_metadata": app_metadata }
 
-        response = requests.patch(url, json=payload, headers=headers)
-        response.raise_for_status()
+        await _mgmt_request("PATCH", _user_path(user_id), json=payload)
 
         logger.info(f"Successfully updated user {user_id} subscription status: is_pro={is_pro}, is_max={is_max}, is_plus={is_plus}")
         return True
@@ -149,14 +196,10 @@ async def find_user_by_stripe_customer_id(stripe_customer_id: str) -> str:
     Finds a user's Auth0 ID by querying their app_metadata for a Stripe Customer ID.
     """
     try:
-        token = _get_management_api_token()
-        headers = {"Authorization": f"Bearer {token}"}
         # This is a powerful Auth0 feature: querying users by metadata
         params = {'q': f'app_metadata.stripe_customer_id:"{stripe_customer_id}"', 'search_engine': 'v3'}
-        url = f"{MGMT_API_AUDIENCE}users"
 
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
+        response = await _mgmt_request("GET", "users", params=params)
 
         users = response.json()
         if users and len(users) > 0:
@@ -181,14 +224,10 @@ async def find_user_by_email(email: str) -> str:
         Auth0 user ID if found, None otherwise
     """
     try:
-        token = _get_management_api_token()
-        headers = {"Authorization": f"Bearer {token}"}
         # Query users by email
         params = {'q': f'email:"{email}"', 'search_engine': 'v3'}
-        url = f"{MGMT_API_AUDIENCE}users"
 
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
+        response = await _mgmt_request("GET", "users", params=params)
 
         users = response.json()
         if users and len(users) > 0:
@@ -202,7 +241,7 @@ async def find_user_by_email(email: str) -> str:
         logger.error(f"Error finding user by email: {e}")
         return None
 
-def get_email_by_id(user_id: str) -> str:
+async def get_email_by_id(user_id: str) -> str:
     """
     Fetches user email from Auth0 by user ID.
     Uses in-memory cache to reduce API calls.
@@ -220,12 +259,7 @@ def get_email_by_id(user_id: str) -> str:
         return _email_cache[user_id]
 
     try:
-        token = _get_management_api_token()
-        headers = {"Authorization": f"Bearer {token}"}
-        url = f"{MGMT_API_AUDIENCE}users/{user_id}"
-
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        response = await _mgmt_request("GET", _user_path(user_id))
 
         user_data = response.json()
         email = user_data.get("email")
@@ -256,12 +290,7 @@ async def delete_user(user_id: str) -> bool:
     global _email_cache
 
     try:
-        token = _get_management_api_token()
-        headers = {"Authorization": f"Bearer {token}"}
-        url = f"{MGMT_API_AUDIENCE}users/{user_id}"
-
-        response = requests.delete(url, headers=headers)
-        response.raise_for_status()
+        await _mgmt_request("DELETE", _user_path(user_id))
 
         # Clear from email cache if present
         if user_id in _email_cache:
@@ -287,16 +316,12 @@ async def find_user_by_apple_transaction_id(original_transaction_id: str) -> str
         Auth0 user ID if found, None otherwise
     """
     try:
-        token = _get_management_api_token()
-        headers = {"Authorization": f"Bearer {token}"}
         params = {
             'q': f'app_metadata.apple_original_transaction_id:"{original_transaction_id}"',
             'search_engine': 'v3'
         }
-        url = f"{MGMT_API_AUDIENCE}users"
 
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
+        response = await _mgmt_request("GET", "users", params=params)
 
         users = response.json()
         if users and len(users) > 0:
@@ -322,12 +347,7 @@ async def get_user_app_metadata(user_id: str) -> dict:
         app_metadata dict or empty dict if not found
     """
     try:
-        token = _get_management_api_token()
-        headers = {"Authorization": f"Bearer {token}"}
-        url = f"{MGMT_API_AUDIENCE}users/{user_id}"
-
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        response = await _mgmt_request("GET", _user_path(user_id))
 
         user_data = response.json()
         return user_data.get("app_metadata", {})
@@ -351,13 +371,9 @@ async def check_apple_subscription_by_email(email: str) -> tuple[bool, str | Non
         return False, None
 
     try:
-        token = _get_management_api_token()
-        headers = {"Authorization": f"Bearer {token}"}
         params = {'q': f'email:"{email.lower()}"', 'search_engine': 'v3'}
-        url = f"{MGMT_API_AUDIENCE}users"
 
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
+        response = await _mgmt_request("GET", "users", params=params)
 
         users = response.json()
         for user in users:

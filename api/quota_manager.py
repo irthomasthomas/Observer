@@ -577,7 +577,7 @@ async def get_usage(user_id: str | None = None, emails: bool = False) -> dict:
 
         async def to_email(uid: str) -> str:
             try:
-                return await asyncio.to_thread(get_email_by_id, uid) or uid
+                return await get_email_by_id(uid) or uid
             except Exception as e:
                 logger.error(f"Error fetching email for {uid}: {e}")
                 return uid

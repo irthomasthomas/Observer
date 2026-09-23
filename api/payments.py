@@ -928,7 +928,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
             try:
                 customer = stripe.Customer.retrieve(stripe_customer_id)
                 # Look up the Auth0 user's email from client_reference_id
-                auth0_email = (get_email_by_id(client_ref_id) or '').lower()
+                auth0_email = ((await get_email_by_id(client_ref_id)) or '').lower()
                 customer_email = (customer.email or '').lower()
 
                 if auth0_email and customer_email and auth0_email != customer_email:
