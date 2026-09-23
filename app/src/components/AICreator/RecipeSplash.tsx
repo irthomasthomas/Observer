@@ -39,7 +39,7 @@ export interface TriggerOption extends WheelOption {
 export interface ActionOption extends WheelOption {
   contact: ContactKind;
   actionFragment: string;
-  /** For phone contacts: which whitelist QR to show. */
+  /** For phone contacts: which phone tool the agent will use. */
   channel?: WhitelistChannel;
 }
 

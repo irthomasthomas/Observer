@@ -1,87 +1,48 @@
 // src/components/whitelist/WhitelistInline.tsx
 //
-// Compact, non-modal whitelist prompt the MCP renders under a `check_whitelist` tool call
-// while that gate is BLOCKING (status: 'running'). Collapsed to a pill by default; click to
-// expand the QR codes. Purely presentational: the check_whitelist executor does the polling
-// and resolves once the number is whitelisted, which unmounts this pill and lets the run
-// continue straight to start_agent — no messages, no manual resume.
+// Compact, non-modal pairing prompt the MCP renders under a `check_whitelist` tool call
+// while that gate is BLOCKING (status: 'running'). Expanded by default; click to collapse.
+// Purely presentational in the MCP flow: the check_whitelist executor does the polling and
+// resolves once the code is paired, which unmounts this pill and lets the run continue
+// straight to start_agent — no messages, no manual resume.
+//
+// Pairing is WhatsApp-only: sending the code there connects WhatsApp, SMS and call alerts.
 
 import React, { useEffect, useState } from 'react';
-import { ChevronRight, MessageCircle, Phone, ExternalLink, AlertTriangle, Loader, X, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, MessageCircle, ExternalLink, AlertTriangle, Loader, X, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { WhitelistChannel } from '@utils/logging';
 import {
-  whatsappQRValue,
-  smsQRValue,
   whatsappCodeQRValue,
-  smsCodeQRValue,
   openWhatsApp,
-  openSMS,
   OBSERVER_WHATSAPP,
-  OBSERVER_SMS_CALL,
   useWhitelistPolling,
 } from './shared';
 
 interface WhitelistInlineProps {
-  /** In 'code' mode, this is the golden-path wordlist code rather than a phone number. */
-  phoneNumber: string;
+  /** The 4-word whitelist code to pair. */
+  code: string;
   channel?: WhitelistChannel;
   onCancel?: () => void;
   /**
-   * When provided, this pill polls the whitelist API itself and reflects verification live.
+   * When provided, this pill polls the whitelist API itself and reflects pairing live.
    * Leave undefined in the MCP flow, where the `check_whitelist` executor is the sole poller.
    */
   getToken?: () => Promise<string | undefined>;
-  /** Fired once the number becomes whitelisted (only when self-polling via getToken). */
+  /** Fired once the code is paired (only when self-polling via getToken). */
   onWhitelisted?: () => void;
-  /**
-   * 'number' (default): QR sends a canned greeting, expecting the user's own number to reply
-   * from — unchanged behavior for check_whitelist and the manual UserInfoModal fallback.
-   * 'code': QR sends the persisted whitelist code as the message body — the golden path,
-   * where `phoneNumber` is actually that code, not a phone number.
-   */
-  mode?: 'code' | 'number';
 }
-
-const QrOption: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  qrValue: string;
-  buttonLabel: string;
-  onOpen: () => void;
-  contact: string;
-}> = ({ icon, title, qrValue, buttonLabel, onOpen, contact }) => (
-  <div className="min-w-0 flex-1 border border-purple-200 rounded-md p-2 bg-white">
-    <div className="flex items-center gap-1.5 mb-1.5 text-xs font-semibold text-gray-800">
-      {icon}<span className="truncate">{title}</span>
-    </div>
-    <div className="hidden sm:flex justify-center mb-1.5">
-      <div className="bg-white p-1.5 rounded border border-gray-200">
-        <QRCodeSVG value={qrValue} size={88} level="M" includeMargin={false} />
-      </div>
-    </div>
-    <button
-      onClick={onOpen}
-      className="w-full px-2 py-1.5 bg-gray-900 text-white rounded text-xs font-medium hover:bg-black transition-colors flex items-center justify-center gap-1.5"
-    >
-      <span className="truncate">{buttonLabel}</span>
-      <ExternalLink className="h-3 w-3 flex-shrink-0" />
-    </button>
-    <p className="text-[10px] text-gray-500 text-center mt-1.5 font-mono truncate">{contact}</p>
-  </div>
-);
 
 const NO_TOKEN = async () => undefined;
 
-const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel, onCancel, getToken, onWhitelisted, mode = 'number' }) => {
+const WhitelistInline: React.FC<WhitelistInlineProps> = ({ code, channel, onCancel, getToken, onWhitelisted }) => {
   const [expanded, setExpanded] = useState(true);
-  const isCode = mode === 'code';
 
-  // Self-poll only when a token provider is supplied (the splash). In the MCP flow getToken is
-  // undefined, so `enabled` is false and the executor remains the single source of polling.
+  // Self-poll only when a token provider is supplied. In the MCP flow getToken is undefined,
+  // so `enabled` is false and the executor remains the single source of polling.
   const selfPolling = !!getToken;
   const { allWhitelisted } = useWhitelistPolling(
-    [{ number: phoneNumber, isWhitelisted: false }],
+    [{ number: code, isWhitelisted: false }],
     getToken ?? NO_TOKEN,
     channel,
     selfPolling,
@@ -93,14 +54,9 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel,
 
   const verified = selfPolling && allWhitelisted;
 
-  // WhatsApp's "first message" rule means a WhatsApp-only flow can only show the WhatsApp QR.
-  // SMS/call mode (and the unset default) show every channel, including WhatsApp.
-  const showWhatsApp = true;
-  const showSms = channel !== 'whatsapp';
-
   return (
     <div className="mt-2 w-full rounded-lg border border-purple-200 bg-white overflow-hidden shadow-sm">
-      {/* Header — icon + two-line title/number so long numbers never force overflow, plus
+      {/* Header — icon + two-line title/code so a long code never forces overflow, plus
           icon-only toggle/cancel buttons to keep the row usable at chat-bubble widths. */}
       <div className="flex items-start gap-2 px-3 py-2">
         <button
@@ -109,10 +65,8 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel,
         >
           <AlertTriangle className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
           <span className="min-w-0">
-            <span className="block text-sm font-medium text-gray-900">
-              {isCode ? 'Send this code to connect' : 'Verify your number'}
-            </span>
-            <span className="block text-xs font-mono text-gray-500 truncate">{phoneNumber}</span>
+            <span className="block text-sm font-medium text-gray-900">Send this code on WhatsApp to connect</span>
+            <span className="block text-xs font-mono text-gray-500 truncate">{code}</span>
           </span>
         </button>
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -126,7 +80,7 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel,
           {onCancel && (
             <button
               onClick={onCancel}
-              title="Cancel — stop if this number looks wrong"
+              title="Cancel"
               className="p-1 rounded text-gray-500 hover:bg-gray-100 border border-gray-300 transition-colors"
             >
               <X className="h-3.5 w-3.5" />
@@ -138,52 +92,46 @@ const WhitelistInline: React.FC<WhitelistInlineProps> = ({ phoneNumber, channel,
       {expanded && !verified && (
         <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-gray-200">
           <p className="text-xs text-gray-600">
-            {isCode
-              ? 'Scan a QR or send the code below — valid for 24 hours, then just send it again:'
-              : `Whitelist this number once${channel === 'whatsapp' ? ' sending a WhatsApp' : ' sending an SMS, call, or WhatsApp'}, valid for 24 hours:`}
+            {channel === 'whatsapp'
+              ? 'Scan the QR or send the code below on WhatsApp. If you connected before, send any message to turn WhatsApp alerts back on (WhatsApp pauses them 24 hours after your last message).'
+              : 'Scan the QR or send the code below on WhatsApp. You only need to do this once: it connects WhatsApp, SMS and call alerts to your phone.'}
           </p>
 
-          {isCode && (
-            <p className="text-center font-mono text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-md py-1.5 select-all">
-              {phoneNumber}
-            </p>
-          )}
+          <p className="text-center font-mono text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-md py-1.5 select-all">
+            {code}
+          </p>
 
-          <div className="flex gap-2">
-            {showWhatsApp && (
-              <QrOption
-                icon={<MessageCircle className="h-4 w-4 text-green-600 flex-shrink-0" />}
-                title="WhatsApp"
-                qrValue={isCode ? whatsappCodeQRValue(phoneNumber) : whatsappQRValue}
-                buttonLabel="Open WhatsApp"
-                onOpen={openWhatsApp}
-                contact={OBSERVER_WHATSAPP}
-              />
-            )}
-            {showSms && (
-              <QrOption
-                icon={<Phone className="h-4 w-4 text-blue-600 flex-shrink-0" />}
-                title="SMS or Call"
-                qrValue={isCode ? smsCodeQRValue(phoneNumber) : smsQRValue}
-                buttonLabel="Send SMS"
-                onOpen={openSMS}
-                contact={OBSERVER_SMS_CALL}
-              />
-            )}
+          <div className="border border-purple-200 rounded-md p-2 bg-white">
+            <div className="flex items-center gap-1.5 mb-1.5 text-xs font-semibold text-gray-800">
+              <MessageCircle className="h-4 w-4 text-green-600 flex-shrink-0" /><span>WhatsApp</span>
+            </div>
+            <div className="hidden sm:flex justify-center mb-1.5">
+              <div className="bg-white p-1.5 rounded border border-gray-200">
+                <QRCodeSVG value={whatsappCodeQRValue(code)} size={88} level="M" includeMargin={false} />
+              </div>
+            </div>
+            <button
+              onClick={openWhatsApp}
+              className="w-full px-2 py-1.5 bg-gray-900 text-white rounded text-xs font-medium hover:bg-black transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>Open WhatsApp</span>
+              <ExternalLink className="h-3 w-3 flex-shrink-0" />
+            </button>
+            <p className="text-[10px] text-gray-500 text-center mt-1.5 font-mono">{OBSERVER_WHATSAPP}</p>
           </div>
         </div>
       )}
 
-      {/* Footer status. When self-polling, flips to a green "verified" once the number lands. */}
+      {/* Footer status. When self-polling, flips to green once the code is paired. */}
       {verified ? (
         <div className="flex items-center gap-1.5 px-3 pb-2 pt-1 text-[11px] font-medium text-green-600">
           <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
-          <span>Number verified — you're all set.</span>
+          <span>Phone connected — you're all set.</span>
         </div>
       ) : (
         <div className="flex items-center gap-1.5 px-3 pb-2 text-[11px] text-purple-600">
           <Loader className="h-3 w-3 animate-spin flex-shrink-0" />
-          <span>Waiting — continues automatically once you're whitelisted.</span>
+          <span>Waiting — continues automatically once you've sent it.</span>
         </div>
       )}
     </div>

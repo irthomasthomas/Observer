@@ -29,6 +29,7 @@ import { isDesktop, isWeb } from '@utils/platform';
 import { browserStreamCapture } from '@utils/browserStreamCapture';
 import { tutorialStreamCapture } from '@utils/tutorialStreamCapture';
 import { SensorSettings } from '@utils/settings';
+import { normalizeWhitelistCode } from '@utils/whitelistCode';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -476,20 +477,25 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'check_whitelist',
-    description: 'Pre-flight gate for the phone-based notification tools (sendSms, call, sendWhatsapp). These tools ONLY deliver to whitelisted numbers, and start_agent FAILS with a whitelist error otherwise — so call this BEFORE start_agent for any agent that uses a phone tool. Pass the phone_number (E.164, e.g. +18632085341) and the channel it will be used for. This BLOCKS: if the number is already whitelisted it returns immediately; if not, the user is shown an inline prompt (with QR codes) and this WAITS until they finish whitelisting, then returns success. Do NOT announce that the number is unwhitelisted or ask the user to whitelist it — the inline prompt handles that. Once this returns, go straight to start_agent.',
+    description: "Pre-flight gate for the phone notification tools (sendSms, call, sendWhatsapp). They only send to the user's 4-word Observer code once that code is connected on WhatsApp, and start_agent FAILS otherwise — so call this BEFORE start_agent for any agent that uses a phone tool. Pass the code the agent sends to (defaults to the user's saved code) and the channel. This BLOCKS: if the code is already connected it returns immediately; if not, the user is shown an inline QR and this WAITS until they send the code on WhatsApp, then returns success. Do NOT announce that it isn't connected or tell the user what to do — the inline prompt handles that. Once this returns, go straight to start_agent. Phone numbers are never accepted: if an agent uses one, replace it with the user's code.",
     parameters: {
       type: 'object',
       properties: {
-        phone_number: { type: 'string', description: 'The phone number to check, in E.164 format (e.g. +18632085341).' },
-        channel: { type: 'string', enum: ['sms', 'voice', 'whatsapp'], description: 'Which channel the number will be used for: sms (sendSms), voice (call), or whatsapp (sendWhatsapp). WhatsApp has a separate whitelist; sms and voice share one. Defaults to sms.' },
+        code: { type: 'string', description: "The 4-word Observer code the agent passes to the phone tool (e.g. \"tree-book-shower-golden\"). Omit to use the user's saved code." },
+        channel: { type: 'string', enum: ['sms', 'voice', 'whatsapp'], description: "Which tool the code is used with: sms (sendSms), voice (call), or whatsapp (sendWhatsapp). WhatsApp also needs WhatsApp's 24h window to be open. Defaults to sms." },
       },
-      required: ['phone_number'],
     },
     multimodal: false,
     execute: async (args, ctx): Promise<ToolResult> => {
-      if (!args.phone_number) return { error: 'Provide a phone_number to check.' };
-      if (args.phone_number === '+18632085341') {
-        return { error: "🚫 That's Observer's own phone number, not the user's. Ask the user for their phone number and check the whitelist for that instead." };
+      // `phone_number` is what this tool took before codes-only; a chat started under the
+      // old prompt may still pass it.
+      const raw: string | undefined = args.code ?? args.phone_number;
+      const code = raw ? normalizeWhitelistCode(raw) : SensorSettings.ensureWhitelistCode();
+      if (!code) {
+        const saved = SensorSettings.getWhitelistCode();
+        return {
+          error: `'${raw}' is not an Observer code. The phone tools only send to the user's 4-word code${saved ? ` ('${saved}')` : ''}, never to a phone number: put the code in the agent instead${saved ? '' : " (ask_user_info kind='phone' gets it)"}, then check it.`,
+        };
       }
 
       // Funnel through the same checkPhoneWhitelist gate start_agent uses by handing it a
@@ -497,45 +503,32 @@ export const TOOLS: ToolDefinition[] = [
       const fn = args.channel === 'whatsapp' ? 'sendWhatsapp'
         : args.channel === 'voice' ? 'call'
         : 'sendSms';
-      const code = `${fn}("${args.phone_number}")`;
+      const snippet = `${fn}("${code}")`;
       const channel = args.channel ?? 'sms';
 
-      // Block until the number is whitelisted (the inline pill guides the user), the run is
+      // Block until the code is connected (the inline pill guides the user), the run is
       // aborted (Stop), or we give up after WHITELIST_WAIT_MS. Waiting here — instead of
-      // returning "not whitelisted" — is what lets the run resume silently once whitelisting
-      // is done, with no extra model/user messages.
+      // returning "not connected" — is what lets the run resume silently once the user has
+      // sent the code, with no extra model/user messages.
       const deadline = Date.now() + WHITELIST_WAIT_MS;
       while (true) {
         if (ctx.signal?.aborted) return { error: 'Cancelled.' };
         try {
-          const { phoneNumbers } = await checkPhoneWhitelist(code, ctx.getToken);
+          const { phoneNumbers } = await checkPhoneWhitelist(snippet, ctx.getToken);
           if (phoneNumbers.length > 0 && phoneNumbers.every(p => p.isWhitelisted)) {
-            return { data: { phoneNumber: args.phone_number, channel, whitelisted: true } };
+            return { data: { code, channel, whitelisted: true } };
           }
         } catch (e) {
-          const savedCode = SensorSettings.getWhitelistCode();
-          const message = e instanceof Error ? e.message : String(e);
-          return {
-            error: savedCode && savedCode !== args.phone_number
-              ? `${message} The user has a saved contact code ('${savedCode}'); ask whether to notify that instead, then check it.`
-              : message,
-          };
+          return { error: e instanceof Error ? e.message : String(e) };
         }
         if (Date.now() >= deadline) {
-          // The user may simply have a working code already; point at it rather than
-          // leaving the model with a dead end.
-          const savedCode = SensorSettings.getWhitelistCode();
-          const codeHint = savedCode && savedCode !== args.phone_number
-            ? ` The user has a saved contact code ('${savedCode}') — offer to notify that instead of this number, then re-check it.`
-            : '';
           return {
             data: {
-              phoneNumber: args.phone_number,
+              code,
               channel,
               whitelisted: false,
               timedOut: true,
-              savedCode: savedCode ?? undefined,
-              note: `Still not whitelisted after a long wait. Ask the user whether to keep waiting or skip starting the agent.${codeHint}`,
+              note: 'Still not connected after a long wait. Ask the user whether to keep waiting or skip starting the agent.',
             },
           };
         }
@@ -549,7 +542,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'ask_user_info',
-    description: "Ask the user for a piece of contact info needed by a notification tool, via a guided modal. Use this INSTEAD of asking for a phone number / chat_id / webhook URL in chat prose — the modal walks the user through actually obtaining the value (QR codes, deep links, step-by-step instructions) and prefills anything they've given before. Call it BEFORE create_agent, once per piece of info you need. This BLOCKS until the user confirms. For kind='phone' it also handles whitelisting in the same modal, so you do NOT need a separate check_whitelist call for a number obtained this way — note the returned value is often a word-list passphrase (e.g. \"tree-book-shower-golden\"), NOT a digit phone number; treat it as an opaque already-whitelisted identifier and pass it verbatim as the phone_number/number argument to sendSms/sendWhatsapp/call — never reformat, validate, or reject it for not looking like a phone number. The same goes for kind='telegram': the value may be that passphrase instead of a numeric chat_id; pass it verbatim as sendTelegram's chat_id. If the result is {skipped:true}, the user declined — ask them about it in chat rather than calling this again. Do not narrate the modal or tell the user to fill it in; they can see it.",
+    description: "Ask the user for a piece of contact info needed by a notification tool, via a guided modal. Use this INSTEAD of asking for a phone number / chat_id / webhook URL in chat prose — the modal walks the user through actually obtaining the value (QR codes, deep links, step-by-step instructions) and prefills anything they've given before. Call it BEFORE create_agent, once per piece of info you need. This BLOCKS until the user confirms. For kind='phone' the value is ALWAYS the user's 4-word Observer code (e.g. \"tree-book-shower-golden\"), never a phone number, and the modal only returns once it's connected, so you do NOT need a separate check_whitelist call for it; pass it verbatim as the phone_number/number argument to sendSms/sendWhatsapp/call. Observer never sends to raw phone numbers. The same goes for kind='telegram': the value may be that passphrase instead of a numeric chat_id; pass it verbatim as sendTelegram's chat_id. If the result is {skipped:true}, the user declined — ask them about it in chat rather than calling this again. Do not narrate the modal or tell the user to fill it in; they can see it.",
     parameters: {
       type: 'object',
       properties: {
@@ -561,7 +554,7 @@ export const TOOLS: ToolDefinition[] = [
         channel: {
           type: 'string',
           enum: ['sms', 'voice', 'whatsapp'],
-          description: "Only for kind='phone': which channel the number will be used for — sms (sendSms), voice (call), or whatsapp (sendWhatsapp). WhatsApp has a separate whitelist. Defaults to sms.",
+          description: "Only for kind='phone': which tool the code will be used with — sms (sendSms), voice (call), or whatsapp (sendWhatsapp). WhatsApp also needs WhatsApp's 24h window to be open. Defaults to sms.",
         },
         reason: {
           type: 'string',
@@ -604,13 +597,8 @@ export const TOOLS: ToolDefinition[] = [
       const value = (response.value ?? '').trim();
       if (!value) return { data: { kind, skipped: true } };
 
-      // Same guard as check_whitelist: Observer's own number is never the user's.
-      if (kind === 'phone' && value === '+18632085341') {
-        return { error: "\u{1F6AB} That's Observer's own phone number, not the user's. Ask for the user's own number." };
-      }
-
-      // The modal only resolves a phone once WhitelistInline has confirmed it, so a returned
-      // phone number is always already whitelisted — no separate check_whitelist needed.
+      // The modal only resolves a phone once the code is confirmed connected, so a returned
+      // code is always ready to use — no separate check_whitelist needed.
       return { data: { kind, value, ...(kind === 'phone' ? { channel, whitelisted: true } : {}) } };
     },
   },

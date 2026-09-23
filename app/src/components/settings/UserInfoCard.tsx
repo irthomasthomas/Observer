@@ -111,13 +111,12 @@ const UserInfoCard: React.FC = () => {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
-  const [qrTab, setQrTab] = useState<'whatsapp' | 'sms' | 'telegram'>('whatsapp');
-  const { allWhitelisted: verified } = useWhitelistPolling(
-    code ? [{ number: code, isWhitelisted: false }] : [],
-    getAccessToken,
-    undefined,
-    !!code,
-  );
+  const [qrTab, setQrTab] = useState<'whatsapp' | 'telegram'>('whatsapp');
+  // Connected means paired on either channel: WhatsApp (phone alerts) or Telegram.
+  const codeEntries = code ? [{ number: code, isWhitelisted: false }] : [];
+  const { allWhitelisted: phoneConnected } = useWhitelistPolling(codeEntries, getAccessToken, undefined, !!code);
+  const { allWhitelisted: telegramConnected } = useWhitelistPolling(codeEntries, getAccessToken, 'telegram', !!code);
+  const verified = phoneConnected || telegramConnected;
 
   const copy = () => {
     if (!code) return;
@@ -125,7 +124,7 @@ const UserInfoCard: React.FC = () => {
   };
 
   const rotate = () => {
-    if (!window.confirm('Generate a new phrase? Agents built with the current phrase will stop sending to your phone.')) return;
+    if (!window.confirm('Generate a new phrase? Agents built with the current phrase keep sending to the phone it is connected to; new agents will use the new one.')) return;
     setCode(SensorSettings.rotateWhitelistCode());
     setRevealed(true);
     setShowQR(true);
@@ -137,12 +136,12 @@ const UserInfoCard: React.FC = () => {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Your phrase</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Link it via WhatsApp, SMS or Telegram to get notifications and chat with Observer. Keep it private.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Link it on WhatsApp (for WhatsApp, SMS and call alerts) or Telegram to get notifications and chat with Observer.</p>
           </div>
           {code && (
             <span className={`inline-flex items-center gap-1 text-xs font-medium flex-shrink-0 ${verified ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
               {verified ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-              {verified ? 'Verified' : 'Not verified'}
+              {verified ? 'Connected' : 'Not connected'}
             </span>
           )}
         </div>
@@ -179,7 +178,7 @@ const UserInfoCard: React.FC = () => {
         {code && showQR && (
           <div className="mt-4 flex flex-col items-center gap-4 rounded-xl bg-white border border-gray-200 py-4">
             <div className="inline-flex items-center gap-1 p-1 rounded-full bg-gray-100 border border-gray-200">
-              {(['whatsapp', 'sms', 'telegram'] as const).map(t => (
+              {(['whatsapp', 'telegram'] as const).map(t => (
                 <button
                   key={t}
                   onClick={() => setQrTab(t)}
@@ -187,7 +186,7 @@ const UserInfoCard: React.FC = () => {
                     qrTab === t ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {t === 'sms' ? 'SMS' : t === 'whatsapp' ? 'WhatsApp' : 'Telegram'}
+                  {t === 'whatsapp' ? 'WhatsApp' : 'Telegram'}
                 </button>
               ))}
             </div>
@@ -210,7 +209,7 @@ const UserInfoCard: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <WhitelistQR code={code} channel={qrTab} />
+              <WhitelistQR code={code} />
             )}
           </div>
         )}

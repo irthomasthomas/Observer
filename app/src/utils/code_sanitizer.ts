@@ -15,9 +15,9 @@ export interface PassphraseRedactionResult {
 
 /**
  * Finds and strips any whitelist passphrase (4 hyphen-joined words drawn from
- * the golden-path wordlist) from code. These are bearer codes — anyone who has
- * one can bind their phone to the account — so they're removed automatically
- * rather than just flagged.
+ * the golden-path wordlist) from code. Only the owner can send with a code, but
+ * whoever sends it on WhatsApp/Telegram first while the owner is pairing gets
+ * bound to it — so they're removed automatically rather than just flagged.
  */
 export function redactPassphrases(code: string): PassphraseRedactionResult {
   if (!code || typeof code !== 'string') {
@@ -68,8 +68,9 @@ const FUNCTION_DESCRIPTIONS: Record<string, string> = {
   sendPushover: 'Pushover tokens',
   sendDiscord: 'Discord webhooks',
   sendTelegram: 'Telegram chat IDs',
-  sendWhatsapp: 'WhatsApp phone numbers',
-  sendSms: 'Phone numbers'
+  sendWhatsapp: 'Observer codes',
+  sendSms: 'Observer codes',
+  call: 'Observer codes'
 };
 
 const PLACEHOLDER_SUGGESTIONS: Record<string, string> = {
@@ -77,8 +78,9 @@ const PLACEHOLDER_SUGGESTIONS: Record<string, string> = {
   sendPushover: '"your_pushover_token_here"',
   sendDiscord: '"https://discord.com/api/webhooks/1234/id"',
   sendTelegram: '"123456789"',
-  sendWhatsapp: '"+1 (555) 999-9999"',
-  sendSms: '"+1 (555) 999-9999"'
+  sendWhatsapp: '"your-observer-code"',
+  sendSms: '"your-observer-code"',
+  call: '"your-observer-code"'
 };
 
 /**

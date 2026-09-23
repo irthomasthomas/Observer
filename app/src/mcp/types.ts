@@ -103,7 +103,7 @@ export type UserInfoKind = 'phone' | 'email' | 'telegram' | 'discord' | 'pushove
 export interface UserInfoRequest {
   requestId: string;
   kind: UserInfoKind;
-  /** For `phone`: which channel the number is for. Drives which whitelist QRs are shown. */
+  /** For `phone`: which tool the code is for. 'whatsapp' also requires WhatsApp's 24h window. */
   channel?: 'sms' | 'voice' | 'whatsapp';
   /** The model's one-line "why I need this", shown to the user for context. */
   reason?: string;

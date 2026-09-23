@@ -1,35 +1,26 @@
 // src/components/whitelist/shared.ts
 //
-// Single source of truth for the Observer whitelist contact numbers, the QR-code
-// payloads, and the background polling loop. Shared by the full WhitelistModal and the
-// compact inline chip the MCP renders under a `check_whitelist` tool call, so the two
-// surfaces can never drift apart.
+// Single source of truth for the Observer WhatsApp contact, the pairing QR payload, and
+// the background polling loop. Shared by the full WhitelistModal and the compact inline
+// chip the MCP renders under a `check_whitelist` tool call, so the two surfaces can never
+// drift apart.
+//
+// Phones are reached only through the user's 4-word code, paired by sending it to the
+// Observer bot on WhatsApp (see api/remote.py). That one pairing enables WhatsApp, SMS and
+// voice alerts to the phone; there is no SMS or call-in pairing.
 
 import { useEffect, useRef, useState } from 'react';
 import type { WhitelistChannel } from '@utils/logging';
 import { openExternal } from '@utils/platform';
 
-export const OBSERVER_SMS_CALL = '+1 (863) 208-5341';
 export const OBSERVER_WHATSAPP = '+1 (555) 783-4727';
 export const OBSERVER_WHATSAPP_PLAIN = '15557834727';
-export const OBSERVER_SMS_PLAIN = '18632085341';
 
-const WHITELIST_GREETING = "Hi! I'd like to whitelist my phone number for Observer";
-
-export const whatsappQRValue = `https://wa.me/${OBSERVER_WHATSAPP_PLAIN}?text=${encodeURIComponent(WHITELIST_GREETING)}`;
-// Use +1 prefix for SMS to ensure proper international number formatting.
-export const smsQRValue = `sms:+${OBSERVER_SMS_PLAIN}?&body=${encodeURIComponent(WHITELIST_GREETING)}`;
-
-// Golden-path variants: the message body is the user's persisted whitelist code instead of
-// the canned greeting, so the backend's key->phone mapping binds to that code (see
-// api/messaging.py add_to_whitelist/resolve_to_phone).
+/** Opens WhatsApp with the code prefilled: sending it pairs the phone. */
 export const whatsappCodeQRValue = (code: string) =>
   `https://wa.me/${OBSERVER_WHATSAPP_PLAIN}?text=${encodeURIComponent(code)}`;
-export const smsCodeQRValue = (code: string) =>
-  `sms:+${OBSERVER_SMS_PLAIN}?&body=${encodeURIComponent(code)}`;
 
 export const openWhatsApp = () => openExternal(`https://wa.me/${OBSERVER_WHATSAPP_PLAIN}`);
-export const openSMS = () => openExternal(`sms:${OBSERVER_SMS_CALL}`);
 
 export interface PhoneEntry {
   number: string;

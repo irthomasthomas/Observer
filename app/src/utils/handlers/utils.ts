@@ -191,6 +191,20 @@ export async function sound(name: string = 'ping', volume: number = 0.5): Promis
 }
 
 /**
+ * The server's `detail` string for a failed response, or `fallback`. For the phone tools a
+ * 403 detail says exactly what to fix (use your code, connect it on WhatsApp, or reopen
+ * WhatsApp's 24h window), so it is passed through rather than replaced.
+ */
+async function responseDetail(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = await response.json();
+    return typeof data.detail === 'string' ? data.detail : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * Sends an SMS message by calling the backend API.
  * This is the core utility function.
  * @param message The SMS message content to send.
@@ -232,9 +246,10 @@ export async function sendSms(message: string, number: string, authToken: string
     await handleQuotaExceeded(response, 'sms');
 
     if (!response.ok) {
-      // Check if this is a whitelist error (403 + user is authenticated)
+      // 403: the code isn't usable yet (not a code, not connected, or WhatsApp window closed)
       if (response.status === 403 && authToken) {
-        Logger.error('whitelist', `Phone number ${number} not whitelisted for SMS`, {
+        const detail = await responseDetail(response, `${number} can't receive SMS yet.`);
+        Logger.error('whitelist', `${number} not ready for SMS: ${detail}`, {
           logType: 'whitelist-required',
           content: {
             phoneNumber: number,
@@ -243,19 +258,10 @@ export async function sendSms(message: string, number: string, authToken: string
             timestamp: new Date().toISOString()
           }
         });
-        throw new Error(`Phone number ${number} is not whitelisted. Please verify your number first.`);
+        throw new Error(detail);
       }
 
-      try {
-        const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string'
-          ? errorData.detail
-          : `Failed to send SMS: ${response.status} ${response.statusText}`;
-        throw new Error(errorMessage);
-      } catch (parseError) {
-        // If JSON parsing fails, use the HTTP status
-        throw new Error(`Failed to send SMS: ${response.status} ${response.statusText}`);
-      }
+      throw new Error(await responseDetail(response, `Failed to send SMS: ${response.status} ${response.statusText}`));
     }
   } catch (error) {
     throw error;
@@ -303,9 +309,10 @@ export async function sendWhatsapp(message: string, number: string, authToken: s
     await handleQuotaExceeded(response, 'whatsapp');
 
     if (!response.ok) {
-      // Check if this is a whitelist error (403 + user is authenticated)
+      // 403: the code isn't usable yet (not a code, not connected, or WhatsApp window closed)
       if (response.status === 403 && authToken) {
-        Logger.error('whitelist', `Phone number ${number} not whitelisted for WhatsApp`, {
+        const detail = await responseDetail(response, `${number} can't receive WhatsApp yet.`);
+        Logger.error('whitelist', `${number} not ready for WhatsApp: ${detail}`, {
           logType: 'whitelist-required',
           content: {
             phoneNumber: number,
@@ -314,19 +321,10 @@ export async function sendWhatsapp(message: string, number: string, authToken: s
             timestamp: new Date().toISOString()
           }
         });
-        throw new Error(`Phone number ${number} is not whitelisted. Please verify your number first.`);
+        throw new Error(detail);
       }
 
-      try {
-        const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string'
-          ? errorData.detail
-          : `Failed to send WhatsApp message: ${response.status} ${response.statusText}`;
-        throw new Error(errorMessage);
-      } catch (parseError) {
-        // If JSON parsing fails, use the HTTP status
-        throw new Error(`Failed to send WhatsApp message: ${response.status} ${response.statusText}`);
-      }
+      throw new Error(await responseDetail(response, `Failed to send WhatsApp message: ${response.status} ${response.statusText}`));
     }
   } catch (error) {
     throw error;
@@ -865,9 +863,10 @@ export async function call(message: string, number: string, authToken: string): 
     await handleQuotaExceeded(response, 'voice_call');
 
     if (!response.ok) {
-      // Check if this is a whitelist error (403 + user is authenticated)
+      // 403: the code isn't usable yet (not a code, not connected, or WhatsApp window closed)
       if (response.status === 403 && authToken) {
-        Logger.error('whitelist', `Phone number ${number} not whitelisted for calls`, {
+        const detail = await responseDetail(response, `${number} can't receive calls yet.`);
+        Logger.error('whitelist', `${number} not ready for calls: ${detail}`, {
           logType: 'whitelist-required',
           content: {
             phoneNumber: number,
@@ -876,19 +875,10 @@ export async function call(message: string, number: string, authToken: string): 
             timestamp: new Date().toISOString()
           }
         });
-        throw new Error(`Phone number ${number} is not whitelisted. Please verify your number first.`);
+        throw new Error(detail);
       }
 
-      try {
-        const errorData = await response.json();
-        const errorMessage = typeof errorData.detail === 'string'
-          ? errorData.detail
-          : `Failed to make call: ${response.status} ${response.statusText}`;
-        throw new Error(errorMessage);
-      } catch (parseError) {
-        // If JSON parsing fails, use the HTTP status
-        throw new Error(`Failed to make call: ${response.status} ${response.statusText}`);
-      }
+      throw new Error(await responseDetail(response, `Failed to make call: ${response.status} ${response.statusText}`));
     }
   } catch (error) {
     throw error;

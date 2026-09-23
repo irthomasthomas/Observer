@@ -31,9 +31,7 @@ export default function getConversationalSystemPrompt(): string {
       *   **For Telegram:** "To send notifications to Telegram, you'll first need to send a message to the **@observer_notification_bot**. It will reply with your unique Chat ID. Could you please paste that Chat ID here?"
       *   **For Discord:** "I can send notifications to a Discord channel. To do that, I need a Webhook URL. In your server, you can get this from **Server Settings > Integrations > Webhooks**. Just create a new webhook and copy the URL for me."
       *   **For Email:** "Please provide the email address to which the agent will send an email to."
-      *   **For Whatsapp:** "To set up WhatsApp notifications, you first need to send a message to **+1 (555) 783-4727** to be whitelisted. Have you already done that?"
-      *   **For SMS:** " If you'd like to proceed send an SMS to +1 (863)208-5341 to be whitelisted and please provide your full phone number I should use.
-      *   **For Voice Calling:** "I can call you. If you'd like to proceed send an SMS to +1 (863)208-5341 to be whitelisted and please what provide the full phone number I should use.
+      *   **For WhatsApp, SMS or a phone call:** "Phone alerts go to your 4-word Observer code, which you'll find in Settings under *Your phrase*. If you haven't yet, connect it once by sending it to **+1 (555) 783-4727** on WhatsApp. What's your code?"
       *   **For Pushover:** "To send a Pushover notification, I'll need your user token. What is your Pushover token?"
 
 3.  **Propose a Blueprint:** After all inputs are gathered, summarize the complete plan for final confirmation.
@@ -137,14 +135,14 @@ $$$
 | \`sendPushover(token, message, images?, title?)\`| Sends a Pushover notification.             |
 | \`sendDiscord(webhook, message, images?)\`| Sends a Discord message to a server.              |
 | \`sendTelegram(chat_id, message, images?)\`| Sends a Telegram message with optional images.  |
-| \`sendWhatsapp(phone, message, images?)\`| Sends a Whatsapp message with optional images. Use E.164 format  |
-| \`sendSms(phone, message, images?)\`     | Sends an SMS with optional images. Use E.164 format |
-| \`call(phone, message)\`                 | Calls a number with a message. Use E.164 format   |
+| \`sendWhatsapp(code, message, images?)\`| Sends a WhatsApp message with optional images to the user's code. |
+| \`sendSms(code, message, images?)\`     | Sends an SMS with optional images to the user's code. |
+| \`call(code, message)\`                 | Calls the phone behind the user's code with a message. |
 | **Video Recording Tools**                |                                                   |
 | \`startClip()\`                          | Starts a screen recording.                         |
 | \`stopClip()\`                           | Stops an active recording.                         |
-* REMEMBER: always ask for the required info (email, phone number, webhook, etc.).
-**For Whatsapp, SMS and Voice Calling:** The code uses E.164 format like this, user says: "+1 (555) 783-4727" write on code: "+15557834727", never use whatsapp, sms and voice calling that will be called on every loop, free users only have 5 a day, so these are just for *notifications* only, and should be accompanied by a sleep(). Telegram, email, discord and pushover can be used for status updates or notifications, these are unlimited. 
+* REMEMBER: always ask for the required info (email, Observer code, webhook, etc.).
+**For Whatsapp, SMS and Voice Calling:** Pass the user's 4-word Observer code exactly as they gave it, e.g. "tree-book-shower-golden". Never write a phone number: Observer only sends to codes. Never use whatsapp, sms and voice calling that will be called on every loop, free users only have 5 a day, so these are just for *notifications* only, and should be accompanied by a sleep(). Telegram, email, discord and pushover can be used for status updates or notifications, these are unlimited. 
 ---
 
 ### **Final Output Format**

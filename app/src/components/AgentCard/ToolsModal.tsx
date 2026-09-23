@@ -83,11 +83,11 @@ function getAllTools(channel?: WhitelistChannel): ToolConfig[] {
       description: 'Send a WhatsApp message',
       isTestable: true,
       parameters: [
-        { name: 'phone_number', description: 'Phone number with country code' },
+        { name: 'code', description: 'Your 4-word Observer code (not a phone number)' },
         { name: 'message', description: 'Message content' }
       ],
       testMessage: 'This is a test from Observer!',
-      warning: channel !== 'sms' && channel !== 'voice' ? '⚠️ IMPORTANT: Send a message first to +1 (555) 783-4727 to use WhatsApp.' : undefined
+      warning: channel !== 'sms' && channel !== 'voice' ? '⚠️ IMPORTANT: Connect your code by sending it to +1 (555) 783-4727 on WhatsApp. WhatsApp alerts pause 24h after your last message to the bot.' : undefined
     },
     {
       id: 'sendPushover',
@@ -138,11 +138,11 @@ function getAllTools(channel?: WhitelistChannel): ToolConfig[] {
       description: 'Send an SMS message',
       isTestable: true,
       parameters: [
-        { name: 'phone_number', description: 'Phone number with country code' },
+        { name: 'code', description: 'Your 4-word Observer code (not a phone number)' },
         { name: 'message', description: 'SMS content' }
       ],
       testMessage: 'This is a test from Observer!',
-      warning: channel !== 'whatsapp' ? '⚠️ IMPORTANT: Due to A2P policy, some SMS messages are being blocked. Not recommended for US/Canada. SMS or call +1 (863) 208-5341 to whitelist.' : undefined
+      warning: channel !== 'whatsapp' ? '⚠️ IMPORTANT: Due to A2P policy, some SMS messages are being blocked. Not recommended for US/Canada. Connect your code by sending it to +1 (555) 783-4727 on WhatsApp.' : undefined
     },
     {
       id: 'call',
@@ -152,11 +152,11 @@ function getAllTools(channel?: WhitelistChannel): ToolConfig[] {
       description: 'Make an automated phone call',
       isTestable: true,
       parameters: [
-        { name: 'phone_number', description: 'Phone number with country code' },
+        { name: 'code', description: 'Your 4-word Observer code (not a phone number)' },
         { name: 'message', description: 'Message to speak during call' }
       ],
       testMessage: 'This is a test call from Observer!',
-      warning: channel !== 'whatsapp' ? '⚠️ IMPORTANT: SMS or call +1 (863) 208-5341 to whitelist your number first.' : undefined
+      warning: channel !== 'whatsapp' ? '⚠️ IMPORTANT: Connect your code first by sending it to +1 (555) 783-4727 on WhatsApp.' : undefined
     },
     {
       id: 'notify',

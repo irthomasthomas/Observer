@@ -18,6 +18,7 @@ import type { CompleteAgent } from '@utils/agent_database';
 import { useSubscriberText } from '@hooks/useTranscriptionState';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
 import { SensorSettings } from '@utils/settings';
+import { normalizeWhitelistCode } from '@utils/whitelistCode';
 import { isTauri } from '@utils/platform';
 import { GemmaModelManager } from '@utils/localLlm/GemmaModelManager';
 import { DEFAULT_LLAMACPP_FILES } from '@/mcp/localModel';
@@ -192,14 +193,14 @@ const CheckWhitelistGate: React.FC<{
   }, [isRunning, toolCallId]);
 
   if (!showPill) return null;
-  const phoneNumber: string | undefined = status?.args?.phone_number;
-  if (!phoneNumber) return null;
+  // The code the executor is actually polling: same arg resolution as check_whitelist, which
+  // defaults to the saved code. Anything that isn't a code fails the tool immediately, so
+  // there's nothing to pair and no pill.
+  const raw: string | undefined = status?.args?.code ?? status?.args?.phone_number;
+  const code = raw ? normalizeWhitelistCode(raw) : SensorSettings.ensureWhitelistCode();
+  if (!code) return null;
   const channel = status?.args?.channel as WhitelistChannel | undefined;
-  // Show the persisted golden-path word-key code (same one ask_user_info's modal uses)
-  // instead of a canned-greeting QR — the backend ties whichever number sends this code
-  // to the whitelist, so scanning it from the user's own phone whitelists phoneNumber too.
-  const code = SensorSettings.ensureWhitelistCode();
-  return <WhitelistInline phoneNumber={code} channel={channel} onCancel={onCancel} mode="code" />;
+  return <WhitelistInline code={code} channel={channel} onCancel={onCancel} />;
 };
 
 // ===================================================================================

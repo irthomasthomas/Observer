@@ -1,12 +1,13 @@
 import React from 'react';
 import Modal from '@components/EditAgent/Modal';
-import { Phone, X, CheckCircle, KeyRound, ChevronRight } from 'lucide-react';
+import { Phone, X, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { WhitelistChannel } from '@utils/logging';
 import WhitelistInline from '@components/whitelist/WhitelistInline';
-import { useWhitelistPolling } from '@components/whitelist/shared';
 import { SensorSettings } from '@utils/settings';
+import { normalizeWhitelistCode } from '@utils/whitelistCode';
 
 interface WhitelistModalProps {
+  /** Every literal the agent passes to a phone tool (see pre-flight.ts). */
   phoneNumbers: Array<{
     number: string;
     isWhitelisted: boolean;
@@ -18,29 +19,26 @@ interface WhitelistModalProps {
   channel?: WhitelistChannel; // 'whatsapp' | 'sms' | 'voice'
 }
 
+/**
+ * Shown when start_agent's phone pre-flight fails. The phone tools only send to the user's
+ * 4-word code once it's paired on WhatsApp, so what the user has to do depends on what the
+ * agent actually sends to: a raw phone number has to be replaced with their code (it can
+ * never be sent to), and a code has to be paired, or its WhatsApp window reopened.
+ */
 const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, onStartAnyway, onStartAgent, getToken, channel }) => {
-  // Golden path: a stable, per-user 4-word code the user texts/WhatsApps to us instead of
-  // typing a phone number. Falls back to typing a real number for edge cases (e.g. someone
-  // else's phone should be whitelisted, not the current user's).
-  const code = React.useMemo(() => SensorSettings.ensureWhitelistCode(), []);
-  const [useFallback, setUseFallback] = React.useState(false);
+  const savedCode = React.useMemo(() => SensorSettings.ensureWhitelistCode(), []);
 
-  const { allWhitelisted: codeWhitelisted } = useWhitelistPolling(
-    [{ number: code, isWhitelisted: false }],
-    getToken,
-    channel,
-    !useFallback,
-  );
+  const rawNumbers = phoneNumbers.filter(p => !normalizeWhitelistCode(p.number)).map(p => p.number);
+  const codes = [...new Set(
+    phoneNumbers.map(p => normalizeWhitelistCode(p.number)).filter((c): c is string => !!c),
+  )];
 
-  // Fallback: verify the specific number(s) the agent actually flagged.
-  const { numbers: fallbackNumbers, status: fallbackStatus } = useWhitelistPolling(
-    phoneNumbers,
-    getToken,
-    channel,
-    useFallback,
-  );
+  const [paired, setPaired] = React.useState<Set<string>>(new Set());
+  const markPaired = React.useCallback((code: string) => {
+    setPaired(prev => (prev.has(code) ? prev : new Set(prev).add(code)));
+  }, []);
 
-  const success = useFallback ? fallbackStatus === 'success' : codeWhitelisted;
+  const success = rawNumbers.length === 0 && codes.length > 0 && codes.every(c => paired.has(c));
 
   return (
     <Modal open={true} onClose={onClose} className="w-full max-w-lg md:max-w-2xl">
@@ -49,8 +47,8 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
         <div className="flex items-center space-x-3">
           <Phone className="h-6 w-6" />
           <div>
-            <h2 className="text-xl font-semibold">Whitelist your Phone</h2>
-            <p className="text-sm text-blue-100">30-second verification • Valid for 24 hours</p>
+            <h2 className="text-xl font-semibold">Connect your phone</h2>
+            <p className="text-sm text-blue-100">One-time setup on WhatsApp</p>
           </div>
         </div>
         <button
@@ -63,7 +61,6 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
 
       {/* Content */}
       <div className="p-6 space-y-4">
-        {/* Success State - Clean and Minimal */}
         {success && onStartAgent ? (
           <div className="py-8">
             <div className="text-center mb-6">
@@ -71,7 +68,7 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">All Set!</h2>
-              <p className="text-gray-600">Your phone number is whitelisted and ready to go.</p>
+              <p className="text-gray-600">Your phone is connected and ready to go.</p>
             </div>
             <button
               onClick={() => {
@@ -82,77 +79,47 @@ const WhitelistModal: React.FC<WhitelistModalProps> = ({ phoneNumbers, onClose, 
             >
               Start Agent
             </button>
-            <p className="text-xs text-gray-500 text-center mt-3">
-              Whitelisted numbers are valid for 24 hours.
-            </p>
           </div>
         ) : (
           <>
-            {/* Title */}
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-gray-900 mb-1">You need to whitelist your phone!</h2>
-              <p className="text-sm text-gray-600">
-                {useFallback
-                  ? 'Use any of these two options:'
-                  : `Scan the QR or send this code to whitelist yourself for ${channel === 'whatsapp' ? 'WhatsApp' : 'SMS/calls'}:`}
-              </p>
-            </div>
-
-            {!useFallback ? (
-              <>
-                <div className="flex items-center justify-center gap-2 py-1">
-                  <KeyRound className="h-4 w-4 text-purple-600" />
-                  <span className="font-mono text-sm font-semibold text-gray-900">{code}</span>
-                </div>
-
-                <WhitelistInline
-                  phoneNumber={code}
-                  channel={channel}
-                  getToken={getToken}
-                  mode="code"
-                />
-
-                <div className="text-center pt-2">
-                  <button
-                    onClick={() => setUseFallback(true)}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    Or enter a phone number instead <ChevronRight className="h-3 w-3" />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-center">
-                  <button
-                    onClick={() => setUseFallback(false)}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    <ChevronRight className="h-3 w-3 rotate-180" /> Back to code
-                  </button>
-                </div>
-
-                {fallbackNumbers.length > 0 ? (
-                  fallbackNumbers.map(({ number }) => (
-                    <WhitelistInline
-                      key={number}
-                      phoneNumber={number}
-                      channel={channel}
-                      getToken={getToken}
-                      onWhitelisted={() => {}}
-                    />
-                  ))
-                ) : (
-                  <p className="text-sm text-orange-700">
-                    ⚠️ Phone tools detected but no phone number found in your code. Make sure dynamic numbers are whitelisted.
+            {rawNumbers.length > 0 && (
+              <div className="flex gap-3 p-4 rounded-lg border border-amber-300 bg-amber-50">
+                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-900 space-y-2">
+                  <p>
+                    This agent sends to{' '}
+                    {rawNumbers.map((n, i) => (
+                      <React.Fragment key={n}>
+                        {i > 0 && ', '}
+                        <span className="font-mono font-semibold">{n}</span>
+                      </React.Fragment>
+                    ))}
+                    . Observer no longer sends to phone numbers directly.
                   </p>
-                )}
-              </>
+                  <p>
+                    Edit the agent's code and replace {rawNumbers.length > 1 ? 'them' : 'it'} with your code{' '}
+                    <span className="font-mono font-semibold select-all">{savedCode}</span>, then connect that code below.
+                  </p>
+                </div>
+              </div>
             )}
 
-            <p className="text-xs text-gray-500 pt-2">
-              Whitelisted numbers are valid for 24 hours.
-            </p>
+            {codes.length === 0 && rawNumbers.length === 0 && (
+              <p className="text-sm text-orange-700">
+                ⚠️ This agent uses a phone tool, but passes it a value that can't be checked before starting.
+                It has to be your 4-word code (<span className="font-mono">{savedCode}</span>), connected on WhatsApp.
+              </p>
+            )}
+
+            {(codes.length > 0 ? codes : rawNumbers.length > 0 ? [savedCode] : []).map(code => (
+              <WhitelistInline
+                key={code}
+                code={code}
+                channel={channel}
+                getToken={getToken}
+                onWhitelisted={() => markPaired(code)}
+              />
+            ))}
           </>
         )}
       </div>

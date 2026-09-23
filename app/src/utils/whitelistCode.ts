@@ -51,3 +51,16 @@ export function generateWhitelistCode(): string {
   const words = Array.from({ length: 4 }, () => WORDLIST[randomIndex(WORDLIST.length)]);
   return words.join('-');
 }
+
+const WORDS = new Set(WORDLIST);
+
+/**
+ * The canonical code if `text` is one ("Tree book-shower golden" counts), else null.
+ * Mirrors the server's remote.normalize_code: the phone tools only accept codes now,
+ * so anything this rejects (e.g. a raw phone number) can never be sent to.
+ */
+export function normalizeWhitelistCode(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const parts = text.trim().toLowerCase().split(/[\s-]+/).filter(Boolean);
+  return parts.length === 4 && parts.every(p => WORDS.has(p)) ? parts.join('-') : null;
+}
