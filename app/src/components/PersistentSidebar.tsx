@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Home, Users, Database, Settings, Cpu, Video, MessageCircle,
   PanelLeft, User as UserIcon, ChevronRight,
-  FileText, Image as ImageIcon, Plus, Trash2,
+  BookOpen, Image as ImageIcon, Plus, Trash2,
 } from 'lucide-react';
 import { Logger } from '@utils/logging';
 import { isIOS, isTauri } from '../utils/platform';
@@ -141,7 +141,7 @@ const PersistentSidebar: React.FC<PersistentSidebarProps> = ({
   ];
 
   const memorySubItems = [
-    { id: 'memoryText', icon: FileText, label: 'Text Memories' },
+    { id: 'memoryText', icon: BookOpen, label: 'Text Memories' },
     { id: 'memoryImages', icon: ImageIcon, label: 'Image Memories' },
     { id: 'recordings', icon: Video, label: 'Video Memories' },
   ];

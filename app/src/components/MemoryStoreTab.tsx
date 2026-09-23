@@ -132,7 +132,9 @@ const MemoryStoreTab: React.FC<MemoryStoreTabProps> = ({ kind }) => {
         {/* Header with inline create */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <BookOpen className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+            {kind === 'image'
+              ? <ImageIcon className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+              : <BookOpen className="w-7 h-7 text-blue-600 dark:text-blue-400" />}
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {kind === 'image' ? 'Image Memories' : 'Text Memories'}
@@ -184,7 +186,9 @@ const MemoryStoreTab: React.FC<MemoryStoreTabProps> = ({ kind }) => {
           </div>
         ) : memories.length === 0 ? (
           <div className="p-12 text-center">
-            <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+            {kind === 'image'
+              ? <ImageIcon className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+              : <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />}
             <p className="text-gray-500 dark:text-gray-400 mb-2">{kind === 'image' ? 'No image memories yet' : 'No text memories yet'}</p>
             {kind === 'text' && <p className="text-sm text-gray-400 dark:text-gray-500">Create one to get started</p>}
           </div>
