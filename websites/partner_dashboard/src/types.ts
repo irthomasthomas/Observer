@@ -1,9 +1,42 @@
-export interface GenerateCodeResponse {
-  code: string;
+// Amounts are in the currency's smallest unit (cents), as Stripe returns them.
+export interface PartnerQuote {
+  currency: string;
+  unit_amount: number;
+  monthly_total: number;
+  commission_percent: number;
+  monthly_commission: number;
+  commission_months: number;
+}
+
+export interface PartnerProvisionResponse extends ProvisionOrgResponse {
   partner: string;
-  discount: number | null;
-  expires_in_days: number;
-  message: string;
+  quote: PartnerQuote;
+  stripe_schedule_id?: string;
+  commission_until?: number;
+}
+
+export interface PartnerDeal {
+  org_id: string | null;
+  company: string | null;
+  admin_email: string | null;
+  status: string;
+  seats: number | null;
+  created: number;
+  commission_until: number | null;
+  latest_invoice: {
+    status: string | null;
+    amount_due: number | null;
+    amount_paid: number | null;
+    currency: string | null;
+    hosted_invoice_url: string | null;
+  } | null;
+}
+
+export interface PartnerDealsResponse {
+  partner: string;
+  commission_percent: number;
+  commission_months: number;
+  orgs: PartnerDeal[];
 }
 
 export interface ProvisionOrgResponse {

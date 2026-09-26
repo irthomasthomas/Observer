@@ -28,7 +28,7 @@ from auth0_manager import (
 # Admin authentication
 from admin_auth import get_admin_access
 # Enterprise org sync (orgs.py does not import payments, so this is not circular)
-from orgs import sync_org_from_stripe, sget
+from orgs import sync_org_from_stripe, sget, provision_org, OrgCreateRequest
 
 # --- Standard Setup ---
 logger = logging.getLogger(__name__)
@@ -318,12 +318,14 @@ async def create_trial_link(
 # (open-source) file and adding a partner needs only an .env change + API restart:
 #
 #   OBSERVER_PARTNER_<ID>_CODE=<secret auth code the partner panel sends>
-#   OBSERVER_PARTNER_<ID>_COUPON=<Stripe coupon ID>
+#   OBSERVER_PARTNER_<ID>_COUPON=<Stripe coupon ID>         (discount codes)
+#   OBSERVER_PARTNER_<ID>_ACCOUNT=<Stripe Connect acct_ ID>  (enterprise sales)
 #
 # <ID> is any token (a codename or a number) and becomes the partner label stored
-# in promo-code metadata. Each partner gets a distinct coupon, so per-partner stats
-# fall out of PromotionCode.list(coupon=<that coupon>).
-PARTNERS: dict[str, dict[str, str]] = {}
+# in promo-code and subscription metadata. A partner needs at least one of COUPON
+# or ACCOUNT. Each partner gets a distinct coupon, so per-partner stats fall out
+# of PromotionCode.list(coupon=<that coupon>).
+PARTNERS: dict[str, dict[str, str | None]] = {}
 
 _PARTNER_CODE_RE = re.compile(r"^OBSERVER_PARTNER_(.+)_CODE$")
 
@@ -335,15 +337,17 @@ def _load_partners() -> None:
         if not match:
             continue
         raw_id = match.group(1)
-        coupon_id = os.environ.get(f"OBSERVER_PARTNER_{raw_id}_COUPON")
+        coupon_id = os.environ.get(f"OBSERVER_PARTNER_{raw_id}_COUPON") or None
+        account_id = os.environ.get(f"OBSERVER_PARTNER_{raw_id}_ACCOUNT") or None
         partner_id = raw_id.lower()
-        if not code or not coupon_id:
-            logger.warning(f"Partner '{partner_id}' skipped: missing CODE or COUPON env var.")
+        if not code or not (coupon_id or account_id):
+            logger.warning(f"Partner '{partner_id}' skipped: needs CODE plus a COUPON or ACCOUNT env var.")
             continue
-        PARTNERS[code] = {"id": partner_id, "coupon_id": coupon_id}
-        logger.info(f"Partner discount program enabled for '{partner_id}'.")
+        PARTNERS[code] = {"id": partner_id, "coupon_id": coupon_id, "account_id": account_id}
+        logger.info(f"Partner program enabled for '{partner_id}' "
+                    f"(codes={'yes' if coupon_id else 'no'}, enterprise={'yes' if account_id else 'no'}).")
 
-    logger.info(f"Loaded {len(PARTNERS)} partner(s) for the discount program.")
+    logger.info(f"Loaded {len(PARTNERS)} partner(s) for the partner program.")
 
 
 _load_partners()
@@ -357,7 +361,7 @@ partner_key_header = APIKeyHeader(name="X-Partner-Key", auto_error=False)
 async def get_partner(key: str = Security(partner_key_header)) -> dict:
     """
     Dependency that validates the X-Partner-Key header and returns the matching
-    partner config ({"slug", "coupon_id"}). Uses constant-time comparison.
+    partner config ({"id", "coupon_id", "account_id"}). Uses constant-time comparison.
     """
     if key:
         for code, partner in PARTNERS.items():
@@ -390,7 +394,8 @@ async def generate_partner_code(partner: dict = Depends(get_partner)):
     """
     coupon_id = partner["coupon_id"]
     partner_id = partner["id"]
-
+    if not coupon_id:
+        raise HTTPException(status_code=400, detail="This partner key is not set up for discount codes.")
 
     try:
         # Newer Stripe API versions nest the coupon under `promotion` instead of a
@@ -426,6 +431,258 @@ async def generate_partner_code(partner: dict = Depends(get_partner)):
     except Exception as e:
         logger.error(f"Failed to generate promo code for partner '{partner_id}': {e}")
         raise HTTPException(status_code=500, detail="Could not generate promotion code.")
+
+
+# --- Partner Enterprise Sales ---
+# A partner with an ACCOUNT closes an enterprise deal by provisioning the org
+# from the partner dashboard. Stripe then pays PARTNER_COMMISSION_PERCENT of
+# every invoice to their Connect account for PARTNER_COMMISSION_MONTHS and stops
+# on its own (orgs._create_commission_schedule).
+#
+# Stripe is the only record of a deal. The partner's deal list is a live search
+# on subscription metadata, the money trail is their Express dashboard, and
+# refunds/disputes claw back through the webhook (_claw_back_partner_share).
+PARTNER_COMMISSION_PERCENT = 15
+PARTNER_COMMISSION_MONTHS = 12
+PARTNER_DEFAULT_MONTHLY_CREDITS = 30_000
+PARTNER_MAX_TRIAL_DAYS = 30
+PARTNER_MAX_DAYS_UNTIL_DUE = 60
+PARTNER_DASHBOARD_URL = "https://partner.observer-ai.com"
+
+# Shared mailbox providers say nothing about which company a contact is from,
+# so they never count as an existing org's domain.
+_SHARED_EMAIL_DOMAINS = {
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com",
+    "msn.com", "yahoo.com", "icloud.com", "me.com", "aol.com", "proton.me",
+    "protonmail.com", "gmx.com", "zoho.com",
+}
+
+
+class PartnerOrgRequest(BaseModel):
+    name: str
+    admin_email: EmailStr
+    tier: str = "max"
+    seats: int
+    days_until_due: int = 30
+    trial_period_days: int | None = None
+    # -1 is an uncapped pool.
+    monthly_credits: int = PARTNER_DEFAULT_MONTHLY_CREDITS
+    dry_run: bool = False
+
+
+def _require_enterprise_partner(partner: dict) -> str:
+    """The partner's Connect account ID, or 400 for a codes-only partner."""
+    if not partner.get("account_id"):
+        raise HTTPException(status_code=400, detail="This partner key is not set up for enterprise sales.")
+    return partner["account_id"]
+
+
+def _find_existing_org_for_domain(email: str) -> str | None:
+    """
+    org_id of an existing org billed to the same company domain, or None.
+    This is the whole "who owns the account" rule: the first org created for a
+    company is the deal, and a partner cannot re-provision one that exists.
+    Thread-side.
+    """
+    domain = email.rsplit("@", 1)[-1].lower()
+    if domain in _SHARED_EMAIL_DOMAINS:
+        return None
+    customers = stripe.Customer.search(query=f'email~"@{domain}"', limit=100)
+    for cust in customers.data:
+        org_id = sget(cust.metadata, "org_id")
+        if org_id and (cust.email or "").lower().endswith(f"@{domain}"):
+            return org_id
+    return None
+
+
+@payments_router.post(
+    "/partner/orgs",
+    summary="[Partner] Provision an enterprise org for a closed deal",
+    tags=["Partner"]
+)
+async def partner_create_org(body: PartnerOrgRequest, partner: dict = Depends(get_partner)):
+    """
+    Create the org, its Stripe customer, and an invoiced subscription at the
+    standard seat price, with the partner's commission attached.
+
+    The price is never taken from the request: a negotiated price goes through
+    the admin endpoint, which is how it gets approved. Pass dry_run=true to get
+    the quote without creating anything.
+    """
+    account_id = _require_enterprise_partner(partner)
+
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="Company name is required.")
+    if not 1 <= body.days_until_due <= PARTNER_MAX_DAYS_UNTIL_DUE:
+        raise HTTPException(status_code=400, detail=f"Net days must be between 1 and {PARTNER_MAX_DAYS_UNTIL_DUE}.")
+    if body.trial_period_days is not None and not 1 <= body.trial_period_days <= PARTNER_MAX_TRIAL_DAYS:
+        raise HTTPException(status_code=400, detail=f"Trial days must be between 1 and {PARTNER_MAX_TRIAL_DAYS}.")
+    if body.monthly_credits < -1:
+        raise HTTPException(status_code=400, detail="Monthly pool must be a positive number, or -1 for unlimited.")
+
+    price_id = os.environ.get("STRIPE_ENTERPRISE_SEAT_PRICE_ID")
+    if not price_id:
+        logger.error("STRIPE_ENTERPRISE_SEAT_PRICE_ID is not set but a partner tried to provision an org.")
+        raise HTTPException(status_code=503, detail="Enterprise checkout is not currently available.")
+
+    try:
+        price, existing_org = await asyncio.gather(
+            asyncio.to_thread(stripe.Price.retrieve, price_id),
+            asyncio.to_thread(_find_existing_org_for_domain, body.admin_email),
+        )
+    except Exception as e:
+        logger.error(f"Partner '{partner['id']}' org pre-checks failed: {e}")
+        raise HTTPException(status_code=502, detail="Could not reach Stripe. Please try again.")
+
+    if existing_org:
+        logger.warning(f"Partner '{partner['id']}' tried to provision {body.admin_email}, but {existing_org} exists")
+        raise HTTPException(
+            status_code=409,
+            detail="An organization for this company already exists. Contact Observer if you think this is wrong.",
+        )
+
+    unit_amount = sget(price, "unit_amount") or 0
+    monthly_total = unit_amount * body.seats
+    quote = {
+        "currency": price.currency,
+        "unit_amount": unit_amount,
+        "monthly_total": monthly_total,
+        "commission_percent": PARTNER_COMMISSION_PERCENT,
+        "monthly_commission": round(monthly_total * PARTNER_COMMISSION_PERCENT / 100),
+        "commission_months": PARTNER_COMMISSION_MONTHS,
+    }
+
+    org_body = OrgCreateRequest(
+        name=body.name.strip(),
+        admin_email=body.admin_email,
+        tier=body.tier,
+        seats=body.seats,
+        monthly_credits=body.monthly_credits,
+        price_id=price_id,
+        days_until_due=body.days_until_due,
+        trial_period_days=body.trial_period_days,
+        dry_run=body.dry_run,
+    )
+    result = await provision_org(org_body, partner={
+        "id": partner["id"],
+        "account_id": account_id,
+        "percent": PARTNER_COMMISSION_PERCENT,
+        "months": PARTNER_COMMISSION_MONTHS,
+    })
+    return {**result, "partner": partner["id"], "quote": quote}
+
+
+def _list_partner_deals(partner_id: str) -> list[dict]:
+    """Every subscription a partner provisioned, straight from Stripe. Thread-side."""
+    subs = stripe.Subscription.search(
+        query=f"metadata['partner']:'{partner_id}'",
+        limit=100,
+        expand=["data.customer", "data.latest_invoice"],
+    )
+    deals = []
+    for sub in subs.auto_paging_iter():
+        customer = sget(sub, "customer")
+        invoice = sget(sub, "latest_invoice")
+        item = sget(sget(sget(sub, "items"), "data"), 0)
+        commission_until = sget(sub.metadata, "commission_until")
+        deals.append({
+            "org_id": sget(sub.metadata, "org_id"),
+            "company": sget(customer, "name"),
+            "admin_email": sget(customer, "email"),
+            "status": sub.status,
+            "seats": sget(item, "quantity"),
+            "created": sub.created,
+            "commission_until": int(commission_until) if commission_until else None,
+            "latest_invoice": {
+                "status": sget(invoice, "status"),
+                "amount_due": sget(invoice, "amount_due"),
+                "amount_paid": sget(invoice, "amount_paid"),
+                "currency": sget(invoice, "currency"),
+                "hosted_invoice_url": sget(invoice, "hosted_invoice_url"),
+            } if invoice else None,
+        })
+    deals.sort(key=lambda d: d["created"], reverse=True)
+    return deals
+
+
+@payments_router.get(
+    "/partner/orgs",
+    summary="[Partner] List the orgs this partner provisioned",
+    tags=["Partner"]
+)
+async def partner_list_orgs(partner: dict = Depends(get_partner)):
+    _require_enterprise_partner(partner)
+    try:
+        deals = await asyncio.to_thread(_list_partner_deals, partner["id"])
+    except Exception as e:
+        logger.error(f"Could not list deals for partner '{partner['id']}': {e}")
+        raise HTTPException(status_code=502, detail="Could not load your deals from Stripe.")
+    return {
+        "partner": partner["id"],
+        "commission_percent": PARTNER_COMMISSION_PERCENT,
+        "commission_months": PARTNER_COMMISSION_MONTHS,
+        "orgs": deals,
+    }
+
+
+def _partner_stripe_link(account_id: str) -> dict:
+    """Express dashboard login, or the onboarding flow if it isn't finished. Thread-side."""
+    account = stripe.Account.retrieve(account_id)
+    if not account.details_submitted:
+        link = stripe.AccountLink.create(
+            account=account_id,
+            refresh_url=PARTNER_DASHBOARD_URL,
+            return_url=PARTNER_DASHBOARD_URL,
+            type="account_onboarding",
+        )
+        return {"url": link.url, "kind": "onboarding"}
+    link = stripe.Account.create_login_link(account_id)
+    return {"url": link.url, "kind": "dashboard"}
+
+
+@payments_router.post(
+    "/partner/stripe-link",
+    summary="[Partner] One-time link to the partner's Stripe Express dashboard",
+    tags=["Partner"]
+)
+async def partner_stripe_link(partner: dict = Depends(get_partner)):
+    account_id = _require_enterprise_partner(partner)
+    try:
+        return await asyncio.to_thread(_partner_stripe_link, account_id)
+    except Exception as e:
+        logger.error(f"Could not create Stripe link for partner '{partner['id']}': {e}")
+        raise HTTPException(status_code=502, detail="Could not open Stripe. Please try again.")
+
+
+def _claw_back_partner_share(event_type: str, obj) -> None:
+    """
+    Reverse a partner's share of a refunded or disputed payment. A charge with
+    no Connect transfer (every non-partner payment) is a no-op. Thread-side.
+
+    Safe under webhook retries. A refund reverses only the gap between the
+    partner's share of the total refunded so far and what is already reversed,
+    so a refund issued with reverse_transfer=true is a no-op here. A dispute
+    reverses under an idempotency key tied to that dispute.
+    """
+    is_dispute = event_type == "charge.dispute.created"
+    charge = stripe.Charge.retrieve(sget(obj, "charge") if is_dispute else sget(obj, "id"), expand=["transfer"])
+    transfer = sget(charge, "transfer")
+    if not transfer or not charge.amount:
+        return
+
+    if is_dispute:
+        share = round(transfer.amount * obj.amount / charge.amount)
+        amount = min(share, transfer.amount - transfer.amount_reversed)
+        idempotency_key = f"partner-dispute-reversal-{obj.id}"
+    else:
+        share = round(transfer.amount * charge.amount_refunded / charge.amount)
+        amount = share - transfer.amount_reversed
+        idempotency_key = f"partner-refund-reversal-{charge.id}-{charge.amount_refunded}"
+
+    if amount <= 0:
+        return
+    stripe.Transfer.create_reversal(transfer.id, amount=amount, idempotency_key=idempotency_key)
+    logger.info(f"Reversed {amount} of transfer {transfer.id} to {transfer.destination} after {event_type} on {charge.id}")
 
 
 
@@ -933,6 +1190,14 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         'customer.subscription.deleted',
         'invoice.payment_failed',
     }
+
+    # A refund or dispute on a partner deal takes back the partner's share. Those
+    # charges belong to org customers, which the routing below would swallow,
+    # so this runs first. Errors propagate: a 500 makes Stripe retry, and the
+    # reversal is idempotent.
+    if event_type in ('charge.refunded', 'charge.dispute.created'):
+        await asyncio.to_thread(_claw_back_partner_share, event_type, event_data)
+        return {"status": "success"}
 
     # Enterprise orgs are billed on a customer carrying an org_id in metadata.
     # Route those away from the per-user path entirely: that path resolves the

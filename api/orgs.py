@@ -20,6 +20,7 @@ Design notes
 """
 
 import asyncio
+import calendar
 import logging
 import os
 import secrets
@@ -299,6 +300,79 @@ async def create_org(body: OrgCreateRequest):
 
     Pass dry_run=true to validate inputs without touching Stripe or R2.
     """
+    return await provision_org(body)
+
+
+def _add_months(dt: datetime, months: int) -> datetime:
+    """Same day-of-month `months` later, clamped to the month's last day."""
+    y, m = divmod(dt.month - 1 + months, 12)
+    year, month = dt.year + y, m + 1
+    return dt.replace(year=year, month=month, day=min(dt.day, calendar.monthrange(year, month)[1]))
+
+
+def _create_commission_schedule(customer_id: str, org_id: str, body: OrgCreateRequest,
+                                price_id: str, partner: dict) -> tuple[str, str, int]:
+    """
+    Start the org's subscription through a schedule that pays the partner a
+    share of every invoice for their commission window, then stops on its own.
+
+    The subscription is created by the schedule rather than attached to it
+    afterwards: the first invoice is finalized at creation, and transfer_data
+    is fixed on an invoice once it is finalized, so a schedule added later
+    would miss the partner's first month.
+
+    Phase 1 ends an hour before the renewal that opens month N+1, so that
+    invoice is already outside it. Phase 2 carries no transfer_data and the
+    schedule releases after it, leaving a plain subscription behind; the
+    schedule's default_settings never had transfer_data, so nothing reinstates
+    it. Thread-side: call through asyncio.to_thread.
+
+    Returns (schedule_id, subscription_id, commission_until).
+    """
+    now = datetime.now(timezone.utc)
+    anchor = now + timedelta(days=body.trial_period_days) if body.trial_period_days else now
+    commission_until = int((_add_months(anchor, partner["months"]) - timedelta(hours=1)).timestamp())
+    metadata = {
+        "org_id": org_id,
+        "partner": partner["id"],
+        "commission_until": str(commission_until),
+    }
+    phase = {
+        "items": [{"price": price_id, "quantity": body.seats}],
+        "collection_method": "send_invoice",
+        "invoice_settings": {"days_until_due": body.days_until_due},
+        "proration_behavior": "none",
+        "metadata": metadata,
+    }
+    commission_phase = {
+        **phase,
+        "end_date": commission_until,
+        "transfer_data": {"destination": partner["account_id"], "amount_percent": partner["percent"]},
+    }
+    if body.trial_period_days:
+        commission_phase["trial_end"] = int(anchor.timestamp())
+    tail_phase = {
+        **phase,
+        "end_date": int(_add_months(datetime.fromtimestamp(commission_until, timezone.utc), 1).timestamp()),
+    }
+    schedule = stripe.SubscriptionSchedule.create(
+        customer=customer_id,
+        start_date="now",
+        end_behavior="release",
+        phases=[commission_phase, tail_phase],
+        metadata=metadata,
+    )
+    return schedule.id, schedule.subscription, commission_until
+
+
+async def provision_org(body: OrgCreateRequest, partner: Optional[dict] = None) -> dict:
+    """
+    Shared by the admin endpoint and payments' partner endpoint.
+
+    `partner`, when given, is {"id", "account_id", "percent", "months"}: the
+    subscription is started through _create_commission_schedule so Stripe pays
+    the partner's Connect account its share of each invoice for `months`.
+    """
     if body.tier not in ("pro", "max"):
         raise HTTPException(status_code=400, detail="tier must be 'pro' or 'max'")
     if body.seats < 1:
@@ -323,27 +397,40 @@ async def create_org(body: OrgCreateRequest):
 
     await _assert_no_personal_subscription(admin_email)
 
+    customer_metadata = {"org_id": org_id}
+    if partner:
+        customer_metadata["partner"] = partner["id"]
+    schedule_id = commission_until = None
+
     try:
         customer = await asyncio.to_thread(
             lambda: stripe.Customer.create(
                 email=admin_email,
                 name=body.name,
-                metadata={"org_id": org_id},
+                metadata=customer_metadata,
             )
         )
-        subscription_params = {
-            "customer": customer.id,
-            "items": [{"price": price_id, "quantity": body.seats}],
-            "collection_method": "send_invoice",
-            "days_until_due": body.days_until_due,
-            "metadata": {"org_id": org_id},
-            "expand": ["latest_invoice"],
-        }
-        if body.trial_period_days is not None:
-            subscription_params["trial_period_days"] = body.trial_period_days
-        subscription = await asyncio.to_thread(
-            lambda: stripe.Subscription.create(**subscription_params)
-        )
+        if partner:
+            schedule_id, subscription_id, commission_until = await asyncio.to_thread(
+                _create_commission_schedule, customer.id, org_id, body, price_id, partner
+            )
+            subscription = await asyncio.to_thread(
+                lambda: stripe.Subscription.retrieve(subscription_id, expand=["latest_invoice"])
+            )
+        else:
+            subscription_params = {
+                "customer": customer.id,
+                "items": [{"price": price_id, "quantity": body.seats}],
+                "collection_method": "send_invoice",
+                "days_until_due": body.days_until_due,
+                "metadata": {"org_id": org_id},
+                "expand": ["latest_invoice"],
+            }
+            if body.trial_period_days is not None:
+                subscription_params["trial_period_days"] = body.trial_period_days
+            subscription = await asyncio.to_thread(
+                lambda: stripe.Subscription.create(**subscription_params)
+            )
     except Exception as e:
         logger.exception(f"Stripe provisioning failed for org {org_id}")
         raise HTTPException(status_code=502, detail=f"Stripe provisioning failed: {e}")
@@ -394,7 +481,11 @@ async def create_org(body: OrgCreateRequest):
     except Exception as e:
         logger.exception(f"Provisioning failed after Stripe setup for org {org_id}; unwinding")
         try:
-            await asyncio.to_thread(lambda: stripe.Subscription.cancel(subscription.id))
+            if schedule_id:
+                # Cancelling the schedule also cancels the subscription it started.
+                await asyncio.to_thread(lambda: stripe.SubscriptionSchedule.cancel(schedule_id))
+            else:
+                await asyncio.to_thread(lambda: stripe.Subscription.cancel(subscription.id))
             await asyncio.to_thread(lambda: stripe.Customer.delete(customer.id))
             logger.info(f"Unwound Stripe customer {customer.id} for failed org {org_id}")
         except Exception:
@@ -406,8 +497,9 @@ async def create_org(body: OrgCreateRequest):
             raise
         raise HTTPException(status_code=500, detail=f"Provisioning failed after Stripe setup: {e}")
 
-    logger.info(f"Provisioned org {org_id} ({body.seats} {body.tier} seats) for {admin_email}")
-    return {
+    via = f" via partner '{partner['id']}'" if partner else ""
+    logger.info(f"Provisioned org {org_id} ({body.seats} {body.tier} seats) for {admin_email}{via}")
+    response = {
         "org_id": org_id,
         "owner_email": admin_email,
         "seats": body.seats,
@@ -419,6 +511,10 @@ async def create_org(body: OrgCreateRequest):
         "owner_status": result["status"],
         "team_url": f"{APP_BASE_URL}/team",
     }
+    if partner:
+        response["stripe_schedule_id"] = schedule_id
+        response["commission_until"] = commission_until
+    return response
 
 
 @orgs_router.get("/admin/orgs/{org_id}", dependencies=[Depends(get_admin_access)], summary="Read an org record")

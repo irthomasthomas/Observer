@@ -493,10 +493,10 @@ export function EnterprisePanel() {
   );
 }
 
-const inputCls =
+export const inputCls =
   'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 focus:bg-white transition disabled:bg-gray-100 disabled:text-gray-400';
 
-function Field({
+export function Field({
   label,
   hint,
   children,
@@ -514,7 +514,7 @@ function Field({
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+export function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex gap-3 text-sm">
       <span className="text-gray-400 w-24 shrink-0">{label}</span>

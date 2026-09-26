@@ -20,10 +20,31 @@ export async function adminFetch<T>(
   path: string,
   init: RequestInit = {}
 ): Promise<T> {
+  return keyedFetch<T>({ 'X-Admin-Key': adminKey }, 'Invalid admin key.', path, init);
+}
+
+/**
+ * Call a partner endpoint with the X-Partner-Key header. Same handling as the
+ * admin key: React state only, never persisted.
+ */
+export async function partnerFetch<T>(
+  partnerKey: string,
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
+  return keyedFetch<T>({ 'X-Partner-Key': partnerKey }, 'Invalid partner key.', path, init);
+}
+
+async function keyedFetch<T>(
+  keyHeader: Record<string, string>,
+  forbiddenMessage: string,
+  path: string,
+  init: RequestInit
+): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
-      'X-Admin-Key': adminKey,
+      ...keyHeader,
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
       ...(init.headers || {}),
     },
@@ -33,7 +54,7 @@ export async function adminFetch<T>(
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      throw new ApiError(response.status, 'Invalid admin key.');
+      throw new ApiError(response.status, forbiddenMessage);
     }
     const detail =
       data && typeof data === 'object' && 'detail' in data

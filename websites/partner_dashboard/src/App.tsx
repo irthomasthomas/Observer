@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Ticket, Building2 } from 'lucide-react';
+import { Handshake, Building2 } from 'lucide-react';
 import { PartnerPanel } from './PartnerPanel';
 import { EnterprisePanel } from './EnterprisePanel';
 
@@ -16,7 +16,7 @@ function App() {
         <div className="absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-indigo-100/40 blur-3xl" />
       </div>
 
-      <div className={`relative w-full ${tab === 'enterprise' ? 'max-w-2xl' : 'max-w-md'} transition-all`}>
+      <div className="relative w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-sm border border-gray-100 mb-5">
@@ -30,7 +30,7 @@ function App() {
         {/* Tabs. These authenticate with different keys — partners must never be
             able to reach the admin endpoints, which create Stripe subscriptions. */}
         <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1 mb-5 shadow-sm">
-          <TabButton active={tab === 'partner'} onClick={() => setTab('partner')} icon={<Ticket className="w-4 h-4" />}>
+          <TabButton active={tab === 'partner'} onClick={() => setTab('partner')} icon={<Handshake className="w-4 h-4" />}>
             Partner
           </TabButton>
           <TabButton active={tab === 'enterprise'} onClick={() => setTab('enterprise')} icon={<Building2 className="w-4 h-4" />}>
